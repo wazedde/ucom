@@ -1,0 +1,17 @@
+[package]
+name = "ucom"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[profile.release]
+lto = true
+strip = true
+opt-level = "s"
+codegen-units = 1
+
+[dependencies]
+anyhow = "1.0.66"
+clap = { version = "4.0.23", features = ["derive"] }
+natord = "1.0.9"
