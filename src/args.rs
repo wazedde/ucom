@@ -85,6 +85,10 @@ pub enum Action {
         )]
         path: std::path::PathBuf,
 
+        /// Suppress initializing a new git repository.
+        #[clap(long = "no-git", action, verbatim_doc_comment)]
+        no_git: bool,
+
         /// Waits for the command to finish before continuing.
         #[clap(long = "wait", short = 'w', action, verbatim_doc_comment)]
         wait: bool,

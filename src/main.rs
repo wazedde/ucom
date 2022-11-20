@@ -1,5 +1,7 @@
 use std::ffi::OsString;
 use std::fs;
+use std::fs::File;
+use std::io::Write;
 use std::path::{Path, PathBuf};
 use std::process::{exit, Command};
 
@@ -38,11 +40,12 @@ fn main() -> Result<()> {
         args::Action::New {
             version_pattern,
             path,
+            no_git,
             wait,
             quiet,
             dry_run,
             args,
-        } => new_project_cmd(version_pattern, path, args)
+        } => new_project_cmd(version_pattern, path, args, no_git)
             .context("Cannot create project")?
             .run(wait, quiet, dry_run),
 
@@ -97,6 +100,7 @@ fn new_project_cmd(
     version_pattern: Option<String>,
     project_path: PathBuf,
     unity_args: Option<Vec<String>>,
+    no_git: bool,
 ) -> Result<CmdRunner> {
     // Check if destination already exists.
     if project_path.exists() {
@@ -112,6 +116,14 @@ fn new_project_cmd(
     cmd.arg("-createProject")
         .arg(&project_path)
         .args(unity_args.unwrap_or_default());
+
+    if !no_git {
+        if git_init(&project_path).is_err() {
+            return Err(anyhow!(
+                "Could not create git repository. Make sure git is available or add the --no-git flag."
+            ));
+        }
+    }
 
     Ok(CmdRunner::new(
         cmd,
@@ -314,4 +326,15 @@ fn validate_path(path: &Path) -> Result<PathBuf> {
     }
 
     Ok(path)
+}
+
+/// Initializes a new git repository with a default Unity specific .gitignore.
+pub fn git_init(path: &Path) -> Result<()> {
+    Command::new("git").arg("init").arg(path).output()?;
+
+    let path = path.to_path_buf().join(".gitignore");
+    let gitignore = include_str!("include/unity-gitignore.txt");
+    let mut output = File::create(path)?;
+    write!(output, "{}", gitignore)?;
+    Ok(())
 }
