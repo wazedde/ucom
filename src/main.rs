@@ -65,7 +65,7 @@ fn show_list(version_pattern: Option<String>) -> Result<()> {
     let versions = installed_matching_unity_versions(&version_pattern, &root_path);
 
     let Some(versions) = versions else {
-        return Err(anyhow!("No Unity installations found in: {}", root_path.to_string_lossy()));
+        return Err(anyhow!("No Unity installations found in {}", root_path.to_string_lossy()));
     };
 
     println!("Installed Unity versions:");
@@ -101,7 +101,7 @@ fn new_project_cmd(
     // Check if destination already exists.
     if project_path.exists() {
         return Err(anyhow!(
-            "Directory already exists: {}",
+            "Directory already exists: '{}'",
             project_path.canonicalize()?.to_string_lossy()
         ));
     }
@@ -116,7 +116,7 @@ fn new_project_cmd(
     Ok(CmdRunner::new(
         cmd,
         format!(
-            "Creating Unity {} project in {}",
+            "Creating Unity {} project in '{}'",
             version.to_string_lossy(),
             project_path.to_string_lossy()
         ),
@@ -159,7 +159,7 @@ fn open_project_cmd(
     Ok(CmdRunner::new(
         cmd,
         format!(
-            "Opening Unity {} project in {}",
+            "Opening Unity {} project in '{}'",
             version.to_string_lossy(),
             project_path.to_string_lossy()
         ),
@@ -175,7 +175,7 @@ fn unity_project_version(project_path: &Path) -> Result<String> {
 
     let Ok(project_version) = project_version else {
         return Err(anyhow!(
-            "Directory does not contain a Unity project: {}",
+            "Directory does not contain a Unity project: '{}'",
             project_path.to_string_lossy())
         );
     };
@@ -195,7 +195,7 @@ fn unity_project_version(project_path: &Path) -> Result<String> {
 
     let Some(project_version) = project_version else {
         return Err(anyhow!(
-            "Could not get project version from: {}",
+            "Could not get project version from: '{}'",
             file_path.to_string_lossy())
         );
     };
@@ -259,7 +259,7 @@ fn installed_matching_unity_versions(
 fn find_latest_matching_unity(version_pattern: &Option<String>) -> Result<(OsString, PathBuf)> {
     let Some(found_version) = find_latest_matching_unity_version(version_pattern) else {
         return Err(anyhow!(
-            "No Unity installation was found that matches version: {}",
+            "No Unity installation was found that matches version {}",
             version_pattern.clone().unwrap_or_else(|| "<any>".into()))
         );
     };
@@ -291,7 +291,7 @@ fn installed_unity_versions(search_path: &Path) -> Option<Vec<OsString>> {
 fn validate_path(path: &Path) -> Result<PathBuf> {
     if !path.exists() {
         return Err(anyhow!(
-            "Directory does not exists {}",
+            "Directory does not exists '{}'",
             path.to_string_lossy()
         ));
     }
