@@ -1,12 +1,14 @@
-use crate::args::Args;
-use crate::cmd::CmdRunner;
-use anyhow::{anyhow, Context, Result};
-use clap::CommandFactory;
-use clap::Parser;
 use std::ffi::OsString;
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::{exit, Command};
+
+use anyhow::{anyhow, Context, Result};
+use clap::CommandFactory;
+use clap::Parser;
+
+use crate::args::Args;
+use crate::cmd::CmdRunner;
 
 mod args;
 mod cmd;
@@ -127,7 +129,7 @@ fn open_project_cmd(
     version_pattern: Option<String>,
     unity_args: Option<Vec<String>>,
 ) -> Result<CmdRunner> {
-    // Make sure the project path exists ans is formatted correctly.
+    // Make sure the project path exists and is formatted correctly.
     let project_path = validate_path(&project_path)?;
 
     let (version, unity_directory) = if version_pattern.is_some() {
@@ -135,9 +137,9 @@ fn open_project_cmd(
     } else {
         // Get the Unity version the project uses.
         let version: OsString = unity_project_version(&project_path)?.into();
+
         // Check if that Unity version is installed.
         let directory = Path::new(&installation_root_path()).join(&version);
-
         if !directory.exists() {
             return Err(anyhow!(
                 "Unity version that the project uses is not installed: {}",
@@ -215,9 +217,9 @@ fn installation_root_path() -> PathBuf {
 /// Returns the path to the executable.
 fn unity_executable_path(editor_path: &PathBuf) -> PathBuf {
     if cfg!(target_os = "macos") {
-        return Path::new(&editor_path).join("Unity.app/Contents/MacOS/Unity");
+        Path::new(&editor_path).join("Unity.app/Contents/MacOS/Unity")
     } else if cfg!(target_os = "windows") {
-        return Path::new(&editor_path).join(r"Editor\Unity.exe");
+        Path::new(&editor_path).join(r"Editor\Unity.exe")
     } else {
         unimplemented!()
     }
@@ -299,7 +301,7 @@ fn validate_path(path: &Path) -> Result<PathBuf> {
 
     let mut path = path.canonicalize()?;
 
-    // Unity borks when passing it paths that start wit "\\?\". Strip it off!!
+    // Unity borks when passing it paths that start with "\\?\". Strip it off!!
     if cfg!(target_os = "windows") {
         let stripped_path = path.to_string_lossy();
         let stripped_path = stripped_path

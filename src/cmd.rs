@@ -1,5 +1,6 @@
-use anyhow::Result;
 use std::process::Command;
+
+use anyhow::Result;
 
 /// A runner for commands.
 pub(crate) struct CmdRunner {
