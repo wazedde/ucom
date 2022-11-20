@@ -1,9 +1,9 @@
 /// Unity Commander, a command line interface for Unity projects.
 #[derive(clap::Parser, Debug)]
-#[command(author, version, about)]
+#[command(author, version, about, arg_required_else_help = false)]
 pub struct Args {
     #[command(subcommand)]
-    pub action: Action,
+    pub action: Option<Action>,
 }
 
 #[derive(clap::Subcommand, Debug)]
@@ -27,7 +27,8 @@ pub enum Action {
         visible_alias = "r",
         verbatim_doc_comment,
         trailing_var_arg = true,
-        allow_hyphen_values = true
+        allow_hyphen_values = true,
+        arg_required_else_help = true
     )]
     Run {
         /// The Unity version to run. You can specify a partial version; e.g. 2021 will match the
@@ -61,7 +62,8 @@ pub enum Action {
     #[command(
         verbatim_doc_comment,
         trailing_var_arg = true,
-        allow_hyphen_values = true
+        allow_hyphen_values = true,
+        arg_required_else_help = true
     )]
     New {
         /// The Unity version to use for the new project. You can specify a partial version;
@@ -104,7 +106,8 @@ pub enum Action {
         visible_alias = "o",
         trailing_var_arg = true,
         allow_hyphen_values = true,
-        verbatim_doc_comment
+        verbatim_doc_comment,
+        arg_required_else_help = true
     )]
     Open {
         /// The directory of the project.

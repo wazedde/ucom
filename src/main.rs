@@ -1,21 +1,24 @@
+use crate::args::Args;
+use crate::cmd::CmdRunner;
+use anyhow::{anyhow, Context, Result};
+use clap::CommandFactory;
+use clap::Parser;
 use std::ffi::OsString;
 use std::fs;
 use std::path::{Path, PathBuf};
-use std::process::Command;
-
-use anyhow::{anyhow, Context, Result};
-use clap::Parser;
-
-use crate::args::Args;
-use crate::cmd::CmdRunner;
+use std::process::{exit, Command};
 
 mod args;
 mod cmd;
 
 fn main() -> Result<()> {
     let args = Args::parse();
+    let Some(action) = args.action else {
+        let _ = Args::command().print_help();
+        exit(0)
+    };
 
-    match args.action {
+    match action {
         args::Action::List { version_pattern } => {
             show_list(version_pattern).context("Cannot list installations")
         }
@@ -72,7 +75,10 @@ fn show_list(version_pattern: Option<String>) -> Result<()> {
 }
 
 /// Returns command that runs Unity.
-fn run_unity_cmd(version_pattern: Option<String>, unity_args: Option<Vec<String>>) -> Result<CmdRunner> {
+fn run_unity_cmd(
+    version_pattern: Option<String>,
+    unity_args: Option<Vec<String>>,
+) -> Result<CmdRunner> {
     let (unity_version, directory) = find_latest_matching_unity(&version_pattern)?;
 
     let mut cmd = Command::new(unity_executable_path(&directory));
@@ -80,8 +86,8 @@ fn run_unity_cmd(version_pattern: Option<String>, unity_args: Option<Vec<String>
 
     Ok(CmdRunner::new(
         cmd,
-        format!("Running Unity {}", unity_version.to_string_lossy()))
-    )
+        format!("Running Unity {}", unity_version.to_string_lossy()),
+    ))
 }
 
 /// Returns command that creates an empty project at the given path.
@@ -99,10 +105,10 @@ fn new_project_cmd(
     }
 
     let (version, unity_directory) = find_latest_matching_unity(&version_pattern)?;
-    let project_path: String = project_path.to_string_lossy().into();
 
     let mut cmd = Command::new(unity_executable_path(&unity_directory));
-    cmd.args(["-createProject", &project_path])
+    cmd.arg("-createProject")
+        .arg(&project_path)
         .args(unity_args.unwrap_or_default());
 
     Ok(CmdRunner::new(
@@ -110,9 +116,9 @@ fn new_project_cmd(
         format!(
             "Creating Unity {} project in {}",
             version.to_string_lossy(),
-            project_path
-        ))
-    )
+            project_path.to_string_lossy()
+        ),
+    ))
 }
 
 /// Returns command that opens the project at the given path.
@@ -121,19 +127,14 @@ fn open_project_cmd(
     version_pattern: Option<String>,
     unity_args: Option<Vec<String>>,
 ) -> Result<CmdRunner> {
-    // Make sure the project path exists.
-    let Ok(project_path) = &project_path.canonicalize() else {
-        return Err(anyhow!(
-            "Directory does not exist: {}",
-            project_path.to_string_lossy()
-        ));
-    };
+    // Make sure the project path exists ans is formatted correctly.
+    let project_path = validate_path(&project_path)?;
 
     let (version, unity_directory) = if version_pattern.is_some() {
         find_latest_matching_unity(&version_pattern)?
     } else {
         // Get the Unity version the project uses.
-        let version: OsString = unity_project_version(project_path)?.into();
+        let version: OsString = unity_project_version(&project_path)?.into();
         // Check if that Unity version is installed.
         let directory = Path::new(&installation_root_path()).join(&version);
 
@@ -159,14 +160,14 @@ fn open_project_cmd(
             "Opening Unity {} project in {}",
             version.to_string_lossy(),
             project_path.to_string_lossy()
-        ))
-    )
+        ),
+    ))
 }
-
-const PROJECT_VERSION_FILE: &str = "ProjectSettings/ProjectVersion.txt";
 
 /// Returns the Unity version used for the project.
 fn unity_project_version(project_path: &Path) -> Result<String> {
+    const PROJECT_VERSION_FILE: &str = "ProjectSettings/ProjectVersion.txt";
+
     let file_path = project_path.join(PROJECT_VERSION_FILE);
     let project_version = fs::read_to_string(&file_path);
 
@@ -205,7 +206,7 @@ fn installation_root_path() -> PathBuf {
     if cfg!(target_os = "macos") {
         "/Applications/Unity/Hub/Editor/".to_string().into()
     } else if cfg!(target_os = "windows") {
-        todo!()
+        r"C:\Program Files\Unity\Hub\Editor".to_string().into()
     } else {
         unimplemented!()
     }
@@ -216,7 +217,7 @@ fn unity_executable_path(editor_path: &PathBuf) -> PathBuf {
     if cfg!(target_os = "macos") {
         return Path::new(&editor_path).join("Unity.app/Contents/MacOS/Unity");
     } else if cfg!(target_os = "windows") {
-        todo!()
+        return Path::new(&editor_path).join(r"Editor\Unity.exe");
     } else {
         unimplemented!()
     }
@@ -282,4 +283,33 @@ fn installed_unity_versions(search_path: &Path) -> Option<Vec<OsString>> {
         versions.sort_by(|a, b| natord::compare(&a.to_string_lossy(), &b.to_string_lossy()));
         Some(versions)
     }
+}
+
+/// Returns valid and existing path.
+fn validate_path(path: &Path) -> Result<PathBuf> {
+    if !path.exists() {
+        return Err(anyhow!(
+            "Directory does not exists {}",
+            path.to_string_lossy()
+        ));
+    }
+    if path.has_root() {
+        return Ok(path.to_path_buf());
+    }
+
+    let mut path = path.canonicalize()?;
+
+    // Unity borks when passing it paths that start wit "\\?\". Strip it off!!
+    if cfg!(target_os = "windows") {
+        let stripped_path = path.to_string_lossy();
+        let stripped_path = stripped_path
+            .strip_prefix(r"\\?\")
+            .map(|p| Path::new(p).to_path_buf());
+
+        if let Some(stripped_path) = stripped_path {
+            path = stripped_path;
+        }
+    }
+
+    Ok(path)
 }

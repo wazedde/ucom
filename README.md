@@ -25,7 +25,6 @@ Some examples:
 - After completion the executable can be found in the `target/release` directory.
 
 ## Limitations
-- Only works on macOS, no Windows yet.
 - Requires that Unity Hub and the editors are installed in the default locations.
 
 ## `ucom help`
