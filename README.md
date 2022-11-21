@@ -19,9 +19,15 @@ Some examples:
 - `ucom open ~/Develop/MyProject -u 2021.3` opens the project with the latest 2021.3 version. Use it to e.g. upgrade the
   project to the latest Unity version.
 
-## How to build
+## How to install
 
 - Make sure [Rust](https://www.rust-lang.org) is installed on your system (v1.65.0 or later).
+- Run `cargo install --git https://github.com/jakkovanhunen/ucom`.
+- The `ucom` command is now available from the commandline.
+
+Or build manually:
+
+- Clone the repository.
 - Run `cargo build --release` in the root of this project.
 - After completion the executable can be found in the `target/release` directory.
 
