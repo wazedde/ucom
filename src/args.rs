@@ -57,7 +57,7 @@ pub enum Action {
         #[arg(value_name = "UNITY_ARGS", required = true, verbatim_doc_comment)]
         args: Option<Vec<String>>,
     },
-    /// This command will create a new Unity project in the given directory.
+    /// This command will create a new Unity project and Git repository in the given directory.
     /// Unless specified otherwise, the latest installed Unity version is used.
     #[command(
         verbatim_doc_comment,

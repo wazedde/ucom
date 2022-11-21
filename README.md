@@ -10,7 +10,8 @@ Some examples:
 - `ucom list` lists all the Unity versions on the system.
 - `ucom list -u 2021.3` lists the Unity versions in the 2021.3 range on the system.
 
-- `ucom new ~/Develop/MyProject` creates a new project using the latest Unity version on the system.
+- `ucom new ~/Develop/MyProject` creates a new project using the latest Unity version on the system and initializes a
+  git repository wih a Unity specific `.gitignore`.
 - `ucom new ~/Develop/MyProject -u 2021.3 -- -quit` creates a new project using the latest 2021.3 version on the system
   and closes the editor after it has been created.
 
@@ -25,18 +26,20 @@ Some examples:
 - After completion the executable can be found in the `target/release` directory.
 
 ## Limitations
+
 - Requires that Unity Hub and the editors are installed in the default locations.
+- Requires that git is available for initializing a repository when using the `new` command.
 
 ## `ucom help`
 
 ```
-Usage: ucom <COMMAND>
+Usage: ucom [COMMAND]
 
 Commands:
   list  This command will show a list of the installed Unity versions.
   run   This command will run Unity.
             Unless specified otherwise, the latest installed Unity version is used. [aliases: r]
-  new   This command will create a new Unity project in the given directory.
+  new   This command will create a new Unity project and Git repository in the given directory.
             Unless specified otherwise, the latest installed Unity version is used.
   open  This command will open the Unity project in the given directory. [aliases: o]
   help  Print this message or the help of the given subcommand(s)
@@ -82,7 +85,7 @@ Options:
 ## `ucom help new`
 
 ```
-This command will create a new Unity project in the given directory.
+This command will create a new Unity project and Git repository in the given directory.
 Unless specified otherwise, the latest installed Unity version is used.
 
 Usage: ucom new [OPTIONS] <DIR> [UNITY_ARGS]...
@@ -94,6 +97,7 @@ Arguments:
 Options:
   -u, --unity <VERSION>  The Unity version to use for the new project. You can specify a partial version;
                          e.g. 2021 will match the latest 2021.x.y version you have installed on your system.
+      --no-git           Suppress initializing a new git repository.
   -w, --wait             Waits for the command to finish before continuing.
   -q, --quiet            Do not print ucom log messages.
   -n, --dry-run          Show what would be run, but do not actually run it.
