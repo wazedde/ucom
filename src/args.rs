@@ -26,7 +26,6 @@ pub enum Action {
     #[command(
         visible_alias = "r",
         verbatim_doc_comment,
-        trailing_var_arg = true,
         allow_hyphen_values = true,
         arg_required_else_help = true
     )]
@@ -54,14 +53,18 @@ pub enum Action {
         dry_run: bool,
 
         /// A list of arguments passed directly to Unity.
-        #[arg(value_name = "UNITY_ARGS", required = true, verbatim_doc_comment)]
+        #[arg(
+            last = true,
+            value_name = "UNITY_ARGS",
+            required = true,
+            verbatim_doc_comment
+        )]
         args: Option<Vec<String>>,
     },
     /// This command will create a new Unity project and Git repository in the given directory.
     /// Unless specified otherwise, the latest installed Unity version is used.
     #[command(
         verbatim_doc_comment,
-        trailing_var_arg = true,
         allow_hyphen_values = true,
         arg_required_else_help = true
     )]
@@ -102,13 +105,12 @@ pub enum Action {
         dry_run: bool,
 
         /// A list of arguments passed directly to Unity.
-        #[arg(value_name = "UNITY_ARGS", verbatim_doc_comment)]
+        #[arg(last = true, value_name = "UNITY_ARGS", verbatim_doc_comment)]
         args: Option<Vec<String>>,
     },
     /// This command will open the Unity project in the given directory.
     #[command(
         visible_alias = "o",
-        trailing_var_arg = true,
         allow_hyphen_values = true,
         verbatim_doc_comment,
         arg_required_else_help = true
@@ -142,7 +144,7 @@ pub enum Action {
         dry_run: bool,
 
         /// A list of arguments passed directly to Unity.
-        #[arg(value_name = "UNITY_ARGS", verbatim_doc_comment)]
+        #[arg(last = true, value_name = "UNITY_ARGS", verbatim_doc_comment)]
         args: Option<Vec<String>>,
     },
 }
