@@ -301,12 +301,20 @@ fn installed_unity_versions(search_path: &Path) -> Option<Vec<OsString>> {
 
 /// Returns valid and existing path.
 fn validate_path(path: &Path) -> Result<PathBuf> {
-    if !path.exists() {
+    if cfg!(target_os = "windows") && path.starts_with("~") {
         return Err(anyhow!(
-            "Directory does not exists '{}'",
+            "On Windows the path cannot start with '~': '{}'",
             path.to_string_lossy()
         ));
     }
+
+    if !path.exists() {
+        return Err(anyhow!(
+            "Directory does not exists: '{}'",
+            path.to_string_lossy()
+        ));
+    }
+
     if path.has_root() {
         return Ok(path.to_path_buf());
     }
