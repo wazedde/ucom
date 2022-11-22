@@ -10,7 +10,7 @@ use clap::CommandFactory;
 use clap::Parser;
 
 use crate::args::Args;
-use crate::cmd::CmdRunner;
+use crate::cmd::{CmdRunner, FnCmdAction};
 
 mod args;
 mod cmd;
@@ -91,6 +91,7 @@ fn run_unity_cmd(
 
     Ok(CmdRunner::new(
         cmd,
+        None,
         format!("Running Unity {}", unity_version.to_string_lossy()),
     ))
 }
@@ -110,6 +111,14 @@ fn new_project_cmd(
         ));
     }
 
+    let pre_action: Option<FnCmdAction> = if !no_git {
+        let p = project_path.clone();
+        let f = move || git_init(&p);
+        Some(Box::new(f))
+    } else {
+        None
+    };
+
     let (version, unity_directory) = find_latest_matching_unity(&version_pattern)?;
 
     let mut cmd = Command::new(unity_executable_path(&unity_directory));
@@ -117,16 +126,9 @@ fn new_project_cmd(
         .arg(&project_path)
         .args(unity_args.unwrap_or_default());
 
-    if !no_git {
-        if git_init(&project_path).is_err() {
-            return Err(anyhow!(
-                "Could not create git repository. Make sure git is available or add the --no-git flag."
-            ));
-        }
-    }
-
     Ok(CmdRunner::new(
         cmd,
+        pre_action,
         format!(
             "Creating Unity {} project in '{}'",
             version.to_string_lossy(),
@@ -170,6 +172,7 @@ fn open_project_cmd(
 
     Ok(CmdRunner::new(
         cmd,
+        None,
         format!(
             "Opening Unity {} project in '{}'",
             version.to_string_lossy(),
@@ -338,7 +341,13 @@ fn validate_path(path: &Path) -> Result<PathBuf> {
 
 /// Initializes a new git repository with a default Unity specific .gitignore.
 pub fn git_init(path: &Path) -> Result<()> {
-    Command::new("git").arg("init").arg(path).output()?;
+    Command::new("git")
+        .arg("init")
+        .arg(path)
+        .output()
+        .map_err(|_| anyhow!(
+                "Could not create git repository. Make sure git is available or add the --no-git flag."
+            ))?;
 
     let path = path.to_path_buf().join(".gitignore");
     let gitignore = include_str!("include/unity-gitignore.txt");
