@@ -2,23 +2,34 @@ use std::process::Command;
 
 use anyhow::Result;
 
+pub(crate) type FnCmdAction = Box<dyn FnOnce() -> Result<()>>;
+
 /// A runner for commands.
 pub(crate) struct CmdRunner {
+    /// The system command to perform.
     command: Command,
+    /// An optional action that is performed before the command.
+    pre_action: Option<FnCmdAction>,
+    /// A description of the command.
     description: String,
 }
 
 impl CmdRunner {
-    pub(crate) fn new(command: Command, description: String) -> Self {
+    pub(crate) fn new(
+        command: Command,
+        pre_action: Option<FnCmdAction>,
+        description: String,
+    ) -> Self {
         CmdRunner {
             command,
+            pre_action,
             description,
         }
     }
 
     pub(crate) fn run(self, wait: bool, quiet: bool, dry_run: bool) -> Result<()> {
         if dry_run {
-            println!("{}", command_line_string(&self.command));
+            println!("{}", to_line_string(&self.command));
             return Ok(());
         }
 
@@ -26,28 +37,29 @@ impl CmdRunner {
             println!("{}", self.description);
         }
 
-        let output = execute_command(self.command, wait)?;
-        if !output.is_empty() {
-            print!("{}", output);
+        if let Some(pre_action) = self.pre_action {
+            pre_action()?;
+        }
+
+        let mut cmd = self.command;
+
+        if wait {
+            let output = cmd.output()?;
+            let stdout = String::from_utf8(output.stdout)?;
+
+            print!("{}", stdout);
+            if !stdout.ends_with('\n') {
+                println!();
+            }
+        } else {
+            let _ = cmd.spawn()?;
         }
         Ok(())
     }
 }
 
-/// Executes the command and returns the output.
-/// Returns empty output if command is not awaited.
-fn execute_command(mut cmd: Command, wait: bool) -> Result<String> {
-    if !wait {
-        let _ = cmd.spawn()?;
-        return Ok("".to_string());
-    }
-
-    let output = cmd.output()?;
-    String::from_utf8(output.stdout).map_err(Into::into)
-}
-
 /// Returns the command as a full command line string.
-fn command_line_string(cmd: &Command) -> String {
+fn to_line_string(cmd: &Command) -> String {
     let mut line = cmd.get_program().to_string_lossy().to_string();
 
     // Handle spaces in path.
@@ -60,13 +72,13 @@ fn command_line_string(cmd: &Command) -> String {
     }
 
     for arg in cmd.get_args() {
-        let mut arg = arg.to_string_lossy().to_string();
+        let arg = arg.to_string_lossy();
         // Handle spaces in arguments.
         if arg.contains(' ') {
-            arg = format!("'{}'", arg);
+            line.push_str(&format!(" '{}'", arg));
+        } else {
+            line.push_str(&format!(" {}", arg));
         }
-
-        line.push_str(&format!(" {}", arg));
     }
     line
 }
