@@ -305,9 +305,15 @@ fn validate_path<P: AsRef<Path>>(path: P) -> Result<PathBuf> {
     let mut path = path.canonicalize()?;
 
     // Unity borks when passing it paths that start with "\\?\". Strip it off!!
+    // Todo: This is a naive way of doing it.
     if cfg!(target_os = "windows") {
-        if let Ok(stripped_path) = path.strip_prefix(r"\\?\") {
-            path = stripped_path.to_owned();
+        let stripped_path = path
+            .to_string_lossy()
+            .strip_prefix(r"\\?\")
+            .map(|p| Path::new(p).to_path_buf());
+
+        if let Some(stripped_path) = stripped_path {
+            path = stripped_path;
         }
     }
     Ok(path)
