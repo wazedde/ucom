@@ -29,7 +29,7 @@ impl CmdRunner {
 
     pub(crate) fn run(self, wait: bool, quiet: bool, dry_run: bool) -> Result<()> {
         if dry_run {
-            println!("{}", command_line_string(&self.command));
+            println!("{}", to_line_string(&self.command));
             return Ok(());
         }
 
@@ -54,13 +54,12 @@ impl CmdRunner {
         } else {
             let _ = cmd.spawn()?;
         }
-
         Ok(())
     }
 }
 
 /// Returns the command as a full command line string.
-fn command_line_string(cmd: &Command) -> String {
+fn to_line_string(cmd: &Command) -> String {
     let mut line = cmd.get_program().to_string_lossy().to_string();
 
     // Handle spaces in path.
@@ -73,7 +72,7 @@ fn command_line_string(cmd: &Command) -> String {
     }
 
     for arg in cmd.get_args() {
-        let arg = arg.to_string_lossy().to_string();
+        let arg = arg.to_string_lossy();
         // Handle spaces in arguments.
         if arg.contains(' ') {
             line.push_str(&format!(" '{}'", arg));
