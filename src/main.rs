@@ -1,7 +1,7 @@
 use std::ffi::OsString;
 use std::fs;
 use std::fs::File;
-use std::io::Write;
+use std::io::{BufRead, BufReader, Write};
 use std::path::{Path, PathBuf};
 use std::process::{exit, Command};
 
@@ -44,12 +44,12 @@ fn main() -> Result<()> {
 }
 
 /// Lists installed Unity versions.
-fn show_list(version_pattern: &Option<String>) -> Result<()> {
-    let root_path = installation_root_path();
-    let versions = matching_unity_versions(version_pattern, &root_path);
+fn show_list(partial_version: &Option<String>) -> Result<()> {
+    let path = installation_root_path();
+    let versions = matching_unity_versions(partial_version, available_unity_versions(&path)?);
 
-    let Some(versions) = versions else {
-        return Err(anyhow!("No Unity installations found in {}", root_path.to_string_lossy()));
+    let Ok(versions) = versions else {
+        return Err(anyhow!("No Unity installations found in {}", path.to_string_lossy()));
     };
 
     println!("Installed Unity versions:");
@@ -61,10 +61,10 @@ fn show_list(version_pattern: &Option<String>) -> Result<()> {
 
 /// Returns command that runs Unity.
 fn run_unity_cmd(
-    version_pattern: &Option<String>,
+    partial_version: &Option<String>,
     unity_args: &Option<Vec<String>>,
 ) -> Result<CmdRunner> {
-    let (unity_version, directory) = find_latest_matching_unity(version_pattern)?;
+    let (unity_version, directory) = latest_matching_unity(partial_version)?;
 
     let mut cmd = Command::new(unity_executable_path(&directory));
     cmd.args(unity_args.as_deref().unwrap_or_default());
@@ -91,15 +91,15 @@ fn new_project_cmd(
         ));
     }
 
-    let pre_action: Option<FnCmdAction> = if !no_git {
+    // Create closure that initializes git repository.
+    let pre_action: Option<Box<FnCmdAction>> = if !no_git {
         let p = project_path.to_owned();
-        let f = move || git_init(&p);
-        Some(Box::new(f))
+        Some(Box::new(move || git_init(p)))
     } else {
         None
     };
 
-    let (version, unity_directory) = find_latest_matching_unity(version_pattern)?;
+    let (version, unity_directory) = latest_matching_unity(version_pattern)?;
 
     let mut cmd = Command::new(unity_executable_path(&unity_directory));
     cmd.arg("-createProject")
@@ -120,14 +120,14 @@ fn new_project_cmd(
 /// Returns command that opens the project at the given path.
 fn open_project_cmd(
     project_path: &Path,
-    version_pattern: &Option<String>,
+    partial_version: &Option<String>,
     unity_args: &Option<Vec<String>>,
 ) -> Result<CmdRunner> {
     // Make sure the project path exists and is formatted correctly.
     let project_path = validate_path(project_path)?;
 
-    let (version, unity_directory) = if version_pattern.is_some() {
-        find_latest_matching_unity(version_pattern)?
+    let (version, unity_directory) = if partial_version.is_some() {
+        latest_matching_unity(partial_version)?
     } else {
         // Get the Unity version the project uses.
         let version: OsString = unity_project_version(&project_path)?.into();
@@ -164,37 +164,38 @@ fn open_project_cmd(
 /// Returns the Unity version used for the project.
 fn unity_project_version<P: AsRef<Path>>(path: P) -> Result<String> {
     const PROJECT_VERSION_FILE: &str = "ProjectSettings/ProjectVersion.txt";
-
     let file_path = path.as_ref().join(PROJECT_VERSION_FILE);
-    let project_version = fs::read_to_string(&file_path);
 
-    let Ok(project_version) = project_version else {
+    if !file_path.exists() {
         return Err(anyhow!(
             "Directory does not contain a Unity project: '{}'",
-            path.as_ref().to_string_lossy())
-        );
-    };
+            path.as_ref().to_string_lossy()
+        ));
+    }
+
+    let mut reader = BufReader::new(File::open(&file_path)?);
 
     // ProjectVersion.txt looks like this:
     // m_EditorVersion: 2021.3.9f1
     // m_EditorVersionWithRevision: 2021.3.9f1 (ad3870b89536)
 
-    let project_version = project_version
-        .lines()
-        // Get the 1st line.
-        .next()
-        // Split that line and return 2nd element.
-        .and_then(|line| line.split(':').nth(1))
-        // Clean it up.
-        .map(|version| version.trim());
+    let mut line = String::new();
+    // Read the 1st line.
+    let _ = reader.read_line(&mut line)?;
 
-    let Some(project_version) = project_version else {
-        return Err(anyhow!(
-            "Could not get project version from: '{}'",
-            file_path.to_string_lossy())
-        );
-    };
-    Ok(project_version.to_owned())
+    line.starts_with("m_EditorVersion:")
+        .then_some(line)
+        .and_then(|l| {
+            l.split(':') // Split the line,
+                .nth(1) // and return 2nd element.
+                .map(|version| version.trim().to_owned()) // Clean it up.
+        })
+        .ok_or_else(|| {
+            anyhow!(
+                "Could not get project version from: '{}'",
+                file_path.to_string_lossy()
+            )
+        })
 }
 
 /// Returns the root path of the installations.
@@ -219,54 +220,46 @@ fn unity_executable_path<P: AsRef<Path>>(path: P) -> PathBuf {
     }
 }
 
-/// Returns the latest available version that matches the pattern.
-fn find_latest_matching_unity_version(version_pattern: &Option<String>) -> Option<OsString> {
-    let latest = matching_unity_versions(version_pattern, &installation_root_path())?
-        .last()?
-        .to_owned();
-    Some(latest)
-}
-
-/// Returns list of available versions that match the pattern.
+/// Returns list of available versions that match the partial version or Err if there is no matching version.
 fn matching_unity_versions(
-    version_pattern: &Option<String>,
-    root_path: &Path,
-) -> Option<Vec<OsString>> {
-    let available_versions = available_unity_versions(root_path)?;
-
-    let Some(pattern) = version_pattern else {
-        return Some(available_versions);
+    partial_version: &Option<String>,
+    versions: Vec<OsString>,
+) -> Result<Vec<OsString>> {
+    let Some(pattern) = partial_version else {
+        return Ok(versions);
     };
 
-    let matching_versions: Vec<_> = available_versions
+    let versions: Vec<_> = versions
         .into_iter()
         .filter(|v| v.to_string_lossy().starts_with(pattern))
         .collect();
 
-    if matching_versions.is_empty() {
-        None
-    } else {
-        Some(matching_versions)
-    }
-}
-
-/// Returns version and directory of the latest installed version that matches the pattern.
-fn find_latest_matching_unity(version_pattern: &Option<String>) -> Result<(OsString, PathBuf)> {
-    let Some(found_version) = find_latest_matching_unity_version(version_pattern) else {
+    if versions.is_empty() {
         return Err(anyhow!(
             "No Unity installation was found that matches version {}",
-            version_pattern.as_deref().unwrap_or("<any>"))
-        );
-    };
+            partial_version.as_deref().unwrap_or("<any>")
+        ));
+    }
 
-    let full_path = Path::new(&installation_root_path()).join(&found_version);
-    Ok((found_version, full_path))
+    Ok(versions)
+}
+
+/// Returns version and directory of the latest installed version that matches the partial version.
+fn latest_matching_unity(partial_version: &Option<String>) -> Result<(OsString, PathBuf)> {
+    let path = installation_root_path();
+
+    let version = matching_unity_versions(partial_version, available_unity_versions(&path)?)?
+        .last()
+        .map(|latest| latest.to_owned())
+        .unwrap(); // Guaranteed to have at least one entry.
+
+    let full_path = Path::new(&path).join(&version);
+    Ok((version, full_path))
 }
 
 /// Returns a natural sorted list of available Unity versions.
-fn available_unity_versions<P: AsRef<Path>>(path: P) -> Option<Vec<OsString>> {
-    let mut versions: Vec<_> = fs::read_dir(path)
-        .ok()?
+fn available_unity_versions<P: AsRef<Path>>(path: P) -> Result<Vec<OsString>> {
+    let mut versions: Vec<_> = fs::read_dir(&path)?
         .flatten()
         .map(|entry| entry.path())
         .filter(|path| path.is_dir())
@@ -274,11 +267,14 @@ fn available_unity_versions<P: AsRef<Path>>(path: P) -> Option<Vec<OsString>> {
         .collect();
 
     if versions.is_empty() {
-        None
-    } else {
-        versions.sort_by(|a, b| natord::compare(&a.to_string_lossy(), &b.to_string_lossy()));
-        Some(versions)
+        return Err(anyhow!(
+            "No Unity installations found in {}",
+            path.as_ref().to_string_lossy()
+        ));
     }
+
+    versions.sort_by(|a, b| natord::compare(&a.to_string_lossy(), &b.to_string_lossy()));
+    Ok(versions)
 }
 
 /// Returns valid and existing path.
@@ -310,7 +306,7 @@ fn validate_path<P: AsRef<Path>>(path: P) -> Result<PathBuf> {
         let stripped_path = path
             .to_string_lossy()
             .strip_prefix(r"\\?\")
-            .map(|p| Path::new(p).to_path_buf());
+            .map(|p| Path::new(p).to_owned());
 
         if let Some(stripped_path) = stripped_path {
             path = stripped_path;
@@ -329,9 +325,9 @@ pub fn git_init<P: AsRef<Path>>(path: P) -> Result<()> {
                 "Could not create git repository. Make sure git is available or add the --no-git flag."
             ))?;
 
-    let path = path.as_ref().join(".gitignore");
-    let gitignore = include_str!("include/unity-gitignore.txt");
-    let mut output = File::create(path)?;
-    write!(output, "{}", gitignore)?;
+    let file_path = path.as_ref().join(".gitignore");
+    let file_content = include_str!("include/unity-gitignore.txt");
+    let mut file = File::create(file_path)?;
+    write!(file, "{}", file_content)?;
     Ok(())
 }

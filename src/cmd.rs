@@ -2,14 +2,14 @@ use std::process::Command;
 
 use anyhow::Result;
 
-pub(crate) type FnCmdAction = Box<dyn FnOnce() -> Result<()>>;
+pub(crate) type FnCmdAction = dyn FnOnce() -> Result<()>;
 
 /// A runner for commands.
 pub(crate) struct CmdRunner {
     /// The system command to perform.
     command: Command,
     /// An optional action that is performed before the command.
-    pre_action: Option<FnCmdAction>,
+    pre_action: Option<Box<FnCmdAction>>,
     /// A description of the command.
     description: String,
 }
@@ -17,7 +17,7 @@ pub(crate) struct CmdRunner {
 impl CmdRunner {
     pub(crate) fn new(
         command: Command,
-        pre_action: Option<FnCmdAction>,
+        pre_action: Option<Box<FnCmdAction>>,
         description: String,
     ) -> Self {
         CmdRunner {
