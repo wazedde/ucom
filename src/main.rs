@@ -9,8 +9,9 @@ use std::process::{exit, Command};
 use anyhow::{anyhow, Context, Result};
 use clap::CommandFactory;
 use clap::Parser;
+use path_absolutize::Absolutize;
 
-use crate::cli::Cli;
+use crate::cli::{Action, Cli, Target};
 use crate::cmd::{CmdRunner, FnCmdAction};
 
 mod cli;
@@ -24,15 +25,15 @@ fn main() -> Result<()> {
     };
 
     match command {
-        cli::Action::List { version_pattern } => {
+        Action::List { version_pattern } => {
             show_list(version_pattern.as_deref()).context("Cannot list installations")
         }
 
-        cli::Action::Run(run) => run_unity_cmd(run.version_pattern.as_deref(), run.args.as_deref())
+        Action::Run(run) => run_unity_cmd(run.version_pattern.as_deref(), run.args.as_deref())
             .context("Cannot run Unity")?
             .run(run.wait, run.quiet, run.dry_run),
 
-        cli::Action::New(new) => new_project_cmd(
+        Action::New(new) => new_project_cmd(
             new.version_pattern.as_deref(),
             &new.path,
             new.args.as_deref(),
@@ -41,13 +42,22 @@ fn main() -> Result<()> {
         .context("Cannot create project")?
         .run(new.wait, new.quiet, new.dry_run),
 
-        cli::Action::Open(open) => open_project_cmd(
+        Action::Open(open) => open_project_cmd(
             &open.path,
             open.version_pattern.as_deref(),
             open.args.as_deref(),
         )
         .context("Cannot open project")?
         .run(open.wait, open.quiet, open.dry_run),
+
+        Action::Build(build) => build_project_cmd(
+            &build.path,
+            &build.build_path,
+            &build.target,
+            build.args.as_deref(),
+        )
+        .context("Cannot build project")?
+        .run(true, build.quiet, build.dry_run),
     }
 }
 
@@ -122,7 +132,7 @@ where
     if project_path.exists() {
         return Err(anyhow!(
             "Directory already exists: '{}'",
-            project_path.canonicalize()?.to_string_lossy()
+            project_path.absolutize()?.to_string_lossy()
         ));
     }
 
@@ -170,7 +180,7 @@ where
     P: AsRef<Path>,
 {
     // Make sure the project path exists and is formatted correctly.
-    let project_path = validate_path(&project_path)?;
+    let project_path = validate_project_path(&project_path)?;
 
     let (version, unity_directory) = if partial_version.is_some() {
         matching_unity_version(partial_version)?
@@ -190,6 +200,44 @@ where
         None,
         format!(
             "Opening Unity {} project in '{}'",
+            version.to_string_lossy(),
+            project_path.to_string_lossy()
+        ),
+    ))
+}
+
+fn build_project_cmd<'a, P>(
+    project_path: &P,
+    output_path: &P,
+    build_target: &Target,
+    unity_args: Option<&[String]>,
+) -> Result<CmdRunner<'a>>
+where
+    P: AsRef<Path>,
+{
+    // Make sure the project path exists and is formatted correctly.
+    let project_path = validate_project_path(&project_path)?;
+    let output_path = Path::new(output_path.as_ref()).absolutize()?;
+
+    let (version, unity_directory) = matching_unity_project_version(&project_path)?;
+
+    let unity_path = unity_executable_path(&unity_directory);
+
+    // Build the command to execute.
+    let mut cmd = Command::new(unity_path);
+    cmd.args(["-projectPath", &project_path.to_string_lossy()])
+        .arg("-batchmode")
+        .arg("-quit")
+        .args(["-buildTarget", &build_target.to_string()])
+        .args(["-executeMethod", "ucom.UcomBuilder.Build"])
+        .args(["--ucom-build-output", &output_path.to_string_lossy()])
+        .args(unity_args.unwrap_or_default());
+
+    Ok(CmdRunner::new(
+        cmd,
+        None,
+        format!(
+            "Building Unity {} project in '{}'",
             version.to_string_lossy(),
             project_path.to_string_lossy()
         ),
@@ -377,14 +425,14 @@ where
     Ok(versions)
 }
 
-/// Returns valid and existing path.
+/// Returns validated absolute path to the project.
 ///
 /// # Arguments
 ///
 /// * `path`: Path to validate.
 ///
 /// returns: Result<Cow<Path>, Error>
-fn validate_path<P>(path: &P) -> Result<Cow<Path>>
+fn validate_project_path<P>(path: &P) -> Result<Cow<Path>>
 where
     P: AsRef<Path>,
 {
@@ -403,25 +451,18 @@ where
         ));
     }
 
+    if !path.is_dir() {
+        return Err(anyhow!(
+            "Path is not a directory: '{}'",
+            path.to_string_lossy()
+        ));
+    }
+
     if path.has_root() {
         return Ok(path.into());
     }
 
-    let mut path = path.canonicalize()?;
-
-    // Unity borks when passing it paths that start with "\\?\". Strip it off!!
-    // Todo: This is a naive way of doing it.
-    if cfg!(target_os = "windows") {
-        let stripped_path = path
-            .to_string_lossy()
-            .strip_prefix(r"\\?\")
-            .map(|p| Path::new(p).to_owned());
-
-        if let Some(stripped_path) = stripped_path {
-            path = stripped_path;
-        }
-    }
-    Ok(path.into())
+    Ok(path.absolutize()?)
 }
 
 /// Initializes a new git repository with a default Unity specific .gitignore.

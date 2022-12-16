@@ -92,9 +92,9 @@ impl<'a> CmdRunner<'a> {
         // Handle spaces in path.
         if line.contains(' ') {
             if cfg!(target_os = "macos") {
-                line = format!("'{}'", line);
+                line = format!("\"{}\"", line);
             } else if cfg!(target_os = "windows") {
-                line = format!("& '{}'", line);
+                line = format!("& \"{}\"", line);
             }
         }
 
@@ -102,7 +102,7 @@ impl<'a> CmdRunner<'a> {
             let arg = arg.to_string_lossy();
             // Handle spaces in arguments.
             if arg.contains(' ') {
-                line.push_str(&format!(" '{}'", arg));
+                line.push_str(&format!(" \"{}\"", arg));
             } else {
                 line.push_str(&format!(" {}", arg));
             }

@@ -1,4 +1,6 @@
-use clap::Args;
+use std::fmt::{Display, Formatter};
+
+use clap::{Args, ValueEnum};
 
 /// Unity Commander, a command line interface for Unity projects.
 #[derive(clap::Parser)]
@@ -48,6 +50,14 @@ pub enum Action {
         arg_required_else_help = true
     )]
     Open(Open),
+    /// This command will build the Unity project in the given directory.
+    #[command(
+        visible_alias = "b",
+        allow_hyphen_values = true,
+        verbatim_doc_comment,
+        arg_required_else_help = true
+    )]
+    Build(Build),
 }
 
 #[derive(Args)]
@@ -100,7 +110,7 @@ pub struct New {
     #[arg(
         required = true,
         verbatim_doc_comment,
-        value_name = "DIR",
+        value_name = "PROJECT_DIR",
         value_hint = clap::ValueHint::DirPath
     )]
     pub path: std::path::PathBuf,
@@ -129,7 +139,7 @@ pub struct New {
 #[derive(Args)]
 pub struct Open {
     /// The directory of the project.
-    #[arg(value_name = "DIR", value_hint = clap::ValueHint::DirPath, verbatim_doc_comment)]
+    #[arg(value_name = "PROJECT_DIR", value_hint = clap::ValueHint::DirPath, verbatim_doc_comment)]
     pub path: std::path::PathBuf,
 
     /// The Unity version to open the project with. Use it to open a project with a newer
@@ -146,6 +156,91 @@ pub struct Open {
     /// Waits for the command to finish before continuing.
     #[clap(long = "wait", short = 'w', verbatim_doc_comment)]
     pub wait: bool,
+
+    /// Do not print ucom log messages.
+    #[clap(long = "quiet", short = 'q', verbatim_doc_comment)]
+    pub quiet: bool,
+
+    /// Show what would be run, but do not actually run it.
+    #[clap(long = "dry-run", short = 'n', verbatim_doc_comment)]
+    pub dry_run: bool,
+
+    /// A list of arguments passed directly to Unity.
+    #[arg(last = true, value_name = "UNITY_ARGS", verbatim_doc_comment)]
+    pub args: Option<Vec<String>>,
+}
+
+#[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, ValueEnum)]
+#[allow(non_camel_case_types)]
+pub enum Target {
+    #[value(name = "win")]
+    Win,
+    #[value(name = "win64")]
+    Win64,
+    #[value(name = "macos")]
+    OSXUniversal,
+    #[value(name = "linux64")]
+    Linux64,
+    #[value(name = "ios")]
+    iOS,
+    #[value(name = "android")]
+    Android,
+    #[value(name = "webgl")]
+    WebGL,
+}
+
+impl Display for Target {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{:?}", self)
+    }
+}
+
+// todo: remove?
+#[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, ValueEnum)]
+#[allow(non_camel_case_types)]
+pub enum BuildTarget {
+    StandaloneOSX,
+    StandaloneWindows,
+    StandaloneWindows64,
+    StandaloneLinux64,
+    iOS,
+    Android,
+    WebGL,
+}
+
+impl Display for BuildTarget {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{:?}", self)
+    }
+}
+
+impl From<Target> for BuildTarget {
+    fn from(target: Target) -> Self {
+        match target {
+            Target::Win => Self::StandaloneWindows,
+            Target::Win64 => Self::StandaloneWindows64,
+            Target::OSXUniversal => Self::StandaloneOSX,
+            Target::Linux64 => Self::StandaloneLinux64,
+            Target::iOS => Self::iOS,
+            Target::Android => Self::Android,
+            Target::WebGL => Self::WebGL,
+        }
+    }
+}
+
+#[derive(Args)]
+pub struct Build {
+    /// The target platform to build for.
+    #[arg(value_enum)]
+    pub target: Target,
+
+    /// The directory of the project.
+    #[arg(value_name = "PROJECT_DIR", value_hint = clap::ValueHint::DirPath, verbatim_doc_comment)]
+    pub path: std::path::PathBuf,
+
+    /// The (file) path of the build output.
+    #[arg(value_name = "BUILD_PATH", value_hint = clap::ValueHint::FilePath, verbatim_doc_comment)]
+    pub build_path: std::path::PathBuf,
 
     /// Do not print ucom log messages.
     #[clap(long = "quiet", short = 'q', verbatim_doc_comment)]
