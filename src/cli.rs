@@ -1,4 +1,5 @@
 use std::fmt::{Display, Formatter};
+use std::path::PathBuf;
 
 use clap::{Args, ValueEnum};
 
@@ -25,15 +26,6 @@ pub enum Action {
         )]
         version_pattern: Option<String>,
     },
-    /// This command will run Unity.
-    /// Unless specified otherwise, the latest installed Unity version is used.
-    #[command(
-        visible_alias = "r",
-        verbatim_doc_comment,
-        allow_hyphen_values = true,
-        arg_required_else_help = true
-    )]
-    Run(Run),
     /// This command will create a new Unity project and Git repository in the given directory.
     /// Unless specified otherwise, the latest installed Unity version is used.
     #[command(
@@ -58,6 +50,15 @@ pub enum Action {
         arg_required_else_help = true
     )]
     Build(Build),
+    /// This command will run Unity with the specified arguments.
+    /// Unless specified otherwise, the latest installed Unity version is used.
+    #[command(
+        visible_alias = "r",
+        verbatim_doc_comment,
+        allow_hyphen_values = true,
+        arg_required_else_help = true
+    )]
+    Run(Run),
 }
 
 #[derive(Args)]
@@ -113,7 +114,7 @@ pub struct New {
         value_name = "PROJECT_DIR",
         value_hint = clap::ValueHint::DirPath
     )]
-    pub path: std::path::PathBuf,
+    pub path: PathBuf,
 
     /// Suppress initializing a new git repository.
     #[clap(long = "no-git", verbatim_doc_comment)]
@@ -140,7 +141,7 @@ pub struct New {
 pub struct Open {
     /// The directory of the project.
     #[arg(value_name = "PROJECT_DIR", value_hint = clap::ValueHint::DirPath, verbatim_doc_comment)]
-    pub path: std::path::PathBuf,
+    pub path: PathBuf,
 
     /// The Unity version to open the project with. Use it to open a project with a newer
     /// Unity version. You can specify a partial version; e.g. 2021 will match the latest
@@ -173,7 +174,7 @@ pub struct Open {
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, ValueEnum)]
 #[allow(non_camel_case_types)]
 pub enum Target {
-    #[value(name = "win")]
+    #[value(name = "win32")]
     Win,
     #[value(name = "win64")]
     Win64,
@@ -230,17 +231,18 @@ impl From<Target> for BuildTarget {
 
 #[derive(Args)]
 pub struct Build {
+    /// The directory of the project.
+    #[arg(value_name = "PROJECT_DIR", value_hint = clap::ValueHint::DirPath, verbatim_doc_comment)]
+    pub path: PathBuf,
+
     /// The target platform to build for.
     #[arg(value_enum)]
     pub target: Target,
 
-    /// The directory of the project.
-    #[arg(value_name = "PROJECT_DIR", value_hint = clap::ValueHint::DirPath, verbatim_doc_comment)]
-    pub path: std::path::PathBuf,
-
-    /// The (file) path of the build output.
-    #[arg(value_name = "BUILD_PATH", value_hint = clap::ValueHint::FilePath, verbatim_doc_comment)]
-    pub build_path: std::path::PathBuf,
+    /// The output directory of the build. When omitted the build will be placed in
+    /// <PROJECT_DIR>/Builds/<TARGET>.
+    #[arg(value_name = "OUTPUT_DIR", value_hint = clap::ValueHint::FilePath, verbatim_doc_comment)]
+    pub build_path: Option<PathBuf>,
 
     /// Do not print ucom log messages.
     #[clap(long = "quiet", short = 'q', verbatim_doc_comment)]

@@ -11,6 +11,8 @@ pub(crate) struct CmdRunner<'a> {
     command: Command,
     /// An optional action that is performed before the command.
     pre_action: Option<Box<FnCmdAction>>,
+    /// An optional action that is performed before the command.
+    post_action: Option<Box<FnCmdAction>>,
     /// A description of the command.
     description: Cow<'a, str>,
 }
@@ -28,6 +30,7 @@ impl<'a> CmdRunner<'a> {
     pub(crate) fn new<S>(
         command: Command,
         pre_action: Option<Box<FnCmdAction>>,
+        post_action: Option<Box<FnCmdAction>>,
         description: S,
     ) -> Self
     where
@@ -36,6 +39,7 @@ impl<'a> CmdRunner<'a> {
         CmdRunner {
             command,
             pre_action,
+            post_action,
             description: description.into(),
         }
     }
@@ -66,15 +70,30 @@ impl<'a> CmdRunner<'a> {
         let mut cmd = self.command;
 
         if wait {
-            let output = cmd.output()?;
+            let output = cmd.output();
+
+            let output = output?;
+
+            if let Some(post_action) = self.post_action {
+                post_action()?;
+            }
+
             let stdout = String::from_utf8(output.stdout)?;
 
             print!("{}", stdout);
             if !stdout.ends_with('\n') {
                 println!();
             }
+
+            output.status.success().then_some(()).ok_or_else(|| {
+                anyhow::anyhow!(
+                    "Command failed with exit code: {}",
+                    output.status.code().unwrap_or(-1)
+                )
+            })?;
         } else {
             let _ = cmd.spawn()?;
+            // todo: do something with post action?
         }
         Ok(())
     }

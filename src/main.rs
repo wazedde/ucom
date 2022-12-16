@@ -3,6 +3,7 @@ use std::ffi::OsString;
 use std::fs;
 use std::fs::File;
 use std::io::{BufRead, BufReader, Write};
+use std::ops::Deref;
 use std::path::{Path, PathBuf};
 use std::process::{exit, Command};
 
@@ -10,8 +11,9 @@ use anyhow::{anyhow, Context, Result};
 use clap::CommandFactory;
 use clap::Parser;
 use path_absolutize::Absolutize;
+use uuid::Uuid;
 
-use crate::cli::{Action, Cli, Target};
+use crate::cli::{Action, BuildTarget, Cli, Target};
 use crate::cmd::{CmdRunner, FnCmdAction};
 
 mod cli;
@@ -52,8 +54,8 @@ fn main() -> Result<()> {
 
         Action::Build(build) => build_project_cmd(
             &build.path,
-            &build.build_path,
             &build.target,
+            build.build_path.as_deref(),
             build.args.as_deref(),
         )
         .context("Cannot build project")?
@@ -102,6 +104,7 @@ fn run_unity_cmd<'a>(
 
     Ok(CmdRunner::new(
         cmd,
+        None,
         None,
         format!("Running Unity {}", unity_version.to_string_lossy()),
     ))
@@ -154,6 +157,7 @@ where
     Ok(CmdRunner::new(
         cmd,
         pre_action,
+        None,
         format!(
             "Creating Unity {} project in '{}'",
             version.to_string_lossy(),
@@ -198,6 +202,7 @@ where
     Ok(CmdRunner::new(
         cmd,
         None,
+        None,
         format!(
             "Opening Unity {} project in '{}'",
             version.to_string_lossy(),
@@ -206,21 +211,29 @@ where
     ))
 }
 
-fn build_project_cmd<'a, P>(
-    project_path: &P,
-    output_path: &P,
+fn build_project_cmd<'a>(
+    project_path: &Path,
     build_target: &Target,
+    output_path: Option<&Path>,
     unity_args: Option<&[String]>,
-) -> Result<CmdRunner<'a>>
-where
-    P: AsRef<Path>,
-{
+) -> Result<CmdRunner<'a>> {
     // Make sure the project path exists and is formatted correctly.
     let project_path = validate_project_path(&project_path)?;
-    let output_path = Path::new(output_path.as_ref()).absolutize()?;
+
+    let output_path: Cow<Path> = output_path.map(|p| p.into()).unwrap_or_else(|| {
+        project_path
+            .join("Builds")
+            .join(build_target.to_string())
+            .into()
+    });
+
+    if project_path == output_path {
+        return Err(anyhow!(
+            "Output path cannot be the same as the project path."
+        ));
+    }
 
     let (version, unity_directory) = matching_unity_project_version(&project_path)?;
-
     let unity_path = unity_executable_path(&unity_directory);
 
     // Build the command to execute.
@@ -231,15 +244,38 @@ where
         .args(["-buildTarget", &build_target.to_string()])
         .args(["-executeMethod", "ucom.UcomBuilder.Build"])
         .args(["--ucom-build-output", &output_path.to_string_lossy()])
+        .args([
+            "--ucom-build-target",
+            &BuildTarget::from(*build_target).to_string(),
+        ])
         .args(unity_args.unwrap_or_default());
+
+    let build_script_root = project_path
+        .deref()
+        .to_owned()
+        .join(format!("Assets/ucom-{}", Uuid::new_v4()));
+
+    let build_script_root_post = build_script_root.clone();
+
+    // Create closure that injects build script into project.
+    let pre_action: Option<Box<FnCmdAction>> =
+        Some(Box::new(move || inject_build_script(&build_script_root)));
+
+    // Create closure that removes build script.
+    let post_action: Option<Box<FnCmdAction>> = Some(Box::new(move || {
+        remove_build_script(&build_script_root_post)
+    }));
 
     Ok(CmdRunner::new(
         cmd,
-        None,
+        pre_action,
+        post_action,
         format!(
-            "Building Unity {} project in '{}'",
+            "Building Unity {} {} project in '{}' to '{}'",
             version.to_string_lossy(),
-            project_path.to_string_lossy()
+            build_target,
+            project_path.to_string_lossy(),
+            output_path.to_string_lossy(),
         ),
     ))
 }
@@ -472,7 +508,7 @@ where
 /// * `path`: Path to the project.
 ///
 /// returns: Result<(), Error>
-pub fn git_init<P>(path: &P) -> Result<()>
+fn git_init<P>(path: &P) -> Result<()>
 where
     P: AsRef<Path>,
 {
@@ -486,5 +522,37 @@ where
     let file_content = include_str!("include/unity-gitignore.txt");
     let mut file = File::create(file_path)?;
     write!(file, "{}", file_content)?;
+    Ok(())
+}
+
+fn inject_build_script<P>(root_path: &P) -> Result<()>
+where
+    P: AsRef<Path>,
+{
+    let file_path = root_path.as_ref().join(root_path).join("Editor");
+    fs::create_dir_all(&file_path)?;
+
+    let file_path = file_path.join("Build.cs");
+    let file_content = include_str!("include/UcomBuilder.cs");
+    let mut file = File::create(file_path)?;
+    write!(file, "{}", file_content)?;
+    Ok(())
+}
+
+fn remove_build_script<P>(root_path: &P) -> Result<()>
+where
+    P: AsRef<Path>,
+{
+    // Remove the directory where the build script is located.
+    fs::remove_dir_all(root_path).map_err(|_| {
+        anyhow!(
+            "Could not remove directory: '{}'",
+            root_path.as_ref().to_string_lossy()
+        )
+    })?;
+
+    // Remove the .meta file.
+    let meta_file = format!("{}.meta", root_path.as_ref().to_string_lossy());
+    fs::remove_file(&meta_file).map_err(|_| anyhow!("Could not remove file: '{}'", meta_file))?;
     Ok(())
 }
