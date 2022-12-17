@@ -84,9 +84,18 @@ namespace ucom
                     return;
             }
 
+            var scenes = GetScenePaths();
+
+            if (scenes == null || scenes.Length == 0)
+            {
+                Debug.LogError("[ucom] Build failed: no active scenes in Build Settings.");
+                EditorApplication.Exit(1);
+                return;
+            }
+
             var buildPlayerOptions = new BuildPlayerOptions
             {
-                scenes = GetScenePaths(),
+                scenes = scenes,
                 locationPathName = buildOutput,
                 target = EditorUserBuildSettings.activeBuildTarget,
                 options = BuildOptions.None
