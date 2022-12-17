@@ -1,7 +1,7 @@
 use std::borrow::Cow;
-use std::process::Command;
+use std::process::{Command, Stdio};
 
-use anyhow::Result;
+use anyhow::{anyhow, Result};
 
 pub(crate) type FnCmdAction = dyn FnOnce() -> Result<()>;
 
@@ -70,23 +70,25 @@ impl<'a> CmdRunner<'a> {
         let mut cmd = self.command;
 
         if wait {
-            let output = cmd.output();
+            let child = cmd
+                .stdout(Stdio::inherit())
+                .stderr(Stdio::inherit())
+                .spawn()
+                .map_err(|e| anyhow!("Failed to run child process: {}", e))?;
 
+            let output = child
+                .wait_with_output()
+                .map_err(|e| anyhow!("Failed to wait for child process: {}", e))?;
+
+            // Run the post action.
             if let Some(post_action) = self.post_action {
                 post_action()?;
             }
 
-            let output = output?;
-            let stdout = String::from_utf8(output.stdout)?;
             let stderr = String::from_utf8(output.stderr)?;
 
-            print!("{}", stdout);
-            if !stdout.ends_with('\n') {
-                println!();
-            }
-
             output.status.success().then_some(()).ok_or_else(|| {
-                anyhow::anyhow!(
+                anyhow!(
                     "Command failed with exit code {}: {}",
                     output.status.code().unwrap_or(-1),
                     stderr

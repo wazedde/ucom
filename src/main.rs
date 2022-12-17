@@ -38,7 +38,8 @@ fn main() -> Result<()> {
 
         Action::Run(run) => run_unity_cmd(run.version_pattern.as_deref(), run.args.as_deref())
             .context("Cannot run Unity")?
-            .run(run.wait, run.quiet, run.dry_run),
+            .run(run.wait, run.quiet, run.dry_run)
+            .context("Cannot run Unity"),
 
         Action::New(new) => new_project_cmd(
             new.version_pattern.as_deref(),
@@ -46,16 +47,18 @@ fn main() -> Result<()> {
             new.args.as_deref(),
             new.no_git,
         )
-        .context("Cannot create project")?
-        .run(new.wait, new.quiet, new.dry_run),
+        .context("Cannot start creating project")?
+        .run(new.wait, new.quiet, new.dry_run)
+        .context("Cannot create project"),
 
         Action::Open(open) => open_project_cmd(
             &open.project_dir,
             open.version_pattern.as_deref(),
             open.args.as_deref(),
         )
-        .context("Cannot open project")?
-        .run(open.wait, open.quiet, open.dry_run),
+        .context("Cannot start opening project")?
+        .run(open.wait, open.quiet, open.dry_run)
+        .context("Cannot open project"),
 
         Action::Build(build) => build_project_cmd(
             &build.project_dir,
@@ -65,18 +68,13 @@ fn main() -> Result<()> {
             &build.mode,
             build.args.as_deref(),
         )
-        .context("Cannot build project")?
-        .run(true, build.quiet, build.dry_run),
+        .context("Cannot start building project")?
+        .run(true, build.quiet, build.dry_run)
+        .context("Cannot build project"),
     }
 }
 
 /// Lists installed Unity versions.
-///
-/// # Arguments
-///
-/// * `partial_version`: A partial version; e.g. 2021 will list all the 2021.x.y versions you have installed on your system.
-///
-/// returns: Result<(), Error>
 fn show_list(partial_version: Option<&str>) -> Result<()> {
     let path = installation_root_path();
     let versions = filter_versions(partial_version, available_unity_versions(&path)?);
@@ -93,13 +91,6 @@ fn show_list(partial_version: Option<&str>) -> Result<()> {
 }
 
 /// Returns command that runs Unity.
-///
-/// # Arguments
-///
-/// * `partial_version`: A partial version; e.g. 2021 will match the latest 2021.x.y version you have installed on your system.
-/// * `unity_args`: Arguments to pass to Unity.
-///
-/// returns: Result<CmdRunner, Error>
 fn run_unity_cmd<'a>(
     partial_version: Option<&str>,
     unity_args: Option<&[String]>,
@@ -118,15 +109,6 @@ fn run_unity_cmd<'a>(
 }
 
 /// Returns command that creates an empty project at the given path.
-///
-/// # Arguments
-///
-/// * `version_pattern`: A partial version; e.g. 2021 will match the latest 2021.x.y version you have installed on your system.
-/// * `project_path`: The path to the project to create.
-/// * `unity_args`: Arguments to pass to Unity.
-/// * `no_git`: If true, do not initialize a git repository.
-///
-/// returns: Result<CmdRunner, Error>
 fn new_project_cmd<'a, P: AsRef<Path>>(
     version_pattern: Option<&str>,
     project_path: &P,
@@ -171,14 +153,6 @@ fn new_project_cmd<'a, P: AsRef<Path>>(
 }
 
 /// Returns command that opens the project at the given path.
-///
-/// # Arguments
-///
-/// * `project_path`: The path to the project to open.
-/// * `partial_version`: A partial version; e.g. 2021 will match the latest 2021.x.y version you have installed on your system.
-/// * `unity_args`: Arguments to pass to Unity.
-///
-/// returns: Result<CmdRunner, Error>
 fn open_project_cmd<'a, P: AsRef<Path>>(
     project_path: &P,
     partial_version: Option<&str>,
@@ -212,6 +186,7 @@ fn open_project_cmd<'a, P: AsRef<Path>>(
     ))
 }
 
+/// Returns command that builds the project at the given path.
 fn build_project_cmd<'a>(
     project_path: &Path,
     build_target: &Target,
@@ -329,7 +304,6 @@ fn build_project_cmd<'a>(
 ///
 /// * `path`: Path to the project.
 ///
-/// returns: Result<String, Error>
 fn unity_project_version<P: AsRef<Path>>(path: &P) -> Result<String> {
     const PROJECT_VERSION_FILE: &str = "ProjectSettings/ProjectVersion.txt";
     let file_path = path.as_ref().join(PROJECT_VERSION_FILE);
@@ -380,10 +354,8 @@ fn installation_root_path<'a>() -> &'a Path {
 /// Returns the path to the executable.
 ///
 /// # Arguments
-///
 /// * `path`: Path to the Unity installation directory.
 ///
-/// returns: PathBuf
 fn unity_executable_path<P: AsRef<Path>>(path: &P) -> PathBuf {
     if cfg!(target_os = "macos") {
         Path::new(path.as_ref()).join("Unity.app/Contents/MacOS/Unity")
@@ -401,7 +373,6 @@ fn unity_executable_path<P: AsRef<Path>>(path: &P) -> PathBuf {
 /// * `partial_version`: An optional partial version to match. If None, all versions are returned.
 /// * `versions`: List of versions to filter.
 ///
-/// returns: Result<Vec<OsString, Global>, Error>
 fn filter_versions(
     partial_version: Option<&str>,
     versions: Vec<OsString>,
@@ -431,7 +402,6 @@ fn filter_versions(
 ///
 /// * `partial_version`: An optional partial version to match. If None, all versions are returned.
 ///
-/// returns: Result<(OsString, PathBuf), Error>
 fn matching_unity_version(partial_version: Option<&str>) -> Result<(OsString, PathBuf)> {
     let path = installation_root_path();
 
@@ -450,7 +420,6 @@ fn matching_unity_version(partial_version: Option<&str>) -> Result<(OsString, Pa
 ///
 /// * `path`: Path to the project.
 ///
-/// returns: Result<(OsString, PathBuf), Error>
 fn matching_unity_project_version<P: AsRef<Path>>(path: &P) -> Result<(OsString, PathBuf)> {
     // Get the Unity version the project uses.
     let version: OsString = unity_project_version(path)?.into();
@@ -472,7 +441,6 @@ fn matching_unity_project_version<P: AsRef<Path>>(path: &P) -> Result<(OsString,
 ///
 /// * `path`: Path to the Unity installation root.
 ///
-/// returns: Result<Vec<OsString, Global>, Error>
 fn available_unity_versions<P: AsRef<Path>>(path: &P) -> Result<Vec<OsString>> {
     let mut versions: Vec<_> = fs::read_dir(path)?
         .flatten()
@@ -498,7 +466,6 @@ fn available_unity_versions<P: AsRef<Path>>(path: &P) -> Result<Vec<OsString>> {
 ///
 /// * `path`: Path to validate.
 ///
-/// returns: Result<Cow<Path>, Error>
 fn validate_project_path<P: AsRef<Path>>(path: &P) -> Result<Cow<Path>> {
     let path = path.as_ref();
     if cfg!(target_os = "windows") && path.starts_with("~") {
@@ -535,7 +502,6 @@ fn validate_project_path<P: AsRef<Path>>(path: &P) -> Result<Cow<Path>> {
 ///
 /// * `path`: Path to the project.
 ///
-/// returns: Result<(), Error>
 fn git_init<P: AsRef<Path>>(path: &P) -> Result<()> {
     Command::new("git")
         .arg("init")
@@ -561,17 +527,18 @@ fn inject_build_script<P: AsRef<Path>>(root_path: &P) -> Result<()> {
     Ok(())
 }
 
-fn remove_build_script<P: AsRef<Path>>(root_path: &P) -> Result<()> {
+/// Removes the injected build script from the project.
+fn remove_build_script<P: AsRef<Path>>(root_directory: &P) -> Result<()> {
     // Remove the directory where the build script is located.
-    fs::remove_dir_all(root_path).map_err(|_| {
+    fs::remove_dir_all(root_directory).map_err(|_| {
         anyhow!(
             "Could not remove directory: '{}'",
-            root_path.as_ref().to_string_lossy()
+            root_directory.as_ref().to_string_lossy()
         )
     })?;
 
     // Remove the .meta file.
-    let meta_file = format!("{}.meta", root_path.as_ref().to_string_lossy());
+    let meta_file = format!("{}.meta", root_directory.as_ref().to_string_lossy());
     fs::remove_file(&meta_file).map_err(|_| anyhow!("Could not remove file: '{}'", meta_file))?;
     Ok(())
 }

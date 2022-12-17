@@ -227,8 +227,11 @@ pub struct Build {
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, ValueEnum)]
 pub enum InjectAction {
+    /// If there is no build script, inject one and remove it after the build.
     Auto,
+    /// Inject the build script into the project and don't remove it afterwards.
     Persistent,
+    /// Don't inject the build script and use the one that is already in the project.
     Off,
 }
 
