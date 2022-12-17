@@ -202,6 +202,16 @@ pub struct Build {
     )]
     pub inject: InjectAction,
 
+    /// Build mode.
+    #[arg(
+        short = 'm',
+        long = "mode",
+        value_name = "MODE",
+        default_value = "batch-nographics",
+        verbatim_doc_comment
+    )]
+    pub mode: BuildMode,
+
     /// Do not print ucom log messages.
     #[clap(long = "quiet", short = 'q', verbatim_doc_comment)]
     pub quiet: bool,
@@ -222,10 +232,16 @@ pub enum InjectAction {
     Off,
 }
 
-impl Display for InjectAction {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{:?}", self)
-    }
+#[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, ValueEnum)]
+pub enum BuildMode {
+    #[value(name = "batch-nographics")]
+    BatchNoGraphics,
+    #[value(name = "batch")]
+    Batch,
+    #[value(name = "editor")]
+    EditorQuit,
+    #[value(name = "debug")]
+    Debug,
 }
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, ValueEnum)]

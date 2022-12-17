@@ -13,7 +13,7 @@ use clap::Parser;
 use path_absolutize::Absolutize;
 use uuid::Uuid;
 
-use crate::cli::{Action, BuildTarget, Cli, InjectAction, Target};
+use crate::cli::{Action, BuildMode, BuildTarget, Cli, InjectAction, Target};
 use crate::cmd::{CmdRunner, FnCmdAction};
 
 mod cli;
@@ -62,6 +62,7 @@ fn main() -> Result<()> {
             &build.target,
             build.build_path.as_deref(),
             &build.inject,
+            &build.mode,
             build.args.as_deref(),
         )
         .context("Cannot build project")?
@@ -216,6 +217,7 @@ fn build_project_cmd<'a>(
     build_target: &Target,
     output_path: Option<&Path>,
     inject: &InjectAction,
+    mode: &BuildMode,
     unity_args: Option<&[String]>,
 ) -> Result<CmdRunner<'a>> {
     // Make sure the project path exists and is formatted correctly.
@@ -246,10 +248,24 @@ fn build_project_cmd<'a>(
         .args([
             "--ucom-build-target",
             &BuildTarget::from(*build_target).to_string(),
-        ])
-        .arg("-batchmode")
-        .arg("-quit")
-        .args(unity_args.unwrap_or_default());
+        ]);
+
+    // Add the build mode.
+    match mode {
+        BuildMode::BatchNoGraphics => {
+            cmd.args(["-batchmode", "-nographics", "-quit"]);
+        }
+        BuildMode::Batch => {
+            cmd.args(["-batchmode", "-quit"]);
+        }
+        BuildMode::EditorQuit => {
+            cmd.args(["-quit"]);
+        }
+        BuildMode::Debug => {} // Do nothing.
+    }
+
+    // Add any additional arguments.
+    cmd.args(unity_args.unwrap_or_default());
 
     let project_path = project_path.deref().to_path_buf();
 
@@ -265,9 +281,6 @@ fn build_project_cmd<'a>(
                     project_path.join(format!("{}-{}", AUTO_BUILD_SCRIPT_ROOT, Uuid::new_v4()));
                 let post_root = pre_root.clone();
 
-                dbg!(&pre_root);
-                dbg!(&post_root);
-
                 // Closure that injects build script into project.
                 let pre_action: Option<Box<FnCmdAction>> =
                     Some(Box::new(move || inject_build_script(&pre_root)));
@@ -279,7 +292,6 @@ fn build_project_cmd<'a>(
             }
         }
         InjectAction::Persistent => {
-            dbg!(project_path.join(PERSISTENT_BUILD_SCRIPT_PATH));
             if project_path.join(PERSISTENT_BUILD_SCRIPT_PATH).exists() {
                 // Build script already present, no need to inject.
                 (None, None)
