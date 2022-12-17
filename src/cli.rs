@@ -14,7 +14,7 @@ pub struct Cli {
 #[derive(clap::Subcommand)]
 pub enum Action {
     #[command(verbatim_doc_comment)]
-    /// This command will show a list of the installed Unity versions.
+    /// Shows a list of the installed Unity versions.
     List {
         /// The Unity versions to list. You can specify a partial version; e.g. 2021 will list all
         /// the 2021.x.y versions you have installed on your system.
@@ -26,7 +26,7 @@ pub enum Action {
         )]
         version_pattern: Option<String>,
     },
-    /// This command will create a new Unity project and Git repository in the given directory.
+    /// Creates a new Unity project and Git repository in the given directory.
     /// Unless specified otherwise, the latest installed Unity version is used.
     #[command(
         verbatim_doc_comment,
@@ -34,7 +34,7 @@ pub enum Action {
         arg_required_else_help = true
     )]
     New(New),
-    /// This command will open the Unity project in the given directory.
+    /// Opens the given Unity project in the Unity Editor.
     #[command(
         visible_alias = "o",
         allow_hyphen_values = true,
@@ -42,7 +42,7 @@ pub enum Action {
         arg_required_else_help = true
     )]
     Open(Open),
-    /// This command will build the Unity project in the given directory.
+    /// Builds the given Unity project.
     #[command(
         visible_alias = "b",
         allow_hyphen_values = true,
@@ -50,7 +50,7 @@ pub enum Action {
         arg_required_else_help = true
     )]
     Build(Build),
-    /// This command will run Unity with the specified arguments.
+    /// Runs Unity with the givens arguments.
     /// Unless specified otherwise, the latest installed Unity version is used.
     #[command(
         visible_alias = "r",
@@ -111,10 +111,10 @@ pub struct New {
     #[arg(
         required = true,
         verbatim_doc_comment,
-        value_name = "PROJECT_DIR",
+        value_name = "DIRECTORY",
         value_hint = clap::ValueHint::DirPath
     )]
-    pub path: PathBuf,
+    pub project_dir: PathBuf,
 
     /// Suppress initializing a new git repository.
     #[clap(long = "no-git", verbatim_doc_comment)]
@@ -140,8 +140,8 @@ pub struct New {
 #[derive(Args)]
 pub struct Open {
     /// The directory of the project.
-    #[arg(value_name = "PROJECT_DIR", value_hint = clap::ValueHint::DirPath, verbatim_doc_comment)]
-    pub path: PathBuf,
+    #[arg(value_name = "DIRECTORY", value_hint = clap::ValueHint::DirPath, verbatim_doc_comment)]
+    pub project_dir: PathBuf,
 
     /// The Unity version to open the project with. Use it to open a project with a newer
     /// Unity version. You can specify a partial version; e.g. 2021 will match the latest
@@ -171,6 +171,63 @@ pub struct Open {
     pub args: Option<Vec<String>>,
 }
 
+#[derive(Args)]
+pub struct Build {
+    /// The directory of the project.
+    #[arg(value_name = "DIRECTORY", value_hint = clap::ValueHint::DirPath, verbatim_doc_comment)]
+    pub project_dir: PathBuf,
+
+    /// The target platform to build for.
+    #[arg(value_enum)]
+    pub target: Target,
+
+    /// The output directory of the build. When omitted the build will be placed in
+    /// <DIRECTORY>/Builds/<TARGET>.
+    #[arg(
+        short = 'o',
+        long = "output",
+        value_name = "DIRECTORY",
+        value_hint = clap::ValueHint::FilePath,
+        verbatim_doc_comment)
+    ]
+    pub build_path: Option<PathBuf>,
+
+    /// Build script injection method.
+    #[arg(
+        short = 'i',
+        long = "inject",
+        value_name = "ACTION",
+        default_value = "auto",
+        verbatim_doc_comment
+    )]
+    pub inject: InjectAction,
+
+    /// Do not print ucom log messages.
+    #[clap(long = "quiet", short = 'q', verbatim_doc_comment)]
+    pub quiet: bool,
+
+    /// Show what would be run, but do not actually run it.
+    #[clap(long = "dry-run", short = 'n', verbatim_doc_comment)]
+    pub dry_run: bool,
+
+    /// A list of arguments passed directly to Unity.
+    #[arg(last = true, value_name = "UNITY_ARGS", verbatim_doc_comment)]
+    pub args: Option<Vec<String>>,
+}
+
+#[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, ValueEnum)]
+pub enum InjectAction {
+    Auto,
+    Persistent,
+    Off,
+}
+
+impl Display for InjectAction {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{:?}", self)
+    }
+}
+
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, ValueEnum)]
 #[allow(non_camel_case_types)]
 pub enum Target {
@@ -196,7 +253,6 @@ impl Display for Target {
     }
 }
 
-// todo: remove?
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, ValueEnum)]
 #[allow(non_camel_case_types)]
 pub enum BuildTarget {
@@ -227,32 +283,4 @@ impl From<Target> for BuildTarget {
             Target::WebGL => Self::WebGL,
         }
     }
-}
-
-#[derive(Args)]
-pub struct Build {
-    /// The directory of the project.
-    #[arg(value_name = "PROJECT_DIR", value_hint = clap::ValueHint::DirPath, verbatim_doc_comment)]
-    pub path: PathBuf,
-
-    /// The target platform to build for.
-    #[arg(value_enum)]
-    pub target: Target,
-
-    /// The output directory of the build. When omitted the build will be placed in
-    /// <PROJECT_DIR>/Builds/<TARGET>.
-    #[arg(value_name = "OUTPUT_DIR", value_hint = clap::ValueHint::FilePath, verbatim_doc_comment)]
-    pub build_path: Option<PathBuf>,
-
-    /// Do not print ucom log messages.
-    #[clap(long = "quiet", short = 'q', verbatim_doc_comment)]
-    pub quiet: bool,
-
-    /// Show what would be run, but do not actually run it.
-    #[clap(long = "dry-run", short = 'n', verbatim_doc_comment)]
-    pub dry_run: bool,
-
-    /// A list of arguments passed directly to Unity.
-    #[arg(last = true, value_name = "UNITY_ARGS", verbatim_doc_comment)]
-    pub args: Option<Vec<String>>,
 }

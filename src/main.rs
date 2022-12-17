@@ -13,11 +13,16 @@ use clap::Parser;
 use path_absolutize::Absolutize;
 use uuid::Uuid;
 
-use crate::cli::{Action, BuildTarget, Cli, Target};
+use crate::cli::{Action, BuildTarget, Cli, InjectAction, Target};
 use crate::cmd::{CmdRunner, FnCmdAction};
 
 mod cli;
 mod cmd;
+
+const BUILD_SCRIPT_NAME: &str = "UcomBuilder.cs";
+const PERSISTENT_BUILD_SCRIPT_PATH: &str = "Assets/Plugins/ucom/Editor/UcomBuilder.cs";
+const PERSISTENT_BUILD_SCRIPT_ROOT: &str = "Assets/Plugins/ucom";
+const AUTO_BUILD_SCRIPT_ROOT: &str = "Assets/ucom";
 
 fn main() -> Result<()> {
     let cli = Cli::parse();
@@ -37,7 +42,7 @@ fn main() -> Result<()> {
 
         Action::New(new) => new_project_cmd(
             new.version_pattern.as_deref(),
-            &new.path,
+            &new.project_dir,
             new.args.as_deref(),
             new.no_git,
         )
@@ -45,7 +50,7 @@ fn main() -> Result<()> {
         .run(new.wait, new.quiet, new.dry_run),
 
         Action::Open(open) => open_project_cmd(
-            &open.path,
+            &open.project_dir,
             open.version_pattern.as_deref(),
             open.args.as_deref(),
         )
@@ -53,9 +58,10 @@ fn main() -> Result<()> {
         .run(open.wait, open.quiet, open.dry_run),
 
         Action::Build(build) => build_project_cmd(
-            &build.path,
+            &build.project_dir,
             &build.target,
             build.build_path.as_deref(),
+            &build.inject,
             build.args.as_deref(),
         )
         .context("Cannot build project")?
@@ -120,15 +126,12 @@ fn run_unity_cmd<'a>(
 /// * `no_git`: If true, do not initialize a git repository.
 ///
 /// returns: Result<CmdRunner, Error>
-fn new_project_cmd<'a, P>(
+fn new_project_cmd<'a, P: AsRef<Path>>(
     version_pattern: Option<&str>,
     project_path: &P,
     unity_args: Option<&[String]>,
     no_git: bool,
-) -> Result<CmdRunner<'a>>
-where
-    P: AsRef<Path>,
-{
+) -> Result<CmdRunner<'a>> {
     let project_path = project_path.as_ref();
 
     // Check if destination already exists.
@@ -175,14 +178,11 @@ where
 /// * `unity_args`: Arguments to pass to Unity.
 ///
 /// returns: Result<CmdRunner, Error>
-fn open_project_cmd<'a, P>(
+fn open_project_cmd<'a, P: AsRef<Path>>(
     project_path: &P,
     partial_version: Option<&str>,
     unity_args: Option<&[String]>,
-) -> Result<CmdRunner<'a>>
-where
-    P: AsRef<Path>,
-{
+) -> Result<CmdRunner<'a>> {
     // Make sure the project path exists and is formatted correctly.
     let project_path = validate_project_path(&project_path)?;
 
@@ -215,6 +215,7 @@ fn build_project_cmd<'a>(
     project_path: &Path,
     build_target: &Target,
     output_path: Option<&Path>,
+    inject: &InjectAction,
     unity_args: Option<&[String]>,
 ) -> Result<CmdRunner<'a>> {
     // Make sure the project path exists and is formatted correctly.
@@ -239,8 +240,6 @@ fn build_project_cmd<'a>(
     // Build the command to execute.
     let mut cmd = Command::new(unity_path);
     cmd.args(["-projectPath", &project_path.to_string_lossy()])
-        .arg("-batchmode")
-        .arg("-quit")
         .args(["-buildTarget", &build_target.to_string()])
         .args(["-executeMethod", "ucom.UcomBuilder.Build"])
         .args(["--ucom-build-output", &output_path.to_string_lossy()])
@@ -248,23 +247,55 @@ fn build_project_cmd<'a>(
             "--ucom-build-target",
             &BuildTarget::from(*build_target).to_string(),
         ])
+        .arg("-batchmode")
+        .arg("-quit")
         .args(unity_args.unwrap_or_default());
 
-    let build_script_root = project_path
-        .deref()
-        .to_owned()
-        .join(format!("Assets/ucom-{}", Uuid::new_v4()));
+    let project_path = project_path.deref().to_path_buf();
 
-    let build_script_root_post = build_script_root.clone();
+    let (pre_action, post_action) = match inject {
+        InjectAction::Auto => {
+            if project_path.join(PERSISTENT_BUILD_SCRIPT_PATH).exists() {
+                // Build script already present, no need to inject.
+                (None, None)
+            } else {
+                // Build script not present, inject it.
+                // Place the build script in a unique directory to avoid conflicts.
+                let pre_root =
+                    project_path.join(format!("{}-{}", AUTO_BUILD_SCRIPT_ROOT, Uuid::new_v4()));
+                let post_root = pre_root.clone();
 
-    // Create closure that injects build script into project.
-    let pre_action: Option<Box<FnCmdAction>> =
-        Some(Box::new(move || inject_build_script(&build_script_root)));
+                dbg!(&pre_root);
+                dbg!(&post_root);
 
-    // Create closure that removes build script.
-    let post_action: Option<Box<FnCmdAction>> = Some(Box::new(move || {
-        remove_build_script(&build_script_root_post)
-    }));
+                // Closure that injects build script into project.
+                let pre_action: Option<Box<FnCmdAction>> =
+                    Some(Box::new(move || inject_build_script(&pre_root)));
+
+                // Closure that removes build script.
+                let post_action: Option<Box<FnCmdAction>> =
+                    Some(Box::new(move || remove_build_script(&post_root)));
+                (pre_action, post_action)
+            }
+        }
+        InjectAction::Persistent => {
+            dbg!(project_path.join(PERSISTENT_BUILD_SCRIPT_PATH));
+            if project_path.join(PERSISTENT_BUILD_SCRIPT_PATH).exists() {
+                // Build script already present, no need to inject.
+                (None, None)
+            } else {
+                // Build script not present, inject it.
+                let persistent_root = project_path.join(PERSISTENT_BUILD_SCRIPT_ROOT);
+
+                // Closure that injects build script into project.
+                let pre_action: Option<Box<FnCmdAction>> =
+                    Some(Box::new(move || inject_build_script(&persistent_root)));
+
+                (pre_action, None)
+            }
+        }
+        InjectAction::Off => (None, None), // Do nothing.
+    };
 
     Ok(CmdRunner::new(
         cmd,
@@ -287,10 +318,7 @@ fn build_project_cmd<'a>(
 /// * `path`: Path to the project.
 ///
 /// returns: Result<String, Error>
-fn unity_project_version<P>(path: &P) -> Result<String>
-where
-    P: AsRef<Path>,
-{
+fn unity_project_version<P: AsRef<Path>>(path: &P) -> Result<String> {
     const PROJECT_VERSION_FILE: &str = "ProjectSettings/ProjectVersion.txt";
     let file_path = path.as_ref().join(PROJECT_VERSION_FILE);
 
@@ -344,10 +372,7 @@ fn installation_root_path<'a>() -> &'a Path {
 /// * `path`: Path to the Unity installation directory.
 ///
 /// returns: PathBuf
-fn unity_executable_path<P>(path: &P) -> PathBuf
-where
-    P: AsRef<Path>,
-{
+fn unity_executable_path<P: AsRef<Path>>(path: &P) -> PathBuf {
     if cfg!(target_os = "macos") {
         Path::new(path.as_ref()).join("Unity.app/Contents/MacOS/Unity")
     } else if cfg!(target_os = "windows") {
@@ -414,10 +439,7 @@ fn matching_unity_version(partial_version: Option<&str>) -> Result<(OsString, Pa
 /// * `path`: Path to the project.
 ///
 /// returns: Result<(OsString, PathBuf), Error>
-fn matching_unity_project_version<P>(path: &P) -> Result<(OsString, PathBuf)>
-where
-    P: AsRef<Path>,
-{
+fn matching_unity_project_version<P: AsRef<Path>>(path: &P) -> Result<(OsString, PathBuf)> {
     // Get the Unity version the project uses.
     let version: OsString = unity_project_version(path)?.into();
 
@@ -439,10 +461,7 @@ where
 /// * `path`: Path to the Unity installation root.
 ///
 /// returns: Result<Vec<OsString, Global>, Error>
-fn available_unity_versions<P>(path: &P) -> Result<Vec<OsString>>
-where
-    P: AsRef<Path>,
-{
+fn available_unity_versions<P: AsRef<Path>>(path: &P) -> Result<Vec<OsString>> {
     let mut versions: Vec<_> = fs::read_dir(path)?
         .flatten()
         .map(|entry| entry.path())
@@ -468,10 +487,7 @@ where
 /// * `path`: Path to validate.
 ///
 /// returns: Result<Cow<Path>, Error>
-fn validate_project_path<P>(path: &P) -> Result<Cow<Path>>
-where
-    P: AsRef<Path>,
-{
+fn validate_project_path<P: AsRef<Path>>(path: &P) -> Result<Cow<Path>> {
     let path = path.as_ref();
     if cfg!(target_os = "windows") && path.starts_with("~") {
         return Err(anyhow!(
@@ -508,10 +524,7 @@ where
 /// * `path`: Path to the project.
 ///
 /// returns: Result<(), Error>
-fn git_init<P>(path: &P) -> Result<()>
-where
-    P: AsRef<Path>,
-{
+fn git_init<P: AsRef<Path>>(path: &P) -> Result<()> {
     Command::new("git")
         .arg("init")
         .arg(path.as_ref())
@@ -525,24 +538,18 @@ where
     Ok(())
 }
 
-fn inject_build_script<P>(root_path: &P) -> Result<()>
-where
-    P: AsRef<Path>,
-{
-    let file_path = root_path.as_ref().join(root_path).join("Editor");
-    fs::create_dir_all(&file_path)?;
+fn inject_build_script<P: AsRef<Path>>(root_path: &P) -> Result<()> {
+    let root_path = root_path.as_ref().join("Editor");
+    fs::create_dir_all(&root_path)?;
 
-    let file_path = file_path.join("Build.cs");
+    let file_path = root_path.join(BUILD_SCRIPT_NAME);
     let file_content = include_str!("include/UcomBuilder.cs");
     let mut file = File::create(file_path)?;
     write!(file, "{}", file_content)?;
     Ok(())
 }
 
-fn remove_build_script<P>(root_path: &P) -> Result<()>
-where
-    P: AsRef<Path>,
-{
+fn remove_build_script<P: AsRef<Path>>(root_path: &P) -> Result<()> {
     // Remove the directory where the build script is located.
     fs::remove_dir_all(root_path).map_err(|_| {
         anyhow!(

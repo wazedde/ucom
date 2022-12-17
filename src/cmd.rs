@@ -72,13 +72,13 @@ impl<'a> CmdRunner<'a> {
         if wait {
             let output = cmd.output();
 
-            let output = output?;
-
             if let Some(post_action) = self.post_action {
                 post_action()?;
             }
 
+            let output = output?;
             let stdout = String::from_utf8(output.stdout)?;
+            let stderr = String::from_utf8(output.stderr)?;
 
             print!("{}", stdout);
             if !stdout.ends_with('\n') {
@@ -87,8 +87,9 @@ impl<'a> CmdRunner<'a> {
 
             output.status.success().then_some(()).ok_or_else(|| {
                 anyhow::anyhow!(
-                    "Command failed with exit code: {}",
-                    output.status.code().unwrap_or(-1)
+                    "Command failed with exit code {}: {}",
+                    output.status.code().unwrap_or(-1),
+                    stderr
                 )
             })?;
         } else {
