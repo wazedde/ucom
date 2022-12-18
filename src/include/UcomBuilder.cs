@@ -25,18 +25,18 @@ namespace ucom
 
             if (!args.TryGetArgValue(BuildOutputArg, out string buildOutput))
             {
-                Debug.LogError("[ucom] Output path not specified.");
+                Debug.LogError("[ucom] Output path '--ucom-build-output <path>' not specified.");
                 invalidArgs = true;
             }
 
             if (!args.TryGetArgValue(BuildTargetArg, out string buildTarget))
             {
-                Debug.LogError("[ucom] Build target not specified.");
+                Debug.LogError("[ucom] Build target '--ucom-build-target <target>' not specified.");
                 invalidArgs = true;
             }
             else if (!Enum.TryParse(buildTarget, out BuildTarget target))
             {
-                Debug.LogError($"[ucom] Invalid build target: {buildTarget}");
+                Debug.LogError($"[ucom] Invalid build target: --ucom-build-target {buildTarget}");
                 invalidArgs = true;
             }
             else if (target != EditorUserBuildSettings.activeBuildTarget)
