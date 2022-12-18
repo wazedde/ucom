@@ -67,16 +67,16 @@ namespace ucom
                     break;
                 case BuildTarget.StandaloneWindows:
                 case BuildTarget.StandaloneWindows64:
-                    buildOutput = Path.Join(buildOutput, $"{Application.productName}.exe");
+                    buildOutput = Path.Combine(buildOutput, $"{Application.productName}.exe");
                     break;
                 case BuildTarget.StandaloneOSX:
-                    buildOutput = Path.Join(buildOutput, $"{Application.productName}.app");
+                    buildOutput = Path.Combine(buildOutput, $"{Application.productName}.app");
                     break;
                 case BuildTarget.StandaloneLinux64:
-                    buildOutput = Path.Join(buildOutput, $"{Application.productName}.x86_64");
+                    buildOutput = Path.Combine(buildOutput, $"{Application.productName}.x86_64");
                     break;
                 case BuildTarget.Android:
-                    buildOutput = Path.Join(buildOutput, $"{Application.productName}.apk");
+                    buildOutput = Path.Combine(buildOutput, $"{Application.productName}.apk");
                     break;
                 default:
                     Debug.LogError($"[ucom] Build failed: {buildTarget} build target not supported.");
