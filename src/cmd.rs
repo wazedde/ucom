@@ -1,4 +1,3 @@
-use std::borrow::Cow;
 use std::process::{Command, Stdio};
 
 use anyhow::{anyhow, Result};
@@ -6,7 +5,7 @@ use anyhow::{anyhow, Result};
 pub(crate) type FnCmdAction = dyn FnOnce() -> Result<()>;
 
 /// A runner for commands.
-pub(crate) struct CmdRunner<'a> {
+pub(crate) struct CmdRunner {
     /// The system command to perform.
     command: Command,
     /// An optional action that is performed before the command.
@@ -14,10 +13,10 @@ pub(crate) struct CmdRunner<'a> {
     /// An optional action that is performed before the command.
     post_action: Option<Box<FnCmdAction>>,
     /// A description of the command.
-    description: Cow<'a, str>,
+    description: String,
 }
 
-impl<'a> CmdRunner<'a> {
+impl CmdRunner {
     /// Creates a new command runner.
     ///
     /// # Arguments
@@ -27,20 +26,17 @@ impl<'a> CmdRunner<'a> {
     /// * `description`: A description of the command.
     ///
     /// returns: CmdRunner
-    pub(crate) fn new<S>(
+    pub(crate) fn new(
         command: Command,
         pre_action: Option<Box<FnCmdAction>>,
         post_action: Option<Box<FnCmdAction>>,
-        description: S,
-    ) -> Self
-    where
-        S: Into<Cow<'a, str>>,
-    {
+        description: String,
+    ) -> Self {
         CmdRunner {
             command,
             pre_action,
             post_action,
-            description: description.into(),
+            description,
         }
     }
 
