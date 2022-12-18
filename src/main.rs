@@ -91,10 +91,10 @@ fn show_list(partial_version: Option<&str>) -> Result<()> {
 }
 
 /// Returns command that runs Unity.
-fn run_unity_cmd<'a>(
+fn run_unity_cmd(
     partial_version: Option<&str>,
     unity_args: Option<&[String]>,
-) -> Result<CmdRunner<'a>> {
+) -> Result<CmdRunner> {
     let (unity_version, directory) = matching_unity_version(partial_version)?;
 
     let mut cmd = Command::new(unity_executable_path(&directory));
@@ -109,12 +109,12 @@ fn run_unity_cmd<'a>(
 }
 
 /// Returns command that creates an empty project at the given path.
-fn new_project_cmd<'a, P: AsRef<Path>>(
+fn new_project_cmd<P: AsRef<Path>>(
     version_pattern: Option<&str>,
     project_path: P,
     unity_args: Option<&[String]>,
     no_git: bool,
-) -> Result<CmdRunner<'a>> {
+) -> Result<CmdRunner> {
     let project_path = project_path.as_ref();
 
     // Check if destination already exists.
@@ -128,7 +128,7 @@ fn new_project_cmd<'a, P: AsRef<Path>>(
     // Create closure that initializes git repository.
     let pre_action: Option<Box<FnCmdAction>> = if !no_git {
         let p = project_path.to_owned();
-        Some(Box::new(move || git_init(p)))
+        Some(Box::new(|| git_init(p)))
     } else {
         None
     };
@@ -153,11 +153,11 @@ fn new_project_cmd<'a, P: AsRef<Path>>(
 }
 
 /// Returns command that opens the project at the given path.
-fn open_project_cmd<'a, P: AsRef<Path>>(
+fn open_project_cmd<P: AsRef<Path>>(
     project_path: P,
     partial_version: Option<&str>,
     unity_args: Option<&[String]>,
-) -> Result<CmdRunner<'a>> {
+) -> Result<CmdRunner> {
     // Make sure the project path exists and is formatted correctly.
     let project_path = validate_project_path(&project_path)?;
 
@@ -187,14 +187,14 @@ fn open_project_cmd<'a, P: AsRef<Path>>(
 }
 
 /// Returns command that builds the project at the given path.
-fn build_project_cmd<'a, P: AsRef<Path>>(
+fn build_project_cmd<P: AsRef<Path>>(
     project_path: P,
     build_target: Target,
     output_path: Option<&Path>,
     inject: InjectAction,
     mode: BuildMode,
     unity_args: Option<&[String]>,
-) -> Result<CmdRunner<'a>> {
+) -> Result<CmdRunner> {
     // Make sure the project path exists and is formatted correctly.
     let project_path = validate_project_path(&project_path)?;
 
@@ -258,11 +258,11 @@ fn build_project_cmd<'a, P: AsRef<Path>>(
 
                 // Closure that injects build script into project.
                 let pre_action: Option<Box<FnCmdAction>> =
-                    Some(Box::new(move || inject_build_script(pre_root)));
+                    Some(Box::new(|| inject_build_script(pre_root)));
 
                 // Closure that removes build script.
                 let post_action: Option<Box<FnCmdAction>> =
-                    Some(Box::new(move || remove_build_script(post_root)));
+                    Some(Box::new(|| remove_build_script(post_root)));
                 (pre_action, post_action)
             }
         }
@@ -276,7 +276,7 @@ fn build_project_cmd<'a, P: AsRef<Path>>(
 
                 // Closure that injects build script into project.
                 let pre_action: Option<Box<FnCmdAction>> =
-                    Some(Box::new(move || inject_build_script(persistent_root)));
+                    Some(Box::new(|| inject_build_script(persistent_root)));
 
                 (pre_action, None)
             }
@@ -358,9 +358,9 @@ fn installation_root_path<'a>() -> &'a Path {
 ///
 fn unity_executable_path<P: AsRef<Path>>(path: &P) -> PathBuf {
     if cfg!(target_os = "macos") {
-        Path::new(path.as_ref()).join("Unity.app/Contents/MacOS/Unity")
+        path.as_ref().join("Unity.app/Contents/MacOS/Unity")
     } else if cfg!(target_os = "windows") {
-        Path::new(path.as_ref()).join(r"Editor\Unity.exe")
+        path.as_ref().join(r"Editor\Unity.exe")
     } else {
         unimplemented!()
     }
@@ -410,7 +410,7 @@ fn matching_unity_version(partial_version: Option<&str>) -> Result<(OsString, Pa
         .map(|latest| latest.to_owned())
         .unwrap(); // Guaranteed to have at least one entry.
 
-    let full_path = Path::new(&path).join(&version);
+    let full_path = path.join(&version);
     Ok((version, full_path))
 }
 
@@ -425,7 +425,7 @@ fn matching_unity_project_version<P: AsRef<Path>>(path: &P) -> Result<(OsString,
     let version: OsString = unity_project_version(path)?.into();
 
     // Check if that Unity version is installed.
-    let directory = Path::new(&installation_root_path()).join(&version);
+    let directory = installation_root_path().join(&version);
     if !directory.exists() {
         return Err(anyhow!(
             "Unity version that the project uses is not installed: {}",
