@@ -3,7 +3,6 @@ use std::ffi::OsString;
 use std::fs;
 use std::fs::File;
 use std::io::{BufRead, BufReader, Write};
-use std::ops::Deref;
 use std::path::{Path, PathBuf};
 use std::process::{exit, Command};
 
@@ -13,8 +12,8 @@ use clap::Parser;
 use path_absolutize::Absolutize;
 use uuid::Uuid;
 
-use crate::cli::{Action, BuildMode, BuildTarget, Cli, InjectAction, Target};
-use crate::cmd::{CmdRunner, FnCmdAction};
+use crate::cli::*;
+use crate::cmd::*;
 
 mod cli;
 mod cmd;
@@ -23,6 +22,8 @@ const BUILD_SCRIPT_NAME: &str = "UcomBuilder.cs";
 const PERSISTENT_BUILD_SCRIPT_PATH: &str = "Assets/Plugins/ucom/Editor/UcomBuilder.cs";
 const PERSISTENT_BUILD_SCRIPT_ROOT: &str = "Assets/Plugins/ucom";
 const AUTO_BUILD_SCRIPT_ROOT: &str = "Assets/ucom";
+
+type OptionalFn = Option<Box<dyn FnOnce() -> Result<()>>>;
 
 fn main() -> Result<()> {
     let cli = Cli::parse();
@@ -47,7 +48,7 @@ fn main() -> Result<()> {
             new.args.as_deref(),
             new.no_git,
         )
-        .context("Cannot start creating project")?
+        .context("Cannot create project")?
         .run(new.wait, new.quiet, new.dry_run)
         .context("Cannot create project"),
 
@@ -56,21 +57,11 @@ fn main() -> Result<()> {
             open.version_pattern.as_deref(),
             open.args.as_deref(),
         )
-        .context("Cannot start opening project")?
+        .context("Cannot open project")?
         .run(open.wait, open.quiet, open.dry_run)
         .context("Cannot open project"),
 
-        Action::Build(build) => build_project_cmd(
-            build.project_dir,
-            build.target,
-            build.build_path.as_deref(),
-            build.inject,
-            build.mode,
-            build.args.as_deref(),
-        )
-        .context("Cannot start building project")?
-        .run(true, build.quiet, build.dry_run)
-        .context("Cannot build project"),
+        Action::Build(build) => run_build(build).context("Cannot build project"),
     }
 }
 
@@ -126,7 +117,7 @@ fn new_project_cmd<P: AsRef<Path>>(
     }
 
     // Create closure that initializes git repository.
-    let pre_action: Option<Box<FnCmdAction>> = if !no_git {
+    let pre_action: OptionalFn = if !no_git {
         let p = project_path.to_owned();
         Some(Box::new(|| git_init(p)))
     } else {
@@ -186,25 +177,78 @@ fn open_project_cmd<P: AsRef<Path>>(
     ))
 }
 
-/// Returns command that builds the project at the given path.
-fn build_project_cmd<P: AsRef<Path>>(
-    project_path: P,
-    build_target: Target,
-    output_path: Option<&Path>,
-    inject: InjectAction,
-    mode: BuildMode,
-    unity_args: Option<&[String]>,
-) -> Result<CmdRunner> {
-    // Make sure the project path exists and is formatted correctly.
-    let project_path = validate_project_path(&project_path)?;
+/// Runs the build command.
+fn run_build(settings: Build) -> Result<()> {
+    let project_path = validate_project_path(&settings.project_dir)?;
 
-    let output_path: Cow<Path> = output_path.map(|p| p.into()).unwrap_or_else(|| {
+    let output_path = settings.build_path.unwrap_or_else(|| {
         project_path
             .join("Builds")
-            .join(build_target.to_string())
-            .into()
+            .join(settings.target.to_string())
     });
 
+    let Some(log_file) = settings.log_file.file_name() else {
+        return Err(anyhow!("Invalid log file name: {}", settings.log_file.to_string_lossy()));
+    };
+
+    let log_file = if log_file == settings.log_file {
+        // Log filename without path was given, use the output path as destination.
+        output_path.join(log_file)
+    } else {
+        // A full path was given, use it.
+        log_file.into()
+    };
+
+    if log_file.exists() {
+        fs::remove_file(&log_file)?;
+    }
+
+    let (command, description) = new_build_project_command(
+        &project_path,
+        settings.target,
+        &output_path,
+        settings.mode,
+        &log_file,
+        settings.args.as_deref(),
+    )?;
+
+    if settings.dry_run {
+        println!("{}", to_command_line_string(&command));
+        return Ok(());
+    }
+
+    let (pre_build, post_build) =
+        create_build_script_injection_actions(&project_path, settings.inject);
+
+    if let Some(pre_build) = pre_build {
+        pre_build()?;
+    }
+
+    println!("{}", description);
+
+    let result = if settings.mode == BuildMode::Batch || settings.mode == BuildMode::BatchNoGraphics
+    {
+        run_command_with_log_output(command, &log_file)
+    } else {
+        run_command(command)
+    };
+
+    if let Some(post_build) = post_build {
+        post_build()?;
+    }
+
+    result
+}
+
+/// Returns command that builds the project at the given path.
+fn new_build_project_command(
+    project_path: &Path,
+    build_target: Target,
+    output_path: &Path,
+    mode: BuildMode,
+    log_file: &Path,
+    unity_args: Option<&[String]>,
+) -> Result<(Command, String)> {
     if project_path == output_path {
         return Err(anyhow!(
             "Output path cannot be the same as the project path."
@@ -218,6 +262,7 @@ fn build_project_cmd<P: AsRef<Path>>(
     let mut cmd = Command::new(unity_path);
     cmd.args(["-projectPath", &project_path.to_string_lossy()])
         .args(["-buildTarget", &build_target.to_string()])
+        .args(["-logFile", &log_file.to_string_lossy()])
         .args(["-executeMethod", "ucom.UcomBuilder.Build"])
         .args(["--ucom-build-output", &output_path.to_string_lossy()])
         .args([
@@ -242,9 +287,24 @@ fn build_project_cmd<P: AsRef<Path>>(
     // Add any additional arguments.
     cmd.args(unity_args.unwrap_or_default());
 
-    let project_path = project_path.deref().to_path_buf();
+    Ok((
+        cmd,
+        format!(
+            "Building Unity {} {} project in '{}' to '{}'",
+            version.to_string_lossy(),
+            build_target,
+            project_path.to_string_lossy(),
+            output_path.to_string_lossy(),
+        ),
+    ))
+}
 
-    let (pre_action, post_action) = match inject {
+/// Creates actions that inject a script into the project before and after the build.
+fn create_build_script_injection_actions(
+    project_path: &Path,
+    inject: InjectAction,
+) -> (OptionalFn, OptionalFn) {
+    match inject {
         InjectAction::Auto => {
             if project_path.join(PERSISTENT_BUILD_SCRIPT_PATH).exists() {
                 // Build script already present, no need to inject.
@@ -257,12 +317,10 @@ fn build_project_cmd<P: AsRef<Path>>(
                 let post_root = pre_root.clone();
 
                 // Closure that injects build script into project.
-                let pre_action: Option<Box<FnCmdAction>> =
-                    Some(Box::new(|| inject_build_script(pre_root)));
+                let pre_action: OptionalFn = Some(Box::new(|| inject_build_script(pre_root)));
 
                 // Closure that removes build script.
-                let post_action: Option<Box<FnCmdAction>> =
-                    Some(Box::new(|| remove_build_script(post_root)));
+                let post_action: OptionalFn = Some(Box::new(|| remove_build_script(post_root)));
                 (pre_action, post_action)
             }
         }
@@ -275,27 +333,14 @@ fn build_project_cmd<P: AsRef<Path>>(
                 let persistent_root = project_path.join(PERSISTENT_BUILD_SCRIPT_ROOT);
 
                 // Closure that injects build script into project.
-                let pre_action: Option<Box<FnCmdAction>> =
+                let pre_action: OptionalFn =
                     Some(Box::new(|| inject_build_script(persistent_root)));
 
                 (pre_action, None)
             }
         }
         InjectAction::Off => (None, None), // Do nothing.
-    };
-
-    Ok(CmdRunner::new(
-        cmd,
-        pre_action,
-        post_action,
-        format!(
-            "Building Unity {} {} project in '{}' to '{}'",
-            version.to_string_lossy(),
-            build_target,
-            project_path.to_string_lossy(),
-            output_path.to_string_lossy(),
-        ),
-    ))
+    }
 }
 
 /// Returns the Unity version used for the project.
@@ -521,6 +566,11 @@ fn inject_build_script<P: AsRef<Path>>(root_path: P) -> Result<()> {
     fs::create_dir_all(&root_path)?;
 
     let file_path = root_path.join(BUILD_SCRIPT_NAME);
+    println!(
+        "[ucom] Injecting build script: {}",
+        file_path.to_string_lossy()
+    );
+
     let file_content = include_str!("include/UcomBuilder.cs");
     let mut file = File::create(file_path)?;
     write!(file, "{}", file_content)?;
@@ -536,6 +586,11 @@ fn remove_build_script<P: AsRef<Path>>(root_directory: P) -> Result<()> {
             root_directory.as_ref().to_string_lossy()
         )
     })?;
+
+    println!(
+        "[ucom] Removing injected build script in: {}",
+        root_directory.as_ref().to_string_lossy()
+    );
 
     // Remove the .meta file.
     let meta_file = format!("{}.meta", root_directory.as_ref().to_string_lossy());

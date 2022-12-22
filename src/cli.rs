@@ -207,14 +207,20 @@ pub struct Build {
         short = 'm',
         long = "mode",
         value_name = "MODE",
-        default_value = "batch-nographics",
+        default_value = "batch",
         verbatim_doc_comment
     )]
     pub mode: BuildMode,
 
-    /// Do not print ucom log messages.
-    #[clap(long = "quiet", short = 'q', verbatim_doc_comment)]
-    pub quiet: bool,
+    // The log file to write Unity's output to.
+    #[arg(
+        short = 'l',
+        long = "log-file",
+        value_name = "FILE",
+        default_value = "build.log",
+        verbatim_doc_comment
+    )]
+    pub log_file: PathBuf,
 
     /// Show what would be run, but do not actually run it.
     #[clap(long = "dry-run", short = 'n', verbatim_doc_comment)]
@@ -237,10 +243,10 @@ pub enum InjectAction {
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, ValueEnum)]
 pub enum BuildMode {
-    #[value(name = "batch-nographics")]
-    BatchNoGraphics,
     #[value(name = "batch")]
     Batch,
+    #[value(name = "batch-nographics")]
+    BatchNoGraphics,
     #[value(name = "editor")]
     EditorQuit,
     #[value(name = "debug")]
