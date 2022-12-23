@@ -34,14 +34,15 @@ fn main() -> Result<()> {
 
     match command {
         Action::List { version_pattern } => {
-            show_list(version_pattern.as_deref()).context("Cannot list installations")
+            run_list_command(version_pattern.as_deref()).context("Cannot list installations")
         }
 
-        Action::Run(run) => run_unity_cmd(run.version_pattern.as_deref(), run.args.as_deref())
-            .context("Cannot run Unity")?
-            .run(run.wait, run.quiet, run.dry_run)
-            .context("Cannot run Unity"),
+        Action::Run(run) => run_unity_command(run).context("Cannot run Unity"),
 
+        // Action::Run(run) => run_unity_cmd(run.version_pattern.as_deref(), run.args.as_deref())
+        //     .context("Cannot run Unity")?
+        //     .run(run.wait, run.quiet, run.dry_run)
+        //     .context("Cannot run Unity"),
         Action::New(new) => new_project_cmd(
             new.version_pattern.as_deref(),
             new.project_dir,
@@ -61,12 +62,12 @@ fn main() -> Result<()> {
         .run(open.wait, open.quiet, open.dry_run)
         .context("Cannot open project"),
 
-        Action::Build(build) => run_build(build).context("Cannot build project"),
+        Action::Build(build) => run_build_command(build).context("Cannot build project"),
     }
 }
 
 /// Lists installed Unity versions.
-fn show_list(partial_version: Option<&str>) -> Result<()> {
+fn run_list_command(partial_version: Option<&str>) -> Result<()> {
     let path = installation_root_path();
     let versions = filter_versions(partial_version, available_unity_versions(&path)?);
 
@@ -74,29 +75,35 @@ fn show_list(partial_version: Option<&str>) -> Result<()> {
         return Err(anyhow!("No Unity installations found in {}", path.to_string_lossy()));
     };
 
-    println!("Installed Unity versions:");
+    println!("List Unity versions");
     for editor in versions {
         println!("{}", editor.to_string_lossy());
     }
     Ok(())
 }
 
-/// Returns command that runs Unity.
-fn run_unity_cmd(
-    partial_version: Option<&str>,
-    unity_args: Option<&[String]>,
-) -> Result<CmdRunner> {
-    let (unity_version, directory) = matching_unity_version(partial_version)?;
+/// Runs the Unity Editor with the given arguments.
+fn run_unity_command(run_settings: Run) -> Result<()> {
+    let (unity_version, directory) =
+        matching_unity_version(run_settings.version_pattern.as_deref())?;
 
     let mut cmd = Command::new(unity_executable_path(&directory));
-    cmd.args(unity_args.unwrap_or_default());
+    cmd.args(run_settings.args.unwrap_or_default());
 
-    Ok(CmdRunner::new(
-        cmd,
-        None,
-        None,
-        format!("Running Unity {}", unity_version.to_string_lossy()),
-    ))
+    if run_settings.dry_run {
+        println!("{}", to_command_line_string(&cmd));
+        return Ok(());
+    }
+
+    if !run_settings.quiet {
+        println!("Run Unity {}", unity_version.to_string_lossy());
+    }
+
+    if run_settings.wait {
+        run_command_with_stdout(cmd)
+    } else {
+        spawn_command(cmd).map(|_| ())
+    }
 }
 
 /// Returns command that creates an empty project at the given path.
@@ -178,7 +185,7 @@ fn open_project_cmd<P: AsRef<Path>>(
 }
 
 /// Runs the build command.
-fn run_build(settings: Build) -> Result<()> {
+fn run_build_command(settings: Build) -> Result<()> {
     let project_path = validate_project_path(&settings.project_dir)?;
 
     let output_path = settings.build_path.unwrap_or_else(|| {
@@ -230,7 +237,7 @@ fn run_build(settings: Build) -> Result<()> {
     {
         run_command_with_log_output(command, &log_file)
     } else {
-        run_command(command)
+        run_command_with_stdout(command)
     };
 
     if let Some(post_build) = post_build {

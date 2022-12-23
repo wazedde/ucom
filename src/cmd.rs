@@ -123,7 +123,7 @@ pub(crate) fn spawn_command(mut cmd: Command) -> Result<Child> {
         .map_err(|e| anyhow!("Failed to run child process: {}", e))
 }
 
-pub(crate) fn run_command(cmd: Command) -> Result<()> {
+pub(crate) fn run_command_with_stdout(cmd: Command) -> Result<()> {
     let child = spawn_command(cmd)?;
 
     let output = child
@@ -131,7 +131,9 @@ pub(crate) fn run_command(cmd: Command) -> Result<()> {
         .map_err(|e| anyhow!("Failed to wait for child process: {}", e));
 
     let output = output?;
-    let _stdout = String::from_utf8(output.stdout)?;
+    let stdout = String::from_utf8(output.stdout)?;
+    print!("{}", stdout);
+
     let stderr = String::from_utf8(output.stderr)?;
     output.status.success().then_some(()).ok_or_else(|| {
         anyhow!(
