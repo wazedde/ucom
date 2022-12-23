@@ -41,14 +41,7 @@ fn main() -> Result<()> {
 
         Action::New(new) => run_new_command(new).context("Cannot create new Unity project"),
 
-        Action::Open(open) => open_project_cmd(
-            open.project_dir,
-            open.version_pattern.as_deref(),
-            open.args.as_deref(),
-        )
-        .context("Cannot open project")?
-        .run(open.wait, open.quiet, open.dry_run)
-        .context("Cannot open project"),
+        Action::Open(open) => run_open_command(open).context("Cannot open Unity project"),
 
         Action::Build(build) => run_build_command(build).context("Cannot build project"),
     }
@@ -136,17 +129,12 @@ fn run_new_command(settings: New) -> Result<()> {
     Ok(())
 }
 
-/// Returns command that opens the project at the given path.
-fn open_project_cmd<P: AsRef<Path>>(
-    project_path: P,
-    partial_version: Option<&str>,
-    unity_args: Option<&[String]>,
-) -> Result<CmdRunner> {
-    // Make sure the project path exists and is formatted correctly.
-    let project_path = validate_project_path(&project_path)?;
+/// Opens the given Unity project in the Unity Editor.
+fn run_open_command(settings: Open) -> Result<()> {
+    let project_path = validate_project_path(&settings.project_dir)?;
 
-    let (version, unity_directory) = if partial_version.is_some() {
-        matching_unity_version(partial_version)?
+    let (version, unity_directory) = if settings.version_pattern.is_some() {
+        matching_unity_version(settings.version_pattern.as_deref())?
     } else {
         matching_unity_project_version(&project_path)?
     };
@@ -156,18 +144,26 @@ fn open_project_cmd<P: AsRef<Path>>(
     // Build the command to execute.
     let mut cmd = Command::new(unity_path);
     cmd.args(["-projectPath", &project_path.to_string_lossy()])
-        .args(unity_args.unwrap_or_default());
+        .args(settings.args.unwrap_or_default());
 
-    Ok(CmdRunner::new(
-        cmd,
-        None,
-        None,
-        format!(
-            "Opening Unity {} project in '{}'",
+    if settings.dry_run {
+        println!("{}", to_command_line_string(&cmd));
+        return Ok(());
+    }
+
+    if !settings.quiet {
+        println!(
+            "Open Unity {} project in '{}'",
             version.to_string_lossy(),
             project_path.to_string_lossy()
-        ),
-    ))
+        );
+    }
+
+    if settings.wait {
+        run_command_to_stdout(cmd)
+    } else {
+        forget_command(cmd)
+    }
 }
 
 /// Runs the build command.
