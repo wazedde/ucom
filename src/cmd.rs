@@ -117,18 +117,23 @@ fn continuous_log_reader(
     let file = fs::File::open(log_file).unwrap();
     let mut file = io::BufReader::new(file);
     let mut buf = String::new();
+    let mut ended_with_newline = false;
 
     loop {
         let is_finished = *finish_reading.lock().unwrap();
 
         file.read_to_string(&mut buf).unwrap();
         if !buf.is_empty() {
+            ended_with_newline = buf.ends_with("\n");
             print!("{}", buf);
             buf.clear();
         }
 
         // Break when other thread has finished.
         if is_finished {
+            if !ended_with_newline {
+                println!();
+            }
             break;
         }
         thread::sleep(read_interval);
