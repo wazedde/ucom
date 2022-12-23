@@ -2,7 +2,7 @@
 
 A command line interface for Unity projects written in Rust.
 
-Because typing `ucom open .` to open a Unity project in the current directory is sometimes more convenient than having
+Because typing `ucom open .` to open the Unity project in the current directory is sometimes more convenient than having
 to deal with the Unity Hub.
 
 Some examples:
@@ -18,6 +18,8 @@ Some examples:
 - `ucom open ~/Develop/MyProject` opens the project in the directory.
 - `ucom open ~/Develop/MyProject -u 2021.3` opens the project with the latest 2021.3 version. Use it to e.g. upgrade the
   project to the latest Unity version.
+
+- `ucom build . ios` builds the project in the current directory for iOS in batch mode.
 
 ## How to install
 
@@ -42,13 +44,12 @@ Or build manually:
 Usage: ucom [COMMAND]
 
 Commands:
-  list  This command will show a list of the installed Unity versions.
-  run   This command will run Unity.
-            Unless specified otherwise, the latest installed Unity version is used. [aliases: r]
-  new   This command will create a new Unity project and Git repository in the given directory.
-            Unless specified otherwise, the latest installed Unity version is used.
-  open  This command will open the Unity project in the given directory. [aliases: o]
-  help  Print this message or the help of the given subcommand(s)
+  list   Shows a list of the installed Unity versions
+  new    Creates a new Unity project and Git repository (uses latest available Unity version by default)
+  open   Opens the given Unity project in the Unity Editor [aliases: o]
+  build  Builds the given Unity project [aliases: b]
+  run    Runs Unity with the givens arguments (uses latest available Unity version by default) [aliases: r]
+  help   Print this message or the help of the given subcommand(s)
 
 Options:
   -h, --help     Print help information
@@ -58,9 +59,9 @@ Options:
 ## `ucom help list`
 
 ```
-This command will show a list of the installed Unity versions.
+Shows a list of the installed Unity versions
 
-Usage: ucom list [OPTIONS]
+Usage: ucom.exe list [OPTIONS]
 
 Options:
   -u, --unity <VERSION>  The Unity versions to list. You can specify a partial version; e.g. 2021 will list all
@@ -68,65 +69,122 @@ Options:
   -h, --help             Print help information
 ```
 
-## `ucom help run`
-
-```
-This command will run Unity.
-Unless specified otherwise, the latest installed Unity version is used.
-
-Usage: ucom run [OPTIONS] <UNITY_ARGS>...
-
-Arguments:
-  <UNITY_ARGS>...  A list of arguments passed directly to Unity.
-
-Options:
-  -u, --unity <VERSION>  The Unity version to run. You can specify a partial version; e.g. 2021 will match the
-                         latest 2021.x.y version you have installed on your system.
-  -w, --wait             Waits for the command to finish before continuing.
-  -q, --quiet            Do not print ucom log messages.
-  -n, --dry-run          Show what would be run, but do not actually run it.
-  -h, --help             Print help information
-```
-
 ## `ucom help new`
 
 ```
-This command will create a new Unity project and Git repository in the given directory.
-Unless specified otherwise, the latest installed Unity version is used.
+Creates a new Unity project and Git repository (uses latest available Unity version by default)
 
-Usage: ucom new [OPTIONS] <DIR> [UNITY_ARGS]...
+Usage: ucom.exe new [OPTIONS] <DIRECTORY> [-- <UNITY_ARGS>...]
 
 Arguments:
-  <DIR>            The directory where the project is created. This directory should not exist yet.
-  [UNITY_ARGS]...  A list of arguments passed directly to Unity.
+  <DIRECTORY>      The directory where the project is created. This directory should not exist yet
+  [UNITY_ARGS]...  A list of arguments passed directly to Unity
 
 Options:
   -u, --unity <VERSION>  The Unity version to use for the new project. You can specify a partial version;
                          e.g. 2021 will match the latest 2021.x.y version you have installed on your system.
-      --no-git           Suppress initializing a new git repository.
-  -w, --wait             Waits for the command to finish before continuing.
-  -q, --quiet            Do not print ucom log messages.
-  -n, --dry-run          Show what would be run, but do not actually run it.
+      --no-git           Suppress initializing a new git repository
+  -w, --wait             Waits for the command to finish before continuing
+  -q, --quiet            Do not print ucom log messages
+  -n, --dry-run          Show what would be run, but do not actually run it
   -h, --help             Print help information
 ```
 
 ## `ucom help open`
 
 ```
-This command will open the Unity project in the given directory.
+Opens the given Unity project in the Unity Editor
 
-Usage: ucom open [OPTIONS] <DIR> [UNITY_ARGS]...
+Usage: ucom.exe open [OPTIONS] <DIRECTORY> [-- <UNITY_ARGS>...]
 
 Arguments:
-  <DIR>            The directory of the project.
-  [UNITY_ARGS]...  A list of arguments passed directly to Unity.
+  <DIRECTORY>      The directory of the project
+  [UNITY_ARGS]...  A list of arguments passed directly to Unity
 
 Options:
   -u, --unity <VERSION>  The Unity version to open the project with. Use it to open a project with a newer
                          Unity version. You can specify a partial version; e.g. 2021 will match the latest
                          2021.x.y version you have installed on your system.
-  -w, --wait             Waits for the command to finish before continuing.
-  -q, --quiet            Do not print ucom log messages.
-  -n, --dry-run          Show what would be run, but do not actually run it.
+  -w, --wait             Waits for the command to finish before continuing
+  -q, --quiet            Do not print ucom log messages
+  -n, --dry-run          Show what would be run, but do not actually run it
+  -h, --help             Print help information
+```
+
+## `ucom help build`
+
+```
+Builds the given Unity project
+
+Usage: ucom.exe build [OPTIONS] <DIRECTORY> <TARGET> [-- <UNITY_ARGS>...]
+
+Arguments:
+  <DIRECTORY>
+          The directory of the project
+
+  <TARGET>
+          The target platform to build for
+
+          [possible values: win32, win64, macos, linux64, ios, android, webgl]
+
+  [UNITY_ARGS]...
+          A list of arguments passed directly to Unity
+
+Options:
+  -o, --output <DIRECTORY>
+          The output directory of the build. When omitted the build will be placed in
+          <DIRECTORY>/Builds/<TARGET>
+
+  -i, --inject <ACTION>
+          Build script injection method
+
+          [default: auto]
+
+          Possible values:
+          - auto:       If there is no build script, inject one and remove it after the build
+          - persistent: Inject the build script into the project and don't remove it afterwards
+          - off:        Don't inject the build script and use the one that is already in the project
+
+  -m, --mode <MODE>
+          Build mode
+
+          [default: batch]
+
+          Possible values:
+          - batch:
+            Build in batch mode and wait for the build to finish
+          - batch-nogfx:
+            Build in batch mode without the graphics device and wait for the build to finish
+          - editor-quit:
+            Build in the editor and quit after the build
+          - editor:
+            Build in the editor and keep it open (handy for debugging the build process)
+
+  -l, --log-file <FILE>
+          [default: build.log]
+
+  -n, --dry-run
+          Show what would be run, but do not actually run it
+
+  -h, --help
+          Print help information (use `-h` for a summary)
+```
+
+## `ucom help run`
+
+```
+Runs Unity with the givens arguments (uses latest available Unity version by default)
+
+Usage: ucom.exe run [OPTIONS] -- <UNITY_ARGS>...
+
+Arguments:
+  <UNITY_ARGS>...  A list of arguments passed directly to Unity
+
+Options:
+  -u, --unity <VERSION>  The Unity version to run. You can specify a partial version; e.g. 2021 will match the
+                         latest 2021.x.y version you have installed on your system.
+  -w, --wait             Waits for the command to finish before continuing
+  -q, --quiet            Do not print ucom log messages
+  -n, --dry-run          Show what would be run, but do not actually run it
   -h, --help             Print help information
 ```
