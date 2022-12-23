@@ -116,14 +116,18 @@ impl CmdRunner {
     }
 }
 
-pub(crate) fn spawn_command(mut cmd: Command) -> Result<Child> {
+fn spawn_command(mut cmd: Command) -> Result<Child> {
     cmd.stdout(Stdio::piped())
         .stderr(Stdio::piped())
         .spawn()
         .map_err(|e| anyhow!("Failed to run child process: {}", e))
 }
 
-pub(crate) fn run_command_with_stdout(cmd: Command) -> Result<()> {
+pub(crate) fn forget_command(cmd: Command) -> Result<()> {
+    spawn_command(cmd).map(|_| ())
+}
+
+pub(crate) fn run_command_to_stdout(cmd: Command) -> Result<()> {
     let child = spawn_command(cmd)?;
 
     let output = child
@@ -144,7 +148,7 @@ pub(crate) fn run_command_with_stdout(cmd: Command) -> Result<()> {
     })
 }
 
-pub(crate) fn run_command_with_log_output(cmd: Command, log_file: &Path) -> Result<()> {
+pub(crate) fn run_command_with_log_capture(cmd: Command, log_file: &Path) -> Result<()> {
     let child = spawn_command(cmd)?;
 
     let is_finished = Arc::new(Mutex::new(false));
@@ -165,7 +169,6 @@ pub(crate) fn run_command_with_log_output(cmd: Command, log_file: &Path) -> Resu
     log_reader.join().expect("Log reader thread panicked");
 
     let output = output?;
-    let _stdout = String::from_utf8(output.stdout)?;
     let stderr = String::from_utf8(output.stderr)?;
     output.status.success().then_some(()).ok_or_else(|| {
         anyhow!(
