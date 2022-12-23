@@ -173,8 +173,6 @@ fn open_command(arguments: OpenArguments) -> Result<()> {
     } else {
         forget_command(cmd)?;
     }
-
-    println!("Build completed successfully.");
     Ok(())
 }
 
@@ -227,7 +225,7 @@ fn build_command(arguments: BuildArguments) -> Result<()> {
 
     println!("{}", description);
 
-    let result = match arguments.mode {
+    let build_result = match arguments.mode {
         BuildMode::Batch => run_command_with_log_capture(command, &log_file),
         BuildMode::BatchNoGraphics => run_command_with_log_capture(command, &log_file),
         BuildMode::EditorQuit => run_command_to_stdout(command),
@@ -238,7 +236,10 @@ fn build_command(arguments: BuildArguments) -> Result<()> {
         post_build()?;
     }
 
-    result
+    if build_result.is_ok() {
+        println!("Build completed successfully.");
+    }
+    build_result
 }
 
 /// Returns command that builds the project at the given path.
