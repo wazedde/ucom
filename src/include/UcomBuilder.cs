@@ -63,7 +63,7 @@ namespace ucom
             {
                 case BuildTarget.iOS:
                 case BuildTarget.WebGL:
-                    // Use unmodified buildOutput path.
+                    buildOutput = Path.Combine(buildOutput, Application.productName);
                     break;
                 case BuildTarget.StandaloneWindows:
                 case BuildTarget.StandaloneWindows64:
