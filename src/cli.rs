@@ -14,6 +14,7 @@ pub struct Cli {
 #[derive(clap::Subcommand)]
 pub enum Action {
     /// Shows a list of the installed Unity versions.
+    #[command(visible_alias = "l")]
     List {
         /// The Unity versions to list. You can specify a partial version; e.g. 2021 will list all
         /// the 2021.x.y versions you have installed on your system.
@@ -25,34 +26,42 @@ pub enum Action {
         )]
         version_pattern: Option<String>,
     },
+
     /// Creates a new Unity project and Git repository (uses latest available Unity version by default)
-    #[command(allow_hyphen_values = true, arg_required_else_help = true)]
-    New(New),
+    #[command(
+        visible_alias = "n",
+        allow_hyphen_values = true,
+        arg_required_else_help = true
+    )]
+    New(NewArguments),
+
     /// Opens the given Unity project in the Unity Editor
     #[command(
         visible_alias = "o",
         allow_hyphen_values = true,
         arg_required_else_help = true
     )]
-    Open(Open),
+    Open(OpenArguments),
+
     /// Builds the given Unity project
     #[command(
         visible_alias = "b",
         allow_hyphen_values = true,
         arg_required_else_help = true
     )]
-    Build(Build),
+    Build(BuildArguments),
+
     /// Runs Unity with the givens arguments (uses latest available Unity version by default)
     #[command(
         visible_alias = "r",
         allow_hyphen_values = true,
         arg_required_else_help = true
     )]
-    Run(Run),
+    Run(RunArguments),
 }
 
 #[derive(Args)]
-pub struct Run {
+pub struct RunArguments {
     /// The Unity version to run. You can specify a partial version; e.g. 2021 will match the
     /// latest 2021.x.y version you have installed on your system.
     #[arg(
@@ -81,7 +90,7 @@ pub struct Run {
 }
 
 #[derive(Args)]
-pub struct New {
+pub struct NewArguments {
     /// The Unity version to use for the new project. You can specify a partial version;
     /// e.g. 2021 will match the latest 2021.x.y version you have installed on your system.
     #[arg(
@@ -122,7 +131,7 @@ pub struct New {
 }
 
 #[derive(Args)]
-pub struct Open {
+pub struct OpenArguments {
     /// The directory of the project.
     #[arg(value_name = "DIRECTORY", value_hint = clap::ValueHint::DirPath)]
     pub project_dir: PathBuf,
@@ -156,7 +165,7 @@ pub struct Open {
 }
 
 #[derive(Args)]
-pub struct Build {
+pub struct BuildArguments {
     /// The directory of the project
     #[arg(value_name = "DIRECTORY", value_hint = clap::ValueHint::DirPath)]
     pub project_dir: PathBuf,
@@ -180,7 +189,7 @@ pub struct Build {
     #[arg(
         short = 'i',
         long = "inject",
-        value_name = "ACTION",
+        value_name = "METHOD",
         default_value = "auto"
     )]
     pub inject: InjectAction,
@@ -227,12 +236,15 @@ pub enum BuildMode {
     /// Build in batch mode and wait for the build to finish
     #[value(name = "batch")]
     Batch,
+
     /// Build in batch mode without the graphics device and wait for the build to finish
     #[value(name = "batch-nogfx")]
     BatchNoGraphics,
+
     /// Build in the editor and quit after the build
     #[value(name = "editor-quit")]
     EditorQuit,
+
     /// Build in the editor and keep it open (handy for debugging the build process)
     #[value(name = "editor")]
     Editor,

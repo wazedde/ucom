@@ -124,7 +124,7 @@ fn continuous_log_reader(
 
         file.read_to_string(&mut buf).unwrap();
         if !buf.is_empty() {
-            ended_with_newline = buf.ends_with("\n");
+            ended_with_newline = buf.ends_with('\n');
             print!("{}", buf);
             buf.clear();
         }

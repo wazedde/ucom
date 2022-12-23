@@ -49,10 +49,13 @@ fn list_command(partial_version: Option<&str>) -> Result<()> {
     let versions = filter_versions(partial_version, available_unity_versions(&path)?);
 
     let Ok(versions) = versions else {
-        return Err(anyhow!("No Unity installations found in {}", path.to_string_lossy()));
+        return Err(anyhow!("No Unity installations found in '{}'", path.to_string_lossy()));
     };
 
-    println!("List Unity versions");
+    println!(
+        "List installed Unity versions in '{}'",
+        path.to_string_lossy()
+    );
     for editor in versions {
         println!("{}", editor.to_string_lossy());
     }
@@ -60,22 +63,22 @@ fn list_command(partial_version: Option<&str>) -> Result<()> {
 }
 
 /// Runs the Unity Editor with the given arguments.
-fn run_command(settings: Run) -> Result<()> {
-    let (version, directory) = matching_unity_version(settings.version_pattern.as_deref())?;
+fn run_command(arguments: RunArguments) -> Result<()> {
+    let (version, directory) = matching_unity_version(arguments.version_pattern.as_deref())?;
 
     let mut cmd = Command::new(unity_executable_path(&directory));
-    cmd.args(settings.args.unwrap_or_default());
+    cmd.args(arguments.args.unwrap_or_default());
 
-    if settings.dry_run {
+    if arguments.dry_run {
         println!("{}", to_command_line_string(&cmd));
         return Ok(());
     }
 
-    if !settings.quiet {
+    if !arguments.quiet {
         println!("Run Unity {}", version.to_string_lossy());
     }
 
-    if settings.wait {
+    if arguments.wait {
         run_command_to_stdout(cmd)
     } else {
         forget_command(cmd)
@@ -83,39 +86,39 @@ fn run_command(settings: Run) -> Result<()> {
 }
 
 /// Creates a new Unity project and optional Git repository in the given directory.
-fn new_command(settings: New) -> Result<()> {
-    if settings.project_dir.exists() {
+fn new_command(arguments: NewArguments) -> Result<()> {
+    if arguments.project_dir.exists() {
         return Err(anyhow!(
             "Directory already exists: '{}'",
-            settings.project_dir.absolutize()?.to_string_lossy()
+            arguments.project_dir.absolutize()?.to_string_lossy()
         ));
     }
 
-    let (version, unity_directory) = matching_unity_version(settings.version_pattern.as_deref())?;
+    let (version, unity_directory) = matching_unity_version(arguments.version_pattern.as_deref())?;
 
     let mut cmd = Command::new(unity_executable_path(&unity_directory));
     cmd.arg("-createProject")
-        .arg(&settings.project_dir)
-        .args(settings.args.unwrap_or_default());
+        .arg(&arguments.project_dir)
+        .args(arguments.args.unwrap_or_default());
 
-    if settings.dry_run {
+    if arguments.dry_run {
         println!("{}", to_command_line_string(&cmd));
         return Ok(());
     }
 
-    if !settings.quiet {
+    if !arguments.quiet {
         println!(
             "Create new Unity {} project in '{}'",
             version.to_string_lossy(),
-            settings.project_dir.to_string_lossy()
+            arguments.project_dir.to_string_lossy()
         );
     }
 
-    if !settings.no_git {
-        git_init(settings.project_dir)?;
+    if !arguments.no_git {
+        git_init(arguments.project_dir)?;
     }
 
-    if settings.wait {
+    if arguments.wait {
         run_command_to_stdout(cmd)?;
     } else {
         forget_command(cmd).map(|_| ())?;
@@ -125,11 +128,11 @@ fn new_command(settings: New) -> Result<()> {
 }
 
 /// Opens the given Unity project in the Unity Editor.
-fn open_command(settings: Open) -> Result<()> {
-    let project_path = validate_project_path(&settings.project_dir)?;
+fn open_command(arguments: OpenArguments) -> Result<()> {
+    let project_path = validate_project_path(&arguments.project_dir)?;
 
-    let (version, unity_directory) = if settings.version_pattern.is_some() {
-        matching_unity_version(settings.version_pattern.as_deref())?
+    let (version, unity_directory) = if arguments.version_pattern.is_some() {
+        matching_unity_version(arguments.version_pattern.as_deref())?
     } else {
         matching_unity_project_version(&project_path)?
     };
@@ -139,14 +142,14 @@ fn open_command(settings: Open) -> Result<()> {
     // Build the command to execute.
     let mut cmd = Command::new(unity_path);
     cmd.args(["-projectPath", &project_path.to_string_lossy()])
-        .args(settings.args.unwrap_or_default());
+        .args(arguments.args.unwrap_or_default());
 
-    if settings.dry_run {
+    if arguments.dry_run {
         println!("{}", to_command_line_string(&cmd));
         return Ok(());
     }
 
-    if !settings.quiet {
+    if !arguments.quiet {
         println!(
             "Open Unity {} project in '{}'",
             version.to_string_lossy(),
@@ -154,7 +157,7 @@ fn open_command(settings: Open) -> Result<()> {
         );
     }
 
-    if settings.wait {
+    if arguments.wait {
         run_command_to_stdout(cmd)?;
     } else {
         forget_command(cmd)?;
@@ -165,20 +168,20 @@ fn open_command(settings: Open) -> Result<()> {
 }
 
 /// Runs the build command.
-fn build_command(settings: Build) -> Result<()> {
-    let project_path = validate_project_path(&settings.project_dir)?;
+fn build_command(arguments: BuildArguments) -> Result<()> {
+    let project_path = validate_project_path(&arguments.project_dir)?;
 
-    let output_path = settings.build_path.unwrap_or_else(|| {
+    let output_path = arguments.build_path.unwrap_or_else(|| {
         project_path
             .join("Builds")
-            .join(settings.target.to_string())
+            .join(arguments.target.to_string())
     });
 
-    let Some(log_file) = settings.log_file.file_name() else {
-        return Err(anyhow!("Invalid log file name: {}", settings.log_file.to_string_lossy()));
+    let Some(log_file) = arguments.log_file.file_name() else {
+        return Err(anyhow!("Invalid log file name: {}", arguments.log_file.to_string_lossy()));
     };
 
-    let log_file = if log_file == settings.log_file {
+    let log_file = if log_file == arguments.log_file {
         // Log filename without path was given, use the output path as destination.
         output_path.join(log_file)
     } else {
@@ -192,20 +195,20 @@ fn build_command(settings: Build) -> Result<()> {
 
     let (command, description) = new_build_project_command(
         &project_path,
-        settings.target,
+        arguments.target,
         &output_path,
-        settings.mode,
+        arguments.mode,
         &log_file,
-        settings.args.as_deref(),
+        arguments.args.as_deref(),
     )?;
 
-    if settings.dry_run {
+    if arguments.dry_run {
         println!("{}", to_command_line_string(&command));
         return Ok(());
     }
 
     let (pre_build, post_build) =
-        create_build_script_injection_actions(&project_path, settings.inject);
+        create_build_script_injection_actions(&project_path, arguments.inject);
 
     if let Some(pre_build) = pre_build {
         pre_build()?;
@@ -213,7 +216,7 @@ fn build_command(settings: Build) -> Result<()> {
 
     println!("{}", description);
 
-    let result = match settings.mode {
+    let result = match arguments.mode {
         BuildMode::Batch => run_command_with_log_capture(command, &log_file),
         BuildMode::BatchNoGraphics => run_command_with_log_capture(command, &log_file),
         BuildMode::EditorQuit => run_command_to_stdout(command),
