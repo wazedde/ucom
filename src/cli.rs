@@ -27,6 +27,14 @@ pub enum Action {
         version_pattern: Option<String>,
     },
 
+    /// Shows project information.
+    #[command(visible_alias = "i")]
+    Info {
+        /// The directory of the project.
+        #[arg(value_name = "DIRECTORY", value_hint = clap::ValueHint::DirPath)]
+        project_dir: PathBuf,
+    },
+
     /// Creates a new Unity project and Git repository (uses latest available Unity version by default)
     #[command(
         visible_alias = "n",

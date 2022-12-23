@@ -36,6 +36,7 @@ fn main() -> Result<()> {
         Action::List { version_pattern } => {
             list_command(version_pattern.as_deref()).context("Cannot list installations")
         }
+        Action::Info { project_dir } => info_command(project_dir).context("Cannot show info"),
         Action::Run(settings) => run_command(settings).context("Cannot run Unity"),
         Action::New(settings) => new_command(settings).context("Cannot create new Unity project"),
         Action::Open(settings) => open_command(settings).context("Cannot open Unity project"),
@@ -59,6 +60,16 @@ fn list_command(partial_version: Option<&str>) -> Result<()> {
     for editor in versions {
         println!("{}", editor.to_string_lossy());
     }
+    Ok(())
+}
+
+/// Shows project information.
+fn info_command(project_dir: PathBuf) -> Result<()> {
+    let project_dir = validate_project_path(&project_dir)?;
+    let version = unity_project_version(&project_dir)?;
+
+    println!("Info of project in '{}'", project_dir.to_string_lossy());
+    println!("    Unity version: {}", version);
     Ok(())
 }
 
