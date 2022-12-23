@@ -245,12 +245,12 @@ pub enum InjectAction {
 pub enum BuildMode {
     #[value(name = "batch")]
     Batch,
-    #[value(name = "batch-nographics")]
+    #[value(name = "batch-nogfx")]
     BatchNoGraphics,
-    #[value(name = "editor")]
+    #[value(name = "editor-quit")]
     EditorQuit,
-    #[value(name = "debug")]
-    Debug,
+    #[value(name = "editor")]
+    Editor,
 }
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, ValueEnum)]

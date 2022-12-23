@@ -34,21 +34,17 @@ fn main() -> Result<()> {
 
     match command {
         Action::List { version_pattern } => {
-            run_list_command(version_pattern.as_deref()).context("Cannot list installations")
+            list_command(version_pattern.as_deref()).context("Cannot list installations")
         }
-
-        Action::Run(run) => run_unity_command(run).context("Cannot run Unity"),
-
-        Action::New(new) => run_new_command(new).context("Cannot create new Unity project"),
-
-        Action::Open(open) => run_open_command(open).context("Cannot open Unity project"),
-
-        Action::Build(build) => run_build_command(build).context("Cannot build project"),
+        Action::Run(settings) => run_command(settings).context("Cannot run Unity"),
+        Action::New(settings) => new_command(settings).context("Cannot create new Unity project"),
+        Action::Open(settings) => open_command(settings).context("Cannot open Unity project"),
+        Action::Build(settings) => build_command(settings).context("Cannot build project"),
     }
 }
 
 /// Lists installed Unity versions.
-fn run_list_command(partial_version: Option<&str>) -> Result<()> {
+fn list_command(partial_version: Option<&str>) -> Result<()> {
     let path = installation_root_path();
     let versions = filter_versions(partial_version, available_unity_versions(&path)?);
 
@@ -64,7 +60,7 @@ fn run_list_command(partial_version: Option<&str>) -> Result<()> {
 }
 
 /// Runs the Unity Editor with the given arguments.
-fn run_unity_command(settings: Run) -> Result<()> {
+fn run_command(settings: Run) -> Result<()> {
     let (version, directory) = matching_unity_version(settings.version_pattern.as_deref())?;
 
     let mut cmd = Command::new(unity_executable_path(&directory));
@@ -87,8 +83,7 @@ fn run_unity_command(settings: Run) -> Result<()> {
 }
 
 /// Creates a new Unity project and optional Git repository in the given directory.
-fn run_new_command(settings: New) -> Result<()> {
-    // Check if destination already exists.
+fn new_command(settings: New) -> Result<()> {
     if settings.project_dir.exists() {
         return Err(anyhow!(
             "Directory already exists: '{}'",
@@ -130,7 +125,7 @@ fn run_new_command(settings: New) -> Result<()> {
 }
 
 /// Opens the given Unity project in the Unity Editor.
-fn run_open_command(settings: Open) -> Result<()> {
+fn open_command(settings: Open) -> Result<()> {
     let project_path = validate_project_path(&settings.project_dir)?;
 
     let (version, unity_directory) = if settings.version_pattern.is_some() {
@@ -160,14 +155,17 @@ fn run_open_command(settings: Open) -> Result<()> {
     }
 
     if settings.wait {
-        run_command_to_stdout(cmd)
+        run_command_to_stdout(cmd)?;
     } else {
-        forget_command(cmd)
+        forget_command(cmd)?;
     }
+
+    println!("Build completed successfully.");
+    Ok(())
 }
 
 /// Runs the build command.
-fn run_build_command(settings: Build) -> Result<()> {
+fn build_command(settings: Build) -> Result<()> {
     let project_path = validate_project_path(&settings.project_dir)?;
 
     let output_path = settings.build_path.unwrap_or_else(|| {
@@ -215,11 +213,11 @@ fn run_build_command(settings: Build) -> Result<()> {
 
     println!("{}", description);
 
-    let result = if settings.mode == BuildMode::Batch || settings.mode == BuildMode::BatchNoGraphics
-    {
-        run_command_with_log_capture(command, &log_file)
-    } else {
-        run_command_to_stdout(command)
+    let result = match settings.mode {
+        BuildMode::Batch => run_command_with_log_capture(command, &log_file),
+        BuildMode::BatchNoGraphics => run_command_with_log_capture(command, &log_file),
+        BuildMode::EditorQuit => run_command_to_stdout(command),
+        BuildMode::Editor => run_command_to_stdout(command),
     };
 
     if let Some(post_build) = post_build {
@@ -270,7 +268,7 @@ fn new_build_project_command(
         BuildMode::EditorQuit => {
             cmd.args(["-quit"]);
         }
-        BuildMode::Debug => {} // Do nothing.
+        BuildMode::Editor => {} // Do nothing.
     }
 
     // Add any additional arguments.
@@ -550,13 +548,14 @@ fn git_init<P: AsRef<Path>>(path: P) -> Result<()> {
     Ok(())
 }
 
+/// Injects the build script into the project.
 fn inject_build_script<P: AsRef<Path>>(root_path: P) -> Result<()> {
     let root_path = root_path.as_ref().join("Editor");
     fs::create_dir_all(&root_path)?;
 
     let file_path = root_path.join(BUILD_SCRIPT_NAME);
     println!(
-        "[ucom] Injecting build script: {}",
+        "Injecting ucom build script: {}",
         file_path.to_string_lossy()
     );
 
@@ -577,7 +576,7 @@ fn remove_build_script<P: AsRef<Path>>(root_directory: P) -> Result<()> {
     })?;
 
     println!(
-        "[ucom] Removing injected build script in: {}",
+        "Removing injected ucom build script in directory: {}",
         root_directory.as_ref().to_string_lossy()
     );
 
