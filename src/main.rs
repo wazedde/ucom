@@ -318,12 +318,10 @@ fn create_build_script_injection_actions(
                     project_path.join(format!("{}-{}", AUTO_BUILD_SCRIPT_ROOT, Uuid::new_v4()));
                 let post_root = pre_root.clone();
 
-                // Closure that injects build script into project.
-                let pre_action: OptionalFn = Some(Box::new(|| inject_build_script(pre_root)));
-
-                // Closure that removes build script.
-                let post_action: OptionalFn = Some(Box::new(|| remove_build_script(post_root)));
-                (pre_action, post_action)
+                (
+                    Some(Box::new(|| inject_build_script(pre_root))),
+                    Some(Box::new(|| remove_build_script(post_root))),
+                )
             }
         }
         InjectAction::Persistent => {
@@ -334,11 +332,10 @@ fn create_build_script_injection_actions(
                 // Build script not present, inject it.
                 let persistent_root = project_path.join(PERSISTENT_BUILD_SCRIPT_ROOT);
 
-                // Closure that injects build script into project.
-                let pre_action: OptionalFn =
-                    Some(Box::new(|| inject_build_script(persistent_root)));
-
-                (pre_action, None)
+                (
+                    Some(Box::new(|| inject_build_script(persistent_root))),
+                    None,
+                )
             }
         }
         InjectAction::Off => (None, None), // Do nothing.
@@ -559,8 +556,7 @@ fn git_init<P: AsRef<Path>>(path: P) -> Result<()> {
     let file_path = path.as_ref().join(".gitignore");
     let file_content = include_str!("include/unity-gitignore.txt");
     let mut file = File::create(file_path)?;
-    write!(file, "{}", file_content)?;
-    Ok(())
+    write!(file, "{}", file_content).map_err(|e| e.into())
 }
 
 /// Injects the build script into the project.
@@ -576,12 +572,20 @@ fn inject_build_script<P: AsRef<Path>>(root_path: P) -> Result<()> {
 
     let file_content = include_str!("include/UcomBuilder.cs");
     let mut file = File::create(file_path)?;
-    write!(file, "{}", file_content)?;
-    Ok(())
+    write!(file, "{}", file_content).map_err(|e| e.into())
 }
 
 /// Removes the injected build script from the project.
 fn remove_build_script<P: AsRef<Path>>(root_directory: P) -> Result<()> {
+    if !root_directory.as_ref().exists() {
+        return Ok(());
+    }
+
+    println!(
+        "Removing injected ucom build script in directory: {}",
+        root_directory.as_ref().to_string_lossy()
+    );
+
     // Remove the directory where the build script is located.
     fs::remove_dir_all(&root_directory).map_err(|_| {
         anyhow!(
@@ -590,13 +594,12 @@ fn remove_build_script<P: AsRef<Path>>(root_directory: P) -> Result<()> {
         )
     })?;
 
-    println!(
-        "Removing injected ucom build script in directory: {}",
-        root_directory.as_ref().to_string_lossy()
-    );
-
     // Remove the .meta file.
-    let meta_file = format!("{}.meta", root_directory.as_ref().to_string_lossy());
-    fs::remove_file(&meta_file).map_err(|_| anyhow!("Could not remove file: '{}'", meta_file))?;
-    Ok(())
+    let meta_file = root_directory.as_ref().with_extension("meta");
+    if !meta_file.exists() {
+        return Ok(());
+    }
+
+    fs::remove_file(&meta_file)
+        .map_err(|_| anyhow!("Could not remove file: '{}'", meta_file.to_string_lossy()))
 }
