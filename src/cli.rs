@@ -7,6 +7,10 @@ use clap::{Args, ValueEnum};
 #[derive(clap::Parser)]
 #[command(author, version, about, arg_required_else_help = false)]
 pub struct Cli {
+    /// Display the build script that is injected into the project.
+    #[arg(short, long)]
+    pub injected_script: bool,
+
     #[command(subcommand)]
     pub command: Option<Action>,
 }

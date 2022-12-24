@@ -18,6 +18,8 @@ use crate::cmd::*;
 mod cli;
 mod cmd;
 
+const BUILD_SCRIPT: &str = include_str!("include/UcomBuilder.cs");
+
 const BUILD_SCRIPT_NAME: &str = "UcomBuilder.cs";
 const PERSISTENT_BUILD_SCRIPT_PATH: &str = "Assets/Plugins/ucom/Editor/UcomBuilder.cs";
 const PERSISTENT_BUILD_SCRIPT_ROOT: &str = "Assets/Plugins/ucom";
@@ -27,6 +29,12 @@ type OptionalFn = Option<Box<dyn FnOnce() -> Result<()>>>;
 
 fn main() -> Result<()> {
     let cli = Cli::parse();
+
+    if cli.injected_script {
+        println!("{}", BUILD_SCRIPT);
+        exit(0);
+    }
+
     let Some(command) = cli.command else {
         let _ = Cli::command().print_help();
         exit(0)
@@ -544,9 +552,8 @@ fn inject_build_script<P: AsRef<Path>>(root_dir: P) -> Result<()> {
         file_path.to_string_lossy()
     );
 
-    let file_content = include_str!("include/UcomBuilder.cs");
     let mut file = File::create(file_path)?;
-    write!(file, "{}", file_content).map_err(|e| e.into())
+    write!(file, "{}", BUILD_SCRIPT).map_err(|e| e.into())
 }
 
 /// Removes the injected build script from the project.

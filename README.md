@@ -33,6 +33,16 @@ Or build manually:
 - Run `cargo build --release` in the root of this project.
 - After completion the executable can be found in the `target/release` directory.
 
+## Injected Build Script
+
+Because Unity does not support command line arguments for building all supported target platforms, the `ucom build`
+command injects a [build script](src/include/UcomBuilder.cs) into the project to handle this.
+
+By default the script is removed from the project after the build has been completed. If you want to keep the script,
+add the `--inject persistent` option to the `ucom build` command.
+
+Use `ucom --injected-script` or `ucom -i` to print the build script to the console so you can take a look at it.
+
 ## Limitations
 
 - Requires that Unity Hub and the editors are installed in the default locations.
@@ -41,19 +51,21 @@ Or build manually:
 ## `ucom help`
 
 ```
-Usage: ucom [COMMAND]
+Usage: ucom [OPTIONS] [COMMAND]
 
 Commands:
-  list   Shows a list of the installed Unity versions
-  new    Creates a new Unity project and Git repository (uses latest available Unity version by default)
+  list   Shows a list of the installed Unity versions [aliases: l]
+  info   Shows project information [aliases: i]
+  new    Creates a new Unity project and Git repository (uses latest available Unity version by default) [aliases: n]
   open   Opens the given Unity project in the Unity Editor [aliases: o]
   build  Builds the given Unity project [aliases: b]
   run    Runs Unity with the givens arguments (uses latest available Unity version by default) [aliases: r]
   help   Print this message or the help of the given subcommand(s)
 
 Options:
-  -h, --help     Print help information
-  -V, --version  Print version information
+  -i, --injected-script  Display the build script that is injected into the project
+  -h, --help             Print help information
+  -V, --version          Print version information
 ```
 
 ## `ucom help list`
