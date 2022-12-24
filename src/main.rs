@@ -46,16 +46,16 @@ fn main() -> Result<()> {
 
 /// Lists installed Unity versions.
 fn list_command(partial_version: Option<&str>) -> Result<()> {
-    let path = installation_root_path();
-    let versions = filter_versions(partial_version, available_unity_versions(&path)?);
+    let dir = installation_root_dir();
+    let versions = filter_versions(partial_version, available_unity_versions(&dir)?);
 
     let Ok(versions) = versions else {
-        return Err(anyhow!("No Unity installations found in '{}'", path.to_string_lossy()));
+        return Err(anyhow!("No Unity installations found in '{}'", dir.to_string_lossy()));
     };
 
     println!(
         "List installed Unity versions in '{}'",
-        path.to_string_lossy()
+        dir.to_string_lossy()
     );
     for editor in versions {
         println!("{}", editor.to_string_lossy());
@@ -66,18 +66,24 @@ fn list_command(partial_version: Option<&str>) -> Result<()> {
 /// Shows project information.
 fn info_command(project_dir: PathBuf) -> Result<()> {
     let project_dir = validate_project_path(&project_dir)?;
-    let version = unity_project_version(&project_dir)?;
+    let version = version_used_by_project(&project_dir)?;
 
-    println!("Info of project in '{}'", project_dir.to_string_lossy());
-    println!("    Unity version: {}", version);
+    let availability = if installation_root_dir().join(&version).exists() {
+        "installed"
+    } else {
+        "not installed"
+    };
+
+    println!("Project info for '{}'", project_dir.to_string_lossy());
+    println!("    Unity version: {} ({})", version, availability);
     Ok(())
 }
 
 /// Runs the Unity Editor with the given arguments.
 fn run_command(arguments: RunArguments) -> Result<()> {
-    let (version, directory) = matching_unity_version(arguments.version_pattern.as_deref())?;
+    let (version, editor_exe) = matching_editor(arguments.version_pattern.as_deref())?;
 
-    let mut cmd = Command::new(unity_executable_path(&directory));
+    let mut cmd = Command::new(editor_exe);
     cmd.args(arguments.args.unwrap_or_default());
 
     if arguments.dry_run {
@@ -105,9 +111,9 @@ fn new_command(arguments: NewArguments) -> Result<()> {
         ));
     }
 
-    let (version, unity_directory) = matching_unity_version(arguments.version_pattern.as_deref())?;
+    let (version, editor_exe) = matching_editor(arguments.version_pattern.as_deref())?;
 
-    let mut cmd = Command::new(unity_executable_path(&unity_directory));
+    let mut cmd = Command::new(editor_exe);
     cmd.arg("-createProject")
         .arg(&arguments.project_dir)
         .args(arguments.args.unwrap_or_default());
@@ -140,19 +146,17 @@ fn new_command(arguments: NewArguments) -> Result<()> {
 
 /// Opens the given Unity project in the Unity Editor.
 fn open_command(arguments: OpenArguments) -> Result<()> {
-    let project_path = validate_project_path(&arguments.project_dir)?;
+    let project_dir = validate_project_path(&arguments.project_dir)?;
 
-    let (version, unity_directory) = if arguments.version_pattern.is_some() {
-        matching_unity_version(arguments.version_pattern.as_deref())?
+    let (version, editor_exe) = if arguments.version_pattern.is_some() {
+        matching_editor(arguments.version_pattern.as_deref())?
     } else {
-        matching_unity_project_version(&project_path)?
+        matching_editor_used_by_project(&project_dir)?
     };
 
-    let unity_path = unity_executable_path(&unity_directory);
-
     // Build the command to execute.
-    let mut cmd = Command::new(unity_path);
-    cmd.args(["-projectPath", &project_path.to_string_lossy()])
+    let mut cmd = Command::new(editor_exe);
+    cmd.args(["-projectPath", &project_dir.to_string_lossy()])
         .args(arguments.args.unwrap_or_default());
 
     if arguments.dry_run {
@@ -164,7 +168,7 @@ fn open_command(arguments: OpenArguments) -> Result<()> {
         println!(
             "Open Unity {} project in '{}'",
             version.to_string_lossy(),
-            project_path.to_string_lossy()
+            project_dir.to_string_lossy()
         );
     }
 
@@ -178,10 +182,10 @@ fn open_command(arguments: OpenArguments) -> Result<()> {
 
 /// Runs the build command.
 fn build_command(arguments: BuildArguments) -> Result<()> {
-    let project_path = validate_project_path(&arguments.project_dir)?;
+    let project_dir = validate_project_path(&arguments.project_dir)?;
 
-    let output_path = arguments.build_path.unwrap_or_else(|| {
-        project_path
+    let output_dir = arguments.build_path.unwrap_or_else(|| {
+        project_dir
             .join("Builds")
             .join(arguments.target.to_string())
     });
@@ -192,7 +196,7 @@ fn build_command(arguments: BuildArguments) -> Result<()> {
 
     let log_file = if log_file == arguments.log_file {
         // Log filename without path was given, use the output path as destination.
-        output_path.join(log_file)
+        output_dir.join(log_file)
     } else {
         // A full path was given, use it.
         log_file.into()
@@ -203,9 +207,9 @@ fn build_command(arguments: BuildArguments) -> Result<()> {
     }
 
     let (command, description) = new_build_project_command(
-        &project_path,
+        &project_dir,
         arguments.target,
-        &output_path,
+        &output_dir,
         arguments.mode,
         &log_file,
         arguments.args.as_deref(),
@@ -217,7 +221,7 @@ fn build_command(arguments: BuildArguments) -> Result<()> {
     }
 
     let (pre_build, post_build) =
-        create_build_script_injection_actions(&project_path, arguments.inject);
+        create_build_script_injection_actions(&project_dir, arguments.inject);
 
     if let Some(pre_build) = pre_build {
         pre_build()?;
@@ -244,29 +248,28 @@ fn build_command(arguments: BuildArguments) -> Result<()> {
 
 /// Returns command that builds the project at the given path.
 fn new_build_project_command(
-    project_path: &Path,
+    project_dir: &Path,
     build_target: Target,
-    output_path: &Path,
+    output_dir: &Path,
     mode: BuildMode,
     log_file: &Path,
     unity_args: Option<&[String]>,
 ) -> Result<(Command, String)> {
-    if project_path == output_path {
+    if project_dir == output_dir {
         return Err(anyhow!(
-            "Output path cannot be the same as the project path."
+            "Output directory cannot be the same as the project directory."
         ));
     }
 
-    let (version, unity_directory) = matching_unity_project_version(&project_path)?;
-    let unity_path = unity_executable_path(&unity_directory);
+    let (version, editor_exe) = matching_editor_used_by_project(&project_dir)?;
 
     // Build the command to execute.
-    let mut cmd = Command::new(unity_path);
-    cmd.args(["-projectPath", &project_path.to_string_lossy()])
+    let mut cmd = Command::new(editor_exe);
+    cmd.args(["-projectPath", &project_dir.to_string_lossy()])
         .args(["-buildTarget", &build_target.to_string()])
         .args(["-logFile", &log_file.to_string_lossy()])
         .args(["-executeMethod", "ucom.UcomBuilder.Build"])
-        .args(["--ucom-build-output", &output_path.to_string_lossy()])
+        .args(["--ucom-build-output", &output_dir.to_string_lossy()])
         .args([
             "--ucom-build-target",
             &BuildTarget::from(build_target).to_string(),
@@ -295,27 +298,27 @@ fn new_build_project_command(
             "Building Unity {} {} project in '{}' to '{}'",
             version.to_string_lossy(),
             build_target,
-            project_path.to_string_lossy(),
-            output_path.to_string_lossy(),
+            project_dir.to_string_lossy(),
+            output_dir.to_string_lossy(),
         ),
     ))
 }
 
 /// Creates actions that inject a script into the project before and after the build.
 fn create_build_script_injection_actions(
-    project_path: &Path,
+    project_dir: &Path,
     inject: InjectAction,
 ) -> (OptionalFn, OptionalFn) {
     match inject {
         InjectAction::Auto => {
-            if project_path.join(PERSISTENT_BUILD_SCRIPT_PATH).exists() {
+            if project_dir.join(PERSISTENT_BUILD_SCRIPT_PATH).exists() {
                 // Build script already present, no need to inject.
                 (None, None)
             } else {
                 // Build script not present, inject it.
                 // Place the build script in a unique directory to avoid conflicts.
                 let pre_root =
-                    project_path.join(format!("{}-{}", AUTO_BUILD_SCRIPT_ROOT, Uuid::new_v4()));
+                    project_dir.join(format!("{}-{}", AUTO_BUILD_SCRIPT_ROOT, Uuid::new_v4()));
                 let post_root = pre_root.clone();
 
                 (
@@ -325,12 +328,12 @@ fn create_build_script_injection_actions(
             }
         }
         InjectAction::Persistent => {
-            if project_path.join(PERSISTENT_BUILD_SCRIPT_PATH).exists() {
+            if project_dir.join(PERSISTENT_BUILD_SCRIPT_PATH).exists() {
                 // Build script already present, no need to inject.
                 (None, None)
             } else {
                 // Build script not present, inject it.
-                let persistent_root = project_path.join(PERSISTENT_BUILD_SCRIPT_ROOT);
+                let persistent_root = project_dir.join(PERSISTENT_BUILD_SCRIPT_ROOT);
 
                 (
                     Some(Box::new(|| inject_build_script(persistent_root))),
@@ -343,23 +346,18 @@ fn create_build_script_injection_actions(
 }
 
 /// Returns the Unity version used for the project.
-///
-/// # Arguments
-///
-/// * `path`: Path to the project.
-///
-fn unity_project_version<P: AsRef<Path>>(path: &P) -> Result<String> {
+fn version_used_by_project<P: AsRef<Path>>(project_dir: &P) -> Result<String> {
     const PROJECT_VERSION_FILE: &str = "ProjectSettings/ProjectVersion.txt";
-    let file_path = path.as_ref().join(PROJECT_VERSION_FILE);
+    let version_file = project_dir.as_ref().join(PROJECT_VERSION_FILE);
 
-    if !file_path.exists() {
+    if !version_file.exists() {
         return Err(anyhow!(
             "Directory does not contain a Unity project: '{}'",
-            path.as_ref().to_string_lossy()
+            project_dir.as_ref().to_string_lossy()
         ));
     }
 
-    let mut reader = BufReader::new(File::open(&file_path)?);
+    let mut reader = BufReader::new(File::open(&version_file)?);
 
     // ProjectVersion.txt looks like this:
     // m_EditorVersion: 2021.3.9f1
@@ -379,13 +377,13 @@ fn unity_project_version<P: AsRef<Path>>(path: &P) -> Result<String> {
         .ok_or_else(|| {
             anyhow!(
                 "Could not get project version from: '{}'",
-                file_path.to_string_lossy()
+                version_file.to_string_lossy()
             )
         })
 }
 
-/// Returns the root path of the installations.
-fn installation_root_path<'a>() -> &'a Path {
+/// Returns the root directory of the installations.
+fn installation_root_dir<'a>() -> &'a Path {
     if cfg!(target_os = "macos") {
         Path::new("/Applications/Unity/Hub/Editor/")
     } else if cfg!(target_os = "windows") {
@@ -395,16 +393,12 @@ fn installation_root_path<'a>() -> &'a Path {
     }
 }
 
-/// Returns the path to the executable.
-///
-/// # Arguments
-/// * `path`: Path to the Unity installation directory.
-///
-fn unity_executable_path<P: AsRef<Path>>(path: &P) -> PathBuf {
+/// Returns the sub path to the editor app.
+const fn editor_app_sub_path<'a>() -> &'a str {
     if cfg!(target_os = "macos") {
-        path.as_ref().join("Unity.app/Contents/MacOS/Unity")
+        "Unity.app/Contents/MacOS/Unity"
     } else if cfg!(target_os = "windows") {
-        path.as_ref().join(r"Editor\Unity.exe")
+        r"Editor\Unity.exe"
     } else {
         unimplemented!()
     }
@@ -440,53 +434,43 @@ fn filter_versions(
     Ok(versions)
 }
 
-/// Returns version and directory of the latest installed version that matches the partial version.
+/// Returns version and path to the editor app of the latest installed version that matches the partial version.
 ///
 /// # Arguments
 ///
 /// * `partial_version`: An optional partial version to match. If None, all versions are returned.
 ///
-fn matching_unity_version(partial_version: Option<&str>) -> Result<(OsString, PathBuf)> {
-    let path = installation_root_path();
+fn matching_editor(partial_version: Option<&str>) -> Result<(OsString, PathBuf)> {
+    let root_dir = installation_root_dir();
 
-    let version = filter_versions(partial_version, available_unity_versions(&path)?)?
+    let version = filter_versions(partial_version, available_unity_versions(&root_dir)?)?
         .last()
         .map(|latest| latest.to_owned())
         .unwrap(); // Guaranteed to have at least one entry.
 
-    let full_path = path.join(&version);
-    Ok((version, full_path))
+    let editor_exe = root_dir.join(&version).join(editor_app_sub_path());
+    Ok((version, editor_exe))
 }
 
 /// Returns version and directory for the project.
-///
-/// # Arguments
-///
-/// * `path`: Path to the project.
-///
-fn matching_unity_project_version<P: AsRef<Path>>(path: &P) -> Result<(OsString, PathBuf)> {
+fn matching_editor_used_by_project<P: AsRef<Path>>(project_dir: &P) -> Result<(OsString, PathBuf)> {
     // Get the Unity version the project uses.
-    let version: OsString = unity_project_version(path)?.into();
+    let version = version_used_by_project(project_dir)?;
 
     // Check if that Unity version is installed.
-    let directory = installation_root_path().join(&version);
-    if !directory.exists() {
+    let editor_dir = installation_root_dir().join(&version);
+    if !editor_dir.exists() {
         return Err(anyhow!(
             "Unity version that the project uses is not installed: {}",
-            version.to_string_lossy()
+            version
         ));
     }
-    Ok((version, directory))
+    Ok((version.into(), editor_dir.join(editor_app_sub_path())))
 }
 
 /// Returns a natural sorted list of available Unity versions.
-///
-/// # Arguments
-///
-/// * `path`: Path to the Unity installation root.
-///
-fn available_unity_versions<P: AsRef<Path>>(path: &P) -> Result<Vec<OsString>> {
-    let mut versions: Vec<_> = fs::read_dir(path)?
+fn available_unity_versions<P: AsRef<Path>>(install_dir: &P) -> Result<Vec<OsString>> {
+    let mut versions: Vec<_> = fs::read_dir(install_dir)?
         .flatten()
         .map(|entry| entry.path())
         .filter(|path| path.is_dir())
@@ -496,7 +480,7 @@ fn available_unity_versions<P: AsRef<Path>>(path: &P) -> Result<Vec<OsString>> {
     if versions.is_empty() {
         return Err(anyhow!(
             "No Unity installations found in {}",
-            path.as_ref().to_string_lossy()
+            install_dir.as_ref().to_string_lossy()
         ));
     }
 
@@ -504,14 +488,9 @@ fn available_unity_versions<P: AsRef<Path>>(path: &P) -> Result<Vec<OsString>> {
     Ok(versions)
 }
 
-/// Returns validated absolute path to the project.
-///
-/// # Arguments
-///
-/// * `path`: Path to validate.
-///
-fn validate_project_path<P: AsRef<Path>>(path: &P) -> Result<Cow<Path>> {
-    let path = path.as_ref();
+/// Returns validated absolute path to the project directory.
+fn validate_project_path<P: AsRef<Path>>(project_dir: &P) -> Result<Cow<Path>> {
+    let path = project_dir.as_ref();
     if cfg!(target_os = "windows") && path.starts_with("~") {
         return Err(anyhow!(
             "On Windows the path cannot start with '~': '{}'",
@@ -541,30 +520,25 @@ fn validate_project_path<P: AsRef<Path>>(path: &P) -> Result<Cow<Path>> {
 }
 
 /// Initializes a new git repository with a default Unity specific .gitignore.
-///
-/// # Arguments
-///
-/// * `path`: Path to the project.
-///
-fn git_init<P: AsRef<Path>>(path: P) -> Result<()> {
+fn git_init<P: AsRef<Path>>(project_dir: P) -> Result<()> {
     Command::new("git")
         .arg("init")
-        .arg(path.as_ref())
+        .arg(project_dir.as_ref())
         .output()
         .map_err(|_| anyhow!("Could not create git repository. Make sure git is available or add the --no-git flag."))?;
 
-    let file_path = path.as_ref().join(".gitignore");
+    let file_path = project_dir.as_ref().join(".gitignore");
     let file_content = include_str!("include/unity-gitignore.txt");
     let mut file = File::create(file_path)?;
     write!(file, "{}", file_content).map_err(|e| e.into())
 }
 
 /// Injects the build script into the project.
-fn inject_build_script<P: AsRef<Path>>(root_path: P) -> Result<()> {
-    let root_path = root_path.as_ref().join("Editor");
-    fs::create_dir_all(&root_path)?;
+fn inject_build_script<P: AsRef<Path>>(root_dir: P) -> Result<()> {
+    let inject_dir = root_dir.as_ref().join("Editor");
+    fs::create_dir_all(&inject_dir)?;
 
-    let file_path = root_path.join(BUILD_SCRIPT_NAME);
+    let file_path = inject_dir.join(BUILD_SCRIPT_NAME);
     println!(
         "Injecting ucom build script: {}",
         file_path.to_string_lossy()
@@ -576,26 +550,26 @@ fn inject_build_script<P: AsRef<Path>>(root_path: P) -> Result<()> {
 }
 
 /// Removes the injected build script from the project.
-fn remove_build_script<P: AsRef<Path>>(root_directory: P) -> Result<()> {
-    if !root_directory.as_ref().exists() {
+fn remove_build_script<P: AsRef<Path>>(root_dir: P) -> Result<()> {
+    if !root_dir.as_ref().exists() {
         return Ok(());
     }
 
     println!(
         "Removing injected ucom build script in directory: {}",
-        root_directory.as_ref().to_string_lossy()
+        root_dir.as_ref().to_string_lossy()
     );
 
     // Remove the directory where the build script is located.
-    fs::remove_dir_all(&root_directory).map_err(|_| {
+    fs::remove_dir_all(&root_dir).map_err(|_| {
         anyhow!(
             "Could not remove directory: '{}'",
-            root_directory.as_ref().to_string_lossy()
+            root_dir.as_ref().to_string_lossy()
         )
     })?;
 
     // Remove the .meta file.
-    let meta_file = root_directory.as_ref().with_extension("meta");
+    let meta_file = root_dir.as_ref().with_extension("meta");
     if !meta_file.exists() {
         return Ok(());
     }
