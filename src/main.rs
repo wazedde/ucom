@@ -262,13 +262,19 @@ fn collect_log_errors(log_file: &PathBuf) -> Result<()> {
         return Ok(());
     };
 
-    let errors = BufReader::new(file)
+    let mut errors = BufReader::new(file)
         .lines()
         .flatten()
-        .filter(|l| l.starts_with("[UcomBuilder] Error:"))
-        .collect::<Vec<String>>()
-        .join("\n");
+        .filter(|l| l.starts_with("[UcomBuilder] Error:") || l.contains("error CS"))
+        .collect::<Vec<String>>();
 
+    if errors.is_empty() {
+        return Ok(());
+    }
+
+    errors.sort();
+    errors.dedup();
+    let errors = errors.join("\n");
     if errors.is_empty() {
         return Ok(());
     }
