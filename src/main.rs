@@ -251,28 +251,33 @@ fn build_command(arguments: BuildArguments) -> Result<()> {
     if build_result.is_ok() {
         println!("Build completed successfully.");
     } else {
-        collect_log_errors(&log_file)?;
+        collect_errors_from_log(&log_file)?;
     }
     build_result
 }
 
 /// Returns errors from the given log file as one collected Err.
-fn collect_log_errors(log_file: &PathBuf) -> Result<()> {
+fn collect_errors_from_log(log_file: &PathBuf) -> Result<()> {
     let Ok(file) = File::open(log_file) else {
+        // No log file, no errors.
         return Ok(());
     };
 
     let mut errors = BufReader::new(file)
         .lines()
         .flatten()
-        .filter(|l| l.starts_with("[UcomBuilder] Error:") || l.contains("error CS"))
+        .filter(|l| {
+            l.starts_with("[UcomBuilder] Error:")
+                || l.contains("error CS")
+                || l.starts_with("Fatal Error")
+        })
         .collect::<Vec<String>>();
 
     if errors.is_empty() {
         return Ok(());
     }
 
-    errors.sort();
+    errors.sort_unstable();
     errors.dedup();
     Err(anyhow!(errors.join("\n")))
 }
@@ -483,7 +488,7 @@ fn matching_editor(partial_version: Option<&str>) -> Result<(OsString, PathBuf)>
     Ok((version, editor_exe))
 }
 
-/// Returns version and directory for the project.
+/// Returns version used by the project and the path to the editor.
 fn matching_editor_used_by_project<P: AsRef<Path>>(project_dir: &P) -> Result<(OsString, PathBuf)> {
     // Get the Unity version the project uses.
     let version = version_used_by_project(project_dir)?;

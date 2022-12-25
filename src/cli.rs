@@ -8,7 +8,7 @@ use clap::{Args, ValueEnum};
 #[command(author, version, about, arg_required_else_help = false)]
 pub struct Cli {
     /// Display the build script that is injected into the project.
-    #[arg(short, long)]
+    #[arg(short, short = 'I', long)]
     pub injected_script: bool,
 
     #[command(subcommand)]
