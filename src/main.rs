@@ -112,10 +112,12 @@ fn run_command(arguments: RunArguments) -> Result<()> {
 
 /// Creates a new Unity project and optional Git repository in the given directory.
 fn new_command(arguments: NewArguments) -> Result<()> {
-    if arguments.project_dir.exists() {
+    let project_dir = arguments.project_dir.absolutize()?;
+
+    if project_dir.exists() {
         return Err(anyhow!(
             "Directory already exists: '{}'",
-            arguments.project_dir.absolutize()?.to_string_lossy()
+            project_dir.absolutize()?.to_string_lossy()
         ));
     }
 
@@ -123,7 +125,7 @@ fn new_command(arguments: NewArguments) -> Result<()> {
 
     let mut cmd = Command::new(editor_exe);
     cmd.arg("-createProject")
-        .arg(&arguments.project_dir)
+        .arg(project_dir.as_ref())
         .args(arguments.args.unwrap_or_default());
 
     if arguments.dry_run {
@@ -135,12 +137,12 @@ fn new_command(arguments: NewArguments) -> Result<()> {
         println!(
             "Create new Unity {} project in '{}'",
             version.to_string_lossy(),
-            arguments.project_dir.to_string_lossy()
+            project_dir.to_string_lossy()
         );
     }
 
     if !arguments.no_git {
-        git_init(arguments.project_dir)?;
+        git_init(project_dir)?;
     }
 
     if arguments.wait {
