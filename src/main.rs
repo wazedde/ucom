@@ -250,8 +250,30 @@ fn build_command(arguments: BuildArguments) -> Result<()> {
 
     if build_result.is_ok() {
         println!("Build completed successfully.");
+    } else {
+        collect_log_errors(&log_file)?;
     }
     build_result
+}
+
+/// Returns errors from the given log file as one collected Err.
+fn collect_log_errors(log_file: &PathBuf) -> Result<()> {
+    let Ok(file) = File::open(log_file) else {
+        return Ok(());
+    };
+
+    let errors = BufReader::new(file)
+        .lines()
+        .flatten()
+        .filter(|l| l.starts_with("[UcomBuilder] Error:"))
+        .collect::<Vec<String>>()
+        .join("\n");
+
+    if errors.is_empty() {
+        return Ok(());
+    }
+
+    Err(anyhow!(errors))
 }
 
 /// Returns command that builds the project at the given path.

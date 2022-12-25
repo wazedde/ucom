@@ -1,6 +1,7 @@
 using System;
 using System.IO;
 using System.Linq;
+using System.Text;
 using JetBrains.Annotations;
 using UnityEditor;
 using UnityEditor.Build.Reporting;
@@ -25,37 +26,41 @@ namespace ucom
 
             if (!args.TryGetArgValue(BuildOutputArg, out string buildOutput))
             {
-                Debug.LogError("[ucom] Output path '--ucom-build-output <path>' not specified.");
+                Debug.LogError("[UcomBuilder] Error: Output path '--ucom-build-output <path>' not specified.");
                 invalidArgs = true;
             }
 
             if (!args.TryGetArgValue(BuildTargetArg, out string buildTarget))
             {
-                Debug.LogError("[ucom] Build target '--ucom-build-target <target>' not specified.");
+                Debug.LogError("[UcomBuilder] Error: Build target '--ucom-build-target <target>' not specified.");
                 invalidArgs = true;
             }
             else if (!Enum.TryParse(buildTarget, out BuildTarget target))
             {
-                Debug.LogError($"[ucom] Invalid build target: --ucom-build-target {buildTarget}");
+                Debug.LogError($"[UcomBuilder] Error: Invalid build target: --ucom-build-target {buildTarget}");
                 invalidArgs = true;
             }
             else if (target != EditorUserBuildSettings.activeBuildTarget)
             {
-                Debug.LogError($"[ucom] Build target {buildTarget} does not match active build target {EditorUserBuildSettings.activeBuildTarget}");
+                Debug.LogError(BuildPipeline.IsBuildTargetSupported(BuildPipeline.GetBuildTargetGroup(target), target)
+                    ? $"[UcomBuilder] Error: Build target '{buildTarget}' does not match active build target '{EditorUserBuildSettings.activeBuildTarget}'"
+                    : $"[UcomBuilder] Error: Build target '{buildTarget}' is not supported."
+                );
+
                 invalidArgs = true;
             }
 
-            if (invalidArgs)
+            if (invalidArgs || !Build(buildOutput))
             {
-                Debug.LogError("[ucom] Build failed: output path not specified.");
                 EditorApplication.Exit(1);
-                return;
             }
-
-            Build(buildOutput);
+            else
+            {
+                EditorApplication.Exit(0);
+            }
         }
 
-        private static void Build(string buildOutput)
+        private static bool Build(string buildOutput)
         {
             var buildTarget = EditorUserBuildSettings.activeBuildTarget;
 
@@ -79,18 +84,18 @@ namespace ucom
                     buildOutput = Path.Combine(buildOutput, $"{Application.productName}.apk");
                     break;
                 default:
-                    Debug.LogError($"[ucom] Build failed: {buildTarget} build target not supported.");
+                    Debug.LogError($"[UcomBuilder] Error: '{buildTarget}' build target not supported.");
                     EditorApplication.Exit(1);
-                    return;
+                    return false;
             }
 
             var scenes = GetScenePaths();
 
             if (scenes == null || scenes.Length == 0)
             {
-                Debug.LogError("[ucom] Build failed: no active scenes in Build Settings.");
+                Debug.LogError("[UcomBuilder] Error: no active scenes in Build Settings.");
                 EditorApplication.Exit(1);
-                return;
+                return false;
             }
 
             var buildPlayerOptions = new BuildPlayerOptions
@@ -104,16 +109,24 @@ namespace ucom
             var report = BuildPipeline.BuildPlayer(buildPlayerOptions);
             var summary = report.summary;
 
-            switch (summary.result)
+            var sb = new StringBuilder();
+            sb.AppendLine("[UcomBuilder] Build Report Begin")
+              .AppendLine($"Build result: {summary.result}")
+              .AppendLine($"Output path:  {summary.outputPath}")
+              .AppendLine($"Size:         {summary.totalSize / 1024 / 1024} MB")
+              .AppendLine($"Total time:   {summary.totalTime}")
+              .AppendLine($"Errors:       {summary.totalErrors}")
+              .AppendLine($"Warnings:     {summary.totalWarnings}")
+              .AppendLine("[UcomBuilder] Build Report End");
+
+            if (summary.result != BuildResult.Succeeded)
             {
-                case BuildResult.Succeeded:
-                    Debug.Log($"[ucom] Build succeeded: {summary.totalSize} bytes");
-                    break;
-                case BuildResult.Failed:
-                    Debug.Log("[ucom] Build failed");
-                    EditorApplication.Exit(1);
-                    return;
+                Debug.LogError(sb.ToString());
+                return false;
             }
+
+            Debug.Log(sb.ToString());
+            return true;
         }
 
         private static bool TryGetArgValue(this string[] source, string arg, out string value)
