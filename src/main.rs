@@ -274,12 +274,7 @@ fn collect_log_errors(log_file: &PathBuf) -> Result<()> {
 
     errors.sort();
     errors.dedup();
-    let errors = errors.join("\n");
-    if errors.is_empty() {
-        return Ok(());
-    }
-
-    Err(anyhow!(errors))
+    Err(anyhow!(errors.join("\n")))
 }
 
 /// Returns command that builds the project at the given path.
