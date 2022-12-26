@@ -1,4 +1,6 @@
 pub(crate) const ENV_EDITOR_DIR: &str = "UCOM_EDITOR_DIR";
+pub(crate) const ENV_DEFAULT_VERSION: &str = "UCOM_DEFAULT_VERSION";
+pub(crate) const ENV_BUILD_TARGET: &str = "UCOM_BUILD_TARGET";
 
 /// Sub path to the executable on macOS.
 #[cfg(target_os = "macos")]
@@ -25,6 +27,7 @@ pub(crate) const UNITY_EDITOR_DIR: &str = r"C:\Program Files\Unity\Hub\Editor";
 pub(crate) const UNITY_EDITOR_DIR: &str = compile_error!("Unsupported platform");
 
 pub(crate) const BUILD_SCRIPT: &str = include_str!("include/UcomBuilder.cs");
+pub(crate) const GIT_IGNORE: &str = include_str!("include/unity-gitignore.txt");
 
 pub(crate) const BUILD_SCRIPT_NAME: &str = "UcomBuilder.cs";
 pub(crate) const PERSISTENT_BUILD_SCRIPT_PATH: &str = "Assets/Plugins/ucom/Editor/UcomBuilder.cs";

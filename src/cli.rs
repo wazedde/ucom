@@ -80,7 +80,7 @@ pub struct RunArguments {
         short = 'u',
         long = "unity",
         value_name = "VERSION",
-        env = "UCOM_DEFAULT_VERSION"
+        env = crate::consts::ENV_DEFAULT_VERSION,
     )]
     pub version_pattern: Option<String>,
 
@@ -109,7 +109,7 @@ pub struct NewArguments {
         short = 'u',
         long = "unity",
         value_name = "VERSION",
-        env = "UCOM_DEFAULT_VERSION"
+        env = crate::consts::ENV_DEFAULT_VERSION
     )]
     pub version_pattern: Option<String>,
 
@@ -178,7 +178,7 @@ pub struct BuildArguments {
     pub project_dir: PathBuf,
 
     /// The target platform to build for.
-    #[arg(value_enum, env = "UCOM_BUILD_TARGET")]
+    #[arg(value_enum, env = crate::consts::ENV_BUILD_TARGET)]
     pub target: Target,
 
     /// The output directory of the build. When omitted the build will be placed in <DIRECTORY>/Builds/<TARGET>.

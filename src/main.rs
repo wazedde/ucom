@@ -50,18 +50,40 @@ fn main() -> Result<()> {
 /// Lists installed Unity versions.
 fn list_command(partial_version: Option<&str>) -> Result<()> {
     let dir = editor_parent_dir()?;
-    let versions = filter_versions(partial_version, available_unity_versions(&dir)?);
+
+    let versions = available_unity_versions(&dir)?;
+
+    let default_version = env::var_os(ENV_DEFAULT_VERSION)
+        .and_then(|env_version| {
+            versions.iter().rev().find(|v| {
+                v.to_string_lossy()
+                    .starts_with(env_version.to_string_lossy().as_ref())
+            })
+        })
+        .unwrap_or_else(|| versions.last().unwrap())
+        .clone();
+
+    let versions = filter_versions(partial_version, versions);
 
     let Ok(versions) = versions else {
-        return Err(anyhow!("No Unity installations found in '{}'", dir.to_string_lossy()));
+        return Err(anyhow!(
+                "No Unity installations found in '{}' that match version '{}'.", 
+                dir.to_string_lossy(),
+                partial_version.unwrap_or("<UNKNOWN>")
+        ));
     };
 
     println!(
         "List installed Unity versions in '{}'",
         dir.to_string_lossy()
     );
+
     for editor in versions {
-        println!("{}", editor.to_string_lossy());
+        if editor == default_version {
+            println!("{} (default)", editor.to_string_lossy());
+        } else {
+            println!("{}", editor.to_string_lossy());
+        }
     }
     Ok(())
 }
@@ -569,16 +591,15 @@ fn validate_project_path<P: AsRef<Path>>(project_dir: &P) -> Result<Cow<Path>> {
 
 /// Initializes a new git repository with a default Unity specific .gitignore.
 fn git_init<P: AsRef<Path>>(project_dir: P) -> Result<()> {
+    let project_dir = project_dir.as_ref();
     Command::new("git")
         .arg("init")
-        .arg(project_dir.as_ref())
+        .arg(project_dir)
         .output()
         .map_err(|_| anyhow!("Could not create git repository. Make sure git is available or add the --no-git flag."))?;
 
-    let file_path = project_dir.as_ref().join(".gitignore");
-    let file_content = include_str!("include/unity-gitignore.txt");
-    let mut file = File::create(file_path)?;
-    write!(file, "{}", file_content).map_err(|e| e.into())
+    let mut file = File::create(project_dir.join(".gitignore"))?;
+    write!(file, "{}", GIT_IGNORE).map_err(|e| e.into())
 }
 
 /// Injects the build script into the project.
