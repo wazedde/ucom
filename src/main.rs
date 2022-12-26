@@ -1,10 +1,10 @@
 use std::borrow::Cow;
 use std::ffi::OsString;
-use std::fs;
 use std::fs::File;
 use std::io::{BufRead, BufReader, Write};
 use std::path::{Path, PathBuf};
 use std::process::{exit, Command};
+use std::{env, fs};
 
 use anyhow::{anyhow, Context, Result};
 use clap::CommandFactory;
@@ -14,16 +14,11 @@ use uuid::Uuid;
 
 use crate::cli::*;
 use crate::command_ext::*;
+use crate::consts::*;
 
 mod cli;
 mod command_ext;
-
-const BUILD_SCRIPT: &str = include_str!("include/UcomBuilder.cs");
-
-const BUILD_SCRIPT_NAME: &str = "UcomBuilder.cs";
-const PERSISTENT_BUILD_SCRIPT_PATH: &str = "Assets/Plugins/ucom/Editor/UcomBuilder.cs";
-const PERSISTENT_BUILD_SCRIPT_ROOT: &str = "Assets/Plugins/ucom";
-const AUTO_BUILD_SCRIPT_ROOT: &str = "Assets/ucom";
+mod consts;
 
 type OptionalFn = Option<Box<dyn FnOnce() -> Result<()>>>;
 
@@ -54,7 +49,7 @@ fn main() -> Result<()> {
 
 /// Lists installed Unity versions.
 fn list_command(partial_version: Option<&str>) -> Result<()> {
-    let dir = installation_root_dir();
+    let dir = editor_parent_dir()?;
     let versions = filter_versions(partial_version, available_unity_versions(&dir)?);
 
     let Ok(versions) = versions else {
@@ -76,7 +71,7 @@ fn info_command(project_dir: PathBuf) -> Result<()> {
     let project_dir = validate_project_path(&project_dir)?;
     let version = version_used_by_project(&project_dir)?;
 
-    let availability = if installation_root_dir().join(&version).exists() {
+    let availability = if editor_parent_dir()?.join(&version).exists() {
         "installed"
     } else {
         "not installed"
@@ -260,12 +255,12 @@ fn build_command(arguments: BuildArguments) -> Result<()> {
 
 /// Returns errors from the given log file as one collected Err.
 fn collect_errors_from_log(log_file: &PathBuf) -> Result<()> {
-    let Ok(file) = File::open(log_file) else {
+    let Ok(log_file) = File::open(log_file) else {
         // No log file, no errors.
         return Ok(());
     };
 
-    let mut errors = BufReader::new(file)
+    let mut errors = BufReader::new(log_file)
         .lines()
         .flatten()
         .filter(|l| {
@@ -279,8 +274,10 @@ fn collect_errors_from_log(log_file: &PathBuf) -> Result<()> {
         return Ok(());
     }
 
+    // Remove duplicate entries
     errors.sort_unstable();
     errors.dedup();
+
     Err(anyhow!(errors.join("\n")))
 }
 
@@ -414,31 +411,36 @@ fn version_used_by_project<P: AsRef<Path>>(project_dir: &P) -> Result<String> {
         })
         .ok_or_else(|| {
             anyhow!(
-                "Could not get project version from: '{}'",
+                "Could not get project version from '{}'",
                 version_file.to_string_lossy()
             )
         })
 }
 
-/// Returns the root directory of the installations.
-fn installation_root_dir<'a>() -> &'a Path {
-    if cfg!(target_os = "macos") {
-        Path::new("/Applications/Unity/Hub/Editor/")
-    } else if cfg!(target_os = "windows") {
-        Path::new(r"C:\Program Files\Unity\Hub\Editor")
-    } else {
-        unimplemented!()
+/// Returns the parent directory of the editor installations.
+fn editor_parent_dir<'a>() -> Result<Cow<'a, Path>> {
+    if let Some(path) = env::var_os(ENV_EDITOR_DIR) {
+        let path = Path::new(&path);
+        return if path.exists() && path.is_dir() {
+            Ok(path.to_path_buf().into())
+        } else {
+            Err(anyhow!(
+                "Editor directory set by {} is not a valid directory: '{}'",
+                ENV_EDITOR_DIR,
+                path.to_string_lossy()
+            ))
+        };
     }
-}
 
-/// Returns the sub path to the editor app.
-const fn editor_app_sub_path() -> &'static str {
-    if cfg!(target_os = "macos") {
-        "Unity.app/Contents/MacOS/Unity"
-    } else if cfg!(target_os = "windows") {
-        r"Editor\Unity.exe"
+    let path = Path::new(UNITY_EDITOR_DIR);
+    if path.exists() {
+        Ok(path.into())
     } else {
-        unimplemented!()
+        Err(anyhow!(
+            "Set {} to the editor directory, the default directory does not exist: '{}'",
+            ENV_EDITOR_DIR,
+            path.to_string_lossy()
+        ))
     }
 }
 
@@ -479,14 +481,14 @@ fn filter_versions(
 /// * `partial_version`: An optional partial version to match. If None, all versions are returned.
 ///
 fn matching_editor(partial_version: Option<&str>) -> Result<(OsString, PathBuf)> {
-    let root_dir = installation_root_dir();
+    let parent_dir = editor_parent_dir()?;
 
-    let version = filter_versions(partial_version, available_unity_versions(&root_dir)?)?
+    let version = filter_versions(partial_version, available_unity_versions(&parent_dir)?)?
         .last()
         .map(|latest| latest.to_owned())
         .unwrap(); // Guaranteed to have at least one entry.
 
-    let editor_exe = root_dir.join(&version).join(editor_app_sub_path());
+    let editor_exe = parent_dir.join(&version).join(UNITY_EDITOR_EXE);
     Ok((version, editor_exe))
 }
 
@@ -496,28 +498,36 @@ fn matching_editor_used_by_project<P: AsRef<Path>>(project_dir: &P) -> Result<(O
     let version = version_used_by_project(project_dir)?;
 
     // Check if that Unity version is installed.
-    let editor_dir = installation_root_dir().join(&version);
+    let editor_dir = editor_parent_dir()?.join(&version);
     if !editor_dir.exists() {
         return Err(anyhow!(
             "Unity version that the project uses is not installed: {}",
             version
         ));
     }
-    Ok((version.into(), editor_dir.join(editor_app_sub_path())))
+    Ok((version.into(), editor_dir.join(UNITY_EDITOR_EXE)))
 }
 
 /// Returns a natural sorted list of available Unity versions.
 fn available_unity_versions<P: AsRef<Path>>(install_dir: &P) -> Result<Vec<OsString>> {
-    let mut versions: Vec<_> = fs::read_dir(install_dir)?
+    let mut versions: Vec<_> = fs::read_dir(install_dir)
+        .map_err(|e| {
+            anyhow!(
+                "Cannot read available Unity editors in '{}': {}",
+                install_dir.as_ref().to_string_lossy(),
+                e
+            )
+        })?
         .flatten()
         .map(|entry| entry.path())
         .filter(|path| path.is_dir())
+        .filter(|path| path.join(UNITY_EDITOR_EXE).exists())
         .flat_map(|path| path.file_name().map(|f| f.to_owned()))
         .collect();
 
     if versions.is_empty() {
         return Err(anyhow!(
-            "No Unity installations found in {}",
+            "No Unity installations found in '{}'",
             install_dir.as_ref().to_string_lossy()
         ));
     }
@@ -572,8 +582,8 @@ fn git_init<P: AsRef<Path>>(project_dir: P) -> Result<()> {
 }
 
 /// Injects the build script into the project.
-fn inject_build_script<P: AsRef<Path>>(root_dir: P) -> Result<()> {
-    let inject_dir = root_dir.as_ref().join("Editor");
+fn inject_build_script<P: AsRef<Path>>(parent_dir: P) -> Result<()> {
+    let inject_dir = parent_dir.as_ref().join("Editor");
     fs::create_dir_all(&inject_dir)?;
 
     let file_path = inject_dir.join(BUILD_SCRIPT_NAME);
@@ -587,26 +597,26 @@ fn inject_build_script<P: AsRef<Path>>(root_dir: P) -> Result<()> {
 }
 
 /// Removes the injected build script from the project.
-fn remove_build_script<P: AsRef<Path>>(root_dir: P) -> Result<()> {
-    if !root_dir.as_ref().exists() {
+fn remove_build_script<P: AsRef<Path>>(parent_dir: P) -> Result<()> {
+    if !parent_dir.as_ref().exists() {
         return Ok(());
     }
 
     println!(
         "Removing injected ucom build script in directory: {}",
-        root_dir.as_ref().to_string_lossy()
+        parent_dir.as_ref().to_string_lossy()
     );
 
     // Remove the directory where the build script is located.
-    fs::remove_dir_all(&root_dir).map_err(|_| {
+    fs::remove_dir_all(&parent_dir).map_err(|_| {
         anyhow!(
             "Could not remove directory: '{}'",
-            root_dir.as_ref().to_string_lossy()
+            parent_dir.as_ref().to_string_lossy()
         )
     })?;
 
     // Remove the .meta file.
-    let meta_file = root_dir.as_ref().with_extension("meta");
+    let meta_file = parent_dir.as_ref().with_extension("meta");
     if !meta_file.exists() {
         return Ok(());
     }
