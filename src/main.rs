@@ -13,10 +13,10 @@ use path_absolutize::Absolutize;
 use uuid::Uuid;
 
 use crate::cli::*;
-use crate::cmd::*;
+use crate::command_ext::*;
 
 mod cli;
-mod cmd;
+mod command_ext;
 
 const BUILD_SCRIPT: &str = include_str!("include/UcomBuilder.cs");
 
@@ -95,7 +95,7 @@ fn run_command(arguments: RunArguments) -> Result<()> {
     cmd.args(arguments.args.unwrap_or_default());
 
     if arguments.dry_run {
-        println!("{}", to_command_line_string(&cmd));
+        println!("{}", cmd.to_command_line_string());
         return Ok(());
     }
 
@@ -104,9 +104,9 @@ fn run_command(arguments: RunArguments) -> Result<()> {
     }
 
     if arguments.wait {
-        run_command_to_stdout(cmd)
+        cmd.wait_with_stdout()
     } else {
-        forget_command(cmd)
+        cmd.forget()
     }
 }
 
@@ -129,7 +129,7 @@ fn new_command(arguments: NewArguments) -> Result<()> {
         .args(arguments.args.unwrap_or_default());
 
     if arguments.dry_run {
-        println!("{}", to_command_line_string(&cmd));
+        println!("{}", cmd.to_command_line_string());
         return Ok(());
     }
 
@@ -146,9 +146,9 @@ fn new_command(arguments: NewArguments) -> Result<()> {
     }
 
     if arguments.wait {
-        run_command_to_stdout(cmd)?;
+        cmd.wait_with_stdout()?;
     } else {
-        forget_command(cmd).map(|_| ())?;
+        cmd.forget()?;
     }
 
     Ok(())
@@ -170,7 +170,7 @@ fn open_command(arguments: OpenArguments) -> Result<()> {
         .args(arguments.args.unwrap_or_default());
 
     if arguments.dry_run {
-        println!("{}", to_command_line_string(&cmd));
+        println!("{}", cmd.to_command_line_string());
         return Ok(());
     }
 
@@ -183,9 +183,9 @@ fn open_command(arguments: OpenArguments) -> Result<()> {
     }
 
     if arguments.wait {
-        run_command_to_stdout(cmd)?;
+        cmd.wait_with_stdout()?;
     } else {
-        forget_command(cmd)?;
+        cmd.forget()?;
     }
     Ok(())
 }
@@ -216,7 +216,7 @@ fn build_command(arguments: BuildArguments) -> Result<()> {
         fs::remove_file(&log_file)?;
     }
 
-    let (command, description) = new_build_project_command(
+    let (cmd, description) = new_build_project_command(
         &project_dir,
         arguments.target,
         &output_dir,
@@ -226,7 +226,7 @@ fn build_command(arguments: BuildArguments) -> Result<()> {
     )?;
 
     if arguments.dry_run {
-        println!("{}", to_command_line_string(&command));
+        println!("{}", cmd.to_command_line_string());
         return Ok(());
     }
 
@@ -240,10 +240,10 @@ fn build_command(arguments: BuildArguments) -> Result<()> {
     println!("{}", description);
 
     let build_result = match arguments.mode {
-        BuildMode::Batch => run_command_with_log_capture(command, &log_file),
-        BuildMode::BatchNoGraphics => run_command_with_log_capture(command, &log_file),
-        BuildMode::EditorQuit => run_command_to_stdout(command),
-        BuildMode::Editor => run_command_to_stdout(command),
+        BuildMode::Batch => cmd.wait_with_log_capture(&log_file),
+        BuildMode::BatchNoGraphics => cmd.wait_with_log_capture(&log_file),
+        BuildMode::EditorQuit => cmd.wait_with_stdout(),
+        BuildMode::Editor => cmd.wait_with_stdout(),
     };
 
     if let Some(post_build) = post_build {
@@ -432,7 +432,7 @@ fn installation_root_dir<'a>() -> &'a Path {
 }
 
 /// Returns the sub path to the editor app.
-const fn editor_app_sub_path<'a>() -> &'a str {
+const fn editor_app_sub_path() -> &'static str {
     if cfg!(target_os = "macos") {
         "Unity.app/Contents/MacOS/Unity"
     } else if cfg!(target_os = "windows") {
