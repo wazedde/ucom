@@ -80,7 +80,7 @@ pub struct RunArguments {
         short = 'u',
         long = "unity",
         value_name = "VERSION",
-        verbatim_doc_comment
+        env = "UCOM_DEFAULT_VERSION"
     )]
     pub version_pattern: Option<String>,
 
@@ -109,7 +109,7 @@ pub struct NewArguments {
         short = 'u',
         long = "unity",
         value_name = "VERSION",
-        verbatim_doc_comment
+        env = "UCOM_DEFAULT_VERSION"
     )]
     pub version_pattern: Option<String>,
 
@@ -151,12 +151,7 @@ pub struct OpenArguments {
     /// The Unity version to open the project with. Use it to open a project with a newer
     /// Unity version. You can specify a partial version; e.g. 2021 will match the latest
     /// 2021.x.y version you have installed on your system.
-    #[arg(
-        short = 'u',
-        long = "unity",
-        value_name = "VERSION",
-        verbatim_doc_comment
-    )]
+    #[arg(short = 'u', long = "unity", value_name = "VERSION")]
     pub version_pattern: Option<String>,
 
     /// Waits for the command to finish before continuing.
@@ -178,26 +173,24 @@ pub struct OpenArguments {
 
 #[derive(Args)]
 pub struct BuildArguments {
-    /// The directory of the project
+    /// The directory of the project.
     #[arg(value_name = "DIRECTORY", value_hint = clap::ValueHint::DirPath)]
     pub project_dir: PathBuf,
 
     /// The target platform to build for.
-    #[arg(value_enum)]
+    #[arg(value_enum, env = "UCOM_BUILD_TARGET")]
     pub target: Target,
 
-    /// The output directory of the build. When omitted the build will be placed in
-    /// <DIRECTORY>/Builds/<TARGET>
+    /// The output directory of the build. When omitted the build will be placed in <DIRECTORY>/Builds/<TARGET>.
     #[arg(
         short = 'o',
         long = "output",
         value_name = "DIRECTORY",
-        value_hint = clap::ValueHint::FilePath,
-        verbatim_doc_comment)
-    ]
+        value_hint = clap::ValueHint::FilePath
+    )]
     pub build_path: Option<PathBuf>,
 
-    /// Build script injection method
+    /// Build script injection method.
     #[arg(
         short = 'i',
         long = "inject",
@@ -206,7 +199,7 @@ pub struct BuildArguments {
     )]
     pub inject: InjectAction,
 
-    /// Build mode
+    /// Build mode.
     #[arg(
         short = 'm',
         long = "mode",
@@ -215,7 +208,7 @@ pub struct BuildArguments {
     )]
     pub mode: BuildMode,
 
-    // The log file to write Unity's output to
+    /// The log file to write Unity's output to.
     #[arg(
         short = 'l',
         long = "log-file",
@@ -224,40 +217,40 @@ pub struct BuildArguments {
     )]
     pub log_file: PathBuf,
 
-    /// Show what would be run, but do not actually run it
+    /// Show what would be run, but do not actually run it.
     #[clap(long = "dry-run", short = 'n')]
     pub dry_run: bool,
 
-    /// A list of arguments passed directly to Unity
+    /// A list of arguments passed directly to Unity.
     #[arg(last = true, value_name = "UNITY_ARGS")]
     pub args: Option<Vec<String>>,
 }
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, ValueEnum)]
 pub enum InjectAction {
-    /// If there is no build script, inject one and remove it after the build
+    /// If there is no build script, inject one and remove it after the build.
     Auto,
-    /// Inject the build script into the project and don't remove it afterwards
+    /// Inject the build script into the project and don't remove it afterwards.
     Persistent,
-    /// Don't inject the build script and use the one that is already in the project
+    /// Don't inject the build script and use the one that is already in the project.
     Off,
 }
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, ValueEnum)]
 pub enum BuildMode {
-    /// Build in batch mode and wait for the build to finish
+    /// Build in batch mode and wait for the build to finish.
     #[value(name = "batch")]
     Batch,
 
-    /// Build in batch mode without the graphics device and wait for the build to finish
+    /// Build in batch mode without the graphics device and wait for the build to finish.
     #[value(name = "batch-nogfx")]
     BatchNoGraphics,
 
-    /// Build in the editor and quit after the build
+    /// Build in the editor and quit after the build.
     #[value(name = "editor-quit")]
     EditorQuit,
 
-    /// Build in the editor and keep it open (handy for debugging the build process)
+    /// Build in the editor and keep it open (handy for debugging the build process).
     #[value(name = "editor")]
     Editor,
 }

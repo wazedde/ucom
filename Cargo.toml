@@ -13,7 +13,7 @@ codegen-units = 1
 
 [dependencies]
 anyhow = "1.0.68"
-clap = { version = "4.0.32", features = ["derive"] }
+clap = { version = "4.0.32", features = ["derive", "env", "wrap_help"] }
 natord = "1.0.9"
 path-absolutize = "3.0.14"
 uuid = { version = "1.2.2", features = ["v4"] }
