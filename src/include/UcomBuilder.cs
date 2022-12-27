@@ -11,8 +11,9 @@ using UnityEngine;
 namespace ucom
 {
     /// <summary>
-    /// ucom build companion script.
-    /// When the build process fails, log lines starting with "[Builder] Error:" are printed to the console.
+    /// Build companion script for ucom.<br/>
+    /// - Lines between "[Builder] Build Report Begin" and "[Builder] Build Report Begin" are printed to the console when the build process finishes.<br/>
+    /// - Lines starting with "[Builder] Error:" are printed to the console if the build fails.<br/>
     /// </summary>
     public static class UcomBuilder
     {
@@ -46,7 +47,7 @@ namespace ucom
             {
                 Debug.LogError(BuildPipeline.IsBuildTargetSupported(BuildPipeline.GetBuildTargetGroup(target), target)
                     ? $"[Builder] Error: Build target '{buildTarget}' does not match active build target '{EditorUserBuildSettings.activeBuildTarget}'"
-                    : $"[Builder] Error: Build target '{buildTarget}' is not supported."
+                    : $"[Builder] Error: Build target '{buildTarget}' is not supported or installed."
                 );
 
                 invalidArgs = true;
@@ -123,14 +124,15 @@ namespace ucom
               .AppendLine($"Warnings:     {summary.totalWarnings}")
               .AppendLine("[Builder] Build Report End");
 
-            if (summary.result != BuildResult.Succeeded)
+            switch (summary.result)
             {
-                Debug.LogError(sb.ToString());
-                return false;
+                case BuildResult.Succeeded:
+                    Debug.Log(sb.ToString());
+                    return true;
+                default:
+                    Debug.LogError(sb.ToString());
+                    return false;
             }
-
-            Debug.Log(sb.ToString());
-            return true;
         }
 
         private static bool TryGetArgValue(this string[] source, string arg, out string value)
