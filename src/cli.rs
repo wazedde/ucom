@@ -210,9 +210,9 @@ pub struct BuildArguments {
 
     /// A static method in the Unity project that is called to build the project.
     #[arg(
-        short = 'b',
-        long = "build-method",
-        value_name = "METHOD",
+        short = 'f',
+        long = "build-function",
+        value_name = "FUNCTION",
         default_value = "ucom.UcomBuilder.Build"
     )]
     pub build_method: String,

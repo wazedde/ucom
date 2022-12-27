@@ -182,6 +182,11 @@ Options:
           - editor-quit: Build in the editor and quit after the build
           - editor:      Build in the editor and keep it open (handy for debugging the build process)
 
+  -f, --build-function <FUNCTION>
+          A static method in the Unity project that is called to build the project
+
+          [default: ucom.UcomBuilder.Build]
+
   -l, --log-file <FILE>
           The log file to write Unity's output to
 
