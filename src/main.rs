@@ -260,12 +260,13 @@ fn build_command(arguments: BuildArguments) -> Result<()> {
         post_build()?;
     }
 
-    if build_result.is_ok() {
-        println!("Build completed successfully.");
-    } else {
-        collect_errors_from_log(&log_file)?;
+    if let Some(report) = collect_report_from_log(&log_file) {
+        for line in report {
+            println!("{}", line);
+        }
     }
-    build_result
+
+    build_result.or_else(|_| collect_errors_from_log(&log_file))
 }
 
 /// Returns errors from the given log file as one collected Err.
@@ -294,6 +295,29 @@ fn collect_errors_from_log(log_file: &PathBuf) -> Result<()> {
     errors.dedup();
 
     Err(anyhow!(errors.join("\n")))
+}
+
+/// Returns a list of lines from the given log file that contain a build report.
+fn collect_report_from_log(log_file: &PathBuf) -> Option<Vec<String>> {
+    let Ok(log_file) = File::open(log_file) else {
+        // No log file, no report.
+        return None;
+    };
+
+    let mut lines = BufReader::new(log_file).lines().flatten();
+
+    lines
+        .find(|l| l.starts_with("[Builder] Build Report Begin"))
+        .map(|_| {
+            let mut report = Vec::new();
+            for line in lines {
+                if line.starts_with("[Builder] Build Report End") {
+                    break;
+                }
+                report.push(line);
+            }
+            report
+        })
 }
 
 /// Returns command that builds the project at the given path.
