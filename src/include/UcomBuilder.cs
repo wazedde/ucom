@@ -1,4 +1,5 @@
 using System;
+using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Text;
@@ -113,8 +114,10 @@ namespace ucom
             var sb = new StringBuilder();
             sb.AppendLine("[Builder] Build Report Begin")
               .AppendLine($"Build result: {summary.result}")
+              .AppendLine($"Platform:     {summary.platform}")
               .AppendLine($"Output path:  {summary.outputPath}")
               .AppendLine($"Size:         {summary.totalSize / 1024 / 1024} MB")
+              .AppendLine($"Start time:   {summary.buildStartedAt.ToLocalTime().ToString(CultureInfo.InvariantCulture)}")
               .AppendLine($"Total time:   {summary.totalTime}")
               .AppendLine($"Errors:       {summary.totalErrors}")
               .AppendLine($"Warnings:     {summary.totalWarnings}")
