@@ -15,7 +15,7 @@ use uuid::Uuid;
 use crate::cli::*;
 use crate::command_ext::*;
 use crate::consts::*;
-use crate::packages::Manifest;
+use crate::packages::Packages;
 
 mod cli;
 mod command_ext;
@@ -96,16 +96,15 @@ fn info_command(project_dir: PathBuf) -> Result<()> {
     println!("Project info for '{}'", project_dir.to_string_lossy());
     println!("    Unity version: {} ({})", version, availability);
 
-    let manifest = Manifest::from_project(project_dir.as_ref())?;
+    let manifest = Packages::from_project(project_dir.as_ref())?;
 
-    // TODO: read packages installed in the packages folder
     println!("Packages:");
     manifest
         .dependencies
         .iter()
-        .filter(|(name, _)| !name.starts_with("com.unity.modules."))
-        .for_each(|(name, version)| {
-            println!("    {} ({})", name, version);
+        .filter(|(_, package)| package.source != "builtin")
+        .for_each(|(name, package)| {
+            println!("    {} ({})", name, package.version);
         });
 
     Ok(())
