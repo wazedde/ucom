@@ -249,11 +249,13 @@ fn build_command(arguments: BuildArguments) -> Result<()> {
 
     println!("{}", description);
 
-    let build_result = match arguments.mode {
-        BuildMode::Batch => cmd.wait_with_log_capture(&log_file),
-        BuildMode::BatchNoGraphics => cmd.wait_with_log_capture(&log_file),
-        BuildMode::EditorQuit => cmd.wait_with_stdout(),
-        BuildMode::Editor => cmd.wait_with_stdout(),
+    let output_log = !arguments.quiet
+        && (arguments.mode == BuildMode::Batch || arguments.mode == BuildMode::BatchNoGraphics);
+
+    let build_result = if output_log {
+        cmd.wait_with_log_capture(&log_file)
+    } else {
+        cmd.wait_with_stdout()
     };
 
     if let Some(post_build) = post_build {

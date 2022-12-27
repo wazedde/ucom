@@ -192,6 +192,9 @@ Options:
 
           [default: build.log]
 
+  -q, --quiet
+          Don't output the build log to stdout
+
   -n, --dry-run
           Show what would be run, but do not actually run it
 

@@ -226,6 +226,10 @@ pub struct BuildArguments {
     )]
     pub log_file: PathBuf,
 
+    /// Don't output the build log to stdout.
+    #[clap(long = "quiet", short = 'q')]
+    pub quiet: bool,
+
     /// Show what would be run, but do not actually run it.
     #[clap(long = "dry-run", short = 'n')]
     pub dry_run: bool,
