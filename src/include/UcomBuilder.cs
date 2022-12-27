@@ -53,13 +53,12 @@ namespace ucom
                 invalidArgs = true;
             }
 
-            if (invalidArgs || !Build(buildOutput))
+            bool quitEditor = Array.IndexOf(args, "-quit") != -1;
+            bool buildFailed = invalidArgs || !Build(buildOutput);
+
+            if (quitEditor)
             {
-                EditorApplication.Exit(1);
-            }
-            else
-            {
-                EditorApplication.Exit(0);
+                EditorApplication.Exit(buildFailed ? 1 : 0);
             }
         }
 
