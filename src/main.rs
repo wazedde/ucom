@@ -15,10 +15,12 @@ use uuid::Uuid;
 use crate::cli::*;
 use crate::command_ext::*;
 use crate::consts::*;
+use crate::packages::Manifest;
 
 mod cli;
 mod command_ext;
 mod consts;
+mod packages;
 
 type OptionalFn = Option<Box<dyn FnOnce() -> Result<()>>>;
 
@@ -93,6 +95,19 @@ fn info_command(project_dir: PathBuf) -> Result<()> {
 
     println!("Project info for '{}'", project_dir.to_string_lossy());
     println!("    Unity version: {} ({})", version, availability);
+
+    let manifest = Manifest::from_project(project_dir.as_ref())?;
+
+    // TODO: read packages installed in the packages folder
+    println!("Packages:");
+    manifest
+        .dependencies
+        .iter()
+        .filter(|(name, _)| !name.starts_with("com.unity.modules."))
+        .for_each(|(name, version)| {
+            println!("    {} ({})", name, version);
+        });
+
     Ok(())
 }
 
@@ -487,12 +502,6 @@ fn editor_parent_dir<'a>() -> Result<Cow<'a, Path>> {
 }
 
 /// Returns list of available versions that match the partial version or Err if there is no matching version.
-///
-/// # Arguments
-///
-/// * `partial_version`: An optional partial version to match. If None, all versions are returned.
-/// * `versions`: List of versions to filter.
-///
 fn available_matching_versions(
     versions: Vec<OsString>,
     partial_version: Option<&str>,
@@ -517,11 +526,6 @@ fn available_matching_versions(
 }
 
 /// Returns version and path to the editor app of the latest installed version that matches the partial version.
-///
-/// # Arguments
-///
-/// * `partial_version`: An optional partial version to match. If None, all versions are returned.
-///
 fn matching_editor(partial_version: Option<&str>) -> Result<(OsString, PathBuf)> {
     let parent_dir = editor_parent_dir()?;
 
@@ -537,7 +541,6 @@ fn matching_editor(partial_version: Option<&str>) -> Result<(OsString, PathBuf)>
 
 /// Returns version used by the project and the path to the editor.
 fn matching_editor_used_by_project<P: AsRef<Path>>(project_dir: &P) -> Result<(OsString, PathBuf)> {
-    // Get the Unity version the project uses.
     let version = version_used_by_project(project_dir)?;
 
     // Check if that Unity version is installed.

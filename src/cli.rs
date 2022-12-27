@@ -181,7 +181,7 @@ pub struct BuildArguments {
     #[arg(value_enum, env = crate::consts::ENV_BUILD_TARGET)]
     pub target: Target,
 
-    /// The output directory of the build. When omitted the build will be placed in <DIRECTORY>/Builds/<TARGET>.
+    /// The output directory of the build. When omitted the build will be placed in <PROJECT_DIR>/Builds/<TARGET>.
     #[arg(
         short = 'o',
         long = "output",
