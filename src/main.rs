@@ -230,6 +230,7 @@ fn build_command(arguments: BuildArguments) -> Result<()> {
         arguments.target,
         &output_dir,
         arguments.mode,
+        &arguments.build_method,
         &log_file,
         arguments.args.as_deref(),
     )?;
@@ -278,7 +279,7 @@ fn collect_errors_from_log(log_file: &PathBuf) -> Result<()> {
         .lines()
         .flatten()
         .filter(|l| {
-            l.starts_with("[UcomBuilder] Error:")
+            l.starts_with("[Builder] Error:")
                 || l.contains("error CS")
                 || l.starts_with("Fatal Error")
         })
@@ -301,6 +302,7 @@ fn new_build_project_command(
     build_target: Target,
     output_dir: &Path,
     mode: BuildMode,
+    build_method: &str,
     log_file: &Path,
     unity_args: Option<&[String]>,
 ) -> Result<(Command, String)> {
@@ -317,7 +319,7 @@ fn new_build_project_command(
     cmd.args(["-projectPath", &project_dir.to_string_lossy()])
         .args(["-buildTarget", &build_target.to_string()])
         .args(["-logFile", &log_file.to_string_lossy()])
-        .args(["-executeMethod", "ucom.UcomBuilder.Build"])
+        .args(["-executeMethod", build_method])
         .args(["--ucom-build-output", &output_dir.to_string_lossy()])
         .args([
             "--ucom-build-target",

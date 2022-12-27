@@ -11,6 +11,7 @@ namespace ucom
 {
     /// <summary>
     /// ucom build companion script.
+    /// When the build process fails, log lines starting with "[Builder] Error:" are printed to the console.
     /// </summary>
     public static class UcomBuilder
     {
@@ -26,25 +27,25 @@ namespace ucom
 
             if (!args.TryGetArgValue(BuildOutputArg, out string buildOutput))
             {
-                Debug.LogError("[UcomBuilder] Error: Output path '--ucom-build-output <path>' not specified.");
+                Debug.LogError("[Builder] Error: Output path '--ucom-build-output <path>' not specified.");
                 invalidArgs = true;
             }
 
             if (!args.TryGetArgValue(BuildTargetArg, out string buildTarget))
             {
-                Debug.LogError("[UcomBuilder] Error: Build target '--ucom-build-target <target>' not specified.");
+                Debug.LogError("[Builder] Error: Build target '--ucom-build-target <target>' not specified.");
                 invalidArgs = true;
             }
             else if (!Enum.TryParse(buildTarget, out BuildTarget target))
             {
-                Debug.LogError($"[UcomBuilder] Error: Invalid build target: --ucom-build-target {buildTarget}");
+                Debug.LogError($"[Builder] Error: Invalid build target: --ucom-build-target {buildTarget}");
                 invalidArgs = true;
             }
             else if (target != EditorUserBuildSettings.activeBuildTarget)
             {
                 Debug.LogError(BuildPipeline.IsBuildTargetSupported(BuildPipeline.GetBuildTargetGroup(target), target)
-                    ? $"[UcomBuilder] Error: Build target '{buildTarget}' does not match active build target '{EditorUserBuildSettings.activeBuildTarget}'"
-                    : $"[UcomBuilder] Error: Build target '{buildTarget}' is not supported."
+                    ? $"[Builder] Error: Build target '{buildTarget}' does not match active build target '{EditorUserBuildSettings.activeBuildTarget}'"
+                    : $"[Builder] Error: Build target '{buildTarget}' is not supported."
                 );
 
                 invalidArgs = true;
@@ -84,7 +85,7 @@ namespace ucom
                     buildOutput = Path.Combine(buildOutput, $"{Application.productName}.apk");
                     break;
                 default:
-                    Debug.LogError($"[UcomBuilder] Error: '{buildTarget}' build target not supported.");
+                    Debug.LogError($"[Builder] Error: '{buildTarget}' build target not supported.");
                     EditorApplication.Exit(1);
                     return false;
             }
@@ -93,7 +94,7 @@ namespace ucom
 
             if (scenes == null || scenes.Length == 0)
             {
-                Debug.LogError("[UcomBuilder] Error: no active scenes in Build Settings.");
+                Debug.LogError("[Builder] Error: no active scenes in Build Settings.");
                 EditorApplication.Exit(1);
                 return false;
             }
@@ -110,14 +111,14 @@ namespace ucom
             var summary = report.summary;
 
             var sb = new StringBuilder();
-            sb.AppendLine("[UcomBuilder] Build Report Begin")
+            sb.AppendLine("[Builder] Build Report Begin")
               .AppendLine($"Build result: {summary.result}")
               .AppendLine($"Output path:  {summary.outputPath}")
               .AppendLine($"Size:         {summary.totalSize / 1024 / 1024} MB")
               .AppendLine($"Total time:   {summary.totalTime}")
               .AppendLine($"Errors:       {summary.totalErrors}")
               .AppendLine($"Warnings:     {summary.totalWarnings}")
-              .AppendLine("[UcomBuilder] Build Report End");
+              .AppendLine("[Builder] Build Report End");
 
             if (summary.result != BuildResult.Succeeded)
             {

@@ -208,6 +208,15 @@ pub struct BuildArguments {
     )]
     pub mode: BuildMode,
 
+    /// A static method in the Unity project that is called to build the project.
+    #[arg(
+        short = 'b',
+        long = "build-method",
+        value_name = "METHOD",
+        default_value = "ucom.UcomBuilder.Build"
+    )]
+    pub build_method: String,
+
     /// The log file to write Unity's output to.
     #[arg(
         short = 'l',
