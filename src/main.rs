@@ -61,17 +61,9 @@ fn list_command(partial_version: Option<&str>) -> Result<()> {
             })
         })
         .unwrap_or_else(|| versions.last().unwrap())
-        .clone();
+        .to_owned();
 
-    let versions = filter_versions(partial_version, versions);
-
-    let Ok(versions) = versions else {
-        return Err(anyhow!(
-                "No Unity installations found in '{}' that match version '{}'.", 
-                dir.to_string_lossy(),
-                partial_version.unwrap_or("<UNKNOWN>")
-        ));
-    };
+    let versions = available_matching_versions(versions, partial_version)?;
 
     println!(
         "List installed Unity versions in '{}'",
@@ -473,23 +465,23 @@ fn editor_parent_dir<'a>() -> Result<Cow<'a, Path>> {
 /// * `partial_version`: An optional partial version to match. If None, all versions are returned.
 /// * `versions`: List of versions to filter.
 ///
-fn filter_versions(
-    partial_version: Option<&str>,
+fn available_matching_versions(
     versions: Vec<OsString>,
+    partial_version: Option<&str>,
 ) -> Result<Vec<OsString>> {
-    let Some(pattern) = partial_version else {
+    let Some(partial_version) = partial_version else {
         return Ok(versions);
     };
 
     let versions: Vec<_> = versions
         .into_iter()
-        .filter(|v| v.to_string_lossy().starts_with(pattern))
+        .filter(|v| v.to_string_lossy().starts_with(partial_version))
         .collect();
 
     if versions.is_empty() {
         return Err(anyhow!(
-            "No Unity installation was found that matches version {}",
-            partial_version.unwrap_or("<any>")
+            "No Unity installation was found that matches version '{}'.",
+            partial_version
         ));
     }
 
@@ -505,10 +497,11 @@ fn filter_versions(
 fn matching_editor(partial_version: Option<&str>) -> Result<(OsString, PathBuf)> {
     let parent_dir = editor_parent_dir()?;
 
-    let version = filter_versions(partial_version, available_unity_versions(&parent_dir)?)?
-        .last()
-        .map(|latest| latest.to_owned())
-        .unwrap(); // Guaranteed to have at least one entry.
+    let version =
+        available_matching_versions(available_unity_versions(&parent_dir)?, partial_version)?
+            .last()
+            .unwrap() // Guaranteed to have at least one entry.
+            .to_owned();
 
     let editor_exe = parent_dir.join(&version).join(UNITY_EDITOR_EXE);
     Ok((version, editor_exe))
