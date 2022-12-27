@@ -96,10 +96,13 @@ fn info_command(project_dir: PathBuf) -> Result<()> {
     println!("Project info for '{}'", project_dir.to_string_lossy());
     println!("    Unity version: {} ({})", version, availability);
 
-    let manifest = Packages::from_project(project_dir.as_ref())?;
+    let Ok(packages) = Packages::from_project(project_dir.as_ref()) else {
+        // No packages file found, so we can't show the package versions.
+        return Ok(());
+    };
 
     println!("Packages:");
-    manifest
+    packages
         .dependencies
         .iter()
         .filter(|(_, package)| package.source != "builtin")
