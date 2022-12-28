@@ -325,6 +325,7 @@ fn collect_errors_from_log(log_file: &PathBuf) -> Result<()> {
             l.starts_with("[Builder] Error:")
                 || l.contains("error CS")
                 || l.starts_with("Fatal Error")
+                || l.starts_with("Error building Player")
         })
         .collect::<Vec<String>>();
 
