@@ -44,7 +44,7 @@ fn main() -> Result<()> {
         Action::Info {
             project_dir,
             packages,
-        } => info_command(project_dir, packages).context("Cannot show info"),
+        } => info_command(project_dir, packages).context("Cannot show project info"),
         Action::Run(settings) => run_command(settings).context("Cannot run Unity"),
         Action::New(settings) => new_command(settings).context("Cannot create new Unity project"),
         Action::Open(settings) => open_command(settings).context("Cannot open Unity project"),
@@ -99,19 +99,23 @@ fn info_command(project_dir: PathBuf, packages_level: PackagesInfoLevel) -> Resu
     // Show packages info.
     if packages_level != PackagesInfoLevel::None {
         if let Ok(packages) = Packages::from_project(project_dir.as_ref()) {
-            println!("Packages (L=local, E=embedded, G=git, R=registry, B=builtin)");
-            packages
+            let packages: Vec<_> = packages
                 .dependencies
                 .iter()
                 .filter(|(_, package)| source_filter(package, packages_level))
-                .for_each(|(name, package)| {
+                .collect();
+
+            if !packages.is_empty() {
+                println!("Packages (L=local, E=embedded, G=git, R=registry, B=builtin)");
+                for (name, package) in packages {
                     println!(
                         "    {} {} ({})",
-                        package.source.get(0..1).unwrap_or(" ").to_uppercase(),
+                        package.source.chars().next().unwrap_or(' ').to_uppercase(),
                         name,
                         package.version
                     );
-                });
+                }
+            }
         }
     };
 
