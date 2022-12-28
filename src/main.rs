@@ -15,7 +15,7 @@ use uuid::Uuid;
 use crate::cli::*;
 use crate::command_ext::*;
 use crate::consts::*;
-use crate::packages::Packages;
+use crate::packages::{PackageInfo, Packages};
 
 mod cli;
 mod command_ext;
@@ -41,7 +41,10 @@ fn main() -> Result<()> {
         Action::List { version_pattern } => {
             list_command(version_pattern.as_deref()).context("Cannot list installations")
         }
-        Action::Info { project_dir } => info_command(project_dir).context("Cannot show info"),
+        Action::Info {
+            project_dir,
+            packages,
+        } => info_command(project_dir, packages).context("Cannot show info"),
         Action::Run(settings) => run_command(settings).context("Cannot run Unity"),
         Action::New(settings) => new_command(settings).context("Cannot create new Unity project"),
         Action::Open(settings) => open_command(settings).context("Cannot open Unity project"),
@@ -80,7 +83,7 @@ fn list_command(partial_version: Option<&str>) -> Result<()> {
 }
 
 /// Shows project information.
-fn info_command(project_dir: PathBuf) -> Result<()> {
+fn info_command(project_dir: PathBuf, packages_level: PackagesInfoLevel) -> Result<()> {
     let project_dir = validate_project_path(&project_dir)?;
     let version = version_used_by_project(&project_dir)?;
 
@@ -93,21 +96,44 @@ fn info_command(project_dir: PathBuf) -> Result<()> {
     println!("Project info for `{}`", project_dir.to_string_lossy());
     println!("    Unity version: {} ({})", version, availability);
 
-    let Ok(packages) = Packages::from_project(project_dir.as_ref()) else {
-        // No packages file found, so we can't show the package versions.
-        return Ok(());
+    // Show packages info.
+    if packages_level != PackagesInfoLevel::None {
+        if let Ok(packages) = Packages::from_project(project_dir.as_ref()) {
+            println!("Packages (L=local, E=embedded, G=git, R=registry, B=builtin)");
+            packages
+                .dependencies
+                .iter()
+                .filter(|(_, package)| source_filter(package, packages_level))
+                .for_each(|(name, package)| {
+                    println!(
+                        "    {} {} ({})",
+                        package.source.get(0..1).unwrap_or(" ").to_uppercase(),
+                        name,
+                        package.version
+                    );
+                });
+        }
     };
 
-    println!("Packages:");
-    packages
-        .dependencies
-        .iter()
-        .filter(|(_, package)| package.source != "builtin")
-        .for_each(|(name, package)| {
-            println!("    {} ({})", name, package.version);
-        });
-
     Ok(())
+}
+
+fn source_filter(info: &PackageInfo, level: PackagesInfoLevel) -> bool {
+    match level {
+        PackagesInfoLevel::None => false,
+        PackagesInfoLevel::Some => {
+            info.depth == 0
+                && (info.source == "git" || info.source == "embedded" || info.source == "local")
+        }
+        PackagesInfoLevel::More => {
+            info.depth == 0
+                && (info.source == "git"
+                    || info.source == "embedded"
+                    || info.source == "local"
+                    || info.source == "registry")
+        }
+        PackagesInfoLevel::Most => true,
+    }
 }
 
 /// Runs the Unity Editor with the given arguments.

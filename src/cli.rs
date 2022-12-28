@@ -37,6 +37,10 @@ pub enum Action {
         /// The directory of the project.
         #[arg(value_name = "DIRECTORY", value_hint = clap::ValueHint::DirPath)]
         project_dir: PathBuf,
+
+        /// The level of included packages to show.
+        #[arg(short, long, default_value = "more")]
+        packages: PackagesInfoLevel,
     },
 
     /// Creates a new Unity project and Git repository (uses latest available Unity version by default)
@@ -237,6 +241,18 @@ pub struct BuildArguments {
     /// A list of arguments passed directly to Unity.
     #[arg(last = true, value_name = "UNITY_ARGS")]
     pub args: Option<Vec<String>>,
+}
+
+#[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, ValueEnum)]
+pub enum PackagesInfoLevel {
+    /// Don't show any included packages.
+    None,
+    /// Show non-Unity packages.
+    Some,
+    /// + packages from the registry.
+    More,
+    /// + builtin packages and dependencies.
+    Most,
 }
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, ValueEnum)]

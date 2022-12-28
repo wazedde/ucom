@@ -95,6 +95,33 @@ Options:
   -h, --help             Print help information
 ```
 
+## `ucom help info`
+
+```
+Shows project information
+
+Usage: ucom info [OPTIONS] <DIRECTORY>
+
+Arguments:
+  <DIRECTORY>
+          The directory of the project
+
+Options:
+  -p, --packages <PACKAGES>
+          The level of included packages to show
+
+          [default: more]
+
+          Possible values:
+          - none: Don't show any included packages
+          - some: Show non-Unity packages
+          - more: + packages from the registry
+          - most: + builtin packages and dependencies
+
+  -h, --help
+          Print help information (use `-h` for a summary)
+```
+
 ## `ucom help new`
 
 ```
