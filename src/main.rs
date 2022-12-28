@@ -67,10 +67,7 @@ fn list_command(partial_version: Option<&str>) -> Result<()> {
 
     let versions = available_matching_versions(versions, partial_version)?;
 
-    println!(
-        "List installed Unity versions in '{}'",
-        dir.to_string_lossy()
-    );
+    println!("Unity versions in `{}`", dir.to_string_lossy());
 
     for editor in versions {
         if editor == default_version {
@@ -93,7 +90,7 @@ fn info_command(project_dir: PathBuf) -> Result<()> {
         "not installed"
     };
 
-    println!("Project info for '{}'", project_dir.to_string_lossy());
+    println!("Project info for `{}`", project_dir.to_string_lossy());
     println!("    Unity version: {} ({})", version, availability);
 
     let Ok(packages) = Packages::from_project(project_dir.as_ref()) else {
@@ -142,7 +139,7 @@ fn new_command(arguments: NewArguments) -> Result<()> {
 
     if project_dir.exists() {
         return Err(anyhow!(
-            "Directory already exists: '{}'",
+            "Directory already exists: `{}`",
             project_dir.absolutize()?.to_string_lossy()
         ));
     }
@@ -161,7 +158,7 @@ fn new_command(arguments: NewArguments) -> Result<()> {
 
     if !arguments.quiet {
         println!(
-            "Create new Unity {} project in '{}'",
+            "Create new Unity {} project in `{}`",
             version.to_string_lossy(),
             project_dir.to_string_lossy()
         );
@@ -202,7 +199,7 @@ fn open_command(arguments: OpenArguments) -> Result<()> {
 
     if !arguments.quiet {
         println!(
-            "Open Unity {} project in '{}'",
+            "Open Unity {} project in `{}`",
             version.to_string_lossy(),
             project_dir.to_string_lossy()
         );
@@ -227,7 +224,7 @@ fn build_command(arguments: BuildArguments) -> Result<()> {
     });
 
     let Some(log_file) = arguments.log_file.file_name() else {
-        return Err(anyhow!("Invalid log file name: {}", arguments.log_file.to_string_lossy()));
+        return Err(anyhow!("Invalid log file name: `{}`", arguments.log_file.to_string_lossy()));
     };
 
     let log_file = if log_file == arguments.log_file {
@@ -351,7 +348,8 @@ fn new_build_project_command(
 ) -> Result<(Command, String)> {
     if project_dir == output_dir {
         return Err(anyhow!(
-            "Output directory cannot be the same as the project directory."
+            "Output directory cannot be the same as the project directory: `{}`",
+            project_dir.to_string_lossy()
         ));
     }
 
@@ -389,11 +387,10 @@ fn new_build_project_command(
     Ok((
         cmd,
         format!(
-            "Building Unity {} {} project in '{}' to '{}'",
+            "Building Unity {} {} project in `{}`",
             version.to_string_lossy(),
             build_target,
-            project_dir.to_string_lossy(),
-            output_dir.to_string_lossy(),
+            project_dir.to_string_lossy()
         ),
     ))
 }
@@ -446,7 +443,7 @@ fn version_used_by_project<P: AsRef<Path>>(project_dir: &P) -> Result<String> {
 
     if !version_file.exists() {
         return Err(anyhow!(
-            "Directory does not contain a Unity project: '{}'",
+            "Directory does not contain a Unity project: `{}`",
             project_dir.as_ref().to_string_lossy()
         ));
     }
@@ -470,7 +467,7 @@ fn version_used_by_project<P: AsRef<Path>>(project_dir: &P) -> Result<String> {
         })
         .ok_or_else(|| {
             anyhow!(
-                "Could not get project version from '{}'",
+                "Could not get project version from `{}`",
                 version_file.to_string_lossy()
             )
         })
@@ -484,7 +481,7 @@ fn editor_parent_dir<'a>() -> Result<Cow<'a, Path>> {
             Ok(path.to_path_buf().into())
         } else {
             Err(anyhow!(
-                "Editor directory set by {} is not a valid directory: '{}'",
+                "Editor directory set by `{}` is not a valid directory: `{}`",
                 ENV_EDITOR_DIR,
                 path.to_string_lossy()
             ))
@@ -496,7 +493,7 @@ fn editor_parent_dir<'a>() -> Result<Cow<'a, Path>> {
         Ok(path.into())
     } else {
         Err(anyhow!(
-            "Set {} to the editor directory, the default directory does not exist: '{}'",
+            "Set `{}` to the editor directory, the default directory does not exist: `{}`",
             ENV_EDITOR_DIR,
             path.to_string_lossy()
         ))
@@ -519,7 +516,7 @@ fn available_matching_versions(
 
     if versions.is_empty() {
         return Err(anyhow!(
-            "No Unity installation was found that matches version '{}'.",
+            "No Unity installation was found that matches version `{}`.",
             partial_version
         ));
     }
@@ -561,7 +558,7 @@ fn available_unity_versions<P: AsRef<Path>>(install_dir: &P) -> Result<Vec<OsStr
     let mut versions: Vec<_> = fs::read_dir(install_dir)
         .map_err(|e| {
             anyhow!(
-                "Cannot read available Unity editors in '{}': {}",
+                "Cannot read available Unity editors in `{}`: {}",
                 install_dir.as_ref().to_string_lossy(),
                 e
             )
@@ -575,7 +572,7 @@ fn available_unity_versions<P: AsRef<Path>>(install_dir: &P) -> Result<Vec<OsStr
 
     if versions.is_empty() {
         return Err(anyhow!(
-            "No Unity installations found in '{}'",
+            "No Unity installations found in `{}`",
             install_dir.as_ref().to_string_lossy()
         ));
     }
@@ -589,21 +586,21 @@ fn validate_project_path<P: AsRef<Path>>(project_dir: &P) -> Result<Cow<Path>> {
     let path = project_dir.as_ref();
     if cfg!(target_os = "windows") && path.starts_with("~") {
         return Err(anyhow!(
-            "On Windows the path cannot start with '~': '{}'",
+            "On Windows the path cannot start with '~': `{}`",
             path.to_string_lossy()
         ));
     }
 
     if !path.exists() {
         return Err(anyhow!(
-            "Directory does not exists: '{}'",
+            "Directory does not exists: `{}`",
             path.to_string_lossy()
         ));
     }
 
     if !path.is_dir() {
         return Err(anyhow!(
-            "Path is not a directory: '{}'",
+            "Path is not a directory: `{}`",
             path.to_string_lossy()
         ));
     }
@@ -635,7 +632,7 @@ fn inject_build_script<P: AsRef<Path>>(parent_dir: P) -> Result<()> {
 
     let file_path = inject_dir.join(BUILD_SCRIPT_NAME);
     println!(
-        "Injecting ucom build script: {}",
+        "Injecting ucom build script `{}`",
         file_path.to_string_lossy()
     );
 
@@ -650,14 +647,14 @@ fn remove_build_script<P: AsRef<Path>>(parent_dir: P) -> Result<()> {
     }
 
     println!(
-        "Removing injected ucom build script in directory: {}",
+        "Removing injected ucom build script in directory `{}`",
         parent_dir.as_ref().to_string_lossy()
     );
 
     // Remove the directory where the build script is located.
     fs::remove_dir_all(&parent_dir).map_err(|_| {
         anyhow!(
-            "Could not remove directory: '{}'",
+            "Could not remove directory `{}`",
             parent_dir.as_ref().to_string_lossy()
         )
     })?;
@@ -669,5 +666,5 @@ fn remove_build_script<P: AsRef<Path>>(parent_dir: P) -> Result<()> {
     }
 
     fs::remove_file(&meta_file)
-        .map_err(|_| anyhow!("Could not remove file: '{}'", meta_file.to_string_lossy()))
+        .map_err(|_| anyhow!("Could not remove `{}`", meta_file.to_string_lossy()))
 }

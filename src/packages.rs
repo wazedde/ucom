@@ -19,10 +19,10 @@ impl Manifest {
         let path = project_dir.join(file_name);
 
         let file =
-            File::open(&path).context(format!("Cannot read '{}'", path.to_string_lossy()))?;
+            File::open(&path).context(format!("Cannot read `{}`", path.to_string_lossy()))?;
 
         let manifest: Manifest = serde_json::from_reader(BufReader::new(file))
-            .context(format!("Cannot parse '{}'", path.to_string_lossy()))?;
+            .context(format!("Cannot parse `{}`", path.to_string_lossy()))?;
 
         Ok(manifest)
     }
@@ -50,10 +50,10 @@ impl Packages {
         let path = project_dir.join(file_name);
 
         let file =
-            File::open(&path).context(format!("Cannot read '{}'", path.to_string_lossy()))?;
+            File::open(&path).context(format!("Cannot read `{}`", path.to_string_lossy()))?;
 
         let manifest: Packages = serde_json::from_reader(BufReader::new(file))
-            .context(format!("Cannot parse '{}'", path.to_string_lossy()))?;
+            .context(format!("Cannot parse `{}`", path.to_string_lossy()))?;
 
         Ok(manifest)
     }
