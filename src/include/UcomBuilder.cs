@@ -33,31 +33,31 @@ namespace ucom
                 invalidArgs = true;
             }
 
-            if (!args.TryGetArgValue(BuildTargetArg, out string buildTarget))
+            if (!args.TryGetArgValue(BuildTargetArg, out string argValue))
             {
                 Debug.LogError("[Builder] Error: Build target '--ucom-build-target <target>' not specified.");
                 invalidArgs = true;
             }
-            else if (!Enum.TryParse(buildTarget, out BuildTarget target))
+            else if (!Enum.TryParse(argValue, out BuildTarget target))
             {
-                Debug.LogError($"[Builder] Error: Invalid build target: --ucom-build-target {buildTarget}");
+                Debug.LogError($"[Builder] Error: Invalid build target: --ucom-build-target {argValue}");
                 invalidArgs = true;
             }
             else if (target != EditorUserBuildSettings.activeBuildTarget)
             {
                 Debug.LogError(BuildPipeline.IsBuildTargetSupported(BuildPipeline.GetBuildTargetGroup(target), target)
-                    ? $"[Builder] Error: Build target '{buildTarget}' does not match active build target '{EditorUserBuildSettings.activeBuildTarget}'"
-                    : $"[Builder] Error: Build target '{buildTarget}' is not supported or installed."
+                    ? $"[Builder] Error: Build target '{target}' does not match active build target '{EditorUserBuildSettings.activeBuildTarget}'"
+                    : $"[Builder] Error: Build target '{target}' is not supported or installed."
                 );
 
                 invalidArgs = true;
             }
 
-            bool quitEditor = Array.IndexOf(args, "-quit") != -1;
             bool buildFailed = invalidArgs || !Build(buildOutput);
 
-            if (quitEditor)
+            if (Array.IndexOf(args, "-quit") != -1)
             {
+                // Force quit the editor.
                 EditorApplication.Exit(buildFailed ? 1 : 0);
             }
         }
@@ -87,7 +87,6 @@ namespace ucom
                     break;
                 default:
                     Debug.LogError($"[Builder] Error: '{buildTarget}' build target not supported.");
-                    EditorApplication.Exit(1);
                     return false;
             }
 
@@ -96,7 +95,6 @@ namespace ucom
             if (scenes == null || scenes.Length == 0)
             {
                 Debug.LogError("[Builder] Error: no active scenes in Build Settings.");
-                EditorApplication.Exit(1);
                 return false;
             }
 
@@ -126,9 +124,11 @@ namespace ucom
             switch (summary.result)
             {
                 case BuildResult.Succeeded:
+                    Debug.LogError("[Builder] Build succeeded.");
                     Debug.Log(sb.ToString());
                     return true;
                 default:
+                    Debug.LogError("[Builder] Build failed.");
                     Debug.LogError(sb.ToString());
                     return false;
             }
