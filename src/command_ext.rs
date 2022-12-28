@@ -2,10 +2,11 @@ use std::io::Read;
 use std::path::Path;
 use std::process::{Command, Stdio};
 use std::sync::{Arc, Mutex};
+use std::thread::JoinHandle;
 use std::time::Duration;
 use std::{fs, io, thread};
 
-use anyhow::{anyhow, Result};
+use anyhow::{anyhow, Context, Result};
 
 pub(crate) trait CommandExt {
     /// Spawns command and immediately returns without any output.
@@ -13,7 +14,7 @@ pub(crate) trait CommandExt {
 
     /// Spawns command and outputs Unity's log to the console.
     /// Returns when the command has finished.
-    fn wait_with_log_capture(self, log_file: &Path) -> Result<()>;
+    fn wait_with_log_echo(self, log_file: &Path) -> Result<()>;
 
     /// Spawns command and outputs to the console.
     /// Returns when the command has finished.
@@ -29,32 +30,28 @@ impl CommandExt for Command {
             .stderr(Stdio::piped())
             .spawn()
             .map(|_| ())
-            .map_err(|e| anyhow!("Failed to run child process: {}", e))
+            .context("Failed to run child process.")
     }
 
-    fn wait_with_log_capture(mut self, log_file: &Path) -> Result<()> {
+    fn wait_with_log_echo(mut self, log_file: &Path) -> Result<()> {
         let child = self
             .stdout(Stdio::piped())
             .stderr(Stdio::piped())
             .spawn()
-            .map_err(|e| anyhow!("Failed to run child process: {}", e))?;
+            .context("Failed to run child process.")?;
 
-        let is_finished = Arc::new(Mutex::new(false));
-        let moved_is_finished = Arc::clone(&is_finished);
-        let moved_path = log_file.to_path_buf();
-
-        let log_reader = thread::spawn(move || {
-            continuous_log_reader(&moved_path, Duration::from_millis(100), moved_is_finished);
-        });
+        let stop_echo_thread = Arc::new(Mutex::new(false));
+        let echo_runner =
+            spawn_echo_log_file(log_file, Duration::from_millis(100), &stop_echo_thread);
 
         let output = child
             .wait_with_output()
-            .map_err(|e| anyhow!("Failed to wait for child process: {}", e));
+            .context("Failed to wait for child process.");
 
-        *is_finished.lock().unwrap() = true;
+        *stop_echo_thread.lock().unwrap() = true;
 
-        // Wait for reader to finish.
-        log_reader.join().expect("Log reader thread panicked");
+        // Wait for echo to finish.
+        echo_runner.join().expect("Log echo thread panicked.");
 
         let output = output?;
         output.status.success().then_some(()).ok_or_else(|| {
@@ -67,16 +64,15 @@ impl CommandExt for Command {
     }
 
     fn wait_with_stdout(mut self) -> Result<()> {
-        // let child = spawn_command(self)?;
         let child = self
             .stdout(Stdio::inherit())
             .stderr(Stdio::inherit())
             .spawn()
-            .map_err(|e| anyhow!("Failed to run child process: {}", e))?;
+            .context("Failed to run child process.")?;
 
         let output = child
             .wait_with_output()
-            .map_err(|e| anyhow!("Failed to wait for child process: {}", e))?;
+            .context("Failed to wait for child process.")?;
 
         output.status.success().then_some(()).ok_or_else(|| {
             anyhow!(
@@ -114,37 +110,45 @@ impl CommandExt for Command {
     }
 }
 
-fn continuous_log_reader(
+fn spawn_echo_log_file(
     log_file: &Path,
     update_interval: Duration,
-    finish_reading: Arc<Mutex<bool>>,
-) {
+    stop_thread: &Arc<Mutex<bool>>,
+) -> JoinHandle<()> {
+    let stop_thread = Arc::clone(stop_thread);
+    let log_file = log_file.to_owned();
+    thread::spawn(move || {
+        echo_log_file(&log_file, update_interval, stop_thread);
+    })
+}
+
+fn echo_log_file(log_file: &Path, update_interval: Duration, stop_thread: Arc<Mutex<bool>>) {
     // Wait until file exists.
     while !log_file.exists() {
-        if *finish_reading.lock().unwrap() {
-            // If the file writer thread is finished without creating the file, then we can stop waiting.
+        if *stop_thread.lock().unwrap() {
+            // If the file writer thread has finished without creating the file we can stop waiting.
             return;
         }
         thread::sleep(update_interval);
     }
 
-    let file = fs::File::open(log_file).unwrap();
-    let mut file = io::BufReader::new(file);
-    let mut buf = String::new();
+    let file = fs::File::open(log_file).expect("Cannot open log file.");
+    let mut reader = io::BufReader::new(file);
+    let mut buffer = String::new();
     let mut ended_with_newline = false;
 
     loop {
-        let is_finished = *finish_reading.lock().unwrap();
+        let should_stop = *stop_thread.lock().unwrap();
 
-        file.read_to_string(&mut buf).unwrap();
-        if !buf.is_empty() {
-            ended_with_newline = buf.ends_with('\n');
-            print!("{}", buf);
-            buf.clear();
+        reader.read_to_string(&mut buffer).unwrap();
+        if !buffer.is_empty() {
+            ended_with_newline = buffer.ends_with('\n');
+            print!("{}", buffer);
+            buffer.clear();
         }
 
         // Break when other thread has finished.
-        if is_finished {
+        if should_stop {
             if !ended_with_newline {
                 println!();
             }

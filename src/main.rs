@@ -270,7 +270,7 @@ fn build_command(arguments: BuildArguments) -> Result<()> {
         && (arguments.mode == BuildMode::Batch || arguments.mode == BuildMode::BatchNoGraphics);
 
     let build_result = if output_log {
-        cmd.wait_with_log_capture(&log_file)
+        cmd.wait_with_log_echo(&log_file)
     } else {
         cmd.wait_with_stdout()
     };
