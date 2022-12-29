@@ -15,12 +15,12 @@ use uuid::Uuid;
 use crate::cli::*;
 use crate::command_ext::*;
 use crate::consts::*;
-use crate::packages::{PackageInfo, Packages};
+use crate::unity_data::{PackageInfo, Packages, ProjectSettings};
 
 mod cli;
 mod command_ext;
 mod consts;
-mod packages;
+mod unity_data;
 
 type OptionalFn = Option<Box<dyn FnOnce() -> Result<()>>>;
 
@@ -87,13 +87,22 @@ fn info_command(project_dir: PathBuf, packages_level: PackagesInfoLevel) -> Resu
     let project_dir = validate_project_path(&project_dir)?;
     let version = version_used_by_project(&project_dir)?;
 
+    println!("Project info for `{}`", project_dir.to_string_lossy());
+
+    if let Ok(settings) = ProjectSettings::from_project(&project_dir) {
+        let ps = settings.player_settings;
+        println!(
+            r#"    Product Name = "{}", Company Name = "{}", Version = "{}""#,
+            ps.product_name, ps.company_name, ps.bundle_version
+        );
+    }
+
     let availability = if editor_parent_dir()?.join(&version).exists() {
         "installed"
     } else {
         "not installed"
     };
 
-    println!("Project info for `{}`", project_dir.to_string_lossy());
     println!("    Unity version: {} ({})", version, availability);
 
     // Show packages info.
