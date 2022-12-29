@@ -20,6 +20,9 @@ namespace ucom
         private const string BuildOutputArg = "--ucom-build-output";
         private const string BuildTargetArg = "--ucom-build-target";
 
+        /// <summary>
+        /// This method is called by ucom to build the project.
+        /// </summary>
         [UsedImplicitly]
         public static void Build()
         {
@@ -27,24 +30,32 @@ namespace ucom
 
             bool invalidArgs = false;
 
-            if (!args.TryGetArgValue(BuildOutputArg, out string buildOutput))
+            // Get the output directory.
+            if (!args.TryGetArgValue(BuildOutputArg, out string outputDirectory))
             {
+                // No output path specified.
                 Debug.LogError("[Builder] Error: Output path '--ucom-build-output <path>' not specified.");
                 invalidArgs = true;
             }
 
+            // Get the build target.
             if (!args.TryGetArgValue(BuildTargetArg, out string argValue))
             {
+                // No build target specified.
                 Debug.LogError("[Builder] Error: Build target '--ucom-build-target <target>' not specified.");
                 invalidArgs = true;
             }
             else if (!Enum.TryParse(argValue, out BuildTarget target))
             {
+                // Nonexistent build target value specified.
                 Debug.LogError($"[Builder] Error: Invalid build target: --ucom-build-target {argValue}");
                 invalidArgs = true;
             }
             else if (target != EditorUserBuildSettings.activeBuildTarget)
             {
+                // The desired build target does not match the active build target. Bail out.
+                // ucom attempts to start Unity with the desired build target, however, this is not always possible
+                // because it might not be installed on the machine.
                 Debug.LogError(BuildPipeline.IsBuildTargetSupported(BuildPipeline.GetBuildTargetGroup(target), target)
                     ? $"[Builder] Error: Build target '{target}' does not match active build target '{EditorUserBuildSettings.activeBuildTarget}'"
                     : $"[Builder] Error: Build target '{target}' is not supported or installed."
@@ -53,7 +64,7 @@ namespace ucom
                 invalidArgs = true;
             }
 
-            bool buildFailed = invalidArgs || !Build(buildOutput);
+            bool buildFailed = invalidArgs || !Build(outputDirectory);
 
             if (Array.IndexOf(args, "-quit") != -1)
             {
@@ -62,46 +73,30 @@ namespace ucom
             }
         }
 
-        private static bool Build(string buildOutput)
+        /// <summary>
+        /// Builds the application for the <see cref="EditorUserBuildSettings.activeBuildTarget"/>.
+        /// </summary>
+        /// <param name="outputDirectory">The parent directory where the application will be built.</param>
+        /// <returns><c>true</c> if the build succeeded; <c>false</c> otherwise.</returns>
+        private static bool Build(string outputDirectory)
         {
-            var buildTarget = EditorUserBuildSettings.activeBuildTarget;
-
-            switch (buildTarget)
-            {
-                case BuildTarget.iOS:
-                case BuildTarget.WebGL:
-                    buildOutput = Path.Combine(buildOutput, Application.productName);
-                    break;
-                case BuildTarget.StandaloneWindows:
-                case BuildTarget.StandaloneWindows64:
-                    buildOutput = Path.Combine(buildOutput, $"{Application.productName}.exe");
-                    break;
-                case BuildTarget.StandaloneOSX:
-                    buildOutput = Path.Combine(buildOutput, $"{Application.productName}.app");
-                    break;
-                case BuildTarget.StandaloneLinux64:
-                    buildOutput = Path.Combine(buildOutput, $"{Application.productName}.x86_64");
-                    break;
-                case BuildTarget.Android:
-                    buildOutput = Path.Combine(buildOutput, $"{Application.productName}.apk");
-                    break;
-                default:
-                    Debug.LogError($"[Builder] Error: '{buildTarget}' build target not supported.");
-                    return false;
-            }
-
             var scenes = GetScenePaths();
 
-            if (scenes == null || scenes.Length == 0)
+            if (scenes.Length == 0)
             {
                 Debug.LogError("[Builder] Error: no active scenes in Build Settings.");
+                return false;
+            }
+
+            if (!TryCreateApplicationPath(outputDirectory, Application.productName, EditorUserBuildSettings.activeBuildTarget, out string applicationPath))
+            {
                 return false;
             }
 
             var buildPlayerOptions = new BuildPlayerOptions
             {
                 scenes = scenes,
-                locationPathName = buildOutput,
+                locationPathName = applicationPath,
                 target = EditorUserBuildSettings.activeBuildTarget,
                 options = BuildOptions.None
             };
@@ -134,6 +129,40 @@ namespace ucom
             }
         }
 
+        /// <summary>
+        /// Tries to create the full path of the application to build.
+        /// </summary>
+        private static bool TryCreateApplicationPath(string outputDirectory, string appName, BuildTarget buildTarget, out string fullOutputPath)
+        {
+            switch (buildTarget)
+            {
+                case BuildTarget.iOS:
+                case BuildTarget.WebGL:
+                    fullOutputPath = Path.Combine(outputDirectory, appName);
+                    return true;
+                case BuildTarget.StandaloneWindows:
+                case BuildTarget.StandaloneWindows64:
+                    fullOutputPath = Path.Combine(outputDirectory, $"{appName}.exe");
+                    return true;
+                case BuildTarget.StandaloneOSX:
+                    fullOutputPath = Path.Combine(outputDirectory, $"{appName}.app");
+                    return true;
+                case BuildTarget.StandaloneLinux64:
+                    fullOutputPath = Path.Combine(outputDirectory, $"{appName}.x86_64");
+                    return true;
+                case BuildTarget.Android:
+                    fullOutputPath = Path.Combine(outputDirectory, $"{appName}.apk");
+                    return true;
+                default:
+                    Debug.LogError($"[Builder] Error: '{buildTarget}' build target not supported.");
+                    fullOutputPath = null;
+                    return false;
+            }
+        }
+
+        /// <summary>
+        /// Tries to get the value of the specified argument.
+        /// </summary>
         private static bool TryGetArgValue(this string[] source, string arg, out string value)
         {
             int index = Array.IndexOf(source, arg);
@@ -147,6 +176,10 @@ namespace ucom
             return true;
         }
 
+        /// <summary>
+        /// Returns the paths of the active scenes in the build settings.
+        /// </summary>
+        [NotNull]
         private static string[] GetScenePaths()
         {
             return EditorBuildSettings
