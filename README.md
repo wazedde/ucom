@@ -22,7 +22,7 @@ Some examples:
   the project to the latest Unity version.
 
 - `ucom build ios` - Starts an iOS batch-mode build of the project in the current directory.
-- `ucom build android ~/Develop/MyProject -mode editor-quit` - Starts an Android build of the project in the editor and
+- `ucom build android ~/Develop/MyProject --mode editor-quit` - Starts an Android build of the project in the editor and
   quits it afterwards.
 
 ## How to install
