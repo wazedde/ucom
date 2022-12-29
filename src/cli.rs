@@ -35,7 +35,7 @@ pub enum Action {
     #[command(visible_alias = "i")]
     Info {
         /// The directory of the project.
-        #[arg(value_name = "DIRECTORY", value_hint = clap::ValueHint::DirPath)]
+        #[arg(value_name = "DIRECTORY", value_hint = clap::ValueHint::DirPath, default_value = ".")]
         project_dir: PathBuf,
 
         /// The level of included packages to show.
@@ -52,11 +52,7 @@ pub enum Action {
     New(NewArguments),
 
     /// Opens the given Unity project in the Unity Editor
-    #[command(
-        visible_alias = "o",
-        allow_hyphen_values = true,
-        arg_required_else_help = true
-    )]
+    #[command(visible_alias = "o", allow_hyphen_values = true)]
     Open(OpenArguments),
 
     /// Builds the given Unity project
@@ -149,7 +145,7 @@ pub struct NewArguments {
 #[derive(Args)]
 pub struct OpenArguments {
     /// The directory of the project.
-    #[arg(value_name = "DIRECTORY", value_hint = clap::ValueHint::DirPath)]
+    #[arg(value_name = "DIRECTORY", value_hint = clap::ValueHint::DirPath, default_value = ".")]
     pub project_dir: PathBuf,
 
     /// The Unity version to open the project with. Use it to open a project with a newer
@@ -177,13 +173,13 @@ pub struct OpenArguments {
 
 #[derive(Args)]
 pub struct BuildArguments {
-    /// The directory of the project.
-    #[arg(value_name = "DIRECTORY", value_hint = clap::ValueHint::DirPath)]
-    pub project_dir: PathBuf,
-
     /// The target platform to build for.
     #[arg(value_enum, env = crate::consts::ENV_BUILD_TARGET)]
     pub target: Target,
+
+    /// The directory of the project.
+    #[arg(value_name = "DIRECTORY", value_hint = clap::ValueHint::DirPath, default_value = ".")]
+    pub project_dir: PathBuf,
 
     /// The output directory of the build. When omitted the build will be placed in <PROJECT_DIR>/Builds/<TARGET>.
     #[arg(

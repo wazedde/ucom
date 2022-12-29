@@ -2,24 +2,28 @@
 
 A command line interface for Unity projects written in Rust.
 
-Because typing `ucom open .` to open the Unity project in the current directory is sometimes more convenient than having
-to deal with the Unity Hub.
+Because typing `ucom open` (or `ucom o` for even less typing) to open the Unity project in the current directory is
+sometimes more convenient than having to deal with the Unity Hub.
 
 Some examples:
 
-- `ucom list` lists all the Unity versions on the system.
-- `ucom list -u 2021.3` lists the Unity versions in the 2021.3 range on the system.
+- `ucom list` - Lists all the Unity versions on the system.
+- `ucom list -u 2021.3` - Lists the Unity versions in the 2021.3 range on the system.
 
-- `ucom new ~/Develop/MyProject` creates a new project using the latest Unity version on the system and initializes a
+- `ucom info` - Prints information about the Unity project in the current directory.
+
+- `ucom new ~/Develop/MyProject` - Creates a new project using the latest Unity version on the system and initializes a
   git repository wih a Unity specific `.gitignore`.
-- `ucom new ~/Develop/MyProject -u 2021.3 -- -quit` creates a new project using the latest 2021.3 version on the system
-  and closes the editor after it has been created.
+- `ucom new ~/Develop/MyProject -u 2021.3 -- -quit` - Creates a new project using the latest 2021.3 version on the
+  system and closes the editor after it has been created.
 
-- `ucom open ~/Develop/MyProject` opens the project in the directory.
-- `ucom open ~/Develop/MyProject -u 2021.3` opens the project with the latest 2021.3 version. Use it to e.g. upgrade the
-  project to the latest Unity version.
+- `ucom open ~/Develop/MyProject` - Opens the project in the directory.
+- `ucom open ~/Develop/MyProject -u 2021.3` - Opens the project with the latest 2021.3 version. Use it to e.g. upgrade
+  the project to the latest Unity version.
 
-- `ucom build . ios` builds the project in the current directory for iOS in batch mode.
+- `ucom build ios` - Starts an iOS batch-mode build of the project in the current directory.
+- `ucom build android ~/Develop/MyProject -mode editor-quit` - Starts an Android build of the project in the editor and
+  quits it afterwards.
 
 ## How to install
 
@@ -100,11 +104,13 @@ Options:
 ```
 Shows project information
 
-Usage: ucom info [OPTIONS] <DIRECTORY>
+Usage: ucom info [OPTIONS] [DIRECTORY]
 
 Arguments:
-  <DIRECTORY>
+  [DIRECTORY]
           The directory of the project
+
+          [default: .]
 
 Options:
   -p, --packages <PACKAGES>
@@ -148,10 +154,10 @@ Options:
 ```
 Opens the given Unity project in the Unity Editor
 
-Usage: ucom open [OPTIONS] <DIRECTORY> [-- <UNITY_ARGS>...]
+Usage: ucom open [OPTIONS] [DIRECTORY] [-- <UNITY_ARGS>...]
 
 Arguments:
-  <DIRECTORY>      The directory of the project
+  [DIRECTORY]      The directory of the project [default: .]
   [UNITY_ARGS]...  A list of arguments passed directly to Unity
 
 Options:
@@ -169,24 +175,26 @@ Options:
 ```
 Builds the given Unity project
 
-Usage: ucom build [OPTIONS] <DIRECTORY> <TARGET> [-- <UNITY_ARGS>...]
+Usage: ucom build [OPTIONS] <TARGET> [DIRECTORY] [-- <UNITY_ARGS>...]
 
 Arguments:
-  <DIRECTORY>
-          The directory of the project
-
   <TARGET>
           The target platform to build for
 
           [env: UCOM_BUILD_TARGET=]
           [possible values: win32, win64, macos, linux64, ios, android, webgl]
 
+  [DIRECTORY]
+          The directory of the project
+
+          [default: .]
+
   [UNITY_ARGS]...
           A list of arguments passed directly to Unity
 
 Options:
   -o, --output <DIRECTORY>
-          The output directory of the build. When omitted the build will be placed in <DIRECTORY>/Builds/<TARGET>
+          The output directory of the build. When omitted the build will be placed in <PROJECT_DIR>/Builds/<TARGET>
 
   -i, --inject <METHOD>
           Build script injection method

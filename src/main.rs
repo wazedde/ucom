@@ -474,7 +474,7 @@ fn version_used_by_project<P: AsRef<Path>>(project_dir: &P) -> Result<String> {
 
     if !version_file.exists() {
         return Err(anyhow!(
-            "Directory does not contain a Unity project: `{}`",
+            "Could not find Unity project in `{}`",
             project_dir.as_ref().to_string_lossy()
         ));
     }
