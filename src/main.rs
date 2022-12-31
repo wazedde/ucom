@@ -9,13 +9,14 @@ use std::{env, fs};
 use anyhow::{anyhow, Context, Result};
 use clap::CommandFactory;
 use clap::Parser;
+use colored::Colorize;
 use path_absolutize::Absolutize;
 use uuid::Uuid;
 
 use crate::cli::*;
 use crate::command_ext::*;
 use crate::consts::*;
-use crate::unity_data::{PackageInfo, Packages, ProjectSettings};
+use crate::unity_data::{Packages, ProjectSettings};
 
 mod cli;
 mod command_ext;
@@ -38,24 +39,29 @@ fn main() -> Result<()> {
     };
 
     match command {
-        Action::List { version_pattern } => {
-            list_command(version_pattern.as_deref()).context("Cannot list installations")
-        }
+        Action::List { version_pattern } => list_versions(version_pattern.as_deref())
+            .context("Cannot list installations".red().bold()),
         Action::Info {
             project_dir,
             packages,
-        } => info_command(project_dir, packages).context("Cannot show project info"),
-        Action::Run(settings) => run_command(settings).context("Cannot run Unity"),
-        Action::New(settings) => new_command(settings).context("Cannot create new Unity project"),
-        Action::Open(settings) => open_command(settings).context("Cannot open Unity project"),
-        Action::Build(settings) => build_command(settings).context("Cannot build project"),
+        } => show_project_info(project_dir, packages)
+            .context("Cannot show project info".red().bold()),
+        Action::Run(settings) => run_unity(settings).context("Cannot run Unity".red().bold()),
+        Action::New(settings) => {
+            new_project(settings).context("Cannot create new Unity project".red().bold())
+        }
+        Action::Open(settings) => {
+            open_project(settings).context("Cannot open Unity project".red().bold())
+        }
+        Action::Build(settings) => {
+            build_project(settings).context("Cannot build project".red().bold())
+        }
     }
 }
 
 /// Lists installed Unity versions.
-fn list_command(partial_version: Option<&str>) -> Result<()> {
+fn list_versions(partial_version: Option<&str>) -> Result<()> {
     let dir = editor_parent_dir()?;
-
     let versions = available_unity_versions(&dir)?;
 
     let default_version = env::var_os(ENV_DEFAULT_VERSION)
@@ -70,11 +76,14 @@ fn list_command(partial_version: Option<&str>) -> Result<()> {
 
     let versions = available_matching_versions(versions, partial_version)?;
 
-    println!("Unity versions in `{}`", dir.to_string_lossy());
+    println!(
+        "{}",
+        format!("Unity versions in `{}`", dir.to_string_lossy()).bold()
+    );
 
     for editor in versions {
         if editor == default_version {
-            println!("{} (default)", editor.to_string_lossy());
+            println!("{} {}", editor.to_string_lossy().bold(), "(default)".bold());
         } else {
             println!("{}", editor.to_string_lossy());
         }
@@ -83,74 +92,83 @@ fn list_command(partial_version: Option<&str>) -> Result<()> {
 }
 
 /// Shows project information.
-fn info_command(project_dir: PathBuf, packages_level: PackagesInfoLevel) -> Result<()> {
+fn show_project_info(project_dir: PathBuf, packages_level: PackagesInfoLevel) -> Result<()> {
     let project_dir = validate_project_path(&project_dir)?;
     let version = version_used_by_project(&project_dir)?;
 
-    println!("Project info for `{}`", project_dir.to_string_lossy());
+    println!(
+        "{}",
+        format!("Project info for `{}`", project_dir.to_string_lossy()).bold()
+    );
 
     if let Ok(settings) = ProjectSettings::from_project(&project_dir) {
         let ps = settings.player_settings;
-        println!(
-            r#"    Product Name = "{}", Company Name = "{}", Version = "{}""#,
-            ps.product_name, ps.company_name, ps.bundle_version
-        );
+        println!("    Product Name:  {}", ps.product_name.bold(),);
+        println!("    Company Name:  {}", ps.company_name.bold(),);
+        println!("    Version:       {}", ps.bundle_version.bold());
     }
 
-    let availability = if editor_parent_dir()?.join(&version).exists() {
-        "installed"
+    print!("    Unity Version: {}", version.bold());
+    if editor_parent_dir()?.join(&version).exists() {
+        println!();
     } else {
-        "not installed"
-    };
-
-    println!("    Unity version: {} ({})", version, availability);
-
-    // Show packages info.
+        println!(" {}", "*not installed".red().bold());
+    }
     if packages_level != PackagesInfoLevel::None {
-        if let Ok(packages) = Packages::from_project(project_dir.as_ref()) {
-            let packages: Vec<_> = packages
-                .dependencies
-                .iter()
-                .filter(|(_, package)| source_filter(package, packages_level))
-                .collect();
-
-            if !packages.is_empty() {
-                println!("Packages (L=local, E=embedded, G=git, R=registry, B=builtin)");
-                for (name, package) in packages {
-                    println!(
-                        "    {} {} ({})",
-                        package.source.chars().next().unwrap_or(' ').to_uppercase(),
-                        name,
-                        package.version
-                    );
-                }
-            }
-        }
+        show_project_packages(project_dir.as_ref(), packages_level);
     };
 
     Ok(())
 }
 
-fn source_filter(info: &PackageInfo, level: PackagesInfoLevel) -> bool {
-    match level {
-        PackagesInfoLevel::None => false,
-        PackagesInfoLevel::Some => {
-            info.depth == 0
-                && (info.source == "git" || info.source == "embedded" || info.source == "local")
-        }
-        PackagesInfoLevel::More => {
-            info.depth == 0
-                && (info.source == "git"
-                    || info.source == "embedded"
-                    || info.source == "local"
-                    || info.source == "registry")
-        }
-        PackagesInfoLevel::Most => true,
+/// Show packages used by the project.
+fn show_project_packages(project_dir: &Path, level: PackagesInfoLevel) {
+    let Ok(packages) = Packages::from_project(project_dir) else {
+        return;
+    };
+
+    let packages: Vec<_> = packages
+        .dependencies
+        .iter()
+        .filter(|(_, package)| match level {
+            PackagesInfoLevel::None => false,
+            PackagesInfoLevel::Some => {
+                package.depth == 0
+                    && (package.source == "git"
+                        || package.source == "embedded"
+                        || package.source == "local")
+            }
+            PackagesInfoLevel::More => {
+                package.depth == 0
+                    && (package.source == "git"
+                        || package.source == "embedded"
+                        || package.source == "local"
+                        || package.source == "registry")
+            }
+            PackagesInfoLevel::Most => true,
+        })
+        .collect();
+
+    if packages.is_empty() {
+        return;
+    };
+
+    println!(
+        "{}",
+        "Packages (L=local, E=embedded, G=git, R=registry, B=builtin)".bold()
+    );
+    for (name, package) in packages {
+        println!(
+            "    {} {} ({})",
+            package.source.chars().next().unwrap_or(' ').to_uppercase(),
+            name,
+            package.version
+        );
     }
 }
 
 /// Runs the Unity Editor with the given arguments.
-fn run_command(arguments: RunArguments) -> Result<()> {
+fn run_unity(arguments: RunArguments) -> Result<()> {
     let (version, editor_exe) = matching_editor(arguments.version_pattern.as_deref())?;
 
     let mut cmd = Command::new(editor_exe);
@@ -162,7 +180,10 @@ fn run_command(arguments: RunArguments) -> Result<()> {
     }
 
     if !arguments.quiet {
-        println!("Run Unity {}", version.to_string_lossy());
+        println!(
+            "{}",
+            format!("Run Unity {}", version.to_string_lossy()).bold()
+        );
     }
 
     if arguments.wait {
@@ -173,7 +194,7 @@ fn run_command(arguments: RunArguments) -> Result<()> {
 }
 
 /// Creates a new Unity project and optional Git repository in the given directory.
-fn new_command(arguments: NewArguments) -> Result<()> {
+fn new_project(arguments: NewArguments) -> Result<()> {
     let project_dir = arguments.project_dir.absolutize()?;
 
     if project_dir.exists() {
@@ -197,9 +218,13 @@ fn new_command(arguments: NewArguments) -> Result<()> {
 
     if !arguments.quiet {
         println!(
-            "Create new Unity {} project in `{}`",
-            version.to_string_lossy(),
-            project_dir.to_string_lossy()
+            "{}",
+            format!(
+                "Create new Unity {} project in `{}`",
+                version.to_string_lossy(),
+                project_dir.to_string_lossy()
+            )
+            .bold()
         );
     }
 
@@ -217,7 +242,7 @@ fn new_command(arguments: NewArguments) -> Result<()> {
 }
 
 /// Opens the given Unity project in the Unity Editor.
-fn open_command(arguments: OpenArguments) -> Result<()> {
+fn open_project(arguments: OpenArguments) -> Result<()> {
     let project_dir = validate_project_path(&arguments.project_dir)?;
 
     let (version, editor_exe) = if arguments.version_pattern.is_some() {
@@ -238,9 +263,13 @@ fn open_command(arguments: OpenArguments) -> Result<()> {
 
     if !arguments.quiet {
         println!(
-            "Open Unity {} project in `{}`",
-            version.to_string_lossy(),
-            project_dir.to_string_lossy()
+            "{}",
+            format!(
+                "Open Unity {} project in `{}`",
+                version.to_string_lossy(),
+                project_dir.to_string_lossy()
+            )
+            .bold()
         );
     }
 
@@ -253,7 +282,7 @@ fn open_command(arguments: OpenArguments) -> Result<()> {
 }
 
 /// Runs the build command.
-fn build_command(arguments: BuildArguments) -> Result<()> {
+fn build_project(arguments: BuildArguments) -> Result<()> {
     let project_dir = validate_project_path(&arguments.project_dir)?;
 
     let output_dir = arguments.build_path.unwrap_or_else(|| {
@@ -300,7 +329,7 @@ fn build_command(arguments: BuildArguments) -> Result<()> {
         pre_build()?;
     }
 
-    println!("{}", description);
+    println!("{}", description.bold());
 
     let output_log = !arguments.quiet
         && (arguments.mode == BuildMode::Batch || arguments.mode == BuildMode::BatchNoGraphics);
@@ -315,9 +344,15 @@ fn build_command(arguments: BuildArguments) -> Result<()> {
         post_build()?;
     }
 
+    if build_result.is_ok() {
+        println!("{}", "Build succeeded".green().bold());
+    } else {
+        println!("{}", "Build failed".red().bold());
+    }
+
     if let Some(report) = collect_report_from_log(&log_file) {
         for line in report {
-            println!("{}", line);
+            println!("    {}", line);
         }
     }
 

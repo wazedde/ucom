@@ -138,6 +138,7 @@ fn echo_log_file(log_file: &Path, update_interval: Duration, stop_thread: Arc<Mu
     let mut ended_with_newline = false;
 
     loop {
+        // Don't immediately exit if the file writer thread has finished to be able to read any last data.
         let should_stop = *stop_thread.lock().unwrap();
 
         reader.read_to_string(&mut buffer).unwrap();
@@ -147,7 +148,7 @@ fn echo_log_file(log_file: &Path, update_interval: Duration, stop_thread: Arc<Mu
             buffer.clear();
         }
 
-        // Break when other thread has finished.
+        // Now do the actual check if we should stop.
         if should_stop {
             if !ended_with_newline {
                 println!();

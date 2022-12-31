@@ -51,12 +51,16 @@ pub(crate) struct ProjectSettings {
 pub(crate) struct PlayerSettings {
     #[serde(rename = "productName")]
     pub(crate) product_name: String,
+
     #[serde(rename = "companyName")]
     pub(crate) company_name: String,
+
     #[serde(rename = "bundleVersion")]
     pub(crate) bundle_version: String,
+
     #[serde(rename = "buildNumber")]
     pub(crate) build_number: Option<HashMap<String, String>>,
+
     #[serde(rename = "AndroidBundleVersionCode")]
     pub(crate) android_bundle_version_code: Option<String>,
 }
