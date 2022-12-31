@@ -101,7 +101,18 @@ namespace ucom
                 options = BuildOptions.None
             };
 
-            var report = BuildPipeline.BuildPlayer(buildPlayerOptions);
+            BuildReport report;
+
+            try
+            {
+                report = BuildPipeline.BuildPlayer(buildPlayerOptions);
+            }
+            catch (Exception e)
+            {
+                Debug.LogError($"[Builder] Error: {e}");
+                return false;
+            }
+
             var summary = report.summary;
 
             var sb = new StringBuilder();
