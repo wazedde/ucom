@@ -1,6 +1,6 @@
 pub(crate) const ENV_EDITOR_DIR: &str = "UCOM_EDITOR_DIR";
-pub(crate) const ENV_DEFAULT_VERSION: &str = "UCOM_DEFAULT_VERSION";
-pub(crate) const ENV_BUILD_TARGET: &str = "UCOM_BUILD_TARGET";
+pub(crate) const ENV_DEFAULT_VERSION: &str = "UCOM_VERSION";
+pub(crate) const ENV_BUILD_TARGET: &str = "UCOM_TARGET";
 
 /// Sub path to the executable on macOS.
 #[cfg(target_os = "macos")]
