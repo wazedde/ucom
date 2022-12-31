@@ -6,7 +6,7 @@ use std::path::{Path, PathBuf};
 use std::process::{exit, Command};
 use std::{env, fs};
 
-use anyhow::{anyhow, Context, Result};
+use anyhow::{anyhow, Context, Error, Result};
 use clap::CommandFactory;
 use clap::Parser;
 use colored::Colorize;
@@ -356,17 +356,16 @@ fn build_project(arguments: BuildArguments) -> Result<()> {
         }
     }
 
-    build_result.or_else(|_| collect_errors_from_log(&log_file))
+    build_result.map_err(|_| errors_from_log(&log_file))
 }
 
 /// Returns errors from the given log file as one collected Err.
-fn collect_errors_from_log(log_file: &PathBuf) -> Result<()> {
+fn errors_from_log(log_file: &PathBuf) -> Error {
     let Ok(log_file) = File::open(log_file) else {
-        // No log file, no errors.
-        return Ok(());
+        return anyhow!("Failed to open log file: `{}`", log_file.to_string_lossy());
     };
 
-    let mut errors = BufReader::new(log_file)
+    let errors = BufReader::new(log_file)
         .lines()
         .flatten()
         .filter(|l| {
@@ -378,23 +377,27 @@ fn collect_errors_from_log(log_file: &PathBuf) -> Result<()> {
         .collect::<Vec<String>>();
 
     if errors.is_empty() {
-        return Ok(());
+        anyhow!("No errors found in log")
+    } else {
+        // Remove duplicate entries.
+        let mut unique_errors = Vec::new();
+        for e in errors {
+            if !unique_errors.contains(&e) {
+                unique_errors.push(e);
+            }
+        }
+
+        if unique_errors.len() == 1 {
+            anyhow!("{}", unique_errors[0])
+        } else {
+            let mut joined = String::new();
+            for (i, error) in unique_errors.iter().enumerate() {
+                joined.push_str(format!("{}: {}\n", format!("{}", i + 1).bold(), error).as_str());
+            }
+
+            anyhow!(joined)
+        }
     }
-
-    // Remove duplicate entries
-    errors.sort_unstable();
-    errors.dedup();
-
-    if errors.len() == 1 {
-        return Err(anyhow!("{}", errors[0]));
-    }
-
-    let mut joined = String::new();
-    for (i, error) in errors.iter().enumerate() {
-        joined.push_str(format!("{}: {}\n", format!("{}", i + 1).bold(), error).as_str());
-    }
-
-    Err(anyhow!(joined))
 }
 
 /// Returns a list of lines from the given log file that contain a build report.
