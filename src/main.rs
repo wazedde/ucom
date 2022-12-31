@@ -385,7 +385,16 @@ fn collect_errors_from_log(log_file: &PathBuf) -> Result<()> {
     errors.sort_unstable();
     errors.dedup();
 
-    Err(anyhow!(errors.join("\n")))
+    if errors.len() == 1 {
+        return Err(anyhow!("{}", errors[0]));
+    }
+
+    let mut joined = String::new();
+    for (i, error) in errors.iter().enumerate() {
+        joined.push_str(format!("{}: {}\n", format!("{}", i + 1).bold(), error).as_str());
+    }
+
+    Err(anyhow!(joined))
 }
 
 /// Returns a list of lines from the given log file that contain a build report.
