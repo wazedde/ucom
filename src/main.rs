@@ -11,25 +11,23 @@ use clap::CommandFactory;
 use clap::Parser;
 use colored::Colorize;
 use path_absolutize::Absolutize;
-use uuid::Uuid;
 
 use crate::cli::*;
 use crate::command_ext::*;
 use crate::consts::*;
 use crate::unity_data::{Packages, ProjectSettings};
 
+mod build_script;
 mod cli;
 mod command_ext;
 mod consts;
 mod unity_data;
 
-type OptionalFn = Option<Box<dyn FnOnce() -> Result<()>>>;
-
 fn main() -> Result<()> {
     let cli = Cli::parse();
 
     if cli.injected_script {
-        println!("{}", BUILD_SCRIPT);
+        println!("{}", build_script::content());
         exit(0);
     }
 
@@ -284,12 +282,21 @@ fn open_project(arguments: OpenArguments) -> Result<()> {
 /// Runs the build command.
 fn build_project(arguments: BuildArguments) -> Result<()> {
     let project_dir = validate_project_path(&arguments.project_dir)?;
+    let (version, editor_exe) = matching_editor_used_by_project(&project_dir)?;
 
     let output_dir = arguments.build_path.unwrap_or_else(|| {
+        // If no build path is given, use <project>/Builds/<target>
         project_dir
             .join("Builds")
             .join(arguments.target.to_string())
     });
+
+    if project_dir == output_dir {
+        return Err(anyhow!(
+            "Output directory cannot be the same as the project directory: `{}`",
+            project_dir.to_string_lossy()
+        ));
+    }
 
     let Some(log_file) = arguments.log_file.file_name() else {
         return Err(anyhow!("Invalid log file name: `{}`", arguments.log_file.to_string_lossy()));
@@ -299,7 +306,6 @@ fn build_project(arguments: BuildArguments) -> Result<()> {
         // Log filename without path was given, use the output path as destination.
         output_dir.join(log_file)
     } else {
-        // A full path was given, use it.
         log_file.into()
     };
 
@@ -307,42 +313,66 @@ fn build_project(arguments: BuildArguments) -> Result<()> {
         fs::remove_file(&log_file)?;
     }
 
-    let (cmd, description) = new_build_project_command(
-        &project_dir,
-        arguments.target,
-        &output_dir,
-        arguments.mode,
-        &arguments.build_method,
-        &log_file,
-        arguments.args.as_deref(),
-    )?;
+    // Build the command to execute.
+    let mut cmd = Command::new(editor_exe);
+    cmd.args(["-projectPath", &project_dir.to_string_lossy()])
+        .args(["-buildTarget", &arguments.target.to_string()])
+        .args(["-logFile", &log_file.to_string_lossy()])
+        .args(["-executeMethod", &arguments.build_function])
+        .args(["--ucom-build-output", &output_dir.to_string_lossy()])
+        .args([
+            "--ucom-build-target",
+            &BuildTarget::from(arguments.target).to_string(),
+        ]);
+
+    // Add the build mode.
+    match arguments.mode {
+        BuildMode::BatchNoGraphics => {
+            cmd.args(["-batchmode", "-nographics", "-quit"]);
+        }
+        BuildMode::Batch => {
+            cmd.args(["-batchmode", "-quit"]);
+        }
+        BuildMode::EditorQuit => {
+            cmd.args(["-quit"]);
+        }
+        BuildMode::Editor => {} // Do nothing.
+    }
+
+    // Add any additional arguments.
+    cmd.args(arguments.args.as_deref().unwrap_or_default());
 
     if arguments.dry_run {
         println!("{}", cmd.to_command_line_string());
         return Ok(());
     }
 
-    let (pre_build, post_build) =
-        create_build_script_injection_actions(&project_dir, arguments.inject);
+    println!(
+        "{}",
+        format!(
+            "Building Unity {} {} project in `{}`",
+            version.to_string_lossy(),
+            arguments.target,
+            project_dir.to_string_lossy()
+        )
+        .bold()
+    );
 
-    if let Some(pre_build) = pre_build {
-        pre_build()?;
-    }
+    let (inject_build_script, remove_build_script) =
+        build_script::new_build_script_injection_functions(&project_dir, arguments.inject);
 
-    println!("{}", description.bold());
+    inject_build_script()?;
 
-    let output_log = !arguments.quiet
+    let show_log = !arguments.quiet
         && (arguments.mode == BuildMode::Batch || arguments.mode == BuildMode::BatchNoGraphics);
 
-    let build_result = if output_log {
+    let build_result = if show_log {
         cmd.wait_with_log_echo(&log_file)
     } else {
         cmd.wait_with_stdout()
     };
 
-    if let Some(post_build) = post_build {
-        post_build()?;
-    }
+    remove_build_script()?;
 
     if build_result.is_ok() {
         println!("{}", "Build succeeded".green().bold());
@@ -421,106 +451,6 @@ fn collect_report_from_log(log_file: &PathBuf) -> Option<Vec<String>> {
             }
             report
         })
-}
-
-/// Returns command that builds the project at the given path.
-fn new_build_project_command(
-    project_dir: &Path,
-    build_target: Target,
-    output_dir: &Path,
-    mode: BuildMode,
-    build_method: &str,
-    log_file: &Path,
-    unity_args: Option<&[String]>,
-) -> Result<(Command, String)> {
-    if project_dir == output_dir {
-        return Err(anyhow!(
-            "Output directory cannot be the same as the project directory: `{}`",
-            project_dir.to_string_lossy()
-        ));
-    }
-
-    let (version, editor_exe) = matching_editor_used_by_project(&project_dir)?;
-
-    // Build the command to execute.
-    let mut cmd = Command::new(editor_exe);
-    cmd.args(["-projectPath", &project_dir.to_string_lossy()])
-        .args(["-buildTarget", &build_target.to_string()])
-        .args(["-logFile", &log_file.to_string_lossy()])
-        .args(["-executeMethod", build_method])
-        .args(["--ucom-build-output", &output_dir.to_string_lossy()])
-        .args([
-            "--ucom-build-target",
-            &BuildTarget::from(build_target).to_string(),
-        ]);
-
-    // Add the build mode.
-    match mode {
-        BuildMode::BatchNoGraphics => {
-            cmd.args(["-batchmode", "-nographics", "-quit"]);
-        }
-        BuildMode::Batch => {
-            cmd.args(["-batchmode", "-quit"]);
-        }
-        BuildMode::EditorQuit => {
-            cmd.args(["-quit"]);
-        }
-        BuildMode::Editor => {} // Do nothing.
-    }
-
-    // Add any additional arguments.
-    cmd.args(unity_args.unwrap_or_default());
-
-    Ok((
-        cmd,
-        format!(
-            "Building Unity {} {} project in `{}`",
-            version.to_string_lossy(),
-            build_target,
-            project_dir.to_string_lossy()
-        ),
-    ))
-}
-
-/// Creates actions that inject a script into the project before and after the build.
-fn create_build_script_injection_actions(
-    project_dir: &Path,
-    inject: InjectAction,
-) -> (OptionalFn, OptionalFn) {
-    match inject {
-        InjectAction::Auto => {
-            if project_dir.join(PERSISTENT_BUILD_SCRIPT_PATH).exists() {
-                // Build script already present, no need to inject.
-                (None, None)
-            } else {
-                // Build script not present, inject it.
-                // Place the build script in a unique directory to avoid conflicts.
-                let pre_root =
-                    project_dir.join(format!("{}-{}", AUTO_BUILD_SCRIPT_ROOT, Uuid::new_v4()));
-                let post_root = pre_root.clone();
-
-                (
-                    Some(Box::new(|| inject_build_script(pre_root))),
-                    Some(Box::new(|| remove_build_script(post_root))),
-                )
-            }
-        }
-        InjectAction::Persistent => {
-            if project_dir.join(PERSISTENT_BUILD_SCRIPT_PATH).exists() {
-                // Build script already present, no need to inject.
-                (None, None)
-            } else {
-                // Build script not present, inject it.
-                let persistent_root = project_dir.join(PERSISTENT_BUILD_SCRIPT_ROOT);
-
-                (
-                    Some(Box::new(|| inject_build_script(persistent_root))),
-                    None,
-                )
-            }
-        }
-        InjectAction::Off => (None, None), // Do nothing.
-    }
 }
 
 /// Returns the Unity version used for the project.
@@ -710,48 +640,4 @@ fn git_init<P: AsRef<Path>>(project_dir: P) -> Result<()> {
 
     let mut file = File::create(project_dir.join(".gitignore"))?;
     write!(file, "{}", GIT_IGNORE).map_err(|e| e.into())
-}
-
-/// Injects the build script into the project.
-fn inject_build_script<P: AsRef<Path>>(parent_dir: P) -> Result<()> {
-    let inject_dir = parent_dir.as_ref().join("Editor");
-    fs::create_dir_all(&inject_dir)?;
-
-    let file_path = inject_dir.join(BUILD_SCRIPT_NAME);
-    println!(
-        "Injecting ucom build script `{}`",
-        file_path.to_string_lossy()
-    );
-
-    let mut file = File::create(file_path)?;
-    write!(file, "{}", BUILD_SCRIPT).map_err(|e| e.into())
-}
-
-/// Removes the injected build script from the project.
-fn remove_build_script<P: AsRef<Path>>(parent_dir: P) -> Result<()> {
-    if !parent_dir.as_ref().exists() {
-        return Ok(());
-    }
-
-    println!(
-        "Removing injected ucom build script in directory `{}`",
-        parent_dir.as_ref().to_string_lossy()
-    );
-
-    // Remove the directory where the build script is located.
-    fs::remove_dir_all(&parent_dir).map_err(|_| {
-        anyhow!(
-            "Could not remove directory `{}`",
-            parent_dir.as_ref().to_string_lossy()
-        )
-    })?;
-
-    // Remove the .meta file.
-    let meta_file = parent_dir.as_ref().with_extension("meta");
-    if !meta_file.exists() {
-        return Ok(());
-    }
-
-    fs::remove_file(&meta_file)
-        .map_err(|_| anyhow!("Could not remove `{}`", meta_file.to_string_lossy()))
 }

@@ -215,7 +215,7 @@ pub struct BuildArguments {
         value_name = "FUNCTION",
         default_value = "ucom.UcomBuilder.Build"
     )]
-    pub build_method: String,
+    pub build_function: String,
 
     /// The log file to write Unity's output to.
     #[arg(

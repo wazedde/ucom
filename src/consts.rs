@@ -26,10 +26,4 @@ pub(crate) const UNITY_EDITOR_DIR: &str = r"C:\Program Files\Unity\Hub\Editor";
 #[cfg(not(any(target_os = "macos", target_os = "windows")))]
 pub(crate) const UNITY_EDITOR_DIR: &str = compile_error!("Unsupported platform");
 
-pub(crate) const BUILD_SCRIPT: &str = include_str!("include/UcomBuilder.cs");
 pub(crate) const GIT_IGNORE: &str = include_str!("include/unity-gitignore.txt");
-
-pub(crate) const BUILD_SCRIPT_NAME: &str = "UcomBuilder.cs";
-pub(crate) const PERSISTENT_BUILD_SCRIPT_PATH: &str = "Assets/Plugins/ucom/Editor/UcomBuilder.cs";
-pub(crate) const PERSISTENT_BUILD_SCRIPT_ROOT: &str = "Assets/Plugins/ucom";
-pub(crate) const AUTO_BUILD_SCRIPT_ROOT: &str = "Assets/ucom";
