@@ -21,6 +21,7 @@ mod build_script;
 mod cli;
 mod command_ext;
 mod consts;
+mod release_notes;
 mod unity_data;
 
 fn main() -> Result<()> {
@@ -79,11 +80,11 @@ fn list_versions(partial_version: Option<&str>) -> Result<()> {
         format!("Unity versions in `{}`", dir.to_string_lossy()).bold()
     );
 
-    for editor in versions {
-        if editor == default_version {
-            println!("{} {}", editor.to_string_lossy().bold(), "(default)".bold());
+    for version in versions {
+        if version == default_version {
+            println!("{} {}", version.to_string_lossy().bold(), "default".bold());
         } else {
-            println!("{}", editor.to_string_lossy());
+            println!("{}", version.to_string_lossy());
         }
     }
     Ok(())
