@@ -10,6 +10,7 @@ use anyhow::{anyhow, Context, Error, Result};
 use clap::CommandFactory;
 use clap::Parser;
 use colored::Colorize;
+use indexmap::IndexSet;
 use path_absolutize::Absolutize;
 
 use crate::cli::*;
@@ -405,27 +406,16 @@ fn errors_from_log(log_file: &PathBuf) -> Error {
                 || l.starts_with("Fatal Error")
                 || l.starts_with("Error building Player")
         })
-        .collect::<Vec<String>>();
+        .collect::<IndexSet<String>>();
 
-    if errors.is_empty() {
-        anyhow!("No errors found in log")
-    } else {
-        // Remove duplicate entries.
-        let mut unique_errors = Vec::new();
-        for e in errors {
-            if !unique_errors.contains(&e) {
-                unique_errors.push(e);
-            }
-        }
-
-        if unique_errors.len() == 1 {
-            anyhow!("{}", unique_errors[0])
-        } else {
+    match errors.len() {
+        0 => anyhow!("No errors found in log"),
+        1 => anyhow!("{}", errors[0]),
+        _ => {
             let mut joined = String::new();
-            for (i, error) in unique_errors.iter().enumerate() {
+            for (i, error) in errors.iter().enumerate() {
                 joined.push_str(format!("{}: {}\n", format!("{}", i + 1).bold(), error).as_str());
             }
-
             anyhow!(joined)
         }
     }
