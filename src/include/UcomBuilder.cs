@@ -34,7 +34,7 @@ namespace ucom
             if (!args.TryGetArgValue(BuildOutputArg, out string outputDirectory))
             {
                 // No output path specified.
-                Debug.LogError("[Builder] Error: Output path '--ucom-build-output <path>' not specified.");
+                Log("[Builder] Error: Output path '--ucom-build-output <path>' not specified.", LogType.Error);
                 invalidArgs = true;
             }
 
@@ -42,13 +42,13 @@ namespace ucom
             if (!args.TryGetArgValue(BuildTargetArg, out string argValue))
             {
                 // No build target specified.
-                Debug.LogError("[Builder] Error: Build target '--ucom-build-target <target>' not specified.");
+                Log("[Builder] Error: Build target '--ucom-build-target <target>' not specified.", LogType.Error);
                 invalidArgs = true;
             }
             else if (!Enum.TryParse(argValue, out BuildTarget target))
             {
                 // Nonexistent build target value specified.
-                Debug.LogError($"[Builder] Error: Invalid build target: --ucom-build-target {argValue}");
+                Log($"[Builder] Error: Invalid build target: --ucom-build-target {argValue}", LogType.Error);
                 invalidArgs = true;
             }
             else if (target != EditorUserBuildSettings.activeBuildTarget)
@@ -56,9 +56,10 @@ namespace ucom
                 // The desired build target does not match the active build target. Bail out.
                 // ucom attempts to start Unity with the desired build target, however, this is not always possible
                 // because it might not be installed on the machine.
-                Debug.LogError(BuildPipeline.IsBuildTargetSupported(BuildPipeline.GetBuildTargetGroup(target), target)
-                    ? $"[Builder] Error: Build target '{target}' does not match active build target '{EditorUserBuildSettings.activeBuildTarget}'"
-                    : $"[Builder] Error: Build target '{target}' is not supported or installed."
+                Log(BuildPipeline.IsBuildTargetSupported(BuildPipeline.GetBuildTargetGroup(target), target)
+                        ? $"[Builder] Error: Build target '{target}' does not match active build target '{EditorUserBuildSettings.activeBuildTarget}'"
+                        : $"[Builder] Error: Build target '{target}' is not supported or installed.",
+                    LogType.Error
                 );
 
                 invalidArgs = true;
@@ -84,7 +85,7 @@ namespace ucom
 
             if (scenes.Length == 0)
             {
-                Debug.LogError("[Builder] Error: no active scenes in Build Settings.");
+                Log("[Builder] Error: no active scenes in Build Settings.", LogType.Error);
                 return false;
             }
 
@@ -109,7 +110,7 @@ namespace ucom
             }
             catch (Exception e)
             {
-                Debug.LogError($"[Builder] Error: {e}");
+                Log($"[Builder] Error: {e}", LogType.Exception);
                 return false;
             }
 
@@ -130,12 +131,12 @@ namespace ucom
             switch (summary.result)
             {
                 case BuildResult.Succeeded:
-                    Debug.LogError("[Builder] Build succeeded.");
-                    Debug.Log(sb.ToString());
+                    Log("[Builder] Build succeeded.", LogType.Log);
+                    Log(sb.ToString(), LogType.Log);
                     return true;
                 default:
-                    Debug.LogError("[Builder] Build failed.");
-                    Debug.LogError(sb.ToString());
+                    Log("[Builder] Build failed.", LogType.Error);
+                    Log(sb.ToString(), LogType.Error);
                     return false;
             }
         }
@@ -165,7 +166,7 @@ namespace ucom
                     fullOutputPath = Path.Combine(outputDirectory, $"{appName}.apk");
                     return true;
                 default:
-                    Debug.LogError($"[Builder] Error: '{buildTarget}' build target not supported.");
+                    Log($"[Builder] Error: '{buildTarget}' build target not supported.", LogType.Error);
                     fullOutputPath = null;
                     return false;
             }
@@ -198,6 +199,14 @@ namespace ucom
                    .Where(scene => scene.enabled)
                    .Select(scene => scene.path)
                    .ToArray();
+        }
+
+        /// <summary>
+        /// Logs a message to the Unity console without the stack trace.
+        /// </summary>
+        private static void Log(string message, LogType logType)
+        {
+            Debug.LogFormat(logType, LogOption.NoStacktrace, null, message);
         }
     }
 }
