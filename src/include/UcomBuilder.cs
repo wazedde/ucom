@@ -12,7 +12,7 @@ namespace ucom
 {
     /// <summary>
     /// Build companion script for ucom.<br/>
-    /// - Lines between "[Builder] Build Report Begin" and "[Builder] Build Report Begin" are printed to the console when the build process finishes.<br/>
+    /// - Lines after "[Builder] Build Report" until an empty line are printed to the console after the build finishes.<br/>
     /// - Lines starting with "[Builder] Error:" are printed to the console if the build fails.<br/>
     /// </summary>
     public static class UcomBuilder
@@ -117,16 +117,23 @@ namespace ucom
             var summary = report.summary;
 
             var sb = new StringBuilder();
-            sb.AppendLine("[Builder] Build Report Begin")
-              .AppendLine($"Build result: {summary.result}")
-              .AppendLine($"Platform:     {summary.platform}")
-              .AppendLine($"Output path:  {summary.outputPath}")
-              .AppendLine($"Size:         {summary.totalSize / 1024 / 1024} MB")
-              .AppendLine($"Start time:   {summary.buildStartedAt.ToLocalTime().ToString(CultureInfo.InvariantCulture)}")
-              .AppendLine($"Total time:   {summary.totalTime}")
-              .AppendLine($"Errors:       {summary.totalErrors}")
-              .AppendLine($"Warnings:     {summary.totalWarnings}")
-              .AppendLine("[Builder] Build Report End");
+            sb.AppendLine("[Builder] Build Report")
+              .AppendLine($"    Build result: {summary.result}")
+              .AppendLine($"    Platform:     {summary.platform}")
+              .AppendLine($"    Output path:  {summary.outputPath}")
+              .AppendLine($"    Size:         {summary.totalSize / 1024 / 1024} MB")
+              .AppendLine($"    Start time:   {summary.buildStartedAt.ToLocalTime().ToString(CultureInfo.InvariantCulture)}")
+              .AppendLine($"    Total time:   {summary.totalTime}")
+              .AppendLine($"    Errors:       {summary.totalErrors}")
+              .AppendLine($"    Warnings:     {summary.totalWarnings}");
+
+            if (Environment.GetCommandLineArgs().TryGetArgValue("-logFile", out string logFile))
+            {
+                sb.AppendLine($"    Log file:     {logFile}");
+            }
+
+            // End of build report.
+            sb.AppendLine();
 
             switch (summary.result)
             {

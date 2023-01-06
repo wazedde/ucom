@@ -44,7 +44,7 @@ fn main() -> Result<()> {
         Action::Info {
             project_dir,
             packages,
-        } => show_project_info(project_dir, packages)
+        } => show_project_info(&project_dir, packages)
             .context("Cannot show project info".red().bold()),
         Action::Run(settings) => run_unity(settings).context("Cannot run Unity".red().bold()),
         Action::New(settings) => {
@@ -92,7 +92,7 @@ fn list_versions(partial_version: Option<&str>) -> Result<()> {
 }
 
 /// Shows project information.
-fn show_project_info(project_dir: PathBuf, packages_level: PackagesInfoLevel) -> Result<()> {
+fn show_project_info(project_dir: &Path, packages_level: PackagesInfoLevel) -> Result<()> {
     let project_dir = validate_project_path(&project_dir)?;
     let version = version_used_by_project(&project_dir)?;
 
@@ -382,23 +382,25 @@ fn build_project(arguments: BuildArguments) -> Result<()> {
         println!("{}", "Build failed".red().bold());
     }
 
-    if let Some(report) = collect_report_from_log(&log_file) {
-        for line in report {
-            println!("    {}", line);
+    if let Ok(log_file) = File::open(&log_file) {
+        // Iterate over lines from the build report in the log file.
+        let mut lines = BufReader::new(log_file).lines().flatten();
+        let _ = lines.find(|l| l.starts_with("[Builder] Build Report"));
+        for l in lines.take_while(|l| !l.is_empty()) {
+            println!("{}", l)
         }
     }
-    println!("    Build log:    {}", log_file.to_string_lossy());
 
     build_result.map_err(|_| errors_from_log(&log_file))
 }
 
 /// Returns errors from the given log file as one collected Err.
-fn errors_from_log(log_file: &PathBuf) -> Error {
+fn errors_from_log(log_file: &Path) -> Error {
     let Ok(log_file) = File::open(log_file) else {
         return anyhow!("Failed to open log file: `{}`", log_file.to_string_lossy());
     };
 
-    let errors = BufReader::new(log_file)
+    let errors: IndexSet<_> = BufReader::new(log_file)
         .lines()
         .flatten()
         .filter(|l| {
@@ -409,7 +411,7 @@ fn errors_from_log(log_file: &PathBuf) -> Error {
                 || l.starts_with("error:")
                 || l.starts_with("BuildFailedException:")
         })
-        .collect::<IndexSet<String>>();
+        .collect();
 
     match errors.len() {
         0 => anyhow!("No errors found in log"),
@@ -422,29 +424,6 @@ fn errors_from_log(log_file: &PathBuf) -> Error {
             anyhow!(joined)
         }
     }
-}
-
-/// Returns a list of lines from the given log file that contain a build report.
-fn collect_report_from_log(log_file: &PathBuf) -> Option<Vec<String>> {
-    let Ok(log_file) = File::open(log_file) else {
-        // No log file, no report.
-        return None;
-    };
-
-    let mut lines = BufReader::new(log_file).lines().flatten();
-
-    lines
-        .find(|l| l.starts_with("[Builder] Build Report Begin"))
-        .map(|_| {
-            let mut report = Vec::new();
-            for line in lines {
-                if line.starts_with("[Builder] Build Report End") {
-                    break;
-                }
-                report.push(line);
-            }
-            report
-        })
 }
 
 /// Returns the Unity version used for the project.
