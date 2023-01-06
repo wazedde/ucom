@@ -387,6 +387,7 @@ fn build_project(arguments: BuildArguments) -> Result<()> {
             println!("    {}", line);
         }
     }
+    println!("    Build log:    {}", log_file.to_string_lossy());
 
     build_result.map_err(|_| errors_from_log(&log_file))
 }
