@@ -405,6 +405,8 @@ fn errors_from_log(log_file: &PathBuf) -> Error {
                 || l.contains("error CS")
                 || l.starts_with("Fatal Error")
                 || l.starts_with("Error building Player")
+                || l.starts_with("error:")
+                || l.starts_with("BuildFailedException:")
         })
         .collect::<IndexSet<String>>();
 
