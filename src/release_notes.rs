@@ -15,19 +15,19 @@ pub(crate) fn collect_release_notes(html: &str) -> IndexMap<String, Vec<String>>
     let mut release_notes = IndexMap::<String, Vec<String>>::new();
 
     if let Some(node) = document.find(Class("release-notes")).next() {
-        let mut current_header = "General".to_string();
+        let mut topic_header = "General".to_string();
         node.children().for_each(|n| match n.name() {
-            Some("h3") => current_header = n.text(),
-            Some("h4") => current_header = n.text(),
+            Some("h3") => topic_header = n.text(),
+            Some("h4") => topic_header = n.text(),
             Some("ul") => {
-                if !release_notes.contains_key(&current_header) {
-                    release_notes.insert(current_header.clone(), Vec::new());
+                if !release_notes.contains_key(&topic_header) {
+                    release_notes.insert(topic_header.clone(), Vec::new());
                 }
 
-                let list = release_notes.get_mut(&current_header).unwrap();
+                let topic_list = release_notes.get_mut(&topic_header).unwrap();
                 n.find(Name("li")).for_each(|li| {
-                    if let Some(s) = li.text().lines().next() {
-                        list.push(s.to_string());
+                    if let Some(release_note_line) = li.text().lines().next() {
+                        topic_list.push(release_note_line.to_string());
                     }
                 });
             }

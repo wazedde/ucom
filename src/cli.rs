@@ -3,6 +3,10 @@ use std::path::PathBuf;
 
 use clap::{Args, ValueEnum};
 
+pub(crate) const ENV_EDITOR_DIR: &str = "UCOM_EDITOR_DIR";
+pub(crate) const ENV_DEFAULT_VERSION: &str = "UCOM_VERSION";
+pub(crate) const ENV_BUILD_TARGET: &str = "UCOM_TARGET";
+
 /// Unity Commander, a command line interface for Unity projects.
 #[derive(clap::Parser)]
 #[command(author, version, about, arg_required_else_help = false)]
@@ -80,7 +84,7 @@ pub struct RunArguments {
         short = 'u',
         long = "unity",
         value_name = "VERSION",
-        env = crate::consts::ENV_DEFAULT_VERSION,
+        env = ENV_DEFAULT_VERSION,
     )]
     pub version_pattern: Option<String>,
 
@@ -109,7 +113,7 @@ pub struct NewArguments {
         short = 'u',
         long = "unity",
         value_name = "VERSION",
-        env = crate::consts::ENV_DEFAULT_VERSION
+        env = ENV_DEFAULT_VERSION
     )]
     pub version_pattern: Option<String>,
 
@@ -174,7 +178,7 @@ pub struct OpenArguments {
 #[derive(Args)]
 pub struct BuildArguments {
     /// The target platform to build for.
-    #[arg(value_enum, env = crate::consts::ENV_BUILD_TARGET)]
+    #[arg(value_enum, env = ENV_BUILD_TARGET)]
     pub target: Target,
 
     /// The directory of the project.
