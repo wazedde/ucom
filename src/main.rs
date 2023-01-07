@@ -151,7 +151,7 @@ fn show_project_packages(project_dir: &Path, level: PackagesInfoLevel) {
 
     if packages.is_empty() {
         return;
-    };
+    }
 
     println!(
         "{}",
@@ -465,28 +465,29 @@ fn version_used_by_project<P: AsRef<Path>>(project_dir: &P) -> Result<String> {
 
 /// Returns the parent directory of the editor installations.
 fn editor_parent_dir<'a>() -> Result<Cow<'a, Path>> {
-    if let Some(path) = env::var_os(ENV_EDITOR_DIR) {
-        let path = Path::new(&path);
-        return if path.exists() && path.is_dir() {
-            Ok(path.to_path_buf().into())
-        } else {
-            Err(anyhow!(
-                "Editor directory set by `{}` is not a valid directory: `{}`",
-                ENV_EDITOR_DIR,
-                path.to_string_lossy()
-            ))
-        };
-    }
-
-    let path = Path::new(UNITY_EDITOR_DIR);
-    if path.exists() {
-        Ok(path.into())
-    } else {
-        Err(anyhow!(
-            "Set `{}` to the editor directory, the default directory does not exist: `{}`",
-            ENV_EDITOR_DIR,
-            path.to_string_lossy()
-        ))
+    match env::var_os(ENV_EDITOR_DIR) {
+        Some(path) => {
+            let path = Path::new(&path);
+            (path.exists() && path.is_dir())
+                .then(|| path.to_owned().into())
+                .ok_or_else(|| {
+                    anyhow!(
+                        "Editor directory set by `{}` is not a valid directory: `{}`",
+                        ENV_EDITOR_DIR,
+                        path.to_string_lossy()
+                    )
+                })
+        }
+        None => {
+            let path = Path::new(UNITY_EDITOR_DIR);
+            path.exists().then(|| path.into()).ok_or_else(|| {
+                anyhow!(
+                    "Set `{}` to the editor directory, the default directory does not exist: `{}`",
+                    ENV_EDITOR_DIR,
+                    path.to_string_lossy()
+                )
+            })
+        }
     }
 }
 
@@ -504,14 +505,14 @@ fn available_matching_versions(
         .filter(|v| v.to_string_lossy().starts_with(partial_version))
         .collect();
 
-    if versions.is_empty() {
-        return Err(anyhow!(
+    if !versions.is_empty() {
+        Ok(versions)
+    } else {
+        Err(anyhow!(
             "No Unity installation was found that matches version `{}`.",
             partial_version
-        ));
+        ))
     }
-
-    Ok(versions)
 }
 
 /// Returns version and path to the editor app of the latest installed version that matches the partial version.
@@ -534,23 +535,24 @@ fn matching_editor_used_by_project<P: AsRef<Path>>(project_dir: &P) -> Result<(O
 
     // Check if that Unity version is installed.
     let editor_dir = editor_parent_dir()?.join(&version);
-    if !editor_dir.exists() {
-        return Err(anyhow!(
+
+    if editor_dir.exists() {
+        Ok((version.into(), editor_dir.join(UNITY_EDITOR_EXE)))
+    } else {
+        Err(anyhow!(
             "Unity version that the project uses is not installed: {}",
             version
-        ));
+        ))
     }
-    Ok((version.into(), editor_dir.join(UNITY_EDITOR_EXE)))
 }
 
 /// Returns a natural sorted list of available Unity versions.
 fn available_unity_versions<P: AsRef<Path>>(install_dir: &P) -> Result<Vec<OsString>> {
     let mut versions: Vec<_> = fs::read_dir(install_dir)
-        .map_err(|e| {
-            anyhow!(
-                "Cannot read available Unity editors in `{}`: {}",
-                install_dir.as_ref().to_string_lossy(),
-                e
+        .with_context(|| {
+            format!(
+                "Cannot read available Unity editors in `{}`",
+                install_dir.as_ref().to_string_lossy()
             )
         })?
         .flatten()
@@ -560,15 +562,15 @@ fn available_unity_versions<P: AsRef<Path>>(install_dir: &P) -> Result<Vec<OsStr
         .flat_map(|path| path.file_name().map(|f| f.to_owned()))
         .collect();
 
-    if versions.is_empty() {
-        return Err(anyhow!(
+    if !versions.is_empty() {
+        versions.sort_by(|a, b| natord::compare(&a.to_string_lossy(), &b.to_string_lossy()));
+        Ok(versions)
+    } else {
+        Err(anyhow!(
             "No Unity installations found in `{}`",
             install_dir.as_ref().to_string_lossy()
-        ));
+        ))
     }
-
-    versions.sort_by(|a, b| natord::compare(&a.to_string_lossy(), &b.to_string_lossy()));
-    Ok(versions)
 }
 
 /// Returns validated absolute path to the project directory.
@@ -596,10 +598,10 @@ fn validate_project_path<P: AsRef<Path>>(project_dir: &P) -> Result<Cow<Path>> {
     }
 
     if path.has_root() {
-        return Ok(path.into());
+        Ok(path.into())
+    } else {
+        Ok(path.absolutize()?)
     }
-
-    Ok(path.absolutize()?)
 }
 
 /// Initializes a new git repository with a default Unity specific .gitignore.
