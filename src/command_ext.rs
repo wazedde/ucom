@@ -8,7 +8,7 @@ use std::{fs, io, thread};
 
 use anyhow::{anyhow, Context, Result};
 
-pub(crate) trait CommandExt {
+pub trait CommandExt {
     /// Spawns command and immediately returns without any output.
     fn forget(self) -> Result<()>;
 

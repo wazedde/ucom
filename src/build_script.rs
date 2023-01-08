@@ -16,12 +16,12 @@ const AUTO_BUILD_SCRIPT_ROOT: &str = "Assets/ucom";
 
 type ResultFn = Box<dyn FnOnce() -> Result<()>>;
 
-pub(crate) fn content() -> &'static str {
+pub fn content() -> &'static str {
     BUILD_SCRIPT
 }
 
 /// Creates actions that inject a script into the project before and after the build.
-pub(crate) fn new_build_script_injection_functions(
+pub fn new_build_script_injection_functions(
     project_dir: &Path,
     inject: InjectAction,
 ) -> (ResultFn, ResultFn) {

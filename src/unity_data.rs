@@ -9,64 +9,64 @@ use anyhow::Result;
 use serde::Deserialize;
 
 #[derive(Deserialize, Debug)]
-pub(crate) struct Manifest {
-    pub(crate) dependencies: BTreeMap<String, String>,
+pub struct Manifest {
+    pub dependencies: BTreeMap<String, String>,
 }
 
 impl Manifest {
-    pub(crate) fn from_project(project_dir: &Path) -> Result<Manifest> {
+    pub fn from_project(project_dir: &Path) -> Result<Manifest> {
         let file = File::open(project_dir.join("Packages/manifest.json"))?;
         serde_json::from_reader(BufReader::new(file)).map_err(Into::into)
     }
 }
 
 #[derive(Deserialize, Debug)]
-pub(crate) struct PackageInfo {
-    pub(crate) version: String,
-    pub(crate) depth: u32,
-    pub(crate) source: String,
-    pub(crate) dependencies: BTreeMap<String, String>,
-    pub(crate) url: Option<String>,
+pub struct PackageInfo {
+    pub version: String,
+    pub depth: u32,
+    pub source: String,
+    pub dependencies: BTreeMap<String, String>,
+    pub url: Option<String>,
 }
 
 #[derive(Deserialize, Debug)]
-pub(crate) struct Packages {
-    pub(crate) dependencies: BTreeMap<String, PackageInfo>,
+pub struct Packages {
+    pub dependencies: BTreeMap<String, PackageInfo>,
 }
 
 impl Packages {
-    pub(crate) fn from_project(project_dir: &Path) -> Result<Packages> {
+    pub fn from_project(project_dir: &Path) -> Result<Packages> {
         let file = File::open(project_dir.join("Packages/packages-lock.json"))?;
         serde_json::from_reader(BufReader::new(file)).map_err(Into::into)
     }
 }
 
 #[derive(Deserialize, Debug)]
-pub(crate) struct ProjectSettings {
+pub struct ProjectSettings {
     #[serde(rename = "PlayerSettings")]
-    pub(crate) player_settings: PlayerSettings,
+    pub player_settings: PlayerSettings,
 }
 
 #[derive(Deserialize, Debug)]
-pub(crate) struct PlayerSettings {
+pub struct PlayerSettings {
     #[serde(rename = "productName")]
-    pub(crate) product_name: String,
+    pub product_name: String,
 
     #[serde(rename = "companyName")]
-    pub(crate) company_name: String,
+    pub company_name: String,
 
     #[serde(rename = "bundleVersion")]
-    pub(crate) bundle_version: String,
+    pub bundle_version: String,
 
     #[serde(rename = "buildNumber")]
-    pub(crate) build_number: Option<HashMap<String, String>>,
+    pub build_number: Option<HashMap<String, String>>,
 
     #[serde(rename = "AndroidBundleVersionCode")]
-    pub(crate) android_bundle_version_code: Option<String>,
+    pub android_bundle_version_code: Option<String>,
 }
 
 impl ProjectSettings {
-    pub(crate) fn from_project(project_dir: &Path) -> Result<ProjectSettings> {
+    pub fn from_project(project_dir: &Path) -> Result<ProjectSettings> {
         let file = File::open(project_dir.join("ProjectSettings/ProjectSettings.asset"))?;
         serde_yaml::from_reader(BufReader::new(file)).map_err(Into::into)
     }

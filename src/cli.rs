@@ -3,9 +3,9 @@ use std::path::PathBuf;
 
 use clap::{Args, ValueEnum};
 
-pub(crate) const ENV_EDITOR_DIR: &str = "UCOM_EDITOR_DIR";
-pub(crate) const ENV_DEFAULT_VERSION: &str = "UCOM_VERSION";
-pub(crate) const ENV_BUILD_TARGET: &str = "UCOM_TARGET";
+pub const ENV_EDITOR_DIR: &str = "UCOM_EDITOR_DIR";
+pub const ENV_DEFAULT_VERSION: &str = "UCOM_VERSION";
+pub const ENV_BUILD_TARGET: &str = "UCOM_TARGET";
 
 /// Unity Commander, a command line interface for Unity projects.
 #[derive(clap::Parser)]

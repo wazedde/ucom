@@ -4,13 +4,13 @@ use indexmap::IndexMap;
 use select::document::Document;
 use select::predicate::{Class, Name};
 
-pub(crate) fn release_notes_url<P: AsRef<str>>(version: P) -> String {
+pub fn release_notes_url<P: AsRef<str>>(version: P) -> String {
     // remove the patch version.
     let version = version.as_ref().split('f').next().unwrap();
     format!("https://unity.com/releases/editor/whats-new/{}", version)
 }
 
-pub(crate) fn collect_release_notes(html: &str) -> IndexMap<String, Vec<String>> {
+pub fn collect_release_notes(html: &str) -> IndexMap<String, Vec<String>> {
     let document = Document::from(html);
     let mut release_notes = IndexMap::<String, Vec<String>>::new();
 

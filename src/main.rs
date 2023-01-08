@@ -23,7 +23,7 @@ mod release_notes;
 mod unity;
 mod unity_data;
 
-pub(crate) const GIT_IGNORE: &str = include_str!("include/unity-gitignore.txt");
+const GIT_IGNORE: &str = include_str!("include/unity-gitignore.txt");
 
 fn main() -> Result<()> {
     let cli = Cli::parse();
@@ -384,11 +384,13 @@ fn build_project(arguments: BuildArguments) -> Result<()> {
 
     if let Ok(log_file) = File::open(&log_file) {
         // Iterate over lines from the build report in the log file.
-        let mut lines = BufReader::new(log_file).lines().flatten();
-        let _ = lines.find(|l| l.starts_with("[Builder] Build Report"));
-        for l in lines.take_while(|l| !l.is_empty()) {
-            println!("{}", l)
-        }
+        BufReader::new(log_file)
+            .lines()
+            .flatten()
+            .skip_while(|l| !l.starts_with("[Builder] Build Report")) // Find marker.
+            .skip(1) // Skip the marker.
+            .take_while(|l| !l.is_empty()) // Read until empty line.
+            .for_each(|l| println!("{}", l));
     }
 
     build_result.map_err(|_| errors_from_log(&log_file))
