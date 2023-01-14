@@ -5,7 +5,11 @@ A command line interface for Unity projects written in Rust.
 Because typing `ucom open` (or `ucom o` for even less typing) to open the Unity project in the current directory is
 sometimes more convenient than having to deal with the Unity Hub.
 
-Some examples:
+More examples:
+
+- `ucom build ios` - Starts an iOS batch-mode build of the project in the current directory.
+- `ucom build android ~/Develop/MyProject --mode editor-quit` - Starts an Android build of the project in the editor and
+  quits it afterwards.
 
 - `ucom list` - Lists all the Unity versions on the system.
 - `ucom list -u 2021.3` - Lists the Unity versions in the 2021.3 range on the system.
@@ -20,10 +24,6 @@ Some examples:
 - `ucom open ~/Develop/MyProject` - Opens the project in the directory.
 - `ucom open ~/Develop/MyProject -u 2021.3` - Opens the project with the latest 2021.3 version. Use it to e.g. upgrade
   the project to the latest Unity version.
-
-- `ucom build ios` - Starts an iOS batch-mode build of the project in the current directory.
-- `ucom build android ~/Develop/MyProject --mode editor-quit` - Starts an Android build of the project in the editor and
-  quits it afterwards.
 
 ## How to install
 
@@ -52,9 +52,9 @@ Use `ucom --injected-script` or `ucom -I` to print the build script to the conso
 
 - `UCOM_EDITOR_DIR` - Path to the directory where the editors are installed. If not set, the `ucom` command will try to
   find the Unity editor executables from the default Unity Hub installation directory.
-- `UCOM_BUILD_TARGET` - The default build target to use when building a project. If not set, the `ucom build` command
-  requires the target platform to be specified as an argument.
-- `UCOM_DEFAULT_VERSION` - The default Unity version to use when creating a new project or running Unity. If not set,
+- `UCOM_TARGET` - The default build target to use when building a project. If not set, the `ucom build` command requires
+  the target platform to be specified as an argument.
+- `UCOM_VERSION` - The default Unity version to use when creating a new project or running Unity. If not set,
   the `ucom new` and `ucom run` commands use the latest version of Unity installed on the system or require a (partial)
   Unity version to be specified as an argument.
 
