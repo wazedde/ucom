@@ -5,7 +5,7 @@ use std::fmt::{Display, Formatter};
 use std::fs::File;
 use std::io::BufReader;
 use std::path::Path;
-use std::str::FromStr;
+use std::str::{FromStr, Split};
 
 use anyhow::Result;
 use serde::Deserialize;
@@ -74,39 +74,101 @@ impl ProjectSettings {
     }
 }
 
+#[derive(Debug, Eq, PartialEq, Ord, PartialOrd, Copy, Clone)]
+pub enum BuildType {
+    Alpha,
+    Beta,
+    ReleaseCandidate,
+    Final,
+}
+
+pub struct BuildTypeParseError;
+
+impl BuildType {
+    pub fn as_str(&self) -> &str {
+        match self {
+            BuildType::Alpha => "a",
+            BuildType::Beta => "b",
+            BuildType::ReleaseCandidate => "rc",
+            BuildType::Final => "f",
+        }
+    }
+
+    pub fn find_in(s: &str) -> Option<BuildType> {
+        if s.contains('f') {
+            Some(BuildType::Final)
+        } else if s.contains('b') {
+            Some(BuildType::Beta)
+        } else if s.contains('a') {
+            Some(BuildType::Alpha)
+        } else if s.contains("rc") {
+            Some(BuildType::ReleaseCandidate)
+        } else {
+            None
+        }
+    }
+}
+
+impl Display for BuildType {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.as_str())
+    }
+}
+
+impl FromStr for BuildType {
+    type Err = BuildTypeParseError;
+
+    fn from_str(s: &str) -> std::result::Result<Self, Self::Err> {
+        match s {
+            "a" => Ok(BuildType::Alpha),
+            "b" => Ok(BuildType::Beta),
+            "rc" => Ok(BuildType::ReleaseCandidate),
+            "f" => Ok(BuildType::Final),
+            _ => Err(BuildTypeParseError),
+        }
+    }
+}
+
 /// The Unity version separated into its components.
 #[derive(Debug, Eq, PartialEq, Ord, PartialOrd, Copy, Clone)]
 pub struct UnityVersion {
     pub year: u16,
     pub point: u8,
     pub patch: u8,
-    pub build_type: &'static str,
+    pub build_type: BuildType,
     pub build: u8,
 }
 
+pub struct UnityVersionParseError;
+
 impl FromStr for UnityVersion {
-    type Err = ();
+    type Err = UnityVersionParseError;
 
-    fn from_str(version: &str) -> Result<Self, Self::Err> {
-        let mut parts = version.split('.');
-        let year = parts.next().and_then(|s| s.parse().ok()).ok_or(())?;
-        let point = parts.next().and_then(|s| s.parse().ok()).ok_or(())?;
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        let mut parts = s.split('.');
+        let year = parts
+            .next()
+            .and_then(|s| s.parse().ok())
+            .ok_or(UnityVersionParseError)?;
+        let point = parts
+            .next()
+            .and_then(|s| s.parse().ok())
+            .ok_or(UnityVersionParseError)?;
 
-        let build_type = if version.contains('f') {
-            "f"
-        } else if version.contains('b') {
-            "b"
-        } else if version.contains('a') {
-            "a"
-        } else if version.contains("rc") {
-            "rc"
-        } else {
-            return Err(());
-        };
+        let build_type = BuildType::find_in(s).ok_or(UnityVersionParseError)?;
 
-        let mut build_parts = parts.next().ok_or(())?.split(build_type);
-        let patch = build_parts.next().and_then(|s| s.parse().ok()).ok_or(())?;
-        let build = build_parts.next().and_then(|s| s.parse().ok()).ok_or(())?;
+        let mut build_parts: Split<&str> = parts
+            .next()
+            .ok_or(UnityVersionParseError)?
+            .split(build_type.as_str());
+        let patch = build_parts
+            .next()
+            .and_then(|s| s.parse().ok())
+            .ok_or(UnityVersionParseError)?;
+        let build = build_parts
+            .next()
+            .and_then(|s| s.parse().ok())
+            .ok_or(UnityVersionParseError)?;
 
         Ok(UnityVersion {
             year,
