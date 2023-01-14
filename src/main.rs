@@ -67,7 +67,7 @@ fn list_versions(partial_version: Option<&str>) -> Result<()> {
     let default_version = env::var_os(ENV_DEFAULT_VERSION)
         .and_then(|env_version| {
             versions.iter().rev().find(|v| {
-                v.to_string_lossy()
+                v.to_string()
                     .starts_with(env_version.to_string_lossy().as_ref())
             })
         })
@@ -83,9 +83,9 @@ fn list_versions(partial_version: Option<&str>) -> Result<()> {
 
     for version in versions {
         if version == default_version {
-            println!("{} {}", version.to_string_lossy().bold(), "default".bold());
+            println!("{} {}", version.to_string().bold(), "default".bold());
         } else {
-            println!("{}", version.to_string_lossy());
+            println!("{}", version);
         }
     }
     Ok(())
@@ -108,8 +108,8 @@ fn show_project_info(project_dir: &Path, packages_level: PackagesInfoLevel) -> R
         println!("    Version:       {}", ps.bundle_version.bold());
     }
 
-    print!("    Unity Version: {}", version.bold());
-    if editor_parent_dir()?.join(&version).exists() {
+    print!("    Unity Version: {}", version.to_string().bold());
+    if editor_parent_dir()?.join(version.to_string()).exists() {
         println!();
     } else {
         println!(" {}", "*not installed".red().bold());
@@ -180,10 +180,7 @@ fn run_unity(arguments: RunArguments) -> Result<()> {
     }
 
     if !arguments.quiet {
-        println!(
-            "{}",
-            format!("Run Unity {}", version.to_string_lossy()).bold()
-        );
+        println!("{}", format!("Run Unity {}", version.to_string()).bold());
     }
 
     if arguments.wait {
@@ -221,7 +218,7 @@ fn new_project(arguments: NewArguments) -> Result<()> {
             "{}",
             format!(
                 "Create new Unity {} project in `{}`",
-                version.to_string_lossy(),
+                version,
                 project_dir.to_string_lossy()
             )
             .bold()
@@ -266,7 +263,7 @@ fn open_project(arguments: OpenArguments) -> Result<()> {
             "{}",
             format!(
                 "Open Unity {} project in `{}`",
-                version.to_string_lossy(),
+                version,
                 project_dir.to_string_lossy()
             )
             .bold()
@@ -353,7 +350,7 @@ fn build_project(arguments: BuildArguments) -> Result<()> {
         "{}",
         format!(
             "Building Unity {} {} project in `{}`",
-            version.to_string_lossy(),
+            version,
             arguments.target,
             project_dir.to_string_lossy()
         )
@@ -438,5 +435,5 @@ fn git_init<P: AsRef<Path>>(project_dir: P) -> Result<()> {
         .map_err(|_| anyhow!("Could not create git repository. Make sure git is available or add the --no-git flag."))?;
 
     let mut file = File::create(project_dir.join(".gitignore"))?;
-    write!(file, "{}", GIT_IGNORE).map_err(|e| e.into())
+    write!(file, "{}", GIT_IGNORE).map_err(Into::into)
 }

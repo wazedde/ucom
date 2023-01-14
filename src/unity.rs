@@ -1,5 +1,4 @@
 use std::borrow::Cow;
-use std::ffi::OsString;
 use std::fs::File;
 use std::io::{BufRead, BufReader};
 use std::path::{Path, PathBuf};
@@ -9,6 +8,7 @@ use anyhow::{anyhow, Context, Result};
 use path_absolutize::Absolutize;
 
 use crate::cli::ENV_EDITOR_DIR;
+use crate::unity_data::UnityVersion;
 
 /// Sub path to the executable on macOS.
 #[cfg(target_os = "macos")]
@@ -35,7 +35,7 @@ const UNITY_EDITOR_DIR: &str = r"C:\Program Files\Unity\Hub\Editor";
 const UNITY_EDITOR_DIR: &str = compile_error!("Unsupported platform");
 
 /// Returns the Unity version used for the project.
-pub fn version_used_by_project<P: AsRef<Path>>(project_dir: &P) -> Result<String> {
+pub fn version_used_by_project<P: AsRef<Path>>(project_dir: &P) -> Result<UnityVersion> {
     const PROJECT_VERSION_FILE: &str = "ProjectSettings/ProjectVersion.txt";
     let version_file = project_dir.as_ref().join(PROJECT_VERSION_FILE);
 
@@ -61,7 +61,8 @@ pub fn version_used_by_project<P: AsRef<Path>>(project_dir: &P) -> Result<String
         .and_then(|l| {
             l.split(':') // Split the line,
                 .nth(1) // and return 2nd element.
-                .map(|version| version.trim().to_owned()) // Clean it up.
+                .map(|version| version.trim())
+                .and_then(|v| v.parse().ok())
         })
         .ok_or_else(|| {
             anyhow!(
@@ -101,9 +102,9 @@ pub fn editor_parent_dir<'a>() -> Result<Cow<'a, Path>> {
 
 /// Returns the list with only the versions that match the partial version or Err if there is no matching version.
 pub fn matching_versions(
-    versions: Vec<OsString>,
+    versions: Vec<UnityVersion>,
     partial_version: Option<&str>,
-) -> Result<Vec<OsString>> {
+) -> Result<Vec<UnityVersion>> {
     let Some(partial_version) = partial_version else {
         // No version to match, return the full list again.
         return Ok(versions);
@@ -111,7 +112,7 @@ pub fn matching_versions(
 
     let versions: Vec<_> = versions
         .into_iter()
-        .filter(|v| v.to_string_lossy().starts_with(partial_version))
+        .filter(|v| v.to_string().starts_with(partial_version))
         .collect();
 
     if !versions.is_empty() {
@@ -125,25 +126,25 @@ pub fn matching_versions(
 }
 
 /// Returns version and path to the editor app of the latest installed version that matches the partial version.
-pub fn matching_editor(partial_version: Option<&str>) -> Result<(OsString, PathBuf)> {
+pub fn matching_editor(partial_version: Option<&str>) -> Result<(UnityVersion, PathBuf)> {
     let parent_dir = editor_parent_dir()?;
-    let version = matching_versions(available_unity_versions(&parent_dir)?, partial_version)?
+    let version = *matching_versions(available_unity_versions(&parent_dir)?, partial_version)?
         .last()
-        .expect("There should be at least one entry")
-        .to_owned();
+        .expect("There should be at least one entry");
+    // .to_owned();
 
-    let editor_exe = parent_dir.join(&version).join(UNITY_EDITOR_EXE);
+    let editor_exe = parent_dir.join(version.to_string()).join(UNITY_EDITOR_EXE);
     Ok((version, editor_exe))
 }
 
 /// Returns version used by the project and the path to the editor.
 pub fn matching_editor_used_by_project<P: AsRef<Path>>(
     project_dir: &P,
-) -> Result<(OsString, PathBuf)> {
+) -> Result<(UnityVersion, PathBuf)> {
     let version = version_used_by_project(project_dir)?;
 
     // Check if that Unity version is installed.
-    let editor_dir = editor_parent_dir()?.join(&version);
+    let editor_dir = editor_parent_dir()?.join(&version.to_string());
     if editor_dir.exists() {
         Ok((version.into(), editor_dir.join(UNITY_EDITOR_EXE)))
     } else {
@@ -155,7 +156,7 @@ pub fn matching_editor_used_by_project<P: AsRef<Path>>(
 }
 
 /// Returns a natural sorted list of available Unity versions.
-pub fn available_unity_versions<P: AsRef<Path>>(install_dir: &P) -> Result<Vec<OsString>> {
+pub fn available_unity_versions<P: AsRef<Path>>(install_dir: &P) -> Result<Vec<UnityVersion>> {
     let mut versions: Vec<_> = fs::read_dir(install_dir)
         .with_context(|| {
             format!(
@@ -166,10 +167,11 @@ pub fn available_unity_versions<P: AsRef<Path>>(install_dir: &P) -> Result<Vec<O
         .flat_map(|r| r.map(|e| e.path()))
         .filter(|p| p.is_dir() && p.join(UNITY_EDITOR_EXE).exists())
         .flat_map(|p| p.file_name().map(|version| version.to_owned()))
+        .flat_map(|version| version.to_string_lossy().parse::<UnityVersion>().ok())
         .collect();
 
     if !versions.is_empty() {
-        versions.sort_by(|a, b| natord::compare(&a.to_string_lossy(), &b.to_string_lossy()));
+        versions.sort();
         Ok(versions)
     } else {
         Err(anyhow!(
