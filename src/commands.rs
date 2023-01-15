@@ -81,9 +81,9 @@ pub fn list_versions(partial_version: Option<&str>, check_updates: bool) -> Resu
 
         if *version == default_version {
             line.push_str(" (default for new projects)");
-            println!("{}", colorize_line(line.trim()).bold());
+            println!("- {}", colorize_line(line.trim()).bold());
         } else {
-            println!("{}", colorize_line(line.trim()));
+            println!("- {}", colorize_line(line.trim()));
         }
 
         line.clear();
