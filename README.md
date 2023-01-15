@@ -96,7 +96,8 @@ Usage: ucom list [OPTIONS]
 Options:
   -u, --unity <VERSION>  The Unity versions to list. You can specify a partial version; e.g. 2021 will list all
                          the 2021.x.y versions you have installed on your system.
-  -h, --help             Print help information
+  -c, --check-updates    Checks online for updates to the installed Unity versions
+  -h, --help             Print help
 ```
 
 ## `ucom help info`

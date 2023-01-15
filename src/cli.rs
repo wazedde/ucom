@@ -33,6 +33,10 @@ pub enum Action {
             verbatim_doc_comment
         )]
         version_pattern: Option<String>,
+
+        /// Checks online for updates to the installed Unity versions.
+        #[clap(long = "check-updates", short = 'c')]
+        check_updates: bool,
     },
 
     /// Shows project information.

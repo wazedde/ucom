@@ -2,7 +2,6 @@ use std::io::Read;
 use std::path::Path;
 use std::process::{Command, Stdio};
 use std::sync::{Arc, Mutex};
-use std::thread::JoinHandle;
 use std::time::Duration;
 use std::{fs, io, thread};
 
@@ -40,15 +39,21 @@ impl CommandExt for Command {
             .spawn()
             .context("Failed to run child process.")?;
 
-        let stop_echo_thread = Arc::new(Mutex::new(false));
-        let echo_runner =
-            spawn_echo_log_file(log_file, Duration::from_millis(100), &stop_echo_thread);
+        let stop_echo = Arc::new(Mutex::new(false));
+
+        let echo_closure = {
+            let stop_echo = Arc::clone(&stop_echo);
+            let log_file = log_file.to_owned();
+            move || echo_log_file(&log_file, Duration::from_millis(100), stop_echo)
+        };
+
+        let echo_runner = thread::spawn(echo_closure);
 
         let output = child
             .wait_with_output()
             .context("Failed to wait for child process.");
 
-        *stop_echo_thread.lock().unwrap() = true;
+        *stop_echo.lock().unwrap() = true;
 
         // Wait for echo to finish.
         echo_runner.join().expect("Log echo thread panicked.");
@@ -108,18 +113,6 @@ impl CommandExt for Command {
         }
         line
     }
-}
-
-fn spawn_echo_log_file(
-    log_file: &Path,
-    update_interval: Duration,
-    stop_thread: &Arc<Mutex<bool>>,
-) -> JoinHandle<()> {
-    let stop_thread = Arc::clone(stop_thread);
-    let log_file = log_file.to_owned();
-    thread::spawn(move || {
-        echo_log_file(&log_file, update_interval, stop_thread);
-    })
 }
 
 fn echo_log_file(log_file: &Path, update_interval: Duration, stop_thread: Arc<Mutex<bool>>) {
