@@ -14,7 +14,7 @@ use crate::build_script;
 use crate::cli::*;
 use crate::command_ext::*;
 use crate::unity_project::*;
-use crate::unity_release::fetch_releases;
+use crate::unity_release::fetch_unity_releases;
 
 const GIT_IGNORE: &str = include_str!("include/unity-gitignore.txt");
 
@@ -41,12 +41,12 @@ pub fn list_versions(partial_version: Option<&str>, check_updates: bool) -> Resu
     );
 
     let releases = if check_updates {
-        Runtime::new()?.block_on(fetch_releases())?
+        Runtime::new()?.block_on(fetch_unity_releases())?
     } else {
         Vec::new()
     };
 
-    let versions: Vec<_> = versions.iter().map(|v| (v, v.to_string())).collect();
+    let versions: Vec<_> = versions.iter().map(|v| (*v, v.to_string())).collect();
     let max_width = versions.iter().map(|(_, s)| s.len()).max().unwrap_or(0);
 
     let plain_color: fn(&str) -> ColoredString = |s: &str| s.into();
@@ -63,7 +63,7 @@ pub fn list_versions(partial_version: Option<&str>, check_updates: bool) -> Resu
                 .filter(|r| {
                     r.version.year == version.year
                         && r.version.point == version.point
-                        && r.version > *version
+                        && r.version > version
                 })
                 .collect();
 
@@ -79,7 +79,7 @@ pub fn list_versions(partial_version: Option<&str>, check_updates: bool) -> Resu
             }
         }
 
-        if *version == default_version {
+        if version == default_version {
             line.push_str(" (default for new projects)");
             println!("- {}", colorize_line(line.trim()).bold());
         } else {
@@ -122,7 +122,7 @@ pub fn show_project_info(project_dir: &Path, packages_level: PackagesInfoLevel) 
 }
 
 /// Show packages used by the project.
-pub fn show_project_packages(project_dir: &Path, level: PackagesInfoLevel) {
+fn show_project_packages(project_dir: &Path, level: PackagesInfoLevel) {
     let Ok(packages) = Packages::from_project(project_dir) else {
         return;
     };
@@ -132,20 +132,20 @@ pub fn show_project_packages(project_dir: &Path, level: PackagesInfoLevel) {
         .iter()
         .filter(|(_, package)| match level {
             PackagesInfoLevel::None => false,
-            PackagesInfoLevel::Some => {
+            PackagesInfoLevel::NonUnity => {
                 package.depth == 0
                     && (package.source == "git"
                         || package.source == "embedded"
                         || package.source == "local")
             }
-            PackagesInfoLevel::More => {
+            PackagesInfoLevel::Registry => {
                 package.depth == 0
                     && (package.source == "git"
                         || package.source == "embedded"
                         || package.source == "local"
                         || package.source == "registry")
             }
-            PackagesInfoLevel::Most => true,
+            PackagesInfoLevel::All => true,
         })
         .collect();
 
@@ -180,7 +180,7 @@ pub fn run_unity(arguments: RunArguments) -> Result<()> {
     }
 
     if !arguments.quiet {
-        println!("{}", format!("Run Unity {}", version.to_string()).bold());
+        println!("{}", format!("Run Unity {}", version).bold());
     }
 
     if arguments.wait {

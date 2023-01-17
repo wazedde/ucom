@@ -4,8 +4,9 @@ use std::path::PathBuf;
 use clap::{Args, ValueEnum};
 
 pub const ENV_EDITOR_DIR: &str = "UCOM_EDITOR_DIR";
-pub const ENV_DEFAULT_VERSION: &str = "UCOM_VERSION";
-pub const ENV_BUILD_TARGET: &str = "UCOM_TARGET";
+pub const ENV_DEFAULT_VERSION: &str = "UCOM_DEFAULT_VERSION";
+pub const ENV_BUILD_TARGET: &str = "UCOM_BUILD_TARGET";
+pub const ENV_PACKAGE_LEVEL: &str = "UCOM_PACKAGE_LEVEL";
 
 /// Unity Commander, a command line interface for Unity projects.
 #[derive(clap::Parser)]
@@ -34,7 +35,7 @@ pub enum Action {
         )]
         version_pattern: Option<String>,
 
-        /// Checks online for updates to the installed Unity versions.
+        /// Checks online if there are newer versions available.
         #[clap(long = "check-updates", short = 'c')]
         check_updates: bool,
     },
@@ -47,7 +48,7 @@ pub enum Action {
         project_dir: PathBuf,
 
         /// The level of included packages to show.
-        #[arg(short, long, default_value = "more")]
+        #[arg(short, long, default_value = "non-unity", env = ENV_PACKAGE_LEVEL)]
         packages: PackagesInfoLevel,
     },
 
@@ -251,12 +252,12 @@ pub struct BuildArguments {
 pub enum PackagesInfoLevel {
     /// Don't show any included packages.
     None,
-    /// Show non-Unity packages.
-    Some,
-    /// + packages from the registry.
-    More,
+    /// Show local, non-Unity, packages.
+    NonUnity,
+    /// + packages from the Unity registry.
+    Registry,
     /// + builtin packages and dependencies.
-    Most,
+    All,
 }
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, ValueEnum)]

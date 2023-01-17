@@ -9,8 +9,6 @@ pub enum BuildType {
     Final,
 }
 
-pub struct BuildTypeParseError;
-
 impl BuildType {
     pub fn as_str(&self) -> &str {
         match self {
@@ -41,11 +39,13 @@ impl Display for BuildType {
         write!(f, "{}", self.as_str())
     }
 }
+#[derive(Debug)]
+pub struct BuildTypeParseError;
 
 impl FromStr for BuildType {
     type Err = BuildTypeParseError;
 
-    fn from_str(s: &str) -> std::result::Result<Self, Self::Err> {
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s {
             "a" => Ok(BuildType::Alpha),
             "b" => Ok(BuildType::Beta),
@@ -71,6 +71,7 @@ pub struct UnityVersion {
     pub build: VersionBuild,
 }
 
+#[derive(Debug)]
 pub struct UnityVersionParseError;
 
 impl FromStr for UnityVersion {

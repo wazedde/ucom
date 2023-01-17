@@ -25,14 +25,14 @@ pub enum ReleaseFilter {
     },
 }
 
-pub async fn fetch_releases() -> Result<Vec<ReleaseInfo>> {
+pub async fn fetch_unity_releases() -> Result<Vec<ReleaseInfo>> {
     let url = "https://unity.com/releases/editor/archive";
     let body = reqwest::get(url).await?.text().await?;
     let releases = find_releases(&body, ReleaseFilter::All);
     Ok(releases)
 }
 
-pub fn find_releases(html: &str, filter: ReleaseFilter) -> Vec<ReleaseInfo> {
+fn find_releases(html: &str, filter: ReleaseFilter) -> Vec<ReleaseInfo> {
     let year_class: Cow<str> = match filter {
         ReleaseFilter::All => "release-tab-content".into(),
         ReleaseFilter::Year { year } => year.to_string().into(),
