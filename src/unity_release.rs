@@ -25,9 +25,10 @@ pub enum ReleaseFilter {
     },
 }
 
-pub async fn fetch_unity_releases() -> Result<Vec<ReleaseInfo>> {
+pub fn fetch_unity_releases() -> Result<Vec<ReleaseInfo>> {
     let url = "https://unity.com/releases/editor/archive";
-    let body = reqwest::get(url).await?.text().await?;
+    let body = ureq::get(url).call()?.into_string()?;
+
     let releases = find_releases(&body, ReleaseFilter::All);
     Ok(releases)
 }

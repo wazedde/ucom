@@ -8,7 +8,6 @@ use anyhow::{anyhow, Error, Result};
 use colored::{ColoredString, Colorize};
 use indexmap::IndexSet;
 use path_absolutize::Absolutize;
-use tokio::runtime::Runtime;
 
 use crate::build_script;
 use crate::cli::*;
@@ -40,18 +39,18 @@ pub fn list_versions(partial_version: Option<&str>, check_updates: bool) -> Resu
         format!("Unity versions in `{}`", dir.to_string_lossy()).bold()
     );
 
-    let releases = if check_updates {
-        Runtime::new()?.block_on(fetch_unity_releases())?
-    } else {
-        Vec::new()
-    };
-
     let versions: Vec<_> = versions.iter().map(|v| (*v, v.to_string())).collect();
     let max_width = versions.iter().map(|(_, s)| s.len()).max().unwrap_or(0);
 
     let plain_color: fn(&str) -> ColoredString = |s: &str| s.into();
     let mut line = String::new();
     let mut colorize_line;
+
+    let releases = if check_updates {
+        fetch_unity_releases()?
+    } else {
+        Vec::new()
+    };
 
     for (version, version_string) in versions {
         colorize_line = plain_color;
