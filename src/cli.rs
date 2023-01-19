@@ -53,7 +53,7 @@ pub enum Action {
     },
 
     /// Checks on the Unity website for updates to the version used by the project.
-    #[command(visible_alias = "u")]
+    #[command(visible_alias = "c")]
     UpdateCheck {
         /// The directory of the project.
         #[arg(value_name = "DIRECTORY", value_hint = clap::ValueHint::DirPath, default_value = ".")]
