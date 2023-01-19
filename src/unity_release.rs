@@ -29,21 +29,38 @@ pub fn fetch_unity_releases() -> Result<Vec<ReleaseInfo>> {
     let url = "https://unity.com/releases/editor/archive";
     let body = ureq::get(url).call()?.into_string()?;
 
-    let releases = find_releases(&body, ReleaseFilter::All);
+    let releases = find_releases(&body, &ReleaseFilter::All);
     Ok(releases)
 }
 
-fn find_releases(html: &str, filter: ReleaseFilter) -> Vec<ReleaseInfo> {
+pub fn fetch_updates_for(version: UnityVersion) -> Result<Vec<ReleaseInfo>> {
+    let url = "https://unity.com/releases/editor/archive";
+    let body = ureq::get(url).call()?.into_string()?;
+
+    let releases = find_releases(
+        &body,
+        &ReleaseFilter::Point {
+            year: version.year,
+            point: version.point,
+        },
+    )
+    .into_iter()
+    .filter(|ri| ri.version > version)
+    .collect();
+
+    Ok(releases)
+}
+
+fn find_releases(html: &str, filter: &ReleaseFilter) -> Vec<ReleaseInfo> {
     let year_class: Cow<str> = match filter {
         ReleaseFilter::All => "release-tab-content".into(),
-        ReleaseFilter::Year { year } => year.to_string().into(),
-        ReleaseFilter::Point { year, .. } => year.to_string().into(),
+        ReleaseFilter::Year { year } | ReleaseFilter::Point { year, .. } => year.to_string().into(),
     };
 
     let mut versions: Vec<_> = Document::from(html)
         .find(Class(year_class.as_ref()))
         .flat_map(|n| n.find(Class("download-release-wrapper")))
-        .flat_map(|n| {
+        .filter_map(|n| {
             n.find(Class("release-title-date"))
                 .next()
                 // Get the release date.
@@ -57,12 +74,12 @@ fn find_releases(html: &str, filter: ReleaseFilter) -> Vec<ReleaseInfo> {
                         .map(|url| (date_header, url))
                 })
         })
-        .flat_map(|(date_header, url)| {
+        .filter_map(|(date_header, url)| {
             version_from_url(url)
                 .filter(|v| match filter {
                     ReleaseFilter::All => true,
-                    ReleaseFilter::Year { year } => v.year == year,
-                    ReleaseFilter::Point { year, point } => v.year == year && v.point == point,
+                    ReleaseFilter::Year { year } => v.year == *year,
+                    ReleaseFilter::Point { year, point } => v.year == *year && v.point == *point,
                 })
                 .map(|version| ReleaseInfo {
                     version,
@@ -85,13 +102,20 @@ fn version_from_url(url: &str) -> Option<UnityVersion> {
         .and_then(|v| v.parse::<UnityVersion>().ok())
 }
 
-pub fn release_notes_url<P: AsRef<str>>(version: P) -> String {
-    // remove the patch version.
-    let version = version.as_ref().split('f').next().unwrap();
-    format!("https://unity.com/releases/editor/whats-new/{}", version)
+pub fn fetch_release_notes(version: UnityVersion) -> Result<IndexMap<String, Vec<String>>> {
+    let url = release_notes_url(version);
+    println!("Fetching release notes from {url}" );
+
+    let body = ureq::get(&url).call()?.into_string()?;
+    Ok(collect_release_notes(&body))
 }
 
-pub fn collect_release_notes(html: &str) -> IndexMap<String, Vec<String>> {
+fn release_notes_url(version: UnityVersion) -> String {
+    let version = format!("{}.{}.{}", version.year, version.point, version.patch);
+    format!("https://unity.com/releases/editor/whats-new/{version}")
+}
+
+fn collect_release_notes(html: &str) -> IndexMap<String, Vec<String>> {
     let document = Document::from(html);
     let mut release_notes = IndexMap::<String, Vec<String>>::new();
 
@@ -113,7 +137,7 @@ pub fn collect_release_notes(html: &str) -> IndexMap<String, Vec<String>> {
                 });
             }
             _ => {}
-        })
+        });
     }
 
     release_notes

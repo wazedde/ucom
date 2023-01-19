@@ -10,24 +10,26 @@ pub enum BuildType {
 }
 
 impl BuildType {
-    pub fn as_str(&self) -> &str {
+    #[must_use]
+    pub const fn as_str(&self) -> &str {
         match self {
-            BuildType::Alpha => "a",
-            BuildType::Beta => "b",
-            BuildType::ReleaseCandidate => "rc",
-            BuildType::Final => "f",
+            Self::Alpha => "a",
+            Self::Beta => "b",
+            Self::ReleaseCandidate => "rc",
+            Self::Final => "f",
         }
     }
 
-    pub fn find_in(s: &str) -> Option<BuildType> {
+    #[must_use]
+    pub fn find_in(s: &str) -> Option<Self> {
         if s.contains('f') {
-            Some(BuildType::Final)
+            Some(Self::Final)
         } else if s.contains('b') {
-            Some(BuildType::Beta)
+            Some(Self::Beta)
         } else if s.contains('a') {
-            Some(BuildType::Alpha)
+            Some(Self::Alpha)
         } else if s.contains("rc") {
-            Some(BuildType::ReleaseCandidate)
+            Some(Self::ReleaseCandidate)
         } else {
             None
         }
@@ -39,6 +41,7 @@ impl Display for BuildType {
         write!(f, "{}", self.as_str())
     }
 }
+
 #[derive(Debug)]
 pub struct BuildTypeParseError;
 
@@ -47,10 +50,10 @@ impl FromStr for BuildType {
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s {
-            "a" => Ok(BuildType::Alpha),
-            "b" => Ok(BuildType::Beta),
-            "rc" => Ok(BuildType::ReleaseCandidate),
-            "f" => Ok(BuildType::Final),
+            "a" => Ok(Self::Alpha),
+            "b" => Ok(Self::Beta),
+            "rc" => Ok(Self::ReleaseCandidate),
+            "f" => Ok(Self::Final),
             _ => Err(BuildTypeParseError),
         }
     }
@@ -103,7 +106,7 @@ impl FromStr for UnityVersion {
             .and_then(|s| s.parse().ok())
             .ok_or(UnityVersionParseError)?;
 
-        Ok(UnityVersion {
+        Ok(Self {
             year,
             point,
             patch,

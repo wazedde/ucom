@@ -15,7 +15,7 @@ const AUTO_BUILD_SCRIPT_ROOT: &str = "Assets/ucom";
 
 type ResultFn = Box<dyn FnOnce() -> Result<()>>;
 
-pub fn content() -> &'static str {
+pub const fn content() -> &'static str {
     include_str!("include/UcomBuilder.cs")
 }
 
@@ -36,8 +36,8 @@ pub fn new_build_script_injection_functions(
         (InjectAction::Auto, false) => {
             // Build script not present, inject it.
             // Place the build script in a unique directory to avoid conflicts.
-            let pre_root =
-                project_dir.join(format!("{}-{}", AUTO_BUILD_SCRIPT_ROOT, Uuid::new_v4()));
+            let uuid = Uuid::new_v4();
+            let pre_root = project_dir.join(format!("{AUTO_BUILD_SCRIPT_ROOT}-{uuid}"));
             let post_root = pre_root.clone();
             (
                 Box::new(|| inject_build_script(pre_root)),

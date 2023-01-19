@@ -44,7 +44,7 @@ impl CommandExt for Command {
         let echo_closure = {
             let stop_echo = Arc::clone(&stop_echo);
             let log_file = log_file.to_owned();
-            move || echo_log_file(&log_file, Duration::from_millis(100), stop_echo)
+            move || echo_log_file(&log_file, Duration::from_millis(100), &stop_echo)
         };
 
         let echo_runner = thread::spawn(echo_closure);
@@ -93,9 +93,9 @@ impl CommandExt for Command {
         // Handle spaces in path.
         if line.contains(char::is_whitespace) {
             if cfg!(target_os = "macos") {
-                line = format!("\"{}\"", line);
+                line = format!("\"{line}\"");
             } else if cfg!(target_os = "windows") {
-                line = format!("& \"{}\"", line);
+                line = format!("& \"{line}\"");
             } else {
                 unimplemented!();
             }
@@ -106,7 +106,7 @@ impl CommandExt for Command {
             let arg = arg.to_string_lossy();
             // Handle spaces in arguments.
             if arg.contains(char::is_whitespace) {
-                line.push_str(&format!("\"{}\"", arg));
+                line.push_str(&format!("\"{arg}\""));
             } else {
                 line.push_str(&arg);
             }
@@ -115,7 +115,7 @@ impl CommandExt for Command {
     }
 }
 
-fn echo_log_file(log_file: &Path, update_interval: Duration, stop_thread: Arc<Mutex<bool>>) {
+fn echo_log_file(log_file: &Path, update_interval: Duration, stop_thread: &Arc<Mutex<bool>>) {
     // Wait until file exists.
     while !log_file.exists() {
         if *stop_thread.lock().unwrap() {
@@ -137,7 +137,7 @@ fn echo_log_file(log_file: &Path, update_interval: Duration, stop_thread: Arc<Mu
         reader.read_to_string(&mut buffer).unwrap();
         if !buffer.is_empty() {
             ended_with_newline = buffer.ends_with('\n');
-            print!("{}", buffer);
+            print!("{buffer}");
             buffer.clear();
         }
 

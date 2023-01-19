@@ -25,7 +25,7 @@ fn main() -> Result<()> {
     }
 
     let Some(command) = cli.command else {
-        let _ = Cli::command().print_help();
+        let _result = Cli::command().print_help();
         exit(0)
     };
 
@@ -40,6 +40,9 @@ fn main() -> Result<()> {
             packages,
         } => show_project_info(&project_dir, packages)
             .context("Cannot show project info".red().bold()),
+        Action::UpdateCheck { project_dir } => {
+            check_unity_updates(&project_dir).context("Cannot show Unity updates for project".red().bold())
+        }
         Action::Run(settings) => run_unity(settings).context("Cannot run Unity".red().bold()),
         Action::New(settings) => {
             new_project(settings).context("Cannot create new Unity project".red().bold())

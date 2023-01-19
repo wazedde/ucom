@@ -13,7 +13,7 @@ use crate::build_script;
 use crate::cli::*;
 use crate::command_ext::*;
 use crate::unity_project::*;
-use crate::unity_release::fetch_unity_releases;
+use crate::unity_release::{fetch_unity_releases, fetch_updates_for};
 
 const GIT_IGNORE: &str = include_str!("include/unity-gitignore.txt");
 
@@ -54,7 +54,7 @@ pub fn list_versions(partial_version: Option<&str>, check_updates: bool) -> Resu
 
     for (version, version_string) in versions {
         colorize_line = plain_color;
-        line.push_str(&format!("{:<max_width$}", version_string));
+        line.push_str(&format!("{version_string:<max_width$}"));
 
         if check_updates {
             let r: Vec<_> = releases
@@ -108,7 +108,7 @@ pub fn show_project_info(project_dir: &Path, packages_level: PackagesInfoLevel) 
     }
 
     print!("    Unity Version: {}", version.to_string().bold());
-    if editor_parent_dir()?.join(version.to_string()).exists() {
+    if is_editor_installed(version)? {
         println!();
     } else {
         println!(" {}", "*not installed".red().bold());
@@ -116,6 +116,66 @@ pub fn show_project_info(project_dir: &Path, packages_level: PackagesInfoLevel) 
     if packages_level != PackagesInfoLevel::None {
         show_project_packages(project_dir.as_ref(), packages_level);
     };
+
+    Ok(())
+}
+
+/// Checks on the Unity website for updates to the version used by the project.
+pub fn check_unity_updates(project_dir: &Path) -> Result<()> {
+    let project_dir = validate_project_path(&project_dir)?;
+    let version = version_used_by_project(&project_dir)?;
+
+    println!(
+        "{}",
+        format!(
+            "Checking Unity updates for `{}`",
+            project_dir.to_string_lossy()
+        )
+        .bold()
+    );
+
+    print!("    Project uses version: {}", version.to_string().bold());
+    if is_editor_installed(version)? {
+        println!();
+    } else {
+        println!(" {}", "*not installed".red().bold());
+    }
+
+    let releases = fetch_updates_for(version)?;
+    if releases.is_empty() {
+        println!(
+            "    Already uses the latest release in the {}.{}.x range",
+            version.year, version.point
+        );
+        return Ok(());
+    }
+
+    {
+        let latest = releases.last().unwrap();
+        println!(
+            "    Update available:     {}",
+            latest.version.to_string().yellow().bold()
+        );
+    }
+
+    // for release in releases {
+    //     let rn = fetch_release_notes(release.version)?;
+    //     if rn.is_empty() {
+    //         continue;
+    //     }
+    //
+    //     println!();
+    //     println!("# Release notes for {}", release.version.to_string().bold());
+    //
+    //     for (header, entries) in rn {
+    //         println!();
+    //         println!("## {}", header.bold());
+    //         println!();
+    //         for e in &entries {
+    //             println!("- {e}");
+    //         }
+    //     }
+    // }
 
     Ok(())
 }
@@ -179,7 +239,7 @@ pub fn run_unity(arguments: RunArguments) -> Result<()> {
     }
 
     if !arguments.quiet {
-        println!("{}", format!("Run Unity {}", version).bold());
+        println!("{}", format!("Run Unity {version}").bold());
     }
 
     if arguments.wait {
@@ -386,7 +446,7 @@ pub fn build_project(arguments: BuildArguments) -> Result<()> {
             .skip_while(|l| !l.starts_with("[Builder] Build Report")) // Find marker.
             .skip(1) // Skip the marker.
             .take_while(|l| !l.is_empty()) // Read until empty line.
-            .for_each(|l| println!("{}", l));
+            .for_each(|l| println!("{l}"));
     }
 
     build_result.map_err(|_| errors_from_log(&log_file))
@@ -417,7 +477,7 @@ fn errors_from_log(log_file: &Path) -> Error {
         _ => {
             let mut joined = String::new();
             for (i, error) in errors.iter().enumerate() {
-                joined.push_str(format!("{}: {}\n", format!("{}", i + 1).bold(), error).as_str());
+                joined.push_str(format!("{error}: {}\n", format!("{}", i + 1).bold()).as_str());
             }
             anyhow!(joined)
         }
@@ -434,5 +494,5 @@ fn git_init<P: AsRef<Path>>(project_dir: P) -> Result<()> {
         .map_err(|_| anyhow!("Could not create git repository. Make sure git is available or add the --no-git flag."))?;
 
     let mut file = File::create(project_dir.join(".gitignore"))?;
-    write!(file, "{}", GIT_IGNORE).map_err(Into::into)
+    write!(file, "{GIT_IGNORE}").map_err(Into::into)
 }

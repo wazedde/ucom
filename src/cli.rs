@@ -52,6 +52,14 @@ pub enum Action {
         packages: PackagesInfoLevel,
     },
 
+    /// Checks on the Unity website for updates to the version used by the project.
+    #[command(visible_alias = "u")]
+    UpdateCheck {
+        /// The directory of the project.
+        #[arg(value_name = "DIRECTORY", value_hint = clap::ValueHint::DirPath, default_value = ".")]
+        project_dir: PathBuf,
+    },
+
     /// Creates a new Unity project and Git repository (uses latest available Unity version by default)
     #[command(
         visible_alias = "n",
@@ -310,7 +318,7 @@ pub enum Target {
 
 impl Display for Target {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{:?}", self)
+        write!(f, "{self:?}")
     }
 }
 
@@ -328,7 +336,7 @@ pub enum BuildTarget {
 
 impl Display for BuildTarget {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{:?}", self)
+        write!(f, "{self:?}")
     }
 }
 

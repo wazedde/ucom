@@ -63,7 +63,7 @@ pub fn version_used_by_project<P: AsRef<Path>>(project_dir: &P) -> Result<UnityV
         .and_then(|l| {
             l.split(':') // Split the line,
                 .nth(1) // and return 2nd element.
-                .map(|version| version.trim())
+                .map(str::trim)
                 .and_then(|v| v.parse().ok())
         })
         .ok_or_else(|| {
@@ -76,30 +76,32 @@ pub fn version_used_by_project<P: AsRef<Path>>(project_dir: &P) -> Result<UnityV
 
 /// Returns the parent directory of the editor installations.
 pub fn editor_parent_dir<'a>() -> Result<Cow<'a, Path>> {
-    match env::var_os(ENV_EDITOR_DIR) {
-        Some(path) => {
+    env::var_os(ENV_EDITOR_DIR).map_or_else(
+        || {
+            let path = Path::new(UNITY_EDITOR_DIR);
+            path.exists().then(|| path.into()).ok_or_else(|| {
+                let path = path.to_string_lossy();
+                anyhow!(
+                    "Set `{ENV_EDITOR_DIR}` to the editor directory, the default directory does not exist: `{path}`"
+                )
+            })
+        },
+        |path| {
             let path = Path::new(&path);
             (path.exists() && path.is_dir())
                 .then(|| path.to_owned().into())
                 .ok_or_else(|| {
+                    let path = path.to_string_lossy();
                     anyhow!(
-                        "Editor directory set by `{}` is not a valid directory: `{}`",
-                        ENV_EDITOR_DIR,
-                        path.to_string_lossy()
+                        "Editor directory set by `{ENV_EDITOR_DIR}` is not a valid directory: `{path}`"
                     )
                 })
-        }
-        None => {
-            let path = Path::new(UNITY_EDITOR_DIR);
-            path.exists().then(|| path.into()).ok_or_else(|| {
-                anyhow!(
-                    "Set `{}` to the editor directory, the default directory does not exist: `{}`",
-                    ENV_EDITOR_DIR,
-                    path.to_string_lossy()
-                )
-            })
-        }
-    }
+        },
+    )
+}
+
+pub fn is_editor_installed(version: UnityVersion) -> Result<bool> {
+    Ok(editor_parent_dir()?.join(version.to_string()).exists())
 }
 
 /// Returns the list with only the versions that match the partial version or Err if there is no matching version.
@@ -117,13 +119,12 @@ pub fn matching_versions(
         .filter(|v| v.to_string().starts_with(partial_version))
         .collect();
 
-    if !versions.is_empty() {
-        Ok(versions)
-    } else {
+    if versions.is_empty() {
         Err(anyhow!(
-            "No Unity installation was found that matches version `{}`.",
-            partial_version
+            "No Unity installation was found that matches version `{partial_version}`."
         ))
+    } else {
+        Ok(versions)
     }
 }
 
@@ -150,8 +151,7 @@ pub fn matching_editor_used_by_project<P: AsRef<Path>>(
         Ok((version, editor_dir.join(UNITY_EDITOR_EXE)))
     } else {
         Err(anyhow!(
-            "Unity version that the project uses is not installed: {}",
-            version
+            "Unity version that the project uses is not installed: {version}"
         ))
     }
 }
@@ -167,18 +167,18 @@ pub fn available_unity_versions<P: AsRef<Path>>(install_dir: &P) -> Result<Vec<U
         })?
         .flat_map(|r| r.map(|e| e.path()))
         .filter(|p| p.is_dir() && p.join(UNITY_EDITOR_EXE).exists())
-        .flat_map(|p| p.file_name().map(|version| version.to_owned()))
-        .flat_map(|version| version.to_string_lossy().parse::<UnityVersion>().ok())
+        .filter_map(|p| p.file_name().map(std::borrow::ToOwned::to_owned))
+        .filter_map(|version| version.to_string_lossy().parse::<UnityVersion>().ok())
         .collect();
 
-    if !versions.is_empty() {
-        versions.sort();
-        Ok(versions)
-    } else {
+    if versions.is_empty() {
         Err(anyhow!(
             "No Unity installations found in `{}`",
             install_dir.as_ref().to_string_lossy()
         ))
+    } else {
+        versions.sort();
+        Ok(versions)
     }
 }
 
@@ -219,7 +219,7 @@ pub struct Manifest {
 }
 
 impl Manifest {
-    pub fn from_project(project_dir: &Path) -> Result<Manifest> {
+    pub fn from_project(project_dir: &Path) -> Result<Self> {
         let file = File::open(project_dir.join("Packages/manifest.json"))?;
         serde_json::from_reader(BufReader::new(file)).map_err(Into::into)
     }
@@ -240,7 +240,7 @@ pub struct Packages {
 }
 
 impl Packages {
-    pub fn from_project(project_dir: &Path) -> Result<Packages> {
+    pub fn from_project(project_dir: &Path) -> Result<Self> {
         let file = File::open(project_dir.join("Packages/packages-lock.json"))?;
         serde_json::from_reader(BufReader::new(file)).map_err(Into::into)
     }
@@ -271,7 +271,7 @@ pub struct PlayerSettings {
 }
 
 impl ProjectSettings {
-    pub fn from_project(project_dir: &Path) -> Result<ProjectSettings> {
+    pub fn from_project(project_dir: &Path) -> Result<Self> {
         let file = File::open(project_dir.join("ProjectSettings/ProjectSettings.asset"))?;
         serde_yaml::from_reader(BufReader::new(file)).map_err(Into::into)
     }
