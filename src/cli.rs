@@ -10,7 +10,7 @@ pub const ENV_PACKAGE_LEVEL: &str = "UCOM_PACKAGE_LEVEL";
 
 /// Unity Commander, a command line interface for Unity projects.
 #[derive(clap::Parser)]
-#[command(author, version, about, arg_required_else_help = false)]
+#[command(author, version, about)]
 pub struct Cli {
     /// Display the build script that is injected into the project.
     #[arg(short, short = 'I', long)]
@@ -27,16 +27,11 @@ pub enum Action {
     List {
         /// The Unity versions to list. You can specify a partial version; e.g. 2021 will list all
         /// the 2021.x.y versions you have installed on your system.
-        #[arg(
-            short = 'u',
-            long = "unity",
-            value_name = "VERSION",
-            verbatim_doc_comment
-        )]
+        #[arg(short = 'u', long = "unity", value_name = "VERSION")]
         version_pattern: Option<String>,
 
         /// Checks online if there are newer versions available.
-        #[clap(long = "check-updates", short = 'c')]
+        #[clap(short = 'c', long)]
         check_updates: bool,
     },
 
@@ -48,7 +43,7 @@ pub enum Action {
         project_dir: PathBuf,
 
         /// The level of included packages to show.
-        #[arg(short, long, default_value = "non-unity", env = ENV_PACKAGE_LEVEL)]
+        #[arg(short='p', long, default_value = "non-unity", env = ENV_PACKAGE_LEVEL)]
         packages: PackagesInfoLevel,
     },
 
@@ -60,32 +55,20 @@ pub enum Action {
         project_dir: PathBuf,
     },
 
-    /// Creates a new Unity project and Git repository (uses latest available Unity version by default)
-    #[command(
-        visible_alias = "n",
-        allow_hyphen_values = true,
-        arg_required_else_help = true
-    )]
+    /// Creates a new Unity project and Git repository (uses latest installed version by default)
+    #[command(visible_alias = "n")]
     New(NewArguments),
 
     /// Opens the given Unity project in the Unity Editor
-    #[command(visible_alias = "o", allow_hyphen_values = true)]
+    #[command(visible_alias = "o")]
     Open(OpenArguments),
 
     /// Builds the given Unity project
-    #[command(
-        visible_alias = "b",
-        allow_hyphen_values = true,
-        arg_required_else_help = true
-    )]
+    #[command(visible_alias = "b")]
     Build(BuildArguments),
 
-    /// Runs Unity with the givens arguments (uses latest available Unity version by default)
-    #[command(
-        visible_alias = "r",
-        allow_hyphen_values = true,
-        arg_required_else_help = true
-    )]
+    /// Runs Unity with the givens arguments (uses latest installed version by default)
+    #[command(visible_alias = "r")]
     Run(RunArguments),
 }
 
@@ -102,15 +85,15 @@ pub struct RunArguments {
     pub version_pattern: Option<String>,
 
     /// Waits for the command to finish before continuing.
-    #[clap(long = "wait", short = 'w')]
+    #[clap(short = 'w', long)]
     pub wait: bool,
 
     /// Do not print ucom log messages.
-    #[clap(long = "quiet", short = 'q')]
+    #[clap(short = 'q', long)]
     pub quiet: bool,
 
     /// Show what would be run, but do not actually run it.
-    #[clap(long = "dry-run", short = 'n')]
+    #[clap(short = 'n', long)]
     pub dry_run: bool,
 
     /// A list of arguments passed directly to Unity.
@@ -139,19 +122,19 @@ pub struct NewArguments {
     pub project_dir: PathBuf,
 
     /// Suppress initializing a new git repository.
-    #[clap(long = "no-git")]
+    #[clap(long)]
     pub no_git: bool,
 
     /// Waits for the command to finish before continuing.
-    #[clap(long = "wait", short = 'w')]
+    #[clap(short = 'w', long)]
     pub wait: bool,
 
     /// Do not print ucom log messages.
-    #[clap(long = "quiet", short = 'q')]
+    #[clap(short = 'q', long)]
     pub quiet: bool,
 
     /// Show what would be run, but do not actually run it.
-    #[clap(long = "dry-run", short = 'n')]
+    #[clap(short = 'n', long)]
     pub dry_run: bool,
 
     /// A list of arguments passed directly to Unity.
@@ -172,15 +155,15 @@ pub struct OpenArguments {
     pub version_pattern: Option<String>,
 
     /// Waits for the command to finish before continuing.
-    #[clap(long = "wait", short = 'w')]
+    #[clap(short = 'w', long)]
     pub wait: bool,
 
     /// Do not print ucom log messages.
-    #[clap(long = "quiet", short = 'q')]
+    #[clap(short = 'q', long)]
     pub quiet: bool,
 
     /// Show what would be run, but do not actually run it.
-    #[clap(long = "dry-run", short = 'n')]
+    #[clap(short = 'n', long)]
     pub dry_run: bool,
 
     /// A list of arguments passed directly to Unity.
@@ -208,47 +191,32 @@ pub struct BuildArguments {
     pub build_path: Option<PathBuf>,
 
     /// Build script injection method.
-    #[arg(
-        short = 'i',
-        long = "inject",
-        value_name = "METHOD",
-        default_value = "auto"
-    )]
+    #[arg(short = 'i', long, value_name = "METHOD", default_value = "auto")]
     pub inject: InjectAction,
 
     /// Build mode.
-    #[arg(
-        short = 'm',
-        long = "mode",
-        value_name = "MODE",
-        default_value = "batch"
-    )]
+    #[arg(short = 'm', long, value_name = "MODE", default_value = "batch")]
     pub mode: BuildMode,
 
     /// A static method in the Unity project that is called to build the project.
     #[arg(
         short = 'f',
-        long = "build-function",
+        long,
         value_name = "FUNCTION",
         default_value = "ucom.UcomBuilder.Build"
     )]
     pub build_function: String,
 
     /// The log file to write Unity's output to.
-    #[arg(
-        short = 'l',
-        long = "log-file",
-        value_name = "FILE",
-        default_value = "build.log"
-    )]
+    #[arg(short = 'l', long, value_name = "FILE", default_value = "build.log")]
     pub log_file: PathBuf,
 
     /// Don't output the build log to stdout.
-    #[clap(long = "quiet", short = 'q')]
+    #[clap(short = 'q', long)]
     pub quiet: bool,
 
     /// Show what would be run, but do not actually run it.
-    #[clap(long = "dry-run", short = 'n')]
+    #[clap(short = 'n', long)]
     pub dry_run: bool,
 
     /// A list of arguments passed directly to Unity.
