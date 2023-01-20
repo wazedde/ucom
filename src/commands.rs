@@ -13,51 +13,51 @@ use crate::build_script;
 use crate::cli::*;
 use crate::command_ext::*;
 use crate::unity_project::*;
-use crate::unity_release::{fetch_unity_releases, fetch_updates_for};
+use crate::unity_release::{fetch_unity_releases, fetch_updates_for, ReleaseInfo};
+use crate::unity_version::UnityVersion;
 
 const GIT_IGNORE: &str = include_str!("include/unity-gitignore.txt");
 
 /// Lists installed Unity versions.
 pub fn list_versions(partial_version: Option<&str>, check_updates: bool) -> Result<()> {
     let dir = editor_parent_dir()?;
-    let versions = available_unity_versions(&dir)?;
-
-    let default_version = env::var_os(ENV_DEFAULT_VERSION)
-        .and_then(|env_version| {
-            versions.iter().rev().find(|v| {
-                v.to_string()
-                    .starts_with(env_version.to_string_lossy().as_ref())
-            })
-        })
-        .unwrap_or_else(|| versions.last().unwrap())
-        .to_owned();
-
-    let versions = matching_versions(versions, partial_version)?;
+    let matching_versions = matching_versions(available_unity_versions(&dir)?, partial_version)?;
 
     println!(
         "{}",
         format!("Unity versions in `{}`", dir.to_string_lossy()).bold()
     );
 
-    let versions: Vec<_> = versions.iter().map(|v| (*v, v.to_string())).collect();
-    let max_width = versions.iter().map(|(_, s)| s.len()).max().unwrap_or(0);
-
-    let plain_color: fn(&str) -> ColoredString = |s: &str| s.into();
-    let mut line = String::new();
-    let mut colorize_line;
-
-    let releases = if check_updates {
+    let available_releases = if check_updates {
         fetch_unity_releases()?
     } else {
         Vec::new()
     };
 
-    for (version, version_string) in versions {
-        colorize_line = plain_color;
-        line.push_str(&format!("{version_string:<max_width$}"));
+    print_versions(&matching_versions, &available_releases);
+    Ok(())
+}
 
-        if check_updates {
-            let r: Vec<_> = releases
+fn print_versions(versions: &[UnityVersion], available_releases: &[ReleaseInfo]) {
+    let default_version = default_unity_version(versions);
+
+    let max_len = versions
+        .iter()
+        .map(|s| s.to_string().len())
+        .max()
+        .unwrap_or(0);
+
+    let mut previous_range = (0, 0);
+
+    let mut iter = versions.iter().peekable();
+    while let Some(&version) = iter.next() {
+        let mut colorize_line: fn(&str) -> ColoredString = |s: &str| s.into();
+        let mut info = String::new();
+
+        info.push_str(&format!("{:<max_len$}", version.to_string()));
+
+        if !available_releases.is_empty() {
+            let newer_releases: Vec<_> = available_releases
                 .iter()
                 .filter(|r| {
                     r.version.year == version.year
@@ -66,28 +66,55 @@ pub fn list_versions(partial_version: Option<&str>, check_updates: bool) -> Resu
                 })
                 .collect();
 
-            if r.is_empty() {
-                line.push_str(" - latest");
+            if newer_releases.is_empty() {
+                info.push_str(" - latest");
             } else {
                 colorize_line = |s: &str| s.yellow().bold();
-                line.push_str(&format!(
+                info.push_str(&format!(
                     " - {} behind {}",
-                    r.len(),
-                    r.last().unwrap().version
+                    newer_releases.len(),
+                    newer_releases.last().unwrap().version
                 ));
             }
         }
 
-        if version == default_version {
-            line.push_str(" (default for new projects)");
-            println!("- {}", colorize_line(line.trim()).bold());
+        let next_in_same_range = iter
+            .peek()
+            .filter(|v| v.year == version.year && v.point == version.point)
+            .is_some();
+        let marker = if (version.year, version.point) == previous_range {
+            if next_in_same_range {
+                "├─"
+            } else {
+                "└─"
+            }
         } else {
-            println!("- {}", colorize_line(line.trim()));
-        }
+            previous_range = (version.year, version.point);
+            if next_in_same_range {
+                "┬─"
+            } else {
+                "──"
+            }
+        };
 
-        line.clear();
+        if version == default_version {
+            info.push_str(" (default for new projects)");
+            println!("{marker} {}", colorize_line(&info).bold());
+        } else {
+            println!("{marker} {}", colorize_line(&info));
+        }
     }
-    Ok(())
+}
+
+fn default_unity_version(versions: &[UnityVersion]) -> UnityVersion {
+    *env::var_os(ENV_DEFAULT_VERSION)
+        .and_then(|env_version| {
+            versions.iter().rev().find(|v| {
+                v.to_string()
+                    .starts_with(env_version.to_string_lossy().as_ref())
+            })
+        })
+        .unwrap_or_else(|| versions.last().unwrap())
 }
 
 /// Shows project information.
