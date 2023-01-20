@@ -1,7 +1,8 @@
 use std::io::Read;
 use std::path::Path;
 use std::process::{Command, Stdio};
-use std::sync::{Arc, Mutex};
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::Arc;
 use std::time::Duration;
 use std::{fs, io, thread};
 
@@ -39,12 +40,12 @@ impl CommandExt for Command {
             .spawn()
             .context("Failed to run child process.")?;
 
-        let stop_echo = Arc::new(Mutex::new(false));
+        let build_finished = Arc::new(AtomicBool::new(false));
 
         let echo_closure = {
-            let stop_echo = Arc::clone(&stop_echo);
+            let build_finished = build_finished.clone();
             let log_file = log_file.to_owned();
-            move || echo_log_file(&log_file, Duration::from_millis(100), &stop_echo)
+            move || echo_log_file(&log_file, Duration::from_millis(100), build_finished)
         };
 
         let echo_runner = thread::spawn(echo_closure);
@@ -53,7 +54,7 @@ impl CommandExt for Command {
             .wait_with_output()
             .context("Failed to wait for child process.");
 
-        *stop_echo.lock().unwrap() = true;
+        build_finished.store(true, Ordering::SeqCst);
 
         // Wait for echo to finish.
         echo_runner.join().expect("Log echo thread panicked.");
@@ -115,10 +116,10 @@ impl CommandExt for Command {
     }
 }
 
-fn echo_log_file(log_file: &Path, update_interval: Duration, stop_thread: &Arc<Mutex<bool>>) {
+fn echo_log_file(log_file: &Path, update_interval: Duration, stop_logging: Arc<AtomicBool>) {
     // Wait until file exists.
     while !log_file.exists() {
-        if *stop_thread.lock().unwrap() {
+        if stop_logging.load(Ordering::SeqCst) {
             // If the file writer thread has finished without creating the file we can stop waiting.
             return;
         }
@@ -132,7 +133,7 @@ fn echo_log_file(log_file: &Path, update_interval: Duration, stop_thread: &Arc<M
 
     loop {
         // Don't immediately exit if the file writer thread has finished to be able to read any last data.
-        let should_stop = *stop_thread.lock().unwrap();
+        let should_stop = stop_logging.load(Ordering::SeqCst);
 
         reader.read_to_string(&mut buffer).unwrap();
         if !buffer.is_empty() {
