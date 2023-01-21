@@ -129,6 +129,10 @@ pub struct NewArguments {
     #[clap(short = 'w', long)]
     pub wait: bool,
 
+    /// Quits the editor after the project has been created.
+    #[clap(short = 'Q', long)]
+    pub quit: bool,
+
     /// Do not print ucom log messages.
     #[clap(short = 'q', long)]
     pub quiet: bool,

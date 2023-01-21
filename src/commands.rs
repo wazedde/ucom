@@ -294,6 +294,10 @@ pub fn new_project(arguments: NewArguments) -> Result<()> {
         .arg(project_dir.as_ref())
         .args(arguments.args.unwrap_or_default());
 
+    if arguments.quit {
+        cmd.arg("-quit");
+    }
+
     if arguments.dry_run {
         println!("{}", cmd.to_command_line_string());
         return Ok(());
