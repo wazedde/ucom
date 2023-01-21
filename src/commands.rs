@@ -13,7 +13,7 @@ use crate::build_script;
 use crate::cli::*;
 use crate::command_ext::*;
 use crate::unity_project::*;
-use crate::unity_release::{fetch_unity_releases, fetch_updates_for, ReleaseInfo};
+use crate::unity_release::*;
 use crate::unity_version::UnityVersion;
 
 const GIT_IGNORE: &str = include_str!("include/unity-gitignore.txt");
@@ -148,17 +148,27 @@ pub fn show_project_info(project_dir: &Path, packages_level: PackagesInfoLevel) 
 }
 
 /// Checks on the Unity website for updates to the version used by the project.
-pub fn check_unity_updates(project_dir: &Path) -> Result<()> {
+pub fn check_unity_updates(project_dir: &Path, create_report: bool) -> Result<()> {
     let project_dir = validate_project_path(&project_dir)?;
     let version = version_used_by_project(&project_dir)?;
 
+    if create_report {
+        print!("# ");
+    }
+
+    let product_name = ProjectSettings::from_project(&project_dir)
+        .map(|s| s.player_settings.product_name)
+        .unwrap_or_else(|_| "<UNKNOWN>".to_string());
+
+    println!("{}", format!("Unity updates for {}", product_name).bold());
+
+    if create_report {
+        println!();
+    }
+
     println!(
-        "{}",
-        format!(
-            "Checking Unity updates for `{}`",
-            project_dir.to_string_lossy()
-        )
-        .bold()
+        "    Directory:            {}",
+        project_dir.to_string_lossy().bold()
     );
 
     print!("    Project uses version: {}", version.to_string().bold());
@@ -185,24 +195,34 @@ pub fn check_unity_updates(project_dir: &Path) -> Result<()> {
         );
     }
 
-    // for release in releases {
-    //     let rn = fetch_release_notes(release.version)?;
-    //     if rn.is_empty() {
-    //         continue;
-    //     }
-    //
-    //     println!();
-    //     println!("# Release notes for {}", release.version.to_string().bold());
-    //
-    //     for (header, entries) in rn {
-    //         println!();
-    //         println!("## {}", header.bold());
-    //         println!();
-    //         for e in &entries {
-    //             println!("- {e}");
-    //         }
-    //     }
-    // }
+    if !create_report {
+        return Ok(());
+    }
+
+    for release in releases {
+        let url = release_notes_url(release.version);
+        let body = ureq::get(&url).call()?.into_string()?;
+
+        let rn = collect_release_notes(&body);
+        if rn.is_empty() {
+            continue;
+        }
+
+        println!();
+        println!(
+            "{}",
+            format!("## Release notes for [{}]({url})", release.version).bold()
+        );
+
+        for (header, entries) in rn {
+            println!();
+            println!("### {}", header.bold());
+            println!();
+            for e in &entries {
+                println!("- {e}");
+            }
+        }
+    }
 
     Ok(())
 }

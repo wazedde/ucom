@@ -14,6 +14,7 @@ pub struct ReleaseInfo {
     pub installation_url: String,
 }
 
+#[allow(dead_code)]
 pub enum ReleaseFilter {
     All,
     Year {
@@ -102,20 +103,12 @@ fn version_from_url(url: &str) -> Option<UnityVersion> {
         .and_then(|v| v.parse::<UnityVersion>().ok())
 }
 
-pub fn fetch_release_notes(version: UnityVersion) -> Result<IndexMap<String, Vec<String>>> {
-    let url = release_notes_url(version);
-    println!("Fetching release notes from {url}");
-
-    let body = ureq::get(&url).call()?.into_string()?;
-    Ok(collect_release_notes(&body))
-}
-
-fn release_notes_url(version: UnityVersion) -> String {
+pub fn release_notes_url(version: UnityVersion) -> String {
     let version = format!("{}.{}.{}", version.year, version.point, version.patch);
     format!("https://unity.com/releases/editor/whats-new/{version}")
 }
 
-fn collect_release_notes(html: &str) -> IndexMap<String, Vec<String>> {
+pub fn collect_release_notes(html: &str) -> IndexMap<String, Vec<String>> {
     let document = Document::from(html);
     let mut release_notes = IndexMap::<String, Vec<String>>::new();
 

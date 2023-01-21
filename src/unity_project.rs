@@ -218,6 +218,7 @@ pub struct Manifest {
     pub dependencies: BTreeMap<String, String>,
 }
 
+#[allow(dead_code)]
 impl Manifest {
     pub fn from_project(project_dir: &Path) -> Result<Self> {
         let file = File::open(project_dir.join("Packages/manifest.json"))?;

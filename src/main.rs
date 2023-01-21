@@ -12,9 +12,9 @@ mod build_script;
 mod cli;
 mod command_ext;
 mod commands;
-pub mod unity_project;
-pub mod unity_release;
-pub mod unity_version;
+mod unity_project;
+mod unity_release;
+mod unity_version;
 
 fn main() -> Result<()> {
     let cli = Cli::parse();
@@ -40,7 +40,10 @@ fn main() -> Result<()> {
             packages,
         } => show_project_info(&project_dir, packages)
             .context("Cannot show project info".red().bold()),
-        Action::UpdateCheck { project_dir } => check_unity_updates(&project_dir)
+        Action::UpdateCheck {
+            project_dir,
+            create_report: collect,
+        } => check_unity_updates(&project_dir, collect)
             .context("Cannot show Unity updates for project".red().bold()),
         Action::Run(settings) => run_unity(settings).context("Cannot run Unity".red().bold()),
         Action::New(settings) => {
