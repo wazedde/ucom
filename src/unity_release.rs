@@ -104,7 +104,7 @@ fn version_from_url(url: &str) -> Option<UnityVersion> {
 
 pub fn fetch_release_notes(version: UnityVersion) -> Result<IndexMap<String, Vec<String>>> {
     let url = release_notes_url(version);
-    println!("Fetching release notes from {url}" );
+    println!("Fetching release notes from {url}");
 
     let body = ureq::get(&url).call()?.into_string()?;
     Ok(collect_release_notes(&body))

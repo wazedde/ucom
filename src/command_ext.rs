@@ -128,7 +128,8 @@ fn echo_log_file(log_file: &Path, update_interval: Duration, stop_logging: Arc<A
 
     let file = fs::File::open(log_file).expect("Cannot open log file.");
     let mut reader = io::BufReader::new(file);
-    let mut buffer = String::new();
+    // The buffer can get quite large, pre-allocate a reasonable amount of memory.
+    let mut buffer = String::with_capacity(100_000);
     let mut ended_with_newline = false;
 
     loop {
