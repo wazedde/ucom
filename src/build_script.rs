@@ -8,7 +8,6 @@ use uuid::Uuid;
 
 use crate::cli::*;
 
-const BUILD_SCRIPT: &str = include_str!("include/UcomBuilder.cs");
 const BUILD_SCRIPT_NAME: &str = "UcomBuilder.cs";
 const PERSISTENT_BUILD_SCRIPT_PATH: &str = "Assets/Plugins/ucom/Editor/UcomBuilder.cs";
 const PERSISTENT_BUILD_SCRIPT_ROOT: &str = "Assets/Plugins/ucom";
@@ -16,12 +15,12 @@ const AUTO_BUILD_SCRIPT_ROOT: &str = "Assets/ucom";
 
 type ResultFn = Box<dyn FnOnce() -> Result<()>>;
 
-pub(crate) fn content() -> &'static str {
-    BUILD_SCRIPT
+pub const fn content() -> &'static str {
+    include_str!("include/UcomBuilder.cs")
 }
 
 /// Creates actions that inject a script into the project before and after the build.
-pub(crate) fn new_build_script_injection_functions(
+pub fn new_build_script_injection_functions(
     project_dir: &Path,
     inject: InjectAction,
 ) -> (ResultFn, ResultFn) {
@@ -37,8 +36,8 @@ pub(crate) fn new_build_script_injection_functions(
         (InjectAction::Auto, false) => {
             // Build script not present, inject it.
             // Place the build script in a unique directory to avoid conflicts.
-            let pre_root =
-                project_dir.join(format!("{}-{}", AUTO_BUILD_SCRIPT_ROOT, Uuid::new_v4()));
+            let uuid = Uuid::new_v4();
+            let pre_root = project_dir.join(format!("{AUTO_BUILD_SCRIPT_ROOT}-{uuid}"));
             let post_root = pre_root.clone();
             (
                 Box::new(|| inject_build_script(pre_root)),
@@ -79,7 +78,7 @@ fn inject_build_script<P: AsRef<Path>>(parent_dir: P) -> Result<()> {
     );
 
     let mut file = File::create(file_path)?;
-    write!(file, "{}", BUILD_SCRIPT).map_err(|e| e.into())
+    write!(file, "{}", content()).map_err(Into::into)
 }
 
 /// Removes the injected build script from the project.

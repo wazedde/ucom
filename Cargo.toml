@@ -8,16 +8,16 @@ edition = "2021"
 [profile.release]
 lto = true
 strip = true
-opt-level = "s"
-codegen-units = 1
 
 [dependencies]
 anyhow = "1.0.68"
-clap = { version = "4.0.32", features = ["derive", "env", "wrap_help"] }
+clap = { version = "4.1.1", features = ["derive", "env", "wrap_help"] }
 colored = "2.0.0"
-natord = "1.0.9"
+indexmap = "1.9.2"
 path-absolutize = "3.0.14"
+select = "0.6.0"
 serde = { version = "1.0.152", features = ["derive"] }
 serde_json = "1.0.91"
 serde_yaml = "0.9.16"
 uuid = { version = "1.2.2", features = ["v4"] }
+ureq = "2.6.2"
