@@ -10,8 +10,8 @@ use crate::commands::*;
 
 mod build_script;
 mod cli;
-mod command_ext;
 mod commands;
+mod unity_cmd;
 mod unity_project;
 mod unity_release;
 mod unity_version;

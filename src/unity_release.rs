@@ -14,6 +14,16 @@ pub struct ReleaseInfo {
     pub installation_url: String,
 }
 
+impl ReleaseInfo {
+    fn new(version: UnityVersion, date_header: String, installation_url: String) -> Self {
+        Self {
+            version,
+            date_header,
+            installation_url,
+        }
+    }
+}
+
 #[allow(dead_code)]
 pub enum ReleaseFilter {
     All,
@@ -26,7 +36,18 @@ pub enum ReleaseFilter {
     },
 }
 
-pub fn fetch_unity_releases() -> Result<Vec<ReleaseInfo>> {
+impl ReleaseFilter {
+    fn eval(&self, v: &UnityVersion) -> bool {
+        match self {
+            ReleaseFilter::All => true,
+            ReleaseFilter::Year { year } => v.year == *year,
+            ReleaseFilter::Point { year, point } => v.year == *year && v.point == *point,
+        }
+    }
+}
+
+/// Gets Unity releases from the Unity website.
+pub fn request_unity_releases() -> Result<Vec<ReleaseInfo>> {
     let url = "https://unity.com/releases/editor/archive";
     let body = ureq::get(url).call()?.into_string()?;
 
@@ -34,7 +55,8 @@ pub fn fetch_unity_releases() -> Result<Vec<ReleaseInfo>> {
     Ok(releases)
 }
 
-pub fn fetch_updates_for(version: UnityVersion) -> Result<Vec<ReleaseInfo>> {
+/// Gets updates for the given version from the Unity website.
+pub fn request_updates_for(version: UnityVersion) -> Result<Vec<ReleaseInfo>> {
     let url = "https://unity.com/releases/editor/archive";
     let body = ureq::get(url).call()?.into_string()?;
 
@@ -52,6 +74,7 @@ pub fn fetch_updates_for(version: UnityVersion) -> Result<Vec<ReleaseInfo>> {
     Ok(releases)
 }
 
+/// Finds releases in the html that match the filter.
 fn find_releases(html: &str, filter: &ReleaseFilter) -> Vec<ReleaseInfo> {
     let year_class: Cow<str> = match filter {
         ReleaseFilter::All => "release-tab-content".into(),
@@ -77,16 +100,8 @@ fn find_releases(html: &str, filter: &ReleaseFilter) -> Vec<ReleaseInfo> {
         })
         .filter_map(|(date_header, url)| {
             version_from_url(url)
-                .filter(|v| match filter {
-                    ReleaseFilter::All => true,
-                    ReleaseFilter::Year { year } => v.year == *year,
-                    ReleaseFilter::Point { year, point } => v.year == *year && v.point == *point,
-                })
-                .map(|version| ReleaseInfo {
-                    version,
-                    date_header,
-                    installation_url: url.to_owned(),
-                })
+                .filter(|v| filter.eval(v))
+                .map(|version| ReleaseInfo::new(version, date_header, url.to_owned()))
         })
         .collect();
 

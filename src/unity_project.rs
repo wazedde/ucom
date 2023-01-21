@@ -1,5 +1,5 @@
 use std::borrow::Cow;
-use std::collections::{BTreeMap, HashMap};
+use std::collections::BTreeMap;
 use std::fs::File;
 use std::io::{BufRead, BufReader};
 use std::path::{Path, PathBuf};
@@ -265,7 +265,7 @@ pub struct PlayerSettings {
     pub bundle_version: String,
 
     #[serde(rename = "buildNumber")]
-    pub build_number: Option<HashMap<String, String>>,
+    pub build_number: Option<BTreeMap<String, String>>,
 
     #[serde(rename = "AndroidBundleVersionCode")]
     pub android_bundle_version_code: Option<String>,

@@ -11,7 +11,7 @@ use path_absolutize::Absolutize;
 
 use crate::build_script;
 use crate::cli::*;
-use crate::command_ext::*;
+use crate::unity_cmd::*;
 use crate::unity_project::*;
 use crate::unity_release::*;
 use crate::unity_version::UnityVersion;
@@ -29,7 +29,7 @@ pub fn list_versions(partial_version: Option<&str>, check_updates: bool) -> Resu
     );
 
     let available_releases = if check_updates {
-        fetch_unity_releases()?
+        request_unity_releases()?
     } else {
         Vec::new()
     };
@@ -178,7 +178,7 @@ pub fn check_unity_updates(project_dir: &Path, create_report: bool) -> Result<()
         println!(" {}", "*not installed".red().bold());
     }
 
-    let releases = fetch_updates_for(version)?;
+    let releases = request_updates_for(version)?;
     if releases.is_empty() {
         println!(
             "    Already uses the latest release in the {}.{}.x range",
@@ -203,8 +203,8 @@ pub fn check_unity_updates(project_dir: &Path, create_report: bool) -> Result<()
         let url = release_notes_url(release.version);
         let body = ureq::get(&url).call()?.into_string()?;
 
-        let rn = collect_release_notes(&body);
-        if rn.is_empty() {
+        let release_notes = collect_release_notes(&body);
+        if release_notes.is_empty() {
             continue;
         }
 
@@ -214,7 +214,7 @@ pub fn check_unity_updates(project_dir: &Path, create_report: bool) -> Result<()
             format!("## Release notes for [{}]({url})", release.version).bold()
         );
 
-        for (header, entries) in rn {
+        for (header, entries) in release_notes {
             println!();
             println!("### {}", header.bold());
             println!();
@@ -228,7 +228,7 @@ pub fn check_unity_updates(project_dir: &Path, create_report: bool) -> Result<()
 }
 
 /// Show packages used by the project.
-fn show_project_packages(project_dir: &Path, level: PackagesInfoLevel) {
+fn show_project_packages(project_dir: &Path, package_level: PackagesInfoLevel) {
     let Ok(packages) = Packages::from_project(project_dir) else {
         return;
     };
@@ -236,23 +236,7 @@ fn show_project_packages(project_dir: &Path, level: PackagesInfoLevel) {
     let packages: Vec<_> = packages
         .dependencies
         .iter()
-        .filter(|(_, package)| match level {
-            PackagesInfoLevel::None => false,
-            PackagesInfoLevel::NonUnity => {
-                package.depth == 0
-                    && (package.source == "git"
-                        || package.source == "embedded"
-                        || package.source == "local")
-            }
-            PackagesInfoLevel::Registry => {
-                package.depth == 0
-                    && (package.source == "git"
-                        || package.source == "embedded"
-                        || package.source == "local"
-                        || package.source == "registry")
-            }
-            PackagesInfoLevel::All => true,
-        })
+        .filter(|(_, package)| package_level.eval(package))
         .collect();
 
     if packages.is_empty() {
@@ -273,6 +257,28 @@ fn show_project_packages(project_dir: &Path, level: PackagesInfoLevel) {
     }
 }
 
+impl PackagesInfoLevel {
+    fn eval(&self, package: &PackageInfo) -> bool {
+        match self {
+            PackagesInfoLevel::None => false,
+            PackagesInfoLevel::NonUnity => {
+                package.depth == 0
+                    && (package.source == "git"
+                        || package.source == "embedded"
+                        || package.source == "local")
+            }
+            PackagesInfoLevel::Registry => {
+                package.depth == 0
+                    && (package.source == "git"
+                        || package.source == "embedded"
+                        || package.source == "local"
+                        || package.source == "registry")
+            }
+            PackagesInfoLevel::All => true,
+        }
+    }
+}
+
 /// Runs the Unity Editor with the given arguments.
 pub fn run_unity(arguments: RunArguments) -> Result<()> {
     let (version, editor_exe) = matching_editor(arguments.version_pattern.as_deref())?;
@@ -281,7 +287,7 @@ pub fn run_unity(arguments: RunArguments) -> Result<()> {
     cmd.args(arguments.args.unwrap_or_default());
 
     if arguments.dry_run {
-        println!("{}", cmd.to_command_line_string());
+        println!("{}", cmd_to_string(&cmd));
         return Ok(());
     }
 
@@ -290,9 +296,9 @@ pub fn run_unity(arguments: RunArguments) -> Result<()> {
     }
 
     if arguments.wait {
-        cmd.wait_with_stdout()
+        wait_with_stdout(cmd)
     } else {
-        cmd.forget()
+        spawn_and_forget(cmd)
     }
 }
 
@@ -319,7 +325,7 @@ pub fn new_project(arguments: NewArguments) -> Result<()> {
     }
 
     if arguments.dry_run {
-        println!("{}", cmd.to_command_line_string());
+        println!("{}", cmd_to_string(&cmd));
         return Ok(());
     }
 
@@ -340,9 +346,9 @@ pub fn new_project(arguments: NewArguments) -> Result<()> {
     }
 
     if arguments.wait {
-        cmd.wait_with_stdout()?;
+        wait_with_stdout(cmd)?;
     } else {
-        cmd.forget()?;
+        spawn_and_forget(cmd)?;
     }
 
     Ok(())
@@ -364,7 +370,7 @@ pub fn open_project(arguments: OpenArguments) -> Result<()> {
         .args(arguments.args.unwrap_or_default());
 
     if arguments.dry_run {
-        println!("{}", cmd.to_command_line_string());
+        println!("{}", cmd_to_string(&cmd));
         return Ok(());
     }
 
@@ -381,9 +387,9 @@ pub fn open_project(arguments: OpenArguments) -> Result<()> {
     }
 
     if arguments.wait {
-        cmd.wait_with_stdout()?;
+        wait_with_stdout(cmd)?;
     } else {
-        cmd.forget()?;
+        spawn_and_forget(cmd)?;
     }
     Ok(())
 }
@@ -452,7 +458,7 @@ pub fn build_project(arguments: BuildArguments) -> Result<()> {
     cmd.args(arguments.args.as_deref().unwrap_or_default());
 
     if arguments.dry_run {
-        println!("{}", cmd.to_command_line_string());
+        println!("{}", cmd_to_string(&cmd));
         return Ok(());
     }
 
@@ -476,9 +482,9 @@ pub fn build_project(arguments: BuildArguments) -> Result<()> {
         && (arguments.mode == BuildMode::Batch || arguments.mode == BuildMode::BatchNoGraphics);
 
     let build_result = if show_log {
-        cmd.wait_with_log_echo(&log_file)
+        wait_with_log_output(cmd, &log_file)
     } else {
-        cmd.wait_with_stdout()
+        wait_with_stdout(cmd)
     };
 
     remove_build_script()?;
@@ -512,14 +518,7 @@ fn errors_from_log(log_file: &Path) -> Error {
     let errors: IndexSet<_> = BufReader::new(log_file)
         .lines()
         .flatten()
-        .filter(|l| {
-            l.starts_with("[Builder] Error:")
-                || l.contains("error CS")
-                || l.starts_with("Fatal Error")
-                || l.starts_with("Error building Player")
-                || l.starts_with("error:")
-                || l.starts_with("BuildFailedException:")
-        })
+        .filter(|l| is_log_error(l))
         .collect();
 
     match errors.len() {
@@ -533,6 +532,16 @@ fn errors_from_log(log_file: &Path) -> Error {
             anyhow!(joined)
         }
     }
+}
+
+/// Returns true if the given line is an error.
+fn is_log_error(line: &str) -> bool {
+    line.starts_with("[Builder] Error:")
+        || line.contains("error CS")
+        || line.starts_with("Fatal Error")
+        || line.starts_with("Error building Player")
+        || line.starts_with("error:")
+        || line.starts_with("BuildFailedException:")
 }
 
 /// Initializes a new git repository with a default Unity specific .gitignore.
