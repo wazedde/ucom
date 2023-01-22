@@ -33,9 +33,9 @@ fn main() -> Result<()> {
 
     match command {
         Action::List {
+            list_type,
             version_pattern,
-            check_updates,
-        } => list_versions(version_pattern.as_deref(), check_updates)
+        } => list_versions(list_type, version_pattern.as_deref())
             .context("Cannot list installations".red().bold()),
         Action::Info {
             project_dir,

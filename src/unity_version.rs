@@ -1,6 +1,9 @@
 use std::fmt::{Display, Formatter};
 use std::str::{FromStr, Split};
 
+#[derive(Debug)]
+pub struct ParseError;
+
 #[derive(Debug, Eq, PartialEq, Ord, PartialOrd, Copy, Clone)]
 pub enum BuildType {
     Alpha,
@@ -42,11 +45,8 @@ impl Display for BuildType {
     }
 }
 
-#[derive(Debug)]
-pub struct BuildTypeParseError;
-
 impl FromStr for BuildType {
-    type Err = BuildTypeParseError;
+    type Err = ParseError;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s {
@@ -54,7 +54,7 @@ impl FromStr for BuildType {
             "b" => Ok(Self::Beta),
             "rc" => Ok(Self::ReleaseCandidate),
             "f" => Ok(Self::Final),
-            _ => Err(BuildTypeParseError),
+            _ => Err(ParseError),
         }
     }
 }
@@ -74,37 +74,32 @@ pub struct UnityVersion {
     pub build: VersionBuild,
 }
 
-#[derive(Debug)]
-pub struct UnityVersionParseError;
-
 impl FromStr for UnityVersion {
-    type Err = UnityVersionParseError;
+    type Err = ParseError;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         let mut parts = s.split('.');
         let year = parts
             .next()
             .and_then(|s| s.parse().ok())
-            .ok_or(UnityVersionParseError)?;
+            .ok_or(ParseError)?;
         let point = parts
             .next()
             .and_then(|s| s.parse().ok())
-            .ok_or(UnityVersionParseError)?;
+            .ok_or(ParseError)?;
 
-        let build_type = BuildType::find_in(s).ok_or(UnityVersionParseError)?;
+        let build_type = BuildType::find_in(s).ok_or(ParseError)?;
 
-        let mut build_parts: Split<'_, &str> = parts
-            .next()
-            .ok_or(UnityVersionParseError)?
-            .split(build_type.as_str());
+        let mut build_parts: Split<'_, &str> =
+            parts.next().ok_or(ParseError)?.split(build_type.as_str());
         let patch = build_parts
             .next()
             .and_then(|s| s.parse().ok())
-            .ok_or(UnityVersionParseError)?;
+            .ok_or(ParseError)?;
         let build = build_parts
             .next()
             .and_then(|s| s.parse().ok())
-            .ok_or(UnityVersionParseError)?;
+            .ok_or(ParseError)?;
 
         Ok(Self {
             year,

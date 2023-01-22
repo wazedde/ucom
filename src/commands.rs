@@ -19,29 +19,44 @@ use crate::unity_version::UnityVersion;
 const GIT_IGNORE: &str = include_str!("include/unity-gitignore.txt");
 
 /// Lists installed Unity versions.
-pub fn list_versions(partial_version: Option<&str>, check_updates: bool) -> Result<()> {
+pub fn list_versions(list_type: ListType, partial_version: Option<&str>) -> Result<()> {
     let dir = editor_parent_dir()?;
     let matching_versions = matching_versions(available_unity_versions(&dir)?, partial_version)?;
 
-    println!(
-        "{}",
-        format!("Unity versions in `{}`", dir.to_string_lossy()).bold()
-    );
+    match list_type {
+        ListType::Installed => {
+            println!(
+                "{}",
+                format!("Unity versions in `{}`", dir.to_string_lossy()).bold()
+            );
 
-    let available_releases = if check_updates {
-        request_unity_releases()?
-    } else {
-        Vec::new()
-    };
+            print_local_versions(&matching_versions, &Vec::new());
+        }
+        ListType::Updates => {
+            println!(
+                "{}",
+                format!("Updates for Unity versions in `{}`", dir.to_string_lossy()).bold()
+            );
 
-    print_versions(&matching_versions, &available_releases);
+            print_local_versions(&matching_versions, &request_unity_releases()?);
+        }
+        ListType::Latest => {
+            println!("{}", "Latest releases of Unity versions".bold());
+            print_latest_versions(
+                &matching_versions,
+                &request_unity_releases()?,
+                partial_version,
+            );
+        }
+    }
+
     Ok(())
 }
 
-fn print_versions(versions: &[UnityVersion], available_releases: &[ReleaseInfo]) {
-    let default_version = default_unity_version(versions);
+fn print_local_versions(installed: &[UnityVersion], available: &[ReleaseInfo]) {
+    let default_version = default_unity_version(installed);
 
-    let max_len = versions
+    let max_len = installed
         .iter()
         .map(|s| s.to_string().len())
         .max()
@@ -49,15 +64,15 @@ fn print_versions(versions: &[UnityVersion], available_releases: &[ReleaseInfo])
 
     let mut previous_range = (0, 0);
 
-    let mut iter = versions.iter().peekable();
+    let mut iter = installed.iter().peekable();
     while let Some(&version) = iter.next() {
         let mut colorize_line: fn(&str) -> ColoredString = |s: &str| s.into();
         let mut info = String::new();
 
         info.push_str(&format!("{:<max_len$}", version.to_string()));
 
-        if !available_releases.is_empty() {
-            let newer_releases: Vec<_> = available_releases
+        if !available.is_empty() {
+            let newer_releases: Vec<_> = available
                 .iter()
                 .filter(|r| {
                     r.version.year == version.year
@@ -102,6 +117,96 @@ fn print_versions(versions: &[UnityVersion], available_releases: &[ReleaseInfo])
             println!("{marker} {}", colorize_line(&info).bold());
         } else {
             println!("{marker} {}", colorize_line(&info));
+        }
+    }
+}
+
+fn print_latest_versions(
+    installed: &[UnityVersion],
+    available: &[ReleaseInfo],
+    partial_version: Option<&str>,
+) {
+    // Get the latest version of each range.
+    let latest: Vec<_> = {
+        let mut available_ranges: Vec<_> = available
+            .iter()
+            .filter(|r| partial_version.map_or(true, |p| r.version.to_string().starts_with(p)))
+            .map(|r| (r.version.year, r.version.point))
+            .collect();
+
+        available_ranges.sort();
+        available_ranges.dedup();
+
+        available_ranges
+            .iter()
+            .filter_map(|(year, point)| {
+                available
+                    .iter()
+                    .map(|r| r.version)
+                    .filter(|v| v.year == *year && v.point == *point)
+                    .max()
+            })
+            .map(|v| (v, v.to_string()))
+            .collect()
+    };
+
+    let max_len = latest.iter().map(|(_, s)| s.len()).max().unwrap_or(0);
+
+    let mut previous_range = 0;
+    let mut iter = latest.iter().peekable();
+    while let Some((latest_version, latest_string)) = iter.next() {
+        let next_in_same_range = iter
+            .peek()
+            .filter(|(v, _)| v.year == latest_version.year)
+            .is_some();
+        let marker = if latest_version.year == previous_range {
+            if next_in_same_range {
+                "├─"
+            } else {
+                "└─"
+            }
+        } else {
+            previous_range = latest_version.year;
+            if next_in_same_range {
+                "┬─"
+            } else {
+                "──"
+            }
+        };
+        print!("{marker} ");
+
+        // Find all installed versions in the same range as the latest version.
+        let installed_in_range: Vec<_> = installed
+            .iter()
+            .filter(|v| v.year == latest_version.year && v.point == latest_version.point)
+            .copied()
+            .collect();
+
+        // Concatenate the versions for printing.
+        let joined = installed_in_range
+            .iter()
+            .map(ToString::to_string)
+            .collect::<Vec<_>>()
+            .join(", ");
+
+        if installed_in_range.is_empty() {
+            println!("{latest_string}");
+        } else if installed_in_range
+            .last()
+            .filter(|v| *v == latest_version)
+            .is_some()
+        {
+            println!(
+                "{}",
+                format!("{latest_string:<max_len$} - Installed: {joined}",).bold()
+            );
+        } else {
+            println!(
+                "{}",
+                format!("{latest_string:<max_len$} - Installed: {joined} *update available",)
+                    .yellow()
+                    .bold()
+            );
         }
     }
 }

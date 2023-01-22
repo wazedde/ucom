@@ -25,14 +25,14 @@ pub enum Action {
     /// Shows a list of the installed Unity versions.
     #[command(visible_alias = "l")]
     List {
+        /// What to list.
+        #[arg(value_enum, default_value = "installed")]
+        list_type: ListType,
+
         /// The Unity versions to list. You can specify a partial version; e.g. 2021 will list all
         /// the 2021.x.y versions you have installed on your system.
         #[arg(short = 'u', long = "unity", value_name = "VERSION")]
         version_pattern: Option<String>,
-
-        /// Checks online if there are newer versions available.
-        #[clap(short = 'c', long)]
-        check_updates: bool,
     },
 
     /// Shows project information.
@@ -230,6 +230,16 @@ pub struct BuildArguments {
     /// A list of arguments passed directly to Unity.
     #[arg(last = true, value_name = "UNITY_ARGS")]
     pub args: Option<Vec<String>>,
+}
+
+#[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, ValueEnum)]
+pub enum ListType {
+    /// List installed Unity versions.
+    Installed,
+    /// List installed Unity versions and checks for updates online.
+    Updates,
+    /// Check for the latest Unity versions online.
+    Latest,
 }
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, ValueEnum)]
