@@ -54,9 +54,9 @@ pub enum Action {
         #[arg(value_name = "DIRECTORY", value_hint = clap::ValueHint::DirPath, default_value = ".")]
         project_dir: PathBuf,
 
-        /// Creates a report of the releases that are available in markdown format.
-        #[clap(short = 'r', long)]
-        create_report: bool,
+        /// Creates a Markdown report of the releases that are available.
+        #[clap(short = 'r', long, value_name = "FILE.md", value_hint = clap::ValueHint::FilePath)]
+        create_report: Option<PathBuf>,
     },
 
     /// Creates a new Unity project and Git repository (uses latest installed version by default)

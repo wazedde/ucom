@@ -72,10 +72,7 @@ fn inject_build_script<P: AsRef<Path>>(parent_dir: P) -> Result<()> {
     fs::create_dir_all(&inject_dir)?;
 
     let file_path = inject_dir.join(BUILD_SCRIPT_NAME);
-    println!(
-        "Injecting ucom build script `{}`",
-        file_path.to_string_lossy()
-    );
+    println!("Injecting ucom build script `{}`", file_path.display());
 
     let mut file = File::create(file_path)?;
     write!(file, "{}", content()).map_err(Into::into)
@@ -89,14 +86,14 @@ fn remove_build_script<P: AsRef<Path>>(parent_dir: P) -> Result<()> {
 
     println!(
         "Removing injected ucom build script in directory `{}`",
-        parent_dir.as_ref().to_string_lossy()
+        parent_dir.as_ref().display()
     );
 
     // Remove the directory where the build script is located.
     fs::remove_dir_all(&parent_dir).map_err(|_| {
         anyhow!(
             "Could not remove directory `{}`",
-            parent_dir.as_ref().to_string_lossy()
+            parent_dir.as_ref().display()
         )
     })?;
 
@@ -106,6 +103,5 @@ fn remove_build_script<P: AsRef<Path>>(parent_dir: P) -> Result<()> {
         return Ok(());
     }
 
-    fs::remove_file(&meta_file)
-        .map_err(|_| anyhow!("Could not remove `{}`", meta_file.to_string_lossy()))
+    fs::remove_file(&meta_file).map_err(|_| anyhow!("Could not remove `{}`", meta_file.display()))
 }

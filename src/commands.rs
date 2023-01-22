@@ -1,3 +1,4 @@
+use std::ffi::OsStr;
 use std::fs::File;
 use std::io::{BufRead, BufReader, Write};
 use std::path::Path;
@@ -28,7 +29,7 @@ pub fn list_versions(list_type: ListType, partial_version: Option<&str>) -> Resu
         ListType::Installed => {
             println!(
                 "{}",
-                format!("Unity versions in `{}`", dir.to_string_lossy()).bold()
+                format!("Unity versions in `{}`", dir.display()).bold()
             );
 
             print_local_versions(&matching_versions, &Vec::new());
@@ -36,7 +37,7 @@ pub fn list_versions(list_type: ListType, partial_version: Option<&str>) -> Resu
         ListType::Updates => {
             println!(
                 "{}",
-                format!("Updates for Unity versions in `{}`", dir.to_string_lossy()).bold()
+                format!("Updates for Unity versions in `{}`", dir.display()).bold()
             );
             let spinner = Spinner::new(Spinners::Dots, "Downloading release data...", Color::White);
             let releases = request_unity_releases()?;
@@ -231,7 +232,7 @@ pub fn show_project_info(project_dir: &Path, packages_level: PackagesInfoLevel) 
 
     println!(
         "{}",
-        format!("Project info for `{}`", project_dir.to_string_lossy()).bold()
+        format!("Project info for `{}`", project_dir.display()).bold()
     );
 
     if let Ok(settings) = ProjectSettings::from_project(&project_dir) {
@@ -255,77 +256,117 @@ pub fn show_project_info(project_dir: &Path, packages_level: PackagesInfoLevel) 
 }
 
 /// Checks on the Unity website for updates to the version used by the project.
-pub fn check_unity_updates(project_dir: &Path, create_report: bool) -> Result<()> {
+pub fn check_unity_updates(project_dir: &Path, report_path: Option<&Path>) -> Result<()> {
     let project_dir = validate_project_path(&project_dir)?;
+
+    if let Some(path) = report_path {
+        if path.is_dir() {
+            return Err(anyhow!(
+                "The report file name provided is a directory: {}",
+                path.display()
+            ));
+        }
+        if path
+            .extension()
+            .filter(|e| e == &OsStr::new("md"))
+            .is_none()
+        {
+            return Err(anyhow!(
+                "Make sure the report file name has the `md` extension: {}",
+                path.display()
+            ));
+        }
+    }
+
     let mut spinner = Spinner::new(
         Spinners::Dots,
         format!(
             "Checking Unity updates for project in: {}",
-            project_dir.to_string_lossy()
+            project_dir.display()
         ),
         Color::White,
     );
 
     let version = version_used_by_project(&project_dir)?;
+    let mut buf = Vec::new();
 
-    let mut w = Vec::new();
-
-    if create_report {
-        write!(w, "# ")?;
+    if report_path.is_some() {
+        write!(buf, "# ")?;
     }
+
+    let style_plain: fn(&str) -> ColoredString = |s: &str| s.into();
+    let style_white: fn(&str) -> ColoredString = |s: &str| s.bold();
+    let style_red: fn(&str) -> ColoredString = |s: &str| s.red().bold();
+    let style_yellow: fn(&str) -> ColoredString = |s: &str| s.yellow().bold();
+
+    let mut style = style_plain;
 
     let product_name = ProjectSettings::from_project(&project_dir).map_or_else(
         |_| "<UNKNOWN>".to_string(),
         |s| s.player_settings.product_name,
     );
 
-    writeln!(w, "{}", format!("Unity updates for {product_name}").bold())?;
+    if report_path.is_none() {
+        style = style_white;
+    }
+    writeln!(
+        buf,
+        "{}",
+        style(&format!("Unity updates for {product_name}"))
+    )?;
 
-    if create_report {
-        writeln!(w)?;
+    if report_path.is_some() {
+        writeln!(buf)?;
     }
 
     writeln!(
-        w,
+        buf,
         "    Directory:            {}",
-        project_dir.to_string_lossy().bold()
+        style(&project_dir.to_string_lossy())
     )?;
 
     write!(
-        w,
+        buf,
         "    Project uses version: {}",
-        version.to_string().bold()
+        style(&version.to_string())
     )?;
+
+    if report_path.is_none() {
+        style = style_red;
+    }
+
     if is_editor_installed(version)? {
-        writeln!(w)?;
+        writeln!(buf)?;
     } else {
-        writeln!(w, " {}", "*not installed".red().bold())?;
+        writeln!(buf, " {}", style("*not installed"))?;
     }
 
     let releases = request_updates_for(version)?;
     if releases.is_empty() {
         writeln!(
-            w,
+            buf,
             "    Already uses the latest release in the {}.{}.x range",
             version.year, version.point
         )?;
         spinner.clear();
-        print!("{}", String::from_utf8(w)?);
+        print!("{}", String::from_utf8(buf)?);
         return Ok(());
     }
 
-    {
-        let latest = releases.last().unwrap();
-        writeln!(
-            w,
-            "    Update available:     {}",
-            latest.version.to_string().yellow().bold()
-        )?;
+    if report_path.is_none() {
+        style = style_yellow;
     }
 
-    if !create_report {
+    let latest = releases.last().unwrap();
+    writeln!(
+        buf,
+        "    Update available:     {}",
+        style(&latest.version.to_string())
+    )?;
+
+    if report_path.is_none() {
         spinner.clear();
-        print!("{}", String::from_utf8(w)?);
+        print!("{}", String::from_utf8(buf)?);
         return Ok(());
     }
 
@@ -342,25 +383,32 @@ pub fn check_unity_updates(project_dir: &Path, create_report: bool) -> Result<()
             continue;
         }
 
-        writeln!(w)?;
-        writeln!(
-            w,
-            "{}",
-            format!("## Release notes for [{}]({url})", release.version).bold()
-        )?;
+        writeln!(buf)?;
+        writeln!(buf, "## Release notes for [{}]({url})", release.version)?;
 
         for (header, entries) in release_notes {
-            writeln!(w)?;
-            writeln!(w, "### {}", header.bold())?;
-            writeln!(w)?;
+            writeln!(buf)?;
+            writeln!(buf, "### {}", header)?;
+            writeln!(buf)?;
             for e in &entries {
-                writeln!(w, "- {e}")?;
+                writeln!(buf, "- {e}")?;
             }
         }
     }
-
     spinner.clear();
-    print!("{}", String::from_utf8(w)?);
+
+    match report_path {
+        None => {
+            print!("{}", String::from_utf8(buf)?)
+        }
+        Some(file_name) => {
+            fs::write(file_name, String::from_utf8(buf)?)?;
+            println!(
+                "Update report written written to: {}",
+                file_name.absolutize()?.display()
+            )
+        }
+    };
     Ok(())
 }
 
@@ -446,7 +494,7 @@ pub fn new_project(arguments: NewArguments) -> Result<()> {
     if project_dir.exists() {
         return Err(anyhow!(
             "Directory already exists: `{}`",
-            project_dir.absolutize()?.to_string_lossy()
+            project_dir.absolutize()?.display()
         ));
     }
 
@@ -472,7 +520,7 @@ pub fn new_project(arguments: NewArguments) -> Result<()> {
             format!(
                 "Create new Unity {} project in `{}`",
                 version,
-                project_dir.to_string_lossy()
+                project_dir.display()
             )
             .bold()
         );
@@ -517,7 +565,7 @@ pub fn open_project(arguments: OpenArguments) -> Result<()> {
             format!(
                 "Open Unity {} project in `{}`",
                 version,
-                project_dir.to_string_lossy()
+                project_dir.display()
             )
             .bold()
         );
@@ -546,12 +594,12 @@ pub fn build_project(arguments: BuildArguments) -> Result<()> {
     if project_dir == output_dir {
         return Err(anyhow!(
             "Output directory cannot be the same as the project directory: `{}`",
-            project_dir.to_string_lossy()
+            project_dir.display()
         ));
     }
 
     let Some(log_file) = arguments.log_file.file_name() else {
-        return Err(anyhow!("Invalid log file name: `{}`", arguments.log_file.to_string_lossy()));
+        return Err(anyhow!("Invalid log file name: `{}`", arguments.log_file.display()));
     };
 
     let log_file = if log_file == arguments.log_file {
@@ -605,7 +653,7 @@ pub fn build_project(arguments: BuildArguments) -> Result<()> {
             "Building Unity {} {} project in `{}`",
             version,
             arguments.target,
-            project_dir.to_string_lossy()
+            project_dir.display()
         )
         .bold()
     );
@@ -649,7 +697,7 @@ pub fn build_project(arguments: BuildArguments) -> Result<()> {
 /// Returns errors from the given log file as one collected Err.
 fn errors_from_log(log_file: &Path) -> Error {
     let Ok(log_file) = File::open(log_file) else {
-        return anyhow!("Failed to open log file: `{}`", log_file.to_string_lossy());
+        return anyhow!("Failed to open log file: `{}`", log_file.display());
     };
 
     let errors: IndexSet<_> = BufReader::new(log_file)

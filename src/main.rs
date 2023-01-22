@@ -37,23 +37,29 @@ fn main() -> Result<()> {
             version_pattern,
         } => list_versions(list_type, version_pattern.as_deref())
             .context("Cannot list installations".red().bold()),
+
         Action::Info {
             project_dir,
             packages,
         } => show_project_info(&project_dir, packages)
             .context("Cannot show project info".red().bold()),
+
         Action::UpdateCheck {
             project_dir,
-            create_report: collect,
-        } => check_unity_updates(&project_dir, collect)
+            create_report: report_path,
+        } => check_unity_updates(&project_dir, report_path.as_deref())
             .context("Cannot show Unity updates for project".red().bold()),
+
         Action::Run(settings) => run_unity(settings).context("Cannot run Unity".red().bold()),
+
         Action::New(settings) => {
             new_project(settings).context("Cannot create new Unity project".red().bold())
         }
+
         Action::Open(settings) => {
             open_project(settings).context("Cannot open Unity project".red().bold())
         }
+
         Action::Build(settings) => {
             build_project(settings).context("Cannot build project".red().bold())
         }

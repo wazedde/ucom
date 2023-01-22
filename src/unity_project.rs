@@ -195,14 +195,14 @@ pub fn validate_project_path<P: AsRef<Path>>(project_dir: &P) -> Result<Cow<'_, 
     if !path.exists() {
         return Err(anyhow!(
             "Directory does not exists: `{}`",
-            path.to_string_lossy()
+            path.display()
         ));
     }
 
     if !path.is_dir() {
         return Err(anyhow!(
             "Path is not a directory: `{}`",
-            path.to_string_lossy()
+            path.display()
         ));
     }
 
