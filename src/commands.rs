@@ -137,7 +137,7 @@ fn print_latest_versions(
             .map(|r| (r.version.year, r.version.point))
             .collect();
 
-        available_ranges.sort();
+        available_ranges.sort_unstable();
         available_ranges.dedup();
 
         available_ranges
@@ -257,6 +257,7 @@ pub fn show_project_info(project_dir: &Path, packages_level: PackagesInfoLevel) 
 
 /// Checks on the Unity website for updates to the version used by the project.
 pub fn check_unity_updates(project_dir: &Path, report_path: Option<&Path>) -> Result<()> {
+    // TODO: This function is too long and messy, split it up.
     let project_dir = validate_project_path(&project_dir)?;
 
     if let Some(path) = report_path {
@@ -266,6 +267,7 @@ pub fn check_unity_updates(project_dir: &Path, report_path: Option<&Path>) -> Re
                 path.display()
             ));
         }
+
         if path
             .extension()
             .filter(|e| e == &OsStr::new("md"))
@@ -388,7 +390,7 @@ pub fn check_unity_updates(project_dir: &Path, report_path: Option<&Path>) -> Re
 
         for (header, entries) in release_notes {
             writeln!(buf)?;
-            writeln!(buf, "### {}", header)?;
+            writeln!(buf, "### {header}")?;
             writeln!(buf)?;
             for e in &entries {
                 writeln!(buf, "- {e}")?;
@@ -399,14 +401,14 @@ pub fn check_unity_updates(project_dir: &Path, report_path: Option<&Path>) -> Re
 
     match report_path {
         None => {
-            print!("{}", String::from_utf8(buf)?)
+            print!("{}", String::from_utf8(buf)?);
         }
         Some(file_name) => {
             fs::write(file_name, String::from_utf8(buf)?)?;
             println!(
                 "Update report written written to: {}",
                 file_name.absolutize()?.display()
-            )
+            );
         }
     };
     Ok(())
