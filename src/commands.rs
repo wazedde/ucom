@@ -40,14 +40,14 @@ pub fn list_versions(list_type: ListType, partial_version: Option<&str>) -> Resu
             );
             let spinner = Spinner::new(Spinners::Dots, "Downloading release data...", Color::White);
             let releases = request_unity_releases()?;
-            spinner.stop();
+            spinner.clear();
             print_local_versions(&matching_versions, &releases);
         }
         ListType::Latest => {
             println!("{}", "Latest releases of Unity versions".bold());
             let spinner = Spinner::new(Spinners::Dots, "Downloading release data...", Color::White);
             let releases = request_unity_releases()?;
-            spinner.stop();
+            spinner.clear();
             print_latest_versions(&matching_versions, &releases, partial_version);
         }
     }
