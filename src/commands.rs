@@ -261,23 +261,7 @@ pub fn check_unity_updates(project_dir: &Path, report_path: Option<&Path>) -> Re
     let project_dir = validate_project_path(&project_dir)?;
 
     if let Some(path) = report_path {
-        if path.is_dir() {
-            return Err(anyhow!(
-                "The report file name provided is a directory: {}",
-                path.display()
-            ));
-        }
-
-        if path
-            .extension()
-            .filter(|e| e == &OsStr::new("md"))
-            .is_none()
-        {
-            return Err(anyhow!(
-                "Make sure the report file name has the `md` extension: {}",
-                path.display()
-            ));
-        }
+        validate_report_path(path)?;
     }
 
     let mut spinner = Spinner::new(
@@ -296,25 +280,18 @@ pub fn check_unity_updates(project_dir: &Path, report_path: Option<&Path>) -> Re
         write!(buf, "# ")?;
     }
 
-    let style_plain: fn(&str) -> ColoredString = |s: &str| s.into();
-    let style_white: fn(&str) -> ColoredString = |s: &str| s.bold();
-    let style_red: fn(&str) -> ColoredString = |s: &str| s.red().bold();
-    let style_yellow: fn(&str) -> ColoredString = |s: &str| s.yellow().bold();
-
-    let mut style = style_plain;
-
     let product_name = ProjectSettings::from_project(&project_dir).map_or_else(
         |_| "<UNKNOWN>".to_string(),
         |s| s.player_settings.product_name,
     );
 
-    if report_path.is_none() {
-        style = style_white;
-    }
     writeln!(
         buf,
         "{}",
-        style(&format!("Unity updates for {product_name}"))
+        style_white(
+            &format!("Unity updates for {product_name}"),
+            report_path.is_none()
+        )
     )?;
 
     if report_path.is_some() {
@@ -324,23 +301,23 @@ pub fn check_unity_updates(project_dir: &Path, report_path: Option<&Path>) -> Re
     writeln!(
         buf,
         "    Directory:            {}",
-        style(&project_dir.to_string_lossy())
+        style_white(&project_dir.to_string_lossy(), report_path.is_none())
     )?;
 
     write!(
         buf,
         "    Project uses version: {}",
-        style(&version.to_string())
+        style_white(&version.to_string(), report_path.is_none())
     )?;
-
-    if report_path.is_none() {
-        style = style_red;
-    }
 
     if is_editor_installed(version)? {
         writeln!(buf)?;
     } else {
-        writeln!(buf, " {}", style("*not installed"))?;
+        writeln!(
+            buf,
+            " {}",
+            style_red("*not installed", report_path.is_none())
+        )?;
     }
 
     let releases = request_updates_for(version)?;
@@ -355,15 +332,11 @@ pub fn check_unity_updates(project_dir: &Path, report_path: Option<&Path>) -> Re
         return Ok(());
     }
 
-    if report_path.is_none() {
-        style = style_yellow;
-    }
-
     let latest = releases.last().unwrap();
     writeln!(
         buf,
         "    Update available:     {}",
-        style(&latest.version.to_string())
+        style_yellow(&latest.version.to_string(), report_path.is_none())
     )?;
 
     if report_path.is_none() {
@@ -377,25 +350,8 @@ pub fn check_unity_updates(project_dir: &Path, report_path: Option<&Path>) -> Re
             "Downloading release notes for Unity {}",
             release.version
         ));
-        let url = release_notes_url(release.version);
-        let body = ureq::get(&url).call()?.into_string()?;
 
-        let release_notes = collect_release_notes(&body);
-        if release_notes.is_empty() {
-            continue;
-        }
-
-        writeln!(buf)?;
-        writeln!(buf, "## Release notes for [{}]({url})", release.version)?;
-
-        for (header, entries) in release_notes {
-            writeln!(buf)?;
-            writeln!(buf, "### {header}")?;
-            writeln!(buf)?;
-            for e in &entries {
-                writeln!(buf, "- {e}")?;
-            }
-        }
+        fetch_release_notes(&mut buf, &release)?;
     }
     spinner.clear();
 
@@ -406,11 +362,80 @@ pub fn check_unity_updates(project_dir: &Path, report_path: Option<&Path>) -> Re
         Some(file_name) => {
             fs::write(file_name, String::from_utf8(buf)?)?;
             println!(
-                "Update report written written to: {}",
+                "Update report written to: {}",
                 file_name.absolutize()?.display()
             );
         }
     };
+    Ok(())
+}
+
+fn validate_report_path(path: &Path) -> Result<()> {
+    if path.is_dir() {
+        return Err(anyhow!(
+            "The report file name provided is a directory: {}",
+            path.display()
+        ));
+    }
+
+    if path
+        .extension()
+        .filter(|e| e == &OsStr::new("md"))
+        .is_none()
+    {
+        return Err(anyhow!(
+            "Make sure the report file name has the `md` extension: {}",
+            path.display()
+        ));
+    }
+
+    Ok(())
+}
+
+fn style_white(s: &str, apply: bool) -> ColoredString {
+    if apply {
+        s.bold()
+    } else {
+        s.into()
+    }
+}
+
+fn style_red(s: &str, apply: bool) -> ColoredString {
+    if apply {
+        s.red().bold()
+    } else {
+        s.into()
+    }
+}
+
+fn style_yellow(s: &str, apply: bool) -> ColoredString {
+    if apply {
+        s.yellow().bold()
+    } else {
+        s.into()
+    }
+}
+
+fn fetch_release_notes(buf: &mut Vec<u8>, release: &ReleaseInfo) -> Result<()> {
+    let url = release_notes_url(release.version);
+    let body = ureq::get(&url).call()?.into_string()?;
+
+    let release_notes = collect_release_notes(&body);
+    if release_notes.is_empty() {
+        return Ok(());
+    }
+
+    writeln!(buf)?;
+    writeln!(buf, "## Release notes for [{}]({url})", release.version)?;
+
+    for (header, entries) in release_notes {
+        writeln!(buf)?;
+        writeln!(buf, "### {header}")?;
+        writeln!(buf)?;
+        for e in &entries {
+            writeln!(buf, "- {e}")?;
+        }
+    }
     Ok(())
 }
 
