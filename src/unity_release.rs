@@ -50,7 +50,6 @@ impl ReleaseFilter {
 pub fn request_unity_releases() -> Result<Vec<ReleaseInfo>> {
     let url = "https://unity.com/releases/editor/archive";
     let body = ureq::get(url).call()?.into_string()?;
-
     let releases = find_releases(&body, &ReleaseFilter::All);
     Ok(releases)
 }
@@ -70,7 +69,6 @@ pub fn request_updates_for(version: UnityVersion) -> Result<Vec<ReleaseInfo>> {
     .into_iter()
     .filter(|ri| ri.version > version)
     .collect();
-
     Ok(releases)
 }
 

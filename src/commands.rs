@@ -8,6 +8,7 @@ use anyhow::{anyhow, Error, Result};
 use colored::{ColoredString, Colorize};
 use indexmap::IndexSet;
 use path_absolutize::Absolutize;
+use spinoff::{Color, Spinner, Spinners};
 
 use crate::build_script;
 use crate::cli::*;
@@ -37,16 +38,17 @@ pub fn list_versions(list_type: ListType, partial_version: Option<&str>) -> Resu
                 "{}",
                 format!("Updates for Unity versions in `{}`", dir.to_string_lossy()).bold()
             );
-
-            print_local_versions(&matching_versions, &request_unity_releases()?);
+            let spinner = Spinner::new(Spinners::Dots, "Downloading release data...", Color::White);
+            let releases = request_unity_releases()?;
+            spinner.stop();
+            print_local_versions(&matching_versions, &releases);
         }
         ListType::Latest => {
             println!("{}", "Latest releases of Unity versions".bold());
-            print_latest_versions(
-                &matching_versions,
-                &request_unity_releases()?,
-                partial_version,
-            );
+            let spinner = Spinner::new(Spinners::Dots, "Downloading release data...", Color::White);
+            let releases = request_unity_releases()?;
+            spinner.stop();
+            print_latest_versions(&matching_versions, &releases, partial_version);
         }
     }
 
@@ -255,10 +257,21 @@ pub fn show_project_info(project_dir: &Path, packages_level: PackagesInfoLevel) 
 /// Checks on the Unity website for updates to the version used by the project.
 pub fn check_unity_updates(project_dir: &Path, create_report: bool) -> Result<()> {
     let project_dir = validate_project_path(&project_dir)?;
+    let spinner = Spinner::new(
+        Spinners::Dots,
+        format!(
+            "Checking Unity updates for project in: {}",
+            project_dir.to_string_lossy()
+        ),
+        Color::White,
+    );
+
     let version = version_used_by_project(&project_dir)?;
 
+    let mut w = Vec::new();
+
     if create_report {
-        print!("# ");
+        write!(w, "# ")?;
     }
 
     let product_name = ProjectSettings::from_project(&project_dir).map_or_else(
@@ -266,42 +279,53 @@ pub fn check_unity_updates(project_dir: &Path, create_report: bool) -> Result<()
         |s| s.player_settings.product_name,
     );
 
-    println!("{}", format!("Unity updates for {product_name}").bold());
+    writeln!(w, "{}", format!("Unity updates for {product_name}").bold())?;
 
     if create_report {
-        println!();
+        writeln!(w)?;
     }
 
-    println!(
+    writeln!(
+        w,
         "    Directory:            {}",
         project_dir.to_string_lossy().bold()
-    );
+    )?;
 
-    print!("    Project uses version: {}", version.to_string().bold());
+    write!(
+        w,
+        "    Project uses version: {}",
+        version.to_string().bold()
+    )?;
     if is_editor_installed(version)? {
-        println!();
+        writeln!(w)?;
     } else {
-        println!(" {}", "*not installed".red().bold());
+        writeln!(w, " {}", "*not installed".red().bold())?;
     }
 
     let releases = request_updates_for(version)?;
     if releases.is_empty() {
-        println!(
+        writeln!(
+            w,
             "    Already uses the latest release in the {}.{}.x range",
             version.year, version.point
-        );
+        )?;
+        spinner.clear();
+        print!("{}", String::from_utf8(w)?);
         return Ok(());
     }
 
     {
         let latest = releases.last().unwrap();
-        println!(
+        writeln!(
+            w,
             "    Update available:     {}",
             latest.version.to_string().yellow().bold()
-        );
+        )?;
     }
 
     if !create_report {
+        spinner.clear();
+        print!("{}", String::from_utf8(w)?);
         return Ok(());
     }
 
@@ -314,22 +338,25 @@ pub fn check_unity_updates(project_dir: &Path, create_report: bool) -> Result<()
             continue;
         }
 
-        println!();
-        println!(
+        writeln!(w)?;
+        writeln!(
+            w,
             "{}",
             format!("## Release notes for [{}]({url})", release.version).bold()
-        );
+        )?;
 
         for (header, entries) in release_notes {
-            println!();
-            println!("### {}", header.bold());
-            println!();
+            writeln!(w)?;
+            writeln!(w, "### {}", header.bold())?;
+            writeln!(w)?;
             for e in &entries {
-                println!("- {e}");
+                writeln!(w, "- {e}")?;
             }
         }
     }
 
+    spinner.clear();
+    print!("{}", String::from_utf8(w)?);
     Ok(())
 }
 
