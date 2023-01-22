@@ -257,7 +257,7 @@ pub fn show_project_info(project_dir: &Path, packages_level: PackagesInfoLevel) 
 /// Checks on the Unity website for updates to the version used by the project.
 pub fn check_unity_updates(project_dir: &Path, create_report: bool) -> Result<()> {
     let project_dir = validate_project_path(&project_dir)?;
-    let spinner = Spinner::new(
+    let mut spinner = Spinner::new(
         Spinners::Dots,
         format!(
             "Checking Unity updates for project in: {}",
@@ -330,6 +330,10 @@ pub fn check_unity_updates(project_dir: &Path, create_report: bool) -> Result<()
     }
 
     for release in releases {
+        spinner.update_text(format!(
+            "Downloading release notes for Unity {}",
+            release.version
+        ));
         let url = release_notes_url(release.version);
         let body = ureq::get(&url).call()?.into_string()?;
 
