@@ -49,7 +49,7 @@ pub fn wait_with_log_output(mut cmd: Command, log_file: &Path) -> Result<()> {
     let echo_closure = {
         let build_finished = build_finished.clone();
         let log_file = log_file.to_owned();
-        move || echo_log_file(&log_file, Duration::from_millis(100), build_finished)
+        move || echo_log_file(&log_file, Duration::from_millis(100), &build_finished)
     };
 
     let echo_runner = thread::spawn(echo_closure);
@@ -103,7 +103,7 @@ pub fn wait_with_stdout(mut cmd: Command) -> Result<()> {
 }
 
 /// Continuously reads the log file and prints it to the console.
-fn echo_log_file(log_file: &Path, update_interval: Duration, stop_logging: Arc<AtomicBool>) {
+fn echo_log_file(log_file: &Path, update_interval: Duration, stop_logging: &Arc<AtomicBool>) {
     // Wait until file exists.
     while !log_file.exists() {
         if stop_logging.load(Ordering::SeqCst) {

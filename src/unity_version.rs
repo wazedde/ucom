@@ -93,7 +93,7 @@ impl FromStr for UnityVersion {
 
         let build_type = BuildType::find_in(s).ok_or(UnityVersionParseError)?;
 
-        let mut build_parts: Split<&str> = parts
+        let mut build_parts: Split<'_, &str> = parts
             .next()
             .ok_or(UnityVersionParseError)?
             .split(build_type.as_str());

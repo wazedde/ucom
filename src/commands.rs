@@ -156,11 +156,12 @@ pub fn check_unity_updates(project_dir: &Path, create_report: bool) -> Result<()
         print!("# ");
     }
 
-    let product_name = ProjectSettings::from_project(&project_dir)
-        .map(|s| s.player_settings.product_name)
-        .unwrap_or_else(|_| "<UNKNOWN>".to_string());
+    let product_name = ProjectSettings::from_project(&project_dir).map_or_else(
+        |_| "<UNKNOWN>".to_string(),
+        |s| s.player_settings.product_name,
+    );
 
-    println!("{}", format!("Unity updates for {}", product_name).bold());
+    println!("{}", format!("Unity updates for {product_name}").bold());
 
     if create_report {
         println!();
@@ -258,7 +259,7 @@ fn show_project_packages(project_dir: &Path, package_level: PackagesInfoLevel) {
 }
 
 impl PackagesInfoLevel {
-    fn eval(&self, package: &PackageInfo) -> bool {
+    fn eval(self, package: &PackageInfo) -> bool {
         match self {
             PackagesInfoLevel::None => false,
             PackagesInfoLevel::NonUnity => {

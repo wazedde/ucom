@@ -37,7 +37,7 @@ pub enum ReleaseFilter {
 }
 
 impl ReleaseFilter {
-    fn eval(&self, v: &UnityVersion) -> bool {
+    fn eval(&self, v: UnityVersion) -> bool {
         match self {
             ReleaseFilter::All => true,
             ReleaseFilter::Year { year } => v.year == *year,
@@ -76,7 +76,7 @@ pub fn request_updates_for(version: UnityVersion) -> Result<Vec<ReleaseInfo>> {
 
 /// Finds releases in the html that match the filter.
 fn find_releases(html: &str, filter: &ReleaseFilter) -> Vec<ReleaseInfo> {
-    let year_class: Cow<str> = match filter {
+    let year_class: Cow<'_, str> = match filter {
         ReleaseFilter::All => "release-tab-content".into(),
         ReleaseFilter::Year { year } | ReleaseFilter::Point { year, .. } => year.to_string().into(),
     };
@@ -100,7 +100,7 @@ fn find_releases(html: &str, filter: &ReleaseFilter) -> Vec<ReleaseInfo> {
         })
         .filter_map(|(date_header, url)| {
             version_from_url(url)
-                .filter(|v| filter.eval(v))
+                .filter(|v| filter.eval(*v))
                 .map(|version| ReleaseInfo::new(version, date_header, url.to_owned()))
         })
         .collect();

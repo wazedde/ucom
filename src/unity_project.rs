@@ -183,7 +183,7 @@ pub fn available_unity_versions<P: AsRef<Path>>(install_dir: &P) -> Result<Vec<U
 }
 
 /// Returns validated absolute path to the project directory.
-pub fn validate_project_path<P: AsRef<Path>>(project_dir: &P) -> Result<Cow<Path>> {
+pub fn validate_project_path<P: AsRef<Path>>(project_dir: &P) -> Result<Cow<'_, Path>> {
     let path = project_dir.as_ref();
     if cfg!(target_os = "windows") && path.starts_with("~") {
         return Err(anyhow!(

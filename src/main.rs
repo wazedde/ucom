@@ -1,3 +1,5 @@
+#![warn(rust_2018_idioms, clippy::trivially_copy_pass_by_ref)]
+
 use std::process::exit;
 
 use anyhow::{Context, Result};
