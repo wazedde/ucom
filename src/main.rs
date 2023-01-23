@@ -7,7 +7,7 @@ use clap::CommandFactory;
 use clap::Parser;
 use colored::Colorize;
 
-use crate::cli::*;
+use crate::cli::{Action, Cli};
 use crate::commands::*;
 
 mod build_script;

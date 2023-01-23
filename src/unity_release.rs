@@ -15,7 +15,7 @@ pub struct ReleaseInfo {
 }
 
 impl ReleaseInfo {
-    fn new(version: UnityVersion, date_header: String, installation_url: String) -> Self {
+    const fn new(version: UnityVersion, date_header: String, installation_url: String) -> Self {
         Self {
             version,
             date_header,
@@ -37,11 +37,11 @@ pub enum ReleaseFilter {
 }
 
 impl ReleaseFilter {
-    fn eval(&self, v: UnityVersion) -> bool {
+    const fn eval(&self, v: UnityVersion) -> bool {
         match self {
-            ReleaseFilter::All => true,
-            ReleaseFilter::Year { year } => v.year == *year,
-            ReleaseFilter::Point { year, point } => v.year == *year && v.point == *point,
+            Self::All => true,
+            Self::Year { year } => v.year == *year,
+            Self::Point { year, point } => v.year == *year && v.point == *point,
         }
     }
 }
@@ -98,12 +98,12 @@ fn find_releases(html: &str, filter: &ReleaseFilter) -> Vec<ReleaseInfo> {
         })
         .filter_map(|(date_header, url)| {
             version_from_url(url)
-                .filter(|v| filter.eval(*v))
+                .filter(|&v| filter.eval(v))
                 .map(|version| ReleaseInfo::new(version, date_header, url.to_owned()))
         })
         .collect();
 
-    versions.sort();
+    versions.sort_unstable();
     versions
 }
 
@@ -128,8 +128,7 @@ pub fn collect_release_notes(html: &str) -> IndexMap<String, Vec<String>> {
     if let Some(node) = document.find(Class("release-notes")).next() {
         let mut topic_header = "General".to_string();
         node.children().for_each(|n| match n.name() {
-            Some("h3") => topic_header = n.text(),
-            Some("h4") => topic_header = n.text(),
+            Some("h3" | "h4") => topic_header = n.text(),
             Some("ul") => {
                 if !release_notes.contains_key(&topic_header) {
                     release_notes.insert(topic_header.clone(), Vec::new());
@@ -142,7 +141,7 @@ pub fn collect_release_notes(html: &str) -> IndexMap<String, Vec<String>> {
                     }
                 });
             }
-            _ => {}
+            _ => (),
         });
     }
 

@@ -6,7 +6,7 @@ use std::path::Path;
 use anyhow::{anyhow, Result};
 use uuid::Uuid;
 
-use crate::cli::*;
+use crate::cli::InjectAction;
 
 const BUILD_SCRIPT_NAME: &str = "UcomBuilder.cs";
 const PERSISTENT_BUILD_SCRIPT_PATH: &str = "Assets/Plugins/ucom/Editor/UcomBuilder.cs";

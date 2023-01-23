@@ -44,7 +44,7 @@ pub fn version_used_by_project<P: AsRef<Path>>(project_dir: &P) -> Result<UnityV
     if !version_file.exists() {
         return Err(anyhow!(
             "Could not find Unity project in `{}`",
-            project_dir.as_ref().to_string_lossy()
+            project_dir.as_ref().display()
         ));
     }
 
@@ -69,7 +69,7 @@ pub fn version_used_by_project<P: AsRef<Path>>(project_dir: &P) -> Result<UnityV
         .ok_or_else(|| {
             anyhow!(
                 "Could not get project version from `{}`",
-                version_file.to_string_lossy()
+                version_file.display()
             )
         })
 }
@@ -80,7 +80,7 @@ pub fn editor_parent_dir<'a>() -> Result<Cow<'a, Path>> {
         || {
             let path = Path::new(UNITY_EDITOR_DIR);
             path.exists().then(|| path.into()).ok_or_else(|| {
-                let path = path.to_string_lossy();
+                let path = path.display();
                 anyhow!(
                     "Set `{ENV_EDITOR_DIR}` to the editor directory, the default directory does not exist: `{path}`"
                 )
@@ -91,7 +91,7 @@ pub fn editor_parent_dir<'a>() -> Result<Cow<'a, Path>> {
             (path.exists() && path.is_dir())
                 .then(|| path.to_owned().into())
                 .ok_or_else(|| {
-                    let path = path.to_string_lossy();
+                    let path = path.display();
                     anyhow!(
                         "Editor directory set by `{ENV_EDITOR_DIR}` is not a valid directory: `{path}`"
                     )
@@ -156,13 +156,13 @@ pub fn matching_editor_used_by_project<P: AsRef<Path>>(
     }
 }
 
-/// Returns a natural sorted list of available Unity versions.
+/// Returns a list of available Unity versions sorted from the oldest to the newest.
 pub fn available_unity_versions<P: AsRef<Path>>(install_dir: &P) -> Result<Vec<UnityVersion>> {
     let mut versions: Vec<_> = fs::read_dir(install_dir)
         .with_context(|| {
             format!(
                 "Cannot read available Unity editors in `{}`",
-                install_dir.as_ref().to_string_lossy()
+                install_dir.as_ref().display()
             )
         })?
         .flat_map(|r| r.map(|e| e.path()))
@@ -174,10 +174,10 @@ pub fn available_unity_versions<P: AsRef<Path>>(install_dir: &P) -> Result<Vec<U
     if versions.is_empty() {
         Err(anyhow!(
             "No Unity installations found in `{}`",
-            install_dir.as_ref().to_string_lossy()
+            install_dir.as_ref().display()
         ))
     } else {
-        versions.sort();
+        versions.sort_unstable();
         Ok(versions)
     }
 }
@@ -188,22 +188,16 @@ pub fn validate_project_path<P: AsRef<Path>>(project_dir: &P) -> Result<Cow<'_, 
     if cfg!(target_os = "windows") && path.starts_with("~") {
         return Err(anyhow!(
             "On Windows the path cannot start with '~': `{}`",
-            path.to_string_lossy()
+            path.display()
         ));
     }
 
     if !path.exists() {
-        return Err(anyhow!(
-            "Directory does not exists: `{}`",
-            path.display()
-        ));
+        return Err(anyhow!("Directory does not exists: `{}`", path.display()));
     }
 
     if !path.is_dir() {
-        return Err(anyhow!(
-            "Path is not a directory: `{}`",
-            path.display()
-        ));
+        return Err(anyhow!("Path is not a directory: `{}`", path.display()));
     }
 
     if path.has_root() {

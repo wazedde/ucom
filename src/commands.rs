@@ -142,11 +142,11 @@ fn print_latest_versions(
 
         available_ranges
             .iter()
-            .filter_map(|(year, point)| {
+            .filter_map(|&(year, point)| {
                 available
                     .iter()
                     .map(|r| r.version)
-                    .filter(|v| v.year == *year && v.point == *point)
+                    .filter(|v| v.year == year && v.point == point)
                     .max()
             })
             .map(|v| (v, v.to_string()))
@@ -196,17 +196,17 @@ fn print_latest_versions(
             println!("{latest_string}");
         } else if installed_in_range
             .last()
-            .filter(|v| *v == latest_version)
+            .filter(|&v| v == latest_version)
             .is_some()
         {
             println!(
                 "{}",
-                format!("{latest_string:<max_len$} - Installed: {joined}",).bold()
+                format!("{latest_string:<max_len$} - Installed: {joined}").bold()
             );
         } else {
             println!(
                 "{}",
-                format!("{latest_string:<max_len$} - Installed: {joined} *update available",)
+                format!("{latest_string:<max_len$} - Installed: {joined} *update available")
                     .yellow()
                     .bold()
             );
@@ -237,8 +237,8 @@ pub fn show_project_info(project_dir: &Path, packages_level: PackagesInfoLevel) 
 
     if let Ok(settings) = ProjectSettings::from_project(&project_dir) {
         let ps = settings.player_settings;
-        println!("    Product Name:  {}", ps.product_name.bold(),);
-        println!("    Company Name:  {}", ps.company_name.bold(),);
+        println!("    Product Name:  {}", ps.product_name.bold());
+        println!("    Company Name:  {}", ps.company_name.bold());
         println!("    Version:       {}", ps.bundle_version.bold());
     }
 
@@ -472,21 +472,21 @@ fn show_project_packages(project_dir: &Path, package_level: PackagesInfoLevel) {
 impl PackagesInfoLevel {
     fn eval(self, package: &PackageInfo) -> bool {
         match self {
-            PackagesInfoLevel::None => false,
-            PackagesInfoLevel::NonUnity => {
+            Self::None => false,
+            Self::NonUnity => {
                 package.depth == 0
                     && (package.source == "git"
                         || package.source == "embedded"
                         || package.source == "local")
             }
-            PackagesInfoLevel::Registry => {
+            Self::Registry => {
                 package.depth == 0
                     && (package.source == "git"
                         || package.source == "embedded"
                         || package.source == "local"
                         || package.source == "registry")
             }
-            PackagesInfoLevel::All => true,
+            Self::All => true,
         }
     }
 }
@@ -663,7 +663,7 @@ pub fn build_project(arguments: BuildArguments) -> Result<()> {
         BuildMode::EditorQuit => {
             cmd.args(["-quit"]);
         }
-        BuildMode::Editor => {} // Do nothing.
+        BuildMode::Editor => (), // Do nothing.
     }
 
     // Add any additional arguments.
@@ -677,8 +677,7 @@ pub fn build_project(arguments: BuildArguments) -> Result<()> {
     println!(
         "{}",
         format!(
-            "Building Unity {} {} project in `{}`",
-            version,
+            "Building Unity {version} {} project in `{}`",
             arguments.target,
             project_dir.display()
         )
