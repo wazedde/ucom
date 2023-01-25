@@ -278,26 +278,24 @@ pub fn check_unity_updates(project_dir: &Path, report_path: Option<&Path>) -> Re
         validate_report_path(path)?;
     }
 
-    let mut spinner = Spinner::new(
-        Spinners::Dots,
-        format!(
-            "Checking Unity updates for project in: {}",
-            project_dir.display()
-        ),
-        Color::White,
+    let product_name = ProjectSettings::from_project(&project_dir).map_or_else(
+        |_| "<UNKNOWN>".to_string(),
+        |s| s.player_settings.product_name,
     );
 
     let version = version_used_by_project(&project_dir)?;
+
+    let mut spinner = Spinner::new(
+        Spinners::Dots,
+        format!("Project uses {version}; checking for updates..."),
+        Color::White,
+    );
+
     let mut buf = Vec::new();
 
     if report_path.is_some() {
         write!(buf, "# ")?;
     }
-
-    let product_name = ProjectSettings::from_project(&project_dir).map_or_else(
-        |_| "<UNKNOWN>".to_string(),
-        |s| s.player_settings.product_name,
-    );
 
     writeln!(
         buf,
@@ -361,7 +359,7 @@ pub fn check_unity_updates(project_dir: &Path, report_path: Option<&Path>) -> Re
 
     for release in releases {
         spinner.update_text(format!(
-            "Downloading release notes for Unity {}",
+            "Downloading Unity {} release notes...",
             release.version
         ));
 
