@@ -32,7 +32,7 @@ pub fn list_versions(list_type: ListType, partial_version: Option<&str>) -> Resu
                 format!("Unity versions in `{}`", dir.display()).bold()
             );
 
-            print_local_versions(&matching_versions, &Vec::new());
+            print_local_versions(&matching_versions, &Vec::new())?;
         }
         ListType::Updates => {
             println!(
@@ -42,7 +42,7 @@ pub fn list_versions(list_type: ListType, partial_version: Option<&str>) -> Resu
             let spinner = Spinner::new(Spinners::Dots, "Downloading release data...", Color::White);
             let releases = request_unity_releases()?;
             spinner.clear();
-            print_local_versions(&matching_versions, &releases);
+            print_local_versions(&matching_versions, &releases)?;
         }
         ListType::Latest => {
             println!("{}", "Latest releases of Unity versions".bold());
@@ -56,23 +56,53 @@ pub fn list_versions(list_type: ListType, partial_version: Option<&str>) -> Resu
     Ok(())
 }
 
-fn print_local_versions(installed: &[UnityVersion], available: &[ReleaseInfo]) {
-    let default_version = default_unity_version(installed);
+fn print_local_versions(installed: &[UnityVersion], available: &[ReleaseInfo]) -> Result<()> {
+    let default_version = default_unity_version(installed)?;
 
-    let max_len = installed
-        .iter()
-        .map(|s| s.to_string().len())
-        .max()
-        .unwrap_or(0);
+    let installed: Vec<_> = installed.iter().map(|v| (v, v.to_string())).collect();
+    let max_len = installed.iter().map(|(_, s)| s.len()).max().unwrap();
 
-    let mut previous_range = (0, 0);
-
+    let mut previous_range = None;
     let mut iter = installed.iter().peekable();
-    while let Some(&version) = iter.next() {
-        let mut colorize_line: fn(&str) -> ColoredString = |s: &str| s.into();
-        let mut info = String::new();
+    while let Some((&version, version_string)) = iter.next() {
+        let next_in_same_range = iter
+            .peek()
+            .map(|(v, _)| v.year == version.year && v.point == version.point)
+            .unwrap_or(false);
+        if Some((version.year, version.point)) == previous_range {
+            if next_in_same_range {
+                print!("├─ ")
+            } else {
+                print!("└─ ")
+            }
+        } else {
+            previous_range = Some((version.year, version.point));
+            if next_in_same_range {
+                print!("┬─ ")
+            } else {
+                print!("── ")
+            }
+        }
 
-        info.push_str(&format!("{:<max_len$}", version.to_string()));
+        let mut colorize_line: fn(&str) -> ColoredString = |s: &str| s.into();
+        let mut info = format!("{version_string:<max_len$}");
+
+        let greater_in_range = |r: &&ReleaseInfo| {
+            r.version > version
+                && r.version.year == version.year
+                && r.version.point == version.point
+        };
+
+        if let Some(latest) = available.iter().filter(greater_in_range).max() {
+            colorize_line = |s: &str| s.yellow().bold();
+            info.push_str(&format!(
+                " - {} behind {}",
+                available.iter().filter(greater_in_range).count(),
+                latest.version
+            ));
+        } else {
+            info.push_str(" - latest");
+        }
 
         if !available.is_empty() {
             let newer_releases: Vec<_> = available
@@ -96,32 +126,15 @@ fn print_local_versions(installed: &[UnityVersion], available: &[ReleaseInfo]) {
             }
         }
 
-        let next_in_same_range = iter
-            .peek()
-            .filter(|v| v.year == version.year && v.point == version.point)
-            .is_some();
-        let marker = if (version.year, version.point) == previous_range {
-            if next_in_same_range {
-                "├─"
-            } else {
-                "└─"
-            }
-        } else {
-            previous_range = (version.year, version.point);
-            if next_in_same_range {
-                "┬─"
-            } else {
-                "──"
-            }
-        };
-
         if version == default_version {
             info.push_str(" (default for new projects)");
-            println!("{marker} {}", colorize_line(&info).bold());
+            println!("{}", colorize_line(&info).bold());
         } else {
-            println!("{marker} {}", colorize_line(&info));
+            println!("{}", colorize_line(&info));
         }
     }
+
+    Ok(())
 }
 
 fn print_latest_versions(
@@ -155,28 +168,27 @@ fn print_latest_versions(
 
     let max_len = latest.iter().map(|(_, s)| s.len()).max().unwrap_or(0);
 
-    let mut previous_range = 0;
+    let mut previous_range = None;
     let mut iter = latest.iter().peekable();
     while let Some((latest_version, latest_string)) = iter.next() {
         let next_in_same_range = iter
             .peek()
-            .filter(|(v, _)| v.year == latest_version.year)
-            .is_some();
-        let marker = if latest_version.year == previous_range {
+            .map(|(v, _)| v.year == latest_version.year)
+            .unwrap_or(false);
+        if Some(latest_version.year) == previous_range {
             if next_in_same_range {
-                "├─"
+                print!("├─ ")
             } else {
-                "└─"
+                print!("└─ ")
             }
         } else {
-            previous_range = latest_version.year;
+            previous_range = Some(latest_version.year);
             if next_in_same_range {
-                "┬─"
+                print!("┬─ ")
             } else {
-                "──"
+                print!("── ")
             }
         };
-        print!("{marker} ");
 
         // Find all installed versions in the same range as the latest version.
         let installed_in_range: Vec<_> = installed
@@ -214,15 +226,17 @@ fn print_latest_versions(
     }
 }
 
-fn default_unity_version(versions: &[UnityVersion]) -> UnityVersion {
-    *env::var_os(ENV_DEFAULT_VERSION)
+fn default_unity_version(versions: &[UnityVersion]) -> Result<UnityVersion> {
+    env::var_os(ENV_DEFAULT_VERSION)
         .and_then(|env_version| {
             versions.iter().rev().find(|v| {
                 v.to_string()
                     .starts_with(env_version.to_string_lossy().as_ref())
             })
         })
-        .unwrap_or_else(|| versions.last().unwrap())
+        .or_else(|| versions.last())
+        .copied()
+        .ok_or_else(|| anyhow!("No Unity versions installed"))
 }
 
 /// Shows project information.
