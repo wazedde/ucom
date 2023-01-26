@@ -115,8 +115,10 @@ fn print_installed_versions(installed: &[UnityVersion], available: &[ReleaseInfo
                         latest.version
                     ));
                 }
-            } else {
+            } else if is_next_in_same_range {
                 info.push_str(" - Up to date");
+            } else {
+                info.push_str(" - Newer than latest available");
             }
         }
 
@@ -199,17 +201,24 @@ fn print_latest_versions(
             .join(", ");
 
         if installed_in_range.is_empty() {
+            // No installed versions in the range.
             println!("{latest_string}");
         } else if installed_in_range
             .last()
             .filter(|&v| v == latest_version)
             .is_some()
+            || installed_in_range // Special case for when installed version is newer than latest.
+                .last()
+                .map(|v| v > latest_version)
+                .unwrap_or(false)
         {
+            // No updates to the latest version are available.
             println!(
                 "{}",
                 format!("{latest_string:<max_len$} - Installed: {joined}").bold()
             );
         } else {
+            // Update to the latest version is available.
             println!(
                 "{}",
                 format!("{latest_string:<max_len$} - Installed: {joined} *update available")
