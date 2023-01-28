@@ -429,9 +429,7 @@ fn style_yellow(s: &str, apply: bool) -> ColoredString {
 }
 
 fn fetch_release_notes(buf: &mut Vec<u8>, release: &ReleaseInfo) -> Result<()> {
-    let url = release_notes_url(release.version);
-    let body = ureq::get(&url).call()?.into_string()?;
-
+    let (url, body) = request_release_notes(release.version)?;
     let release_notes = collect_release_notes(&body);
     if release_notes.is_empty() {
         return Ok(());
