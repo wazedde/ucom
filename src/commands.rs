@@ -1,3 +1,4 @@
+use std::cmp::Ordering;
 use std::ffi::OsStr;
 use std::fs::File;
 use std::io::{BufRead, BufReader, Write};
@@ -73,60 +74,68 @@ fn print_installed_versions(installed: &[UnityVersion], available: &[ReleaseInfo
 
     let mut previous_range = None;
     let mut iter = installed.iter().peekable();
+
     while let Some((&version, version_string)) = iter.next() {
-        let is_next_in_same_range = iter
-            .peek()
-            .map(|(v, _)| v.year == version.year && v.point == version.point)
-            .unwrap_or(false);
+        let is_next_in_same_range = iter.peek().map_or(false, |(v, _)| {
+            v.year == version.year && v.point == version.point
+        });
 
         if Some((version.year, version.point)) == previous_range {
             if is_next_in_same_range {
-                print!("├─ ")
+                print!("├─ ");
             } else {
-                print!("└─ ")
+                print!("└─ ");
             }
         } else {
             previous_range = Some((version.year, version.point));
             if is_next_in_same_range {
-                print!("┬─ ")
+                print!("┬─ ");
             } else {
-                print!("── ")
+                print!("── ");
             }
         }
 
         let mut colorize_line: fn(&str) -> ColoredString = |s: &str| s.into();
-        let mut info = format!("{version_string:<max_len$}");
+        let mut line = format!("{version_string:<max_len$}");
 
-        let is_newer_in_range = |r: &&ReleaseInfo| {
-            r.version > version
-                && r.version.year == version.year
-                && r.version.point == version.point
-        };
+        if !available.is_empty() && !is_next_in_same_range {
+            let range: Vec<_> = available
+                .iter()
+                .map(|r| r.version)
+                .filter(|v| v.year == version.year && v.point == version.point)
+                .collect();
 
-        if !available.is_empty() {
-            if let Some(latest) = available.iter().filter(is_newer_in_range).max() {
-                // Newer version available.
-                if !is_next_in_same_range {
-                    // Latest installed version in the range.
-                    colorize_line = |s: &str| s.yellow().bold();
-                    info.push_str(&format!(
-                        " - Update available: {} behind {}",
-                        available.iter().filter(is_newer_in_range).count(),
-                        latest.version
-                    ));
+            if let Some(latest) = range.last() {
+                match version.cmp(latest) {
+                    Ordering::Equal => {
+                        // Latest version in the range.
+                        line.push_str(" - Up to date");
+                    }
+                    Ordering::Less => {
+                        // Later version available.
+                        colorize_line = |s: &str| s.yellow().bold();
+                        line.push_str(&format!(
+                            " - Update available: {} behind {}",
+                            range.iter().filter(|&&v| v > version).count(),
+                            latest
+                        ));
+                    }
+                    Ordering::Greater => {
+                        // Installed version is newer than latest available.
+                        line.push_str(" - Newer than latest available");
+                    }
                 }
-            } else if is_next_in_same_range {
-                info.push_str(" - Up to date");
             } else {
-                info.push_str(" - Newer than latest available");
+                // No releases in the x.y range.
+                line.push_str(" - No update information available");
             }
         }
 
         if version == default_version {
-            info.push_str(" (default for new projects)");
-            println!("{}", colorize_line(&info).bold());
+            line.push_str(" (default for new projects)");
+            println!("{}", colorize_line(&line).bold());
         } else {
-            println!("{}", colorize_line(&info));
+            println!("{}", colorize_line(&line));
         }
     }
 
@@ -166,23 +175,23 @@ fn print_latest_versions(
 
     let mut previous_range = None;
     let mut iter = latest.iter().peekable();
+
     while let Some((latest_version, latest_string)) = iter.next() {
         let is_next_in_same_range = iter
             .peek()
-            .map(|(v, _)| v.year == latest_version.year)
-            .unwrap_or(false);
+            .map_or(false, |(v, _)| v.year == latest_version.year);
         if Some(latest_version.year) == previous_range {
             if is_next_in_same_range {
-                print!("├─ ")
+                print!("├─ ");
             } else {
-                print!("└─ ")
+                print!("└─ ");
             }
         } else {
             previous_range = Some(latest_version.year);
             if is_next_in_same_range {
-                print!("┬─ ")
+                print!("┬─ ");
             } else {
-                print!("── ")
+                print!("── ");
             }
         };
 
@@ -209,8 +218,7 @@ fn print_latest_versions(
             .is_some()
             || installed_in_range // Special case for when installed version is newer than latest.
                 .last()
-                .map(|v| v > latest_version)
-                .unwrap_or(false)
+                .map_or(false, |v| v > latest_version)
         {
             // No updates to the latest version are available.
             println!(
@@ -770,4 +778,14 @@ fn git_init<P: AsRef<Path>>(project_dir: P) -> Result<()> {
 
     let mut file = File::create(project_dir.join(".gitignore"))?;
     write!(file, "{GIT_IGNORE}").map_err(Into::into)
+}
+
+/// Debug function to easily filter out releases.
+#[allow(dead_code)]
+fn remove_from_releases(partial: &str, releases: Vec<ReleaseInfo>) -> Vec<ReleaseInfo> {
+    let releases: Vec<_> = releases
+        .into_iter()
+        .filter(|v| !v.version.to_string().starts_with(partial))
+        .collect();
+    releases
 }

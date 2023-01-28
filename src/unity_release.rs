@@ -69,6 +69,7 @@ pub fn request_updates_for(version: UnityVersion) -> Result<Vec<ReleaseInfo>> {
     .into_iter()
     .filter(|ri| ri.version > version)
     .collect();
+
     Ok(releases)
 }
 
