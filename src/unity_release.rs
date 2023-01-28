@@ -118,7 +118,17 @@ fn version_from_url(url: &str) -> Option<UnityVersion> {
 }
 
 pub fn release_notes_url(version: UnityVersion) -> String {
-    let version = format!("{}.{}.{}", version.year, version.point, version.patch);
+    let version = if version.build == 1 {
+        format!("{}.{}.{}", version.year, version.point, version.patch)
+    } else {
+        format!(
+            "{}.{}.{}-{}",
+            version.year,
+            version.point,
+            version.patch,
+            version.build - 2
+        )
+    };
     format!("https://unity.com/releases/editor/whats-new/{version}")
 }
 
@@ -147,4 +157,88 @@ pub fn collect_release_notes(html: &str) -> IndexMap<String, Vec<String>> {
     }
 
     release_notes
+}
+
+#[cfg(test)]
+mod releases_tests {
+    use std::str::FromStr;
+
+    use crate::unity_release::{find_releases, version_from_url, ReleaseFilter};
+    use crate::unity_version::UnityVersion;
+
+    #[test]
+    fn test_version_from_url() {
+        let url = "unityhub://2021.2.14f1/bcb93e5482d2";
+        let version = version_from_url(url).unwrap();
+        assert_eq!(version, UnityVersion::from_str("2021.2.14f1").unwrap());
+    }
+
+    #[test]
+    fn test_version_from_url_invalid_url() {
+        let url = "unityhub://2021.2.14f1";
+        let version = version_from_url(url);
+        assert!(version.is_none());
+    }
+
+    #[test]
+    fn test_version_from_url_invalid_version() {
+        let url = "unityhub://2021.2.14/bcb93e5482d2";
+        let version = version_from_url(url);
+        assert!(version.is_none());
+    }
+
+    #[test]
+    fn test_find_releases_all() {
+        let html = include_str!("../test_data/unity_download_archive.html");
+        let releases = find_releases(html, &ReleaseFilter::All);
+        assert_eq!(releases.len(), 473);
+    }
+
+    #[test]
+    fn test_find_releases_year() {
+        let html = include_str!("../test_data/unity_download_archive.html");
+        let releases = find_releases(html, &ReleaseFilter::Year { year: 2021 });
+        assert_eq!(releases.len(), 66);
+    }
+
+    #[test]
+    fn test_find_releases_point() {
+        let html = include_str!("../test_data/unity_download_archive.html");
+        let releases = find_releases(
+            html,
+            &ReleaseFilter::Point {
+                year: 2019,
+                point: 2,
+            },
+        );
+        assert_eq!(releases.len(), 22);
+    }
+
+    #[test]
+    fn test_release_notes_url() {
+        let version = UnityVersion::from_str("2021.2.14f1").unwrap();
+        let url = super::release_notes_url(version);
+        assert_eq!(url, "https://unity.com/releases/editor/whats-new/2021.2.14");
+    }
+
+    #[test]
+    fn test_release_notes_url_5_1_0_1() {
+        let version = UnityVersion::from_str("5.1.0f1").unwrap();
+        let url = super::release_notes_url(version);
+        assert_eq!(url, "https://unity.com/releases/editor/whats-new/5.1.0");
+    }
+
+    #[test]
+    fn test_release_notes_url_5_1_0_2() {
+        let version = UnityVersion::from_str("5.1.0f2").unwrap();
+        let url = super::release_notes_url(version);
+        assert_eq!(url, "https://unity.com/releases/editor/whats-new/5.1.0-0");
+    }
+
+    #[test]
+    fn test_release_notes_url_5_1_0_3() {
+        let version = UnityVersion::from_str("5.1.0f3").unwrap();
+        let url = super::release_notes_url(version);
+        assert_eq!(url, "https://unity.com/releases/editor/whats-new/5.1.0-1");
+    }
 }

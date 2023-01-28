@@ -120,3 +120,77 @@ impl Display for UnityVersion {
         )
     }
 }
+
+#[cfg(test)]
+mod version_tests {
+    use std::str::FromStr;
+
+    use crate::unity_version::{BuildType, UnityVersion};
+
+    #[test]
+    fn test_version_from_string_f() {
+        let version = UnityVersion::from_str("2021.2.14f1").unwrap();
+        assert_eq!(version.year, 2021);
+        assert_eq!(version.point, 2);
+        assert_eq!(version.patch, 14);
+        assert_eq!(version.build_type, BuildType::Final);
+        assert_eq!(version.build, 1);
+    }
+
+    #[test]
+    fn test_version_from_string_b() {
+        let version = UnityVersion::from_str("2021.1.1b3").unwrap();
+        assert_eq!(version.year, 2021);
+        assert_eq!(version.point, 1);
+        assert_eq!(version.patch, 1);
+        assert_eq!(version.build_type, BuildType::Beta);
+        assert_eq!(version.build, 3);
+    }
+
+    #[test]
+    fn test_version_from_string_a() {
+        let version = UnityVersion::from_str("2021.1.1a3").unwrap();
+        assert_eq!(version.year, 2021);
+        assert_eq!(version.point, 1);
+        assert_eq!(version.patch, 1);
+        assert_eq!(version.build_type, BuildType::Alpha);
+        assert_eq!(version.build, 3);
+    }
+
+    #[test]
+    fn test_version_from_string_rc() {
+        let version = UnityVersion::from_str("2021.1.1rc1").unwrap();
+        assert_eq!(version.year, 2021);
+        assert_eq!(version.point, 1);
+        assert_eq!(version.patch, 1);
+        assert_eq!(version.build_type, BuildType::ReleaseCandidate);
+        assert_eq!(version.build, 1);
+    }
+
+    #[test]
+    fn test_version_from_string_invalid_build_type() {
+        let version = UnityVersion::from_str("2021.1.1x1");
+        assert!(version.is_err());
+    }
+
+    #[test]
+    fn test_version_from_string_invalid() {
+        let version = UnityVersion::from_str("2021.1.1");
+        assert!(version.is_err());
+    }
+
+    #[test]
+    fn test_version_to_string() {
+        let version = UnityVersion::from_str("2021.2.14f1").unwrap();
+        assert_eq!(version.to_string(), "2021.2.14f1");
+
+        let version = UnityVersion::from_str("2019.1.1b1").unwrap();
+        assert_eq!(version.to_string(), "2019.1.1b1");
+
+        let version = UnityVersion::from_str("2020.1.1a3").unwrap();
+        assert_eq!(version.to_string(), "2020.1.1a3");
+
+        let version = UnityVersion::from_str("2022.2.1rc2").unwrap();
+        assert_eq!(version.to_string(), "2022.2.1rc2");
+    }
+}
