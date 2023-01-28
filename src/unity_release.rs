@@ -241,4 +241,44 @@ mod releases_tests {
         let url = super::release_notes_url(version);
         assert_eq!(url, "https://unity.com/releases/editor/whats-new/5.1.0-1");
     }
+
+    #[test]
+    fn test_release_notes_5_0_0() {
+        let html = include_str!("../test_data/unity_5_0_0.html");
+        let release_notes = super::collect_release_notes(html);
+        assert_eq!(release_notes.len(), 47);
+        assert_eq!(release_notes.values().flatten().count(), 1114);
+    }
+
+    #[test]
+    fn test_release_notes_2017_1_0() {
+        let html = include_str!("../test_data/unity_2017_1_0.html");
+        let release_notes = super::collect_release_notes(html);
+        assert_eq!(release_notes.len(), 6);
+        assert_eq!(release_notes.values().flatten().count(), 440);
+    }
+
+    #[test]
+    fn test_release_notes_2017_2_5() {
+        let html = include_str!("../test_data/unity_2017_2_5.html");
+        let release_notes = super::collect_release_notes(html);
+        assert_eq!(release_notes.len(), 1);
+        assert_eq!(release_notes.values().flatten().count(), 10);
+    }
+
+    #[test]
+    fn test_release_notes_2021_3_17() {
+        let html = include_str!("../test_data/unity_2021_3_17.html");
+        let release_notes = super::collect_release_notes(html);
+        assert_eq!(release_notes.len(), 7);
+        assert_eq!(release_notes.values().flatten().count(), 204);
+    }
+
+    #[test]
+    fn test_release_notes_2022_2_0() {
+        let html = include_str!("../test_data/unity_2022_2_0.html");
+        let release_notes = super::collect_release_notes(html);
+        assert_eq!(release_notes.len(), 7);
+        assert_eq!(release_notes.values().flatten().count(), 2090);
+    }
 }
