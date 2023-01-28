@@ -73,12 +73,6 @@ pub fn request_updates_for(version: UnityVersion) -> Result<Vec<ReleaseInfo>> {
     Ok(releases)
 }
 
-pub fn request_release_notes(version: UnityVersion) -> Result<String> {
-    let url = release_notes_url(version);
-    let body = ureq::get(&url).call()?.into_string()?;
-    Ok(body)
-}
-
 /// Finds releases in the html that match the filter.
 fn find_releases(html: &str, filter: &ReleaseFilter) -> Vec<ReleaseInfo> {
     let year_class: Cow<'_, str> = match filter {
