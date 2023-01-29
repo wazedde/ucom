@@ -6,6 +6,7 @@ use std::process::Command;
 use anyhow::anyhow;
 use colored::Colorize;
 use path_absolutize::Absolutize;
+use spinoff::{spinners, Color, Spinner};
 
 use crate::cli::NewArguments;
 use crate::unity::{cmd_to_string, matching_editor, spawn_and_forget, wait_with_stdout};
@@ -55,10 +56,14 @@ pub fn new_project(arguments: NewArguments) -> anyhow::Result<()> {
         git_init(project_dir)?;
     }
 
-    if arguments.wait {
-        wait_with_stdout(cmd)?;
-    } else {
-        spawn_and_forget(cmd)?;
+    match (arguments.wait, arguments.quit && !arguments.quiet) {
+        (true, true) => {
+            let spinner = Spinner::new(spinners::Dots, "Creating project...", Color::White);
+            wait_with_stdout(cmd)?;
+            spinner.clear();
+        }
+        (true, false) => wait_with_stdout(cmd)?,
+        (false, _) => spawn_and_forget(cmd)?,
     }
 
     Ok(())
