@@ -8,11 +8,23 @@ use clap::Parser;
 use colored::Colorize;
 
 use crate::cli::{Action, Cli};
-use crate::commands::*;
+use crate::cmd_build::build_project;
+use crate::cmd_check_updates::check_unity_updates;
+use crate::cmd_list::list_versions;
+use crate::cmd_new::new_project;
+use crate::cmd_open::*;
+use crate::cmd_project_info::show_project_info;
+use crate::cmd_run::run_unity;
 
 mod build_script;
 mod cli;
-mod commands;
+mod cmd_build;
+mod cmd_check_updates;
+mod cmd_list;
+mod cmd_new;
+mod cmd_open;
+mod cmd_project_info;
+mod cmd_run;
 mod unity_cmd;
 mod unity_project;
 mod unity_release;
