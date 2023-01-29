@@ -10,7 +10,7 @@ use path_absolutize::Absolutize;
 use serde::Deserialize;
 
 use crate::cli::ENV_EDITOR_DIR;
-use crate::unity_version::UnityVersion;
+use crate::unity::UnityVersion;
 
 /// Sub path to the executable on macOS.
 #[cfg(target_os = "macos")]

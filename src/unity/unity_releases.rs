@@ -5,7 +5,7 @@ use indexmap::IndexMap;
 use select::document::Document;
 use select::predicate::{Class, Name};
 
-use crate::unity_version::*;
+use crate::unity::{UnityVersion, VersionPoint, VersionYear};
 
 #[derive(Debug, Eq, PartialEq, Ord, PartialOrd)]
 pub struct ReleaseInfo {
@@ -169,8 +169,9 @@ pub fn collect_release_notes(html: &str) -> IndexMap<String, Vec<String>> {
 mod releases_tests {
     use std::str::FromStr;
 
-    use crate::unity_release::{find_releases, version_from_url, ReleaseFilter};
-    use crate::unity_version::UnityVersion;
+    use crate::unity::{ReleaseFilter, UnityVersion};
+
+    use super::{find_releases, version_from_url};
 
     #[test]
     fn test_version_from_url() {
@@ -195,21 +196,21 @@ mod releases_tests {
 
     #[test]
     fn test_find_releases_all() {
-        let html = include_str!("../test_data/unity_download_archive.html");
+        let html = include_str!("test_data/unity_download_archive.html");
         let releases = find_releases(html, &ReleaseFilter::All);
         assert_eq!(releases.len(), 473);
     }
 
     #[test]
     fn test_find_releases_year() {
-        let html = include_str!("../test_data/unity_download_archive.html");
+        let html = include_str!("test_data/unity_download_archive.html");
         let releases = find_releases(html, &ReleaseFilter::Year { year: 2021 });
         assert_eq!(releases.len(), 66);
     }
 
     #[test]
     fn test_find_releases_point() {
-        let html = include_str!("../test_data/unity_download_archive.html");
+        let html = include_str!("test_data/unity_download_archive.html");
         let releases = find_releases(
             html,
             &ReleaseFilter::Point {
@@ -250,7 +251,7 @@ mod releases_tests {
 
     #[test]
     fn test_release_notes_5_0_0() {
-        let html = include_str!("../test_data/unity_5_0_0.html");
+        let html = include_str!("test_data/unity_5_0_0.html");
         let release_notes = super::collect_release_notes(html);
         assert_eq!(release_notes.len(), 47);
         assert_eq!(release_notes.values().flatten().count(), 1114);
@@ -258,7 +259,7 @@ mod releases_tests {
 
     #[test]
     fn test_release_notes_2017_1_0() {
-        let html = include_str!("../test_data/unity_2017_1_0.html");
+        let html = include_str!("test_data/unity_2017_1_0.html");
         let release_notes = super::collect_release_notes(html);
         assert_eq!(release_notes.len(), 6);
         assert_eq!(release_notes.values().flatten().count(), 440);
@@ -266,7 +267,7 @@ mod releases_tests {
 
     #[test]
     fn test_release_notes_2017_2_5() {
-        let html = include_str!("../test_data/unity_2017_2_5.html");
+        let html = include_str!("test_data/unity_2017_2_5.html");
         let release_notes = super::collect_release_notes(html);
         assert_eq!(release_notes.len(), 1);
         assert_eq!(release_notes.values().flatten().count(), 10);
@@ -274,7 +275,7 @@ mod releases_tests {
 
     #[test]
     fn test_release_notes_2021_3_17() {
-        let html = include_str!("../test_data/unity_2021_3_17.html");
+        let html = include_str!("test_data/unity_2021_3_17.html");
         let release_notes = super::collect_release_notes(html);
         assert_eq!(release_notes.len(), 7);
         assert_eq!(release_notes.values().flatten().count(), 204);
@@ -282,7 +283,7 @@ mod releases_tests {
 
     #[test]
     fn test_release_notes_2022_2_0() {
-        let html = include_str!("../test_data/unity_2022_2_0.html");
+        let html = include_str!("test_data/unity_2022_2_0.html");
         let release_notes = super::collect_release_notes(html);
         assert_eq!(release_notes.len(), 7);
         assert_eq!(release_notes.values().flatten().count(), 2090);
@@ -293,10 +294,9 @@ mod releases_tests {
 mod releases_tests_online {
     use std::str::FromStr;
 
-    use crate::unity_release::{
-        collect_release_notes, request_patch_updates_for, request_release_notes,
+    use crate::unity::{
+        collect_release_notes, request_patch_updates_for, request_release_notes, UnityVersion,
     };
-    use crate::unity_version::UnityVersion;
 
     /// Scraping https://unity.com/releases/editor/archive for updates to 2019.1.0f1.
     /// At the time of writing there were 15.

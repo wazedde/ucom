@@ -125,7 +125,7 @@ impl Display for UnityVersion {
 mod version_tests {
     use std::str::FromStr;
 
-    use crate::unity_version::{BuildType, UnityVersion};
+    use super::{BuildType, UnityVersion};
 
     #[test]
     fn test_version_from_string_f() {

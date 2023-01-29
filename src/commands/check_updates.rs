@@ -8,15 +8,10 @@ use colored::Colorize;
 use path_absolutize::Absolutize;
 use spinoff::{spinners, Color, Spinner};
 
-use crate::unity_project::{
-    is_editor_installed, validate_project_path, version_used_by_project, ProjectSettings,
-};
-use crate::unity_release::{
-    collect_release_notes, request_patch_updates_for, request_release_notes, ReleaseInfo,
-};
+use crate::unity::*;
 
 /// Checks on the Unity website for updates to the version used by the project.
-pub fn check_unity_updates(project_dir: &Path, report_path: Option<&Path>) -> anyhow::Result<()> {
+pub fn check_updates(project_dir: &Path, report_path: Option<&Path>) -> anyhow::Result<()> {
     // TODO: This function is too long and messy, split it up.
     let project_dir = validate_project_path(&project_dir)?;
 

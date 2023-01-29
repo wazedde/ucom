@@ -3,8 +3,7 @@ use std::process::Command;
 use colored::Colorize;
 
 use crate::cli::*;
-use crate::unity_cmd::*;
-use crate::unity_project::*;
+use crate::unity::*;
 
 /// Opens the given Unity project in the Unity Editor.
 pub fn open_project(arguments: OpenArguments) -> anyhow::Result<()> {

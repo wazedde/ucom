@@ -3,8 +3,7 @@ use std::process::Command;
 use colored::Colorize;
 
 use crate::cli::RunArguments;
-use crate::unity_cmd::{cmd_to_string, spawn_and_forget, wait_with_stdout};
-use crate::unity_project::matching_editor;
+use crate::unity::{cmd_to_string, matching_editor, spawn_and_forget, wait_with_stdout};
 
 /// Runs the Unity Editor with the given arguments.
 pub fn run_unity(arguments: RunArguments) -> anyhow::Result<()> {

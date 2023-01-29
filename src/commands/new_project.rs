@@ -8,8 +8,7 @@ use colored::Colorize;
 use path_absolutize::Absolutize;
 
 use crate::cli::NewArguments;
-use crate::unity_cmd::{cmd_to_string, spawn_and_forget, wait_with_stdout};
-use crate::unity_project::matching_editor;
+use crate::unity::{cmd_to_string, matching_editor, spawn_and_forget, wait_with_stdout};
 
 const GIT_IGNORE: &str = include_str!("include/unity-gitignore.txt");
 

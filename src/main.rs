@@ -8,27 +8,11 @@ use clap::Parser;
 use colored::Colorize;
 
 use crate::cli::{Action, Cli};
-use crate::cmd_build::build_project;
-use crate::cmd_check_updates::check_unity_updates;
-use crate::cmd_list::list_versions;
-use crate::cmd_new::new_project;
-use crate::cmd_open::*;
-use crate::cmd_project_info::show_project_info;
-use crate::cmd_run::run_unity;
+use crate::commands::*;
 
-mod build_script;
 mod cli;
-mod cmd_build;
-mod cmd_check_updates;
-mod cmd_list;
-mod cmd_new;
-mod cmd_open;
-mod cmd_project_info;
-mod cmd_run;
-mod unity_cmd;
-mod unity_project;
-mod unity_release;
-mod unity_version;
+mod commands;
+mod unity;
 
 fn main() -> Result<()> {
     let cli = Cli::parse();
@@ -38,7 +22,7 @@ fn main() -> Result<()> {
     }
 
     if cli.injected_script {
-        println!("{}", build_script::content());
+        println!("{}", build_script_content());
         exit(0);
     }
 
@@ -63,7 +47,7 @@ fn main() -> Result<()> {
         Action::UpdateCheck {
             project_dir,
             create_report: report_path,
-        } => check_unity_updates(&project_dir, report_path.as_deref())
+        } => check_updates(&project_dir, report_path.as_deref())
             .context("Cannot show Unity updates for project".red().bold()),
 
         Action::Run(settings) => run_unity(settings).context("Cannot run Unity".red().bold()),

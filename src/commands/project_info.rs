@@ -3,7 +3,7 @@ use std::path::Path;
 use colored::Colorize;
 
 use crate::cli::PackagesInfoLevel;
-use crate::unity_project::*;
+use crate::unity::unity_project::*;
 
 /// Shows project information.
 pub fn show_project_info(
