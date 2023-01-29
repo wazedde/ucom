@@ -80,20 +80,12 @@ fn print_installed_versions(installed: &[UnityVersion], available: &[ReleaseInfo
             v.year == version.year && v.point == version.point
         });
 
-        if Some((version.year, version.point)) == previous_range {
-            if is_next_in_same_range {
-                print!("├─ ");
-            } else {
-                print!("└─ ");
-            }
-        } else {
-            previous_range = Some((version.year, version.point));
-            if is_next_in_same_range {
-                print!("┬─ ");
-            } else {
-                print!("── ");
-            }
-        }
+        print_list_marker(
+            Some((version.year, version.point)) == previous_range,
+            is_next_in_same_range,
+        );
+
+        previous_range = Some((version.year, version.point));
 
         let mut colorize_line: fn(&str) -> ColoredString = |s: &str| s.into();
         let mut line = format!("{version_string:<max_len$}");
@@ -176,27 +168,20 @@ fn print_latest_versions(
         .max()
         .unwrap_or(0);
 
-    let mut previous_range = None;
+    let mut previous_year = None;
     let mut iter = latest_releases.iter().peekable();
 
     while let Some((latest, latest_string)) = iter.next() {
         let is_next_in_same_range = iter
             .peek()
             .map_or(false, |(v, _)| v.version.year == latest.version.year);
-        if Some(latest.version.year) == previous_range {
-            if is_next_in_same_range {
-                print!("├─ ");
-            } else {
-                print!("└─ ");
-            }
-        } else {
-            previous_range = Some(latest.version.year);
-            if is_next_in_same_range {
-                print!("┬─ ");
-            } else {
-                print!("── ");
-            }
-        };
+
+        print_list_marker(
+            Some(latest.version.year) == previous_year,
+            is_next_in_same_range,
+        );
+
+        previous_year = Some(latest.version.year);
 
         // Find all installed versions in the same range as the latest version.
         let installed_in_range: Vec<_> = installed
@@ -242,6 +227,19 @@ fn print_latest_versions(
                 );
             }
         }
+    }
+}
+
+fn print_list_marker(same_as_previous: bool, same_as_next: bool) {
+    print!("{} ", ranged_list_marker(same_as_previous, same_as_next));
+}
+
+fn ranged_list_marker(same_as_previous: bool, same_as_next: bool) -> &'static str {
+    match (same_as_previous, same_as_next) {
+        (true, true) => "├─",
+        (true, false) => "└─",
+        (false, true) => "┬─",
+        (false, false) => "──",
     }
 }
 
