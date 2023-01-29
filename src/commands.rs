@@ -101,12 +101,11 @@ fn print_installed_versions(installed: &[UnityVersion], available: &[ReleaseInfo
         if !available.is_empty() && !is_next_in_same_range {
             let range: Vec<_> = available
                 .iter()
-                .map(|r| r.version)
-                .filter(|v| v.year == version.year && v.point == version.point)
+                .filter(|r| r.version.year == version.year && r.version.point == version.point)
                 .collect();
 
             if let Some(latest) = range.last() {
-                match version.cmp(latest) {
+                match version.cmp(&latest.version) {
                     Ordering::Equal => {
                         // Latest version in the range.
                         line.push_str(" - Up to date");
@@ -115,9 +114,10 @@ fn print_installed_versions(installed: &[UnityVersion], available: &[ReleaseInfo
                         // Later version available.
                         colorize_line = |s: &str| s.yellow().bold();
                         line.push_str(&format!(
-                            " - Update available: {} behind {}",
-                            range.iter().filter(|&&v| v > version).count(),
-                            latest
+                            " - Update available: {} behind {} ({})",
+                            range.iter().filter(|v| v.version > version).count(),
+                            latest.version,
+                            latest.date_header
                         ));
                     }
                     Ordering::Greater => {
@@ -148,7 +148,7 @@ fn print_latest_versions(
     partial_version: Option<&str>,
 ) {
     // Get the latest version of each range.
-    let latest: Vec<_> = {
+    let latest_releases: Vec<_> = {
         let mut available_ranges: Vec<_> = available
             .iter()
             .filter(|r| partial_version.map_or(true, |p| r.version.to_string().starts_with(p)))
@@ -163,31 +163,34 @@ fn print_latest_versions(
             .filter_map(|&(year, point)| {
                 available
                     .iter()
-                    .map(|r| r.version)
-                    .filter(|v| v.year == year && v.point == point)
+                    .filter(|r| r.version.year == year && r.version.point == point)
                     .max()
             })
-            .map(|v| (v, v.to_string()))
+            .map(|r| (r, r.version.to_string()))
             .collect()
     };
 
-    let max_len = latest.iter().map(|(_, s)| s.len()).max().unwrap_or(0);
+    let max_len = latest_releases
+        .iter()
+        .map(|(_, s)| s.len())
+        .max()
+        .unwrap_or(0);
 
     let mut previous_range = None;
-    let mut iter = latest.iter().peekable();
+    let mut iter = latest_releases.iter().peekable();
 
-    while let Some((latest_version, latest_string)) = iter.next() {
+    while let Some((latest, latest_string)) = iter.next() {
         let is_next_in_same_range = iter
             .peek()
-            .map_or(false, |(v, _)| v.year == latest_version.year);
-        if Some(latest_version.year) == previous_range {
+            .map_or(false, |(v, _)| v.version.year == latest.version.year);
+        if Some(latest.version.year) == previous_range {
             if is_next_in_same_range {
                 print!("├─ ");
             } else {
                 print!("└─ ");
             }
         } else {
-            previous_range = Some(latest_version.year);
+            previous_range = Some(latest.version.year);
             if is_next_in_same_range {
                 print!("┬─ ");
             } else {
@@ -198,41 +201,46 @@ fn print_latest_versions(
         // Find all installed versions in the same range as the latest version.
         let installed_in_range: Vec<_> = installed
             .iter()
-            .filter(|v| v.year == latest_version.year && v.point == latest_version.point)
+            .filter(|v| v.year == latest.version.year && v.point == latest.version.point)
             .copied()
             .collect();
-
-        // Concatenate the versions for printing.
-        let joined = installed_in_range
-            .iter()
-            .map(ToString::to_string)
-            .collect::<Vec<_>>()
-            .join(", ");
 
         if installed_in_range.is_empty() {
             // No installed versions in the range.
             println!("{latest_string}");
-        } else if installed_in_range
-            .last()
-            .filter(|&v| v == latest_version)
-            .is_some()
-            || installed_in_range // Special case for when installed version is newer than latest.
-                .last()
-                .map_or(false, |v| v > latest_version)
-        {
-            // No updates to the latest version are available.
-            println!(
-                "{}",
-                format!("{latest_string:<max_len$} - Installed: {joined}").bold()
-            );
         } else {
-            // Update to the latest version is available.
-            println!(
-                "{}",
-                format!("{latest_string:<max_len$} - Installed: {joined} *update available")
+            // Concatenate the installed versions for printing.
+            let joined = installed_in_range
+                .iter()
+                .map(ToString::to_string)
+                .collect::<Vec<_>>()
+                .join(", ");
+
+            if installed_in_range
+                .last()
+                .filter(|&v| v == &latest.version)
+                .is_some()
+                || installed_in_range // Special case for when installed version is newer than latest.
+                    .last()
+                    .map_or(false, |&v| v > latest.version)
+            {
+                // No updates to the latest version are available.
+                println!(
+                    "{}",
+                    format!("{latest_string:<max_len$} - Installed: {joined}").bold()
+                );
+            } else {
+                // Update to the latest version is available.
+                println!(
+                    "{}",
+                    format!(
+                        "{latest_string:<max_len$} - Installed: {joined} *update available ({})",
+                        latest.date_header
+                    )
                     .yellow()
                     .bold()
-            );
+                );
+            }
         }
     }
 }
@@ -332,8 +340,8 @@ pub fn check_unity_updates(project_dir: &Path, report_path: Option<&Path>) -> Re
         )?;
     }
 
-    let releases = request_updates_for(version)?;
-    if releases.is_empty() {
+    let updates = request_patch_updates_for(version)?;
+    if updates.is_empty() {
         writeln!(
             buf,
             "    Already uses the latest release in the {}.{}.x range",
@@ -344,7 +352,7 @@ pub fn check_unity_updates(project_dir: &Path, report_path: Option<&Path>) -> Re
         return Ok(());
     }
 
-    let latest = releases.last().unwrap();
+    let latest = updates.last().unwrap();
     writeln!(
         buf,
         "    Update available:     {}",
@@ -357,7 +365,7 @@ pub fn check_unity_updates(project_dir: &Path, report_path: Option<&Path>) -> Re
         return Ok(());
     }
 
-    for release in releases {
+    for release in updates {
         spinner.update_text(format!(
             "Downloading Unity {} release notes...",
             release.version

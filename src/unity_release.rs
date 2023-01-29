@@ -54,8 +54,8 @@ pub fn request_unity_releases() -> Result<Vec<ReleaseInfo>> {
     Ok(releases)
 }
 
-/// Gets updates for the given version from the Unity website.
-pub fn request_updates_for(version: UnityVersion) -> Result<Vec<ReleaseInfo>> {
+/// Gets patch updates for the given version from the Unity website.
+pub fn request_patch_updates_for(version: UnityVersion) -> Result<Vec<ReleaseInfo>> {
     let url = "https://unity.com/releases/editor/archive";
     let body = ureq::get(url).call()?.into_string()?;
 
@@ -293,16 +293,29 @@ mod releases_tests {
 mod releases_tests_online {
     use std::str::FromStr;
 
-    use crate::unity_release::{collect_release_notes, request_release_notes, request_updates_for};
+    use crate::unity_release::{
+        collect_release_notes, request_patch_updates_for, request_release_notes,
+    };
     use crate::unity_version::UnityVersion;
 
-    /// Scraping https://unity.com/releases/editor/archive for updates should return at least 15.
+    /// Scraping https://unity.com/releases/editor/archive for updates to 2019.1.0f1.
+    /// At the time of writing there were 15.
     #[test]
-    fn test_request_updates() {
+    fn test_request_updates_2019_1_0() {
         let v = UnityVersion::from_str("2019.1.0f1").unwrap();
-        let updates = request_updates_for(v).unwrap();
+        let updates = request_patch_updates_for(v).unwrap();
 
         assert!(updates.len() >= 15);
+    }
+
+    /// Scraping https://unity.com/releases/editor/archive for updates to 5.0.0f1.
+    /// At the time of writing there were 5 and it is assumed that this will not change.
+    #[test]
+    fn test_request_updates_5_0_0() {
+        let v = UnityVersion::from_str("5.0.0f1").unwrap();
+        let updates = request_patch_updates_for(v).unwrap();
+
+        assert_eq!(updates.len(), 5);
     }
 
     #[test]
