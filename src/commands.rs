@@ -10,7 +10,7 @@ use anyhow::{anyhow, Error, Result};
 use colored::{ColoredString, Colorize};
 use indexmap::IndexSet;
 use path_absolutize::Absolutize;
-use spinoff::{Color, Spinner, Spinners};
+use spinoff::{spinners, Color, Spinner};
 
 use crate::build_script;
 use crate::cli::*;
@@ -40,14 +40,14 @@ pub fn list_versions(list_type: ListType, partial_version: Option<&str>) -> Resu
                 "{}",
                 format!("Updates for Unity versions in `{}`", dir.display()).bold()
             );
-            let spinner = Spinner::new(Spinners::Dots, "Downloading release data...", Color::White);
+            let spinner = Spinner::new(spinners::Dots, "Downloading release data...", Color::White);
             let releases = request_unity_releases()?;
             spinner.clear();
             print_installed_versions(&matching_versions, &releases)?;
         }
         ListType::Latest => {
             println!("{}", "Latest available point releases".bold());
-            let spinner = Spinner::new(Spinners::Dots, "Downloading release data...", Color::White);
+            let spinner = Spinner::new(spinners::Dots, "Downloading release data...", Color::White);
             let releases = request_unity_releases()?;
             spinner.clear();
             print_latest_versions(&matching_versions, &releases, partial_version);
@@ -287,7 +287,7 @@ pub fn check_unity_updates(project_dir: &Path, report_path: Option<&Path>) -> Re
     let version = version_used_by_project(&project_dir)?;
 
     let mut spinner = Spinner::new(
-        Spinners::Dots,
+        spinners::Dots,
         format!("Project uses {version}; checking for updates..."),
         Color::White,
     );
