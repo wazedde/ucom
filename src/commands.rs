@@ -132,7 +132,7 @@ fn print_installed_versions(installed: &[UnityVersion], available: &[ReleaseInfo
         }
 
         if version == default_version {
-            line.push_str(" (default for new projects)");
+            line.push_str(" *default for new projects");
             println!("{}", colorize_line(&line).bold());
         } else {
             println!("{}", colorize_line(&line));
@@ -234,7 +234,7 @@ fn print_latest_versions(
                 println!(
                     "{}",
                     format!(
-                        "{latest_string:<max_len$} - Installed: {joined} *update available ({})",
+                        "{latest_string:<max_len$} - Installed: {joined} > update available ({})",
                         latest.date_header
                     )
                     .yellow()
@@ -292,6 +292,11 @@ pub fn check_unity_updates(project_dir: &Path, report_path: Option<&Path>) -> Re
         Color::White,
     );
 
+    if report_path.is_some() {
+        // Disable colored output when writing to a file.
+        colored::control::set_override(false);
+    }
+
     let mut buf = Vec::new();
 
     if report_path.is_some() {
@@ -306,10 +311,7 @@ pub fn check_unity_updates(project_dir: &Path, report_path: Option<&Path>) -> Re
     writeln!(
         buf,
         "{}",
-        style_white(
-            &format!("Unity updates for {product_name}"),
-            report_path.is_none(),
-        )
+        format!("Unity updates for {product_name}").bold()
     )?;
 
     drop(product_name);
@@ -321,23 +323,19 @@ pub fn check_unity_updates(project_dir: &Path, report_path: Option<&Path>) -> Re
     writeln!(
         buf,
         "    Directory:            {}",
-        style_white(&project_dir.to_string_lossy(), report_path.is_none())
+        project_dir.to_string_lossy().bold()
     )?;
 
     write!(
         buf,
         "    Project uses version: {}",
-        style_white(&version.to_string(), report_path.is_none())
+        version.to_string().bold()
     )?;
 
     if is_editor_installed(version)? {
         writeln!(buf)?;
     } else {
-        writeln!(
-            buf,
-            " {}",
-            style_red("*not installed", report_path.is_none())
-        )?;
+        writeln!(buf, " {}", "*not installed".red().bold())?;
     }
 
     let updates = request_patch_updates_for(version)?;
@@ -356,7 +354,7 @@ pub fn check_unity_updates(project_dir: &Path, report_path: Option<&Path>) -> Re
     writeln!(
         buf,
         "    Update available:     {}",
-        style_yellow(&latest.version.to_string(), report_path.is_none())
+        latest.version.to_string().yellow().bold()
     )?;
 
     if report_path.is_none() {
@@ -410,30 +408,6 @@ fn validate_report_path(path: &Path) -> Result<()> {
     }
 
     Ok(())
-}
-
-fn style_white(s: &str, apply: bool) -> ColoredString {
-    if apply {
-        s.bold()
-    } else {
-        s.into()
-    }
-}
-
-fn style_red(s: &str, apply: bool) -> ColoredString {
-    if apply {
-        s.red().bold()
-    } else {
-        s.into()
-    }
-}
-
-fn style_yellow(s: &str, apply: bool) -> ColoredString {
-    if apply {
-        s.yellow().bold()
-    } else {
-        s.into()
-    }
 }
 
 fn fetch_release_notes(buf: &mut Vec<u8>, release: &ReleaseInfo) -> Result<()> {

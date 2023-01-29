@@ -13,8 +13,12 @@ pub const ENV_PACKAGE_LEVEL: &str = "UCOM_PACKAGE_LEVEL";
 #[command(author, version, about)]
 pub struct Cli {
     /// Display the build script that is injected into the project.
-    #[arg(short, short = 'I', long)]
+    #[arg(long)]
     pub injected_script: bool,
+
+    /// Disable colored output.
+    #[arg(long, short = 'D')]
+    pub disable_color: bool,
 
     #[command(subcommand)]
     pub command: Option<Action>,

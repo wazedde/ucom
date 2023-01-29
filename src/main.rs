@@ -21,13 +21,17 @@ mod unity_version;
 fn main() -> Result<()> {
     let cli = Cli::parse();
 
+    if cli.disable_color {
+        colored::control::set_override(false);
+    }
+
     if cli.injected_script {
         println!("{}", build_script::content());
         exit(0);
     }
 
     let Some(command) = cli.command else {
-        let _result = Cli::command().print_help();
+        let _ = Cli::command().print_help();
         exit(0)
     };
 
