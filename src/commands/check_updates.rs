@@ -6,13 +6,12 @@ use std::path::Path;
 use anyhow::anyhow;
 use colored::Colorize;
 use path_absolutize::Absolutize;
-use spinoff::{spinners, Color, Spinner};
+use spinoff::{spinners, Spinner};
 
 use crate::unity::*;
 
 /// Checks on the Unity website for updates to the version used by the project.
 pub fn check_updates(project_dir: &Path, report_path: Option<&Path>) -> anyhow::Result<()> {
-    // TODO: This function is too long and messy, split it up.
     let project_dir = validate_project_path(&project_dir)?;
 
     if let Some(path) = report_path {
@@ -24,7 +23,7 @@ pub fn check_updates(project_dir: &Path, report_path: Option<&Path>) -> anyhow::
     let mut spinner = Spinner::new(
         spinners::Dots,
         format!("Project uses {version}; checking for updates..."),
-        Color::White,
+        None,
     );
 
     if report_path.is_some() {

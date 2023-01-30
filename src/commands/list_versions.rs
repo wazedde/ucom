@@ -3,7 +3,7 @@ use std::env;
 
 use anyhow::anyhow;
 use colored::{ColoredString, Colorize};
-use spinoff::{spinners, Color, Spinner};
+use spinoff::{spinners, Spinner};
 
 use crate::cli::{ListType, ENV_DEFAULT_VERSION};
 use crate::unity::*;
@@ -27,14 +27,14 @@ pub fn list_versions(list_type: ListType, partial_version: Option<&str>) -> anyh
                 "{}",
                 format!("Updates for Unity versions in `{}`", dir.display()).bold()
             );
-            let spinner = Spinner::new(spinners::Dots, "Downloading release data...", Color::White);
+            let spinner = Spinner::new(spinners::Dots, "Downloading release data...", None);
             let releases = request_unity_releases()?;
             spinner.clear();
             print_installed_versions(&matching_versions, &releases)?;
         }
         ListType::Latest => {
             println!("{}", "Latest available point releases".bold());
-            let spinner = Spinner::new(spinners::Dots, "Downloading release data...", Color::White);
+            let spinner = Spinner::new(spinners::Dots, "Downloading release data...", None);
             let releases = request_unity_releases()?;
             spinner.clear();
             print_latest_versions(&matching_versions, &releases, partial_version);

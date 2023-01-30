@@ -6,7 +6,7 @@ use std::process::Command;
 use anyhow::anyhow;
 use colored::Colorize;
 use path_absolutize::Absolutize;
-use spinoff::{spinners, Color, Spinner};
+use spinoff::{spinners, Spinner};
 
 use crate::cli::NewArguments;
 use crate::unity::{cmd_to_string, matching_editor, spawn_and_forget, wait_with_stdout};
@@ -58,7 +58,7 @@ pub fn new_project(arguments: NewArguments) -> anyhow::Result<()> {
 
     match (arguments.wait, arguments.quit && !arguments.quiet) {
         (true, true) => {
-            let spinner = Spinner::new(spinners::Dots, "Creating project...", Color::White);
+            let spinner = Spinner::new(spinners::Dots, "Creating project...", None);
             wait_with_stdout(cmd)?;
             spinner.clear();
         }
