@@ -56,15 +56,11 @@ pub fn check_updates(project_dir: &Path, report_path: Option<&Path>) -> anyhow::
 
     writeln!(
         buf,
-        "    Directory:            {}",
+        "    Directory:    {}",
         project_dir.to_string_lossy().bold()
     )?;
 
-    write!(
-        buf,
-        "    Project uses version: {}",
-        version.to_string().bold()
-    )?;
+    write!(buf, "    Version used: {}", version.to_string().bold())?;
 
     if is_editor_installed(version)? {
         writeln!(buf)?;
@@ -84,15 +80,26 @@ pub fn check_updates(project_dir: &Path, report_path: Option<&Path>) -> anyhow::
         return Ok(());
     }
 
-    let latest = updates.last().unwrap();
-    writeln!(
-        buf,
-        "    Update available:     {}",
-        latest.version.to_string().yellow().bold()
-    )?;
-
     if report_path.is_none() {
         spinner.clear();
+
+        let output: Vec<_> = updates
+            .iter()
+            .map(|r| (r.version.to_string(), release_notes_url(r.version)))
+            .collect();
+
+        if !output.is_empty() {
+            let max_len = output
+                .iter()
+                .map(|(v, _)| v.to_string().len())
+                .max()
+                .unwrap();
+            writeln!(buf, "{}", "Update(s) available:".bold())?;
+            output.iter().for_each(|(v, url)| {
+                writeln!(buf, "    {v:<max_len$} - {url}").unwrap();
+            });
+        }
+
         print!("{}", String::from_utf8(buf)?);
         return Ok(());
     }
@@ -103,7 +110,7 @@ pub fn check_updates(project_dir: &Path, report_path: Option<&Path>) -> anyhow::
             release.version
         ));
 
-        fetch_release_notes(&mut buf, &release)?;
+        write_release_notes(&mut buf, &release)?;
     }
     spinner.clear();
 
@@ -144,7 +151,7 @@ fn validate_report_path(path: &Path) -> anyhow::Result<()> {
     Ok(())
 }
 
-fn fetch_release_notes(buf: &mut Vec<u8>, release: &ReleaseInfo) -> anyhow::Result<()> {
+fn write_release_notes(buf: &mut Vec<u8>, release: &ReleaseInfo) -> anyhow::Result<()> {
     let (url, body) = request_release_notes(release.version)?;
     let release_notes = collect_release_notes(&body);
     if release_notes.is_empty() {

@@ -209,7 +209,7 @@ fn print_latest_versions(
                 println!(
                     "{}",
                     format!(
-                        "{latest_string:<max_len$} - Installed: {joined} > update available ({})",
+                        "{latest_string:<max_len$} - Installed: {joined} (update available: {})",
                         latest.date_header
                     )
                     .yellow()
