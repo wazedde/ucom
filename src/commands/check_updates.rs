@@ -96,7 +96,7 @@ pub fn check_updates(project_dir: &Path, report_path: Option<&Path>) -> anyhow::
                 .unwrap();
             writeln!(buf, "{}", "Update(s) available:".bold())?;
             output.iter().for_each(|(v, url)| {
-                writeln!(buf, "    {v:<max_len$} - {url}").unwrap();
+                writeln!(buf, "    {:<max_len$} - {url}", v.yellow().bold()).unwrap();
             });
         }
 
