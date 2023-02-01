@@ -19,6 +19,9 @@ fn main() -> Result<()> {
 
     if cli.disable_color {
         colored::control::set_override(false);
+    } else {
+        #[cfg(windows)]
+        colored::control::set_virtual_terminal(true).expect("Always returns Ok()");
     }
 
     if cli.injected_script {
