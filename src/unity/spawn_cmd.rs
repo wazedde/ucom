@@ -46,13 +46,13 @@ pub fn wait_with_log_output(mut cmd: Command, log_file: &Path) -> Result<()> {
 
     let build_finished = Arc::new(AtomicBool::new(false));
 
-    let echo_closure = {
+    let echo_log = {
         let build_finished = build_finished.clone();
         let log_file = log_file.to_owned();
         move || echo_log_file(&log_file, Duration::from_millis(100), &build_finished)
     };
 
-    let echo_runner = thread::spawn(echo_closure);
+    let echo_runner = thread::spawn(echo_log);
 
     let output = child
         .wait_with_output()
@@ -130,7 +130,6 @@ fn echo_log_file(log_file: &Path, update_interval: Duration, stop_logging: &Arc<
             buffer.clear();
         }
 
-        // Now do the actual check if we should stop.
         if should_stop {
             if !ended_with_newline {
                 println!();

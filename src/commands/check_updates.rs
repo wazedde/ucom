@@ -73,7 +73,7 @@ pub fn check_updates(project_dir: &Path, report_path: Option<&Path>) -> anyhow::
         writeln!(
             buf,
             "    Already uses the latest release in the {}.{}.x range",
-            version.year, version.point
+            version.major, version.minor
         )?;
         spinner.clear();
         print!("{}", String::from_utf8(buf)?);

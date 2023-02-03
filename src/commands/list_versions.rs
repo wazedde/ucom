@@ -33,7 +33,7 @@ pub fn list_versions(list_type: ListType, partial_version: Option<&str>) -> anyh
             print_installed_versions(&matching_versions, &releases)?;
         }
         ListType::Latest => {
-            println!("{}", "Latest available point releases".bold());
+            println!("{}", "Latest available minor releases".bold());
             let spinner = Spinner::new(spinners::Dots, "Downloading release data...", None);
             let releases = request_unity_releases()?;
             spinner.clear();
@@ -67,15 +67,15 @@ fn print_installed_versions(
 
     while let Some((&version, version_string)) = iter.next() {
         let is_next_in_same_range = iter.peek().map_or(false, |(v, _)| {
-            v.year == version.year && v.point == version.point
+            v.major == version.major && v.minor == version.minor
         });
 
         print_list_marker(
-            Some((version.year, version.point)) == previous_range,
+            Some((version.major, version.minor)) == previous_range,
             is_next_in_same_range,
         );
 
-        previous_range = Some((version.year, version.point));
+        previous_range = Some((version.major, version.minor));
 
         let mut colorize_line: fn(&str) -> ColoredString = |s: &str| s.into();
         let mut line = format!("{version_string:<max_len$}");
@@ -83,7 +83,7 @@ fn print_installed_versions(
         if !available.is_empty() && !is_next_in_same_range {
             let range: Vec<_> = available
                 .iter()
-                .filter(|r| r.version.year == version.year && r.version.point == version.point)
+                .filter(|r| r.version.major == version.major && r.version.minor == version.minor)
                 .collect();
 
             if let Some(latest) = range.last() {
@@ -134,7 +134,7 @@ fn print_latest_versions(
         let mut available_ranges: Vec<_> = available
             .iter()
             .filter(|r| partial_version.map_or(true, |p| r.version.to_string().starts_with(p)))
-            .map(|r| (r.version.year, r.version.point))
+            .map(|r| (r.version.major, r.version.minor))
             .collect();
 
         available_ranges.sort_unstable();
@@ -142,10 +142,10 @@ fn print_latest_versions(
 
         available_ranges
             .iter()
-            .filter_map(|&(year, point)| {
+            .filter_map(|&(major, minor)| {
                 available
                     .iter()
-                    .filter(|r| r.version.year == year && r.version.point == point)
+                    .filter(|r| r.version.major == major && r.version.minor == minor)
                     .max()
             })
             .map(|r| (r, r.version.to_string()))
@@ -158,25 +158,25 @@ fn print_latest_versions(
         .max()
         .unwrap_or(0);
 
-    let mut previous_year = None;
+    let mut previous_major = None;
     let mut iter = latest_releases.iter().peekable();
 
     while let Some((latest, latest_string)) = iter.next() {
         let is_next_in_same_range = iter
             .peek()
-            .map_or(false, |(v, _)| v.version.year == latest.version.year);
+            .map_or(false, |(v, _)| v.version.major == latest.version.major);
 
         print_list_marker(
-            Some(latest.version.year) == previous_year,
+            Some(latest.version.major) == previous_major,
             is_next_in_same_range,
         );
 
-        previous_year = Some(latest.version.year);
+        previous_major = Some(latest.version.major);
 
         // Find all installed versions in the same range as the latest version.
         let installed_in_range: Vec<_> = installed
             .iter()
-            .filter(|v| v.year == latest.version.year && v.point == latest.version.point)
+            .filter(|v| v.major == latest.version.major && v.minor == latest.version.minor)
             .copied()
             .collect();
 

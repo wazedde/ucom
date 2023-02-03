@@ -59,16 +59,16 @@ impl FromStr for BuildType {
     }
 }
 
-pub type VersionYear = u16;
-pub type VersionPoint = u8;
+pub type VersionMajor = u16;
+pub type VersionMinor = u8;
 pub type VersionPatch = u8;
 pub type VersionBuild = u8;
 
 /// The Unity version separated into its components.
 #[derive(Debug, Eq, PartialEq, Ord, PartialOrd, Copy, Clone)]
 pub struct UnityVersion {
-    pub year: VersionYear,
-    pub point: VersionPoint,
+    pub major: VersionMajor,
+    pub minor: VersionMinor,
     pub patch: VersionPatch,
     pub build_type: BuildType,
     pub build: VersionBuild,
@@ -79,11 +79,11 @@ impl FromStr for UnityVersion {
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         let mut parts = s.split('.');
-        let year = parts
+        let major = parts
             .next()
             .and_then(|s| s.parse().ok())
             .ok_or(ParseError)?;
-        let point = parts
+        let minor = parts
             .next()
             .and_then(|s| s.parse().ok())
             .ok_or(ParseError)?;
@@ -102,8 +102,8 @@ impl FromStr for UnityVersion {
             .ok_or(ParseError)?;
 
         Ok(Self {
-            year,
-            point,
+            major,
+            minor,
             patch,
             build_type,
             build,
@@ -116,7 +116,7 @@ impl Display for UnityVersion {
         write!(
             f,
             "{}.{}.{}{}{}",
-            self.year, self.point, self.patch, self.build_type, self.build
+            self.major, self.minor, self.patch, self.build_type, self.build
         )
     }
 }
@@ -130,8 +130,8 @@ mod version_tests {
     #[test]
     fn test_version_from_string_f() {
         let version = UnityVersion::from_str("2021.2.14f1").unwrap();
-        assert_eq!(version.year, 2021);
-        assert_eq!(version.point, 2);
+        assert_eq!(version.major, 2021);
+        assert_eq!(version.minor, 2);
         assert_eq!(version.patch, 14);
         assert_eq!(version.build_type, BuildType::Final);
         assert_eq!(version.build, 1);
@@ -140,8 +140,8 @@ mod version_tests {
     #[test]
     fn test_version_from_string_b() {
         let version = UnityVersion::from_str("2021.1.1b3").unwrap();
-        assert_eq!(version.year, 2021);
-        assert_eq!(version.point, 1);
+        assert_eq!(version.major, 2021);
+        assert_eq!(version.minor, 1);
         assert_eq!(version.patch, 1);
         assert_eq!(version.build_type, BuildType::Beta);
         assert_eq!(version.build, 3);
@@ -150,8 +150,8 @@ mod version_tests {
     #[test]
     fn test_version_from_string_a() {
         let version = UnityVersion::from_str("2021.1.1a3").unwrap();
-        assert_eq!(version.year, 2021);
-        assert_eq!(version.point, 1);
+        assert_eq!(version.major, 2021);
+        assert_eq!(version.minor, 1);
         assert_eq!(version.patch, 1);
         assert_eq!(version.build_type, BuildType::Alpha);
         assert_eq!(version.build, 3);
@@ -160,8 +160,8 @@ mod version_tests {
     #[test]
     fn test_version_from_string_rc() {
         let version = UnityVersion::from_str("2021.1.1rc1").unwrap();
-        assert_eq!(version.year, 2021);
-        assert_eq!(version.point, 1);
+        assert_eq!(version.major, 2021);
+        assert_eq!(version.minor, 1);
         assert_eq!(version.patch, 1);
         assert_eq!(version.build_type, BuildType::ReleaseCandidate);
         assert_eq!(version.build, 1);

@@ -5,7 +5,7 @@ use indexmap::IndexMap;
 use select::document::Document;
 use select::predicate::{Class, Name};
 
-use crate::unity::{UnityVersion, VersionPoint, VersionYear};
+use crate::unity::{UnityVersion, VersionMajor, VersionMinor};
 
 #[derive(Debug, Eq, PartialEq, Ord, PartialOrd)]
 pub struct ReleaseInfo {
@@ -27,12 +27,12 @@ impl ReleaseInfo {
 #[allow(dead_code)]
 pub enum ReleaseFilter {
     All,
-    Year {
-        year: VersionYear,
+    Major {
+        major: VersionMajor,
     },
-    Point {
-        year: VersionYear,
-        point: VersionPoint,
+    Minor {
+        major: VersionMajor,
+        minor: VersionMinor,
     },
 }
 
@@ -40,8 +40,8 @@ impl ReleaseFilter {
     const fn eval(&self, v: UnityVersion) -> bool {
         match self {
             Self::All => true,
-            Self::Year { year } => v.year == *year,
-            Self::Point { year, point } => v.year == *year && v.point == *point,
+            Self::Major { major } => v.major == *major,
+            Self::Minor { major, minor } => v.major == *major && v.minor == *minor,
         }
     }
 }
@@ -61,9 +61,9 @@ pub fn request_patch_updates_for(version: UnityVersion) -> Result<Vec<ReleaseInf
 
     let releases = find_releases(
         &body,
-        &ReleaseFilter::Point {
-            year: version.year,
-            point: version.point,
+        &ReleaseFilter::Minor {
+            major: version.major,
+            minor: version.minor,
         },
     )
     .into_iter()
@@ -81,13 +81,15 @@ pub fn request_release_notes(version: UnityVersion) -> Result<(String, String)> 
 
 /// Finds releases in the html that match the filter.
 fn find_releases(html: &str, filter: &ReleaseFilter) -> Vec<ReleaseInfo> {
-    let year_class: Cow<'_, str> = match filter {
+    let major_release_class: Cow<'_, str> = match filter {
         ReleaseFilter::All => "release-tab-content".into(),
-        ReleaseFilter::Year { year } | ReleaseFilter::Point { year, .. } => year.to_string().into(),
+        ReleaseFilter::Major { major } | ReleaseFilter::Minor { major, .. } => {
+            major.to_string().into()
+        }
     };
 
     let mut versions: Vec<_> = Document::from(html)
-        .find(Class(year_class.as_ref()))
+        .find(Class(major_release_class.as_ref()))
         .flat_map(|n| n.find(Class("download-release-wrapper")))
         .filter_map(|n| {
             n.find(Class("release-title-date"))
@@ -125,12 +127,12 @@ fn version_from_url(url: &str) -> Option<UnityVersion> {
 
 pub fn release_notes_url(version: UnityVersion) -> String {
     let version = if version.build == 1 {
-        format!("{}.{}.{}", version.year, version.point, version.patch)
+        format!("{}.{}.{}", version.major, version.minor, version.patch)
     } else {
         format!(
             "{}.{}.{}-{}",
-            version.year,
-            version.point,
+            version.major,
+            version.minor,
             version.patch,
             version.build - 2
         )
@@ -202,20 +204,20 @@ mod releases_tests {
     }
 
     #[test]
-    fn test_find_releases_year() {
+    fn test_find_releases_major() {
         let html = include_str!("test_data/unity_download_archive.html");
-        let releases = find_releases(html, &ReleaseFilter::Year { year: 2021 });
+        let releases = find_releases(html, &ReleaseFilter::Major { major: 2021 });
         assert_eq!(releases.len(), 66);
     }
 
     #[test]
-    fn test_find_releases_point() {
+    fn test_find_releases_minor() {
         let html = include_str!("test_data/unity_download_archive.html");
         let releases = find_releases(
             html,
-            &ReleaseFilter::Point {
-                year: 2019,
-                point: 2,
+            &ReleaseFilter::Minor {
+                major: 2019,
+                minor: 2,
             },
         );
         assert_eq!(releases.len(), 22);
