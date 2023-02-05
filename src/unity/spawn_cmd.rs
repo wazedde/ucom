@@ -45,14 +45,12 @@ pub fn wait_with_log_output(mut cmd: Command, log_file: &Path) -> Result<()> {
         .context("Failed to run child process.")?;
 
     let build_finished = Arc::new(AtomicBool::new(false));
-
-    let echo_log = {
+    
+    let echo_runner = thread::spawn({
         let build_finished = build_finished.clone();
         let log_file = log_file.to_owned();
         move || echo_log_file(&log_file, Duration::from_millis(100), &build_finished)
-    };
-
-    let echo_runner = thread::spawn(echo_log);
+    });
 
     let output = child
         .wait_with_output()

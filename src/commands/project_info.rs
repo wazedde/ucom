@@ -69,6 +69,7 @@ fn show_project_packages(project_dir: &Path, package_level: PackagesInfoLevel) {
 }
 
 impl PackagesInfoLevel {
+    // Evaluates if the PackageInfo is allowed by the info level.
     fn eval(self, package: &PackageInfo) -> bool {
         match self {
             Self::None => false,

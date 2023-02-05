@@ -77,7 +77,7 @@ fn print_installed_versions(
 
         previous_range = Some((version.major, version.minor));
 
-        let mut colorize_line: fn(&str) -> ColoredString = |s: &str| s.into();
+        let mut colorize_line: fn(&str) -> ColoredString = |s: &str| ColoredString::from(s);
         let mut line = format!("{version_string:<max_len$}");
 
         if !available.is_empty() && !is_next_in_same_range {
@@ -184,6 +184,14 @@ fn print_latest_versions(
             // No installed versions in the range.
             println!("{latest_string}");
         } else {
+            let is_up_to_date = installed_in_range
+                .last()
+                .filter(|&v| v == &latest.version)
+                .is_some()
+                || installed_in_range // Special case for when installed version is newer than latest.
+                    .last()
+                    .map_or(false, |&v| v > latest.version);
+
             // Concatenate the installed versions for printing.
             let joined = installed_in_range
                 .iter()
@@ -191,21 +199,12 @@ fn print_latest_versions(
                 .collect::<Vec<_>>()
                 .join(", ");
 
-            if installed_in_range
-                .last()
-                .filter(|&v| v == &latest.version)
-                .is_some()
-                || installed_in_range // Special case for when installed version is newer than latest.
-                    .last()
-                    .map_or(false, |&v| v > latest.version)
-            {
-                // No updates to the latest version are available.
+            if is_up_to_date {
                 println!(
                     "{}",
                     format!("{latest_string:<max_len$} - Installed: {joined}").bold()
                 );
             } else {
-                // Update to the latest version is available.
                 println!(
                     "{}",
                     format!(

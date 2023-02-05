@@ -59,19 +59,19 @@ impl FromStr for BuildType {
     }
 }
 
-pub type VersionMajor = u16;
-pub type VersionMinor = u8;
-pub type VersionPatch = u8;
-pub type VersionBuild = u8;
+pub type MajorVersion = u16;
+pub type MinorVersion = u8;
+pub type PatchVersion = u8;
+pub type BuildNumber = u8;
 
 /// The Unity version separated into its components.
 #[derive(Debug, Eq, PartialEq, Ord, PartialOrd, Copy, Clone)]
 pub struct UnityVersion {
-    pub major: VersionMajor,
-    pub minor: VersionMinor,
-    pub patch: VersionPatch,
+    pub major: MajorVersion,
+    pub minor: MinorVersion,
+    pub patch: PatchVersion,
     pub build_type: BuildType,
-    pub build: VersionBuild,
+    pub build: BuildNumber,
 }
 
 impl FromStr for UnityVersion {

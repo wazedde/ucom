@@ -94,10 +94,11 @@ pub fn check_updates(project_dir: &Path, report_path: Option<&Path>) -> anyhow::
                 .map(|(v, _)| v.to_string().len())
                 .max()
                 .unwrap();
+
             writeln!(buf, "{}", "Update(s) available:".bold())?;
-            output.iter().for_each(|(v, url)| {
+            for (v, url) in &output {
                 writeln!(buf, "    {:<max_len$} - {url}", v.yellow().bold()).unwrap();
-            });
+            }
         }
 
         print!("{}", String::from_utf8(buf)?);
@@ -153,7 +154,7 @@ fn validate_report_path(path: &Path) -> anyhow::Result<()> {
 
 fn write_release_notes(buf: &mut Vec<u8>, release: &ReleaseInfo) -> anyhow::Result<()> {
     let (url, body) = request_release_notes(release.version)?;
-    let release_notes = collect_release_notes(&body);
+    let release_notes = extract_release_notes(&body);
     if release_notes.is_empty() {
         return Ok(());
     }
