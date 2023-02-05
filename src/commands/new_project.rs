@@ -19,7 +19,7 @@ pub fn new_project(arguments: NewArguments) -> anyhow::Result<()> {
 
     if project_dir.exists() {
         return Err(anyhow!(
-            "Directory already exists: `{}`",
+            "Directory already exists: {}",
             project_dir.absolutize()?.display()
         ));
     }
@@ -44,7 +44,7 @@ pub fn new_project(arguments: NewArguments) -> anyhow::Result<()> {
         println!(
             "{}",
             format!(
-                "Create new Unity {} project in `{}`",
+                "Create new Unity {} project in: {}",
                 version,
                 project_dir.display()
             )

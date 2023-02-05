@@ -202,6 +202,14 @@ pub struct BuildArguments {
     )]
     pub build_path: Option<PathBuf>,
 
+    /// Building options. Multiple options can be combined together.
+    #[arg(num_args(0..), short = 'O', long, value_name = "OPTIONS", default_value="none")]
+    pub build_options: Vec<BuildOptions>,
+
+    /// Removes directories from the output directory that should not be included in the build.
+    #[clap(short = 'C', long)]
+    pub clean: bool,
+
     /// Build script injection method.
     #[arg(short = 'i', long, value_name = "METHOD", default_value = "auto")]
     pub inject: InjectAction,
@@ -209,10 +217,6 @@ pub struct BuildArguments {
     /// Build mode.
     #[arg(short = 'm', long, value_name = "MODE", default_value = "batch")]
     pub mode: BuildMode,
-
-    /// Building options. Multiple options can be combined together.
-    #[arg(num_args(0..), short = 'O', long, default_value="none")]
-    pub build_options: Vec<BuildOptions>,
 
     /// A static method in the Unity project that is called to build the project.
     #[arg(

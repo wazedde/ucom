@@ -15,7 +15,7 @@ pub fn show_project_info(
 
     println!(
         "{}",
-        format!("Project info for `{}`", project_dir.display()).bold()
+        format!("Project info for: {}", project_dir.display()).bold()
     );
 
     if let Ok(settings) = ProjectSettings::from_project(&project_dir) {

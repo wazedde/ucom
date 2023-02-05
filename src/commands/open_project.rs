@@ -29,7 +29,7 @@ pub fn open_project(arguments: OpenArguments) -> anyhow::Result<()> {
         println!(
             "{}",
             format!(
-                "Open Unity {} project in `{}`",
+                "Open Unity {} project in: {}",
                 version,
                 project_dir.display()
             )

@@ -17,7 +17,7 @@ pub fn list_versions(list_type: ListType, partial_version: Option<&str>) -> anyh
         ListType::Installed => {
             println!(
                 "{}",
-                format!("Unity versions in `{}`", dir.display()).bold()
+                format!("Unity versions in: {}", dir.display()).bold()
             );
 
             print_installed_versions(&matching_versions, &Vec::new())?;
@@ -25,7 +25,7 @@ pub fn list_versions(list_type: ListType, partial_version: Option<&str>) -> anyh
         ListType::Updates => {
             println!(
                 "{}",
-                format!("Updates for Unity versions in `{}`", dir.display()).bold()
+                format!("Updates for Unity versions in: {}", dir.display()).bold()
             );
             let spinner = Spinner::new(spinners::Dots, "Downloading release data...", None);
             let releases = request_unity_releases()?;

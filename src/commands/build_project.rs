@@ -37,7 +37,7 @@ pub fn build_project(arguments: BuildArguments) -> anyhow::Result<()> {
 
     if project_dir == output_dir {
         return Err(anyhow!(
-            "Output directory cannot be the same as the project directory: `{}`",
+            "Output directory cannot be the same as the project directory: {}",
             project_dir.display()
         ));
     }
@@ -97,7 +97,7 @@ pub fn build_project(arguments: BuildArguments) -> anyhow::Result<()> {
     println!(
         "{}",
         format!(
-            "Building Unity {version} {} project in `{}`",
+            "Building Unity {version} {} project in: {}",
             arguments.target,
             project_dir.display()
         )
@@ -121,6 +121,10 @@ pub fn build_project(arguments: BuildArguments) -> anyhow::Result<()> {
     remove_build_script()?;
 
     if build_result.is_ok() {
+        if arguments.clean {
+            clean_output_directory(&output_dir)?;
+        }
+
         println!("{}", "Build succeeded".green().bold());
     } else {
         println!("{}", "Build failed".red().bold());
@@ -140,10 +144,31 @@ pub fn build_project(arguments: BuildArguments) -> anyhow::Result<()> {
     build_result.map_err(|_| errors_from_log(&log_file))
 }
 
+fn clean_output_directory(path: &Path) -> anyhow::Result<()> {
+    let delete: Vec<_> = fs::read_dir(path)?
+        .flat_map(|r| r.map(|e| e.path()))
+        .filter(|p| p.is_dir())
+        .filter(|p| {
+            p.to_string_lossy()
+                .ends_with("_BurstDebugInformation_DoNotShip")
+                || p.to_string_lossy()
+                    .ends_with("_BackUpThisFolder_ButDontShipItWithYourGame")
+        })
+        .collect();
+
+    for dir in delete {
+        println!("Removing directory: {}", dir.display());
+        fs::remove_dir_all(&dir)
+            .map_err(|_| anyhow!("Could not remove directory: {}", dir.display()))?
+    }
+
+    Ok(())
+}
+
 /// Returns full path to the log file. By default the project's `Logs` directory is used as destination.
 fn log_file_path(log_file: &Path, project_dir: &Path) -> anyhow::Result<PathBuf> {
     let Some(file_name) = log_file.file_name() else {
-             return Err(anyhow!("Invalid log file name: `{}`", log_file.display()));
+             return Err(anyhow!("Invalid log file name: {}", log_file.display()));
          };
 
     let path = if log_file == file_name {
@@ -161,7 +186,7 @@ fn log_file_path(log_file: &Path, project_dir: &Path) -> anyhow::Result<PathBuf>
 /// Returns errors from the given log file as one collected Err.
 fn errors_from_log(log_file: &Path) -> anyhow::Error {
     let Ok(log_file) = File::open(log_file) else {
-        return anyhow!("Failed to open log file: `{}`", log_file.display());
+        return anyhow!("Failed to open log file: {}", log_file.display());
     };
 
     let errors: IndexSet<_> = BufReader::new(log_file)
@@ -248,7 +273,7 @@ fn inject_build_script<P: AsRef<Path>>(parent_dir: P) -> anyhow::Result<()> {
     fs::create_dir_all(&inject_dir)?;
 
     let file_path = inject_dir.join(BUILD_SCRIPT_NAME);
-    println!("Injecting ucom build script `{}`", file_path.display());
+    println!("Injecting ucom build script: {}", file_path.display());
 
     let mut file = File::create(file_path)?;
     write!(file, "{}", build_script_content()).map_err(Into::into)
@@ -261,14 +286,14 @@ fn remove_build_script<P: AsRef<Path>>(parent_dir: P) -> anyhow::Result<()> {
     }
 
     println!(
-        "Removing injected ucom build script in directory `{}`",
+        "Removing injected ucom build script: {}",
         parent_dir.as_ref().display()
     );
 
     // Remove the directory where the build script is located.
     fs::remove_dir_all(&parent_dir).map_err(|_| {
         anyhow!(
-            "Could not remove directory `{}`",
+            "Could not remove directory: {}",
             parent_dir.as_ref().display()
         )
     })?;
@@ -279,5 +304,5 @@ fn remove_build_script<P: AsRef<Path>>(parent_dir: P) -> anyhow::Result<()> {
         return Ok(());
     }
 
-    fs::remove_file(&meta_file).map_err(|_| anyhow!("Could not remove `{}`", meta_file.display()))
+    fs::remove_file(&meta_file).map_err(|_| anyhow!("Could not remove: {}", meta_file.display()))
 }
