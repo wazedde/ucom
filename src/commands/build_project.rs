@@ -11,7 +11,7 @@ use indexmap::IndexSet;
 use path_absolutize::Absolutize;
 use uuid::Uuid;
 
-use crate::cli::{BuildArguments, BuildMode, BuildTarget, InjectAction};
+use crate::cli::{BuildArguments, BuildMode, BuildOptions, BuildTarget, InjectAction};
 use crate::unity::*;
 
 const BUILD_SCRIPT_NAME: &str = "UcomBuilder.cs";
@@ -61,6 +61,16 @@ pub fn build_project(arguments: BuildArguments) -> anyhow::Result<()> {
             "--ucom-build-target",
             &BuildTarget::from(arguments.target).to_string(),
         ]);
+
+    // Combine the build option flags into an int.
+    let build_options = arguments
+        .build_options
+        .iter()
+        .fold(0, |options, &o| options | (o as i32));
+
+    if build_options != (BuildOptions::None as i32) {
+        cmd.args(["--ucom-build-options", &build_options.to_string()]);
+    }
 
     // Add the build mode.
     match arguments.mode {

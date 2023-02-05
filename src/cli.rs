@@ -210,6 +210,10 @@ pub struct BuildArguments {
     #[arg(short = 'm', long, value_name = "MODE", default_value = "batch")]
     pub mode: BuildMode,
 
+    /// Building options. Multiple options can be combined together.
+    #[arg(num_args(0..), short = 'O', long, default_value="none")]
+    pub build_options: Vec<BuildOptions>,
+
     /// A static method in the Unity project that is called to build the project.
     #[arg(
         short = 'f',
@@ -343,4 +347,85 @@ impl From<Target> for BuildTarget {
             Target::WebGL => Self::WebGL,
         }
     }
+}
+
+/// Building options. Multiple options can be combined together.
+#[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, ValueEnum)]
+pub enum BuildOptions {
+    /// Perform the specified build without any special settings or extra tasks.
+    None = 0,
+
+    /// Build a development version of the player.
+    Development = 1,
+
+    /// Run the built player.
+    AutoRunPlayer = 4,
+
+    /// Show the built player.
+    ShowBuiltPlayer = 8,
+
+    /// Build a compressed asset bundle that contains streamed Scenes loadable with the UnityWebRequest class.
+    BuildAdditionalStreamedScenes = 16, // 0x00000010
+
+    /// Used when building Xcode (iOS) or Eclipse (Android) projects.
+    AcceptExternalModificationsToPlayer = 32, // 0x00000020
+
+    // Specified, but doesn't seem to be use: InstallInBuildFolder = 64, // 0x00000040
+    /// Clear all cached build results, resulting in a full rebuild of all scripts and all player data.
+    CleanBuildCache = 128, // 0x00000080
+
+    /// Start the player with a connection to the profiler in the editor.
+    ConnectWithProfiler = 256, // 0x00000100
+
+    /// Allow script debuggers to attach to the player remotely.
+    AllowDebugging = 512, // 0x00000200
+
+    /// Symlink sources when generating the project. This is useful if you're changing source files inside the generated project and want to bring the changes back into your Unity project or a package.
+    SymlinkSources = 1024, // 0x00000400
+
+    /// Don't compress the data when creating the asset bundle.
+    UncompressedAssetBundle = 2048, // 0x00000800
+
+    /// Sets the Player to connect to the Editor.
+    ConnectToHost = 4096, // 0x00001000
+
+    /// Determines if the player should be using the custom connection ID.
+    CustomConnectionId = 8192, // 0x00002000
+
+    /// Only build the scripts in a Project.
+    BuildScriptsOnly = 3276, // 0x00008000
+
+    /// Patch a Development app package rather than completely rebuilding it.
+    /// Supported platforms: Android.
+    PatchPackage = 65536, // 0x00010000
+
+    /// Use chunk-based LZ4 compression when building the Player.
+    CompressWithLz4 = 262144, // 0x00040000
+
+    /// Use chunk-based LZ4 high-compression when building the Player.
+    CompressWithLz4Hc = 524288, // 0x00080000
+
+    /// Do not allow the build to succeed if any errors are reporting during it.
+    StrictMode = 2097152, // 0x00200000
+
+    /// Build will include Assemblies for testing.
+    IncludeTestAssemblies = 4194304, // 0x00400000
+
+    /// Will force the buildGUID to all zeros.
+    NoUniqueIdentifier = 8388608, // 0x00800000
+
+    /// Sets the Player to wait for player connection on player start.
+    WaitForPlayerConnection = 33554432, // 0x02000000
+
+    /// Enables code coverage. You can use this as a complimentary way of enabling code coverage on platforms that do not support command line arguments.
+    EnableCodeCoverage = 67108864, // 0x04000000
+
+    /// Enables Deep Profiling support in the player.
+    EnableDeepProfilingSupport = 268435456, // 0x10000000
+
+    /// Generates more information in the BuildReport.
+    DetailedBuildReport = 536870912, // 0x20000000
+
+    /// Enable Shader Livelink support.
+    ShaderLivelinkSupport = 1073741824, // 0x40000000
 }

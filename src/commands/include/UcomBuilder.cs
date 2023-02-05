@@ -17,8 +17,20 @@ namespace ucom
     /// </summary>
     public static class UcomBuilder
     {
+        /// <summary>
+        /// The output path for the build.
+        /// </summary>
         private const string BuildOutputArg = "--ucom-build-output";
+
+        /// <summary>
+        /// The <see cref="BuildTarget"/>.
+        /// </summary>
         private const string BuildTargetArg = "--ucom-build-target";
+
+        /// <summary>
+        /// Combined <see cref="BuildOptions"/> are passed as an int.
+        /// </summary>
+        private const string BuildOptionsArg = "--ucom-build-options";
 
         /// <summary>
         /// This method is called by ucom to build the project.
@@ -34,7 +46,7 @@ namespace ucom
             if (!args.TryGetArgValue(BuildOutputArg, out string outputDirectory))
             {
                 // No output path specified.
-                Log("[Builder] Error: Output path '--ucom-build-output <path>' not specified.", LogType.Error);
+                Log($"[Builder] Error: Output path '{BuildOutputArg} <path>' not specified.", LogType.Error);
                 invalidArgs = true;
             }
 
@@ -42,13 +54,13 @@ namespace ucom
             if (!args.TryGetArgValue(BuildTargetArg, out string argValue))
             {
                 // No build target specified.
-                Log("[Builder] Error: Build target '--ucom-build-target <target>' not specified.", LogType.Error);
+                Log($"[Builder] Error: Build target '{BuildTargetArg} <target>' not specified.", LogType.Error);
                 invalidArgs = true;
             }
             else if (!Enum.TryParse(argValue, out BuildTarget target))
             {
                 // Nonexistent build target value specified.
-                Log($"[Builder] Error: Invalid build target: --ucom-build-target {argValue}", LogType.Error);
+                Log($"[Builder] Error: Invalid build target: {BuildTargetArg} {argValue}", LogType.Error);
                 invalidArgs = true;
             }
             else if (target != EditorUserBuildSettings.activeBuildTarget)
@@ -65,7 +77,23 @@ namespace ucom
                 invalidArgs = true;
             }
 
-            bool buildFailed = invalidArgs || !Build(outputDirectory);
+            var options = BuildOptions.None;
+
+            if (args.TryGetArgValue(BuildOptionsArg, out string boValue))
+            {
+                if (int.TryParse(boValue, out int bo))
+                {
+                    options = (BuildOptions)bo;
+                }
+                else
+                {
+                    // Nonexistent build target value specified.
+                    Log($"[Builder] Error: Invalid build options: {BuildOptionsArg} {argValue}", LogType.Error);
+                    invalidArgs = true;
+                }
+            }
+
+            bool buildFailed = invalidArgs || !Build(outputDirectory, options);
 
             if (Array.IndexOf(args, "-quit") != -1)
             {
@@ -78,8 +106,9 @@ namespace ucom
         /// Builds the application for the <see cref="EditorUserBuildSettings.activeBuildTarget"/>.
         /// </summary>
         /// <param name="outputDirectory">The parent directory where the application will be built.</param>
+        /// <param name="options">Building options. Multiple options can be combined together.</param>
         /// <returns><c>true</c> if the build succeeded; <c>false</c> otherwise.</returns>
-        private static bool Build(string outputDirectory)
+        public static bool Build(string outputDirectory, BuildOptions options)
         {
             var scenes = GetScenePaths();
 
@@ -99,7 +128,7 @@ namespace ucom
                 scenes = scenes,
                 locationPathName = applicationPath,
                 target = EditorUserBuildSettings.activeBuildTarget,
-                options = BuildOptions.None
+                options = options
             };
 
             BuildReport report;
