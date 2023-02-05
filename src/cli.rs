@@ -219,9 +219,10 @@ pub struct BuildArguments {
     )]
     pub build_function: String,
 
-    /// The log file to write Unity's output to.
-    #[arg(short = 'l', long, value_name = "FILE", default_value = "build.log")]
-    pub log_file: PathBuf,
+    /// The log file to write Unity's build output to.
+    /// By default the log is written to the `Logs` directory of the project.
+    #[arg(short = 'l', long, value_name = "FILE")]
+    pub log_file: Option<PathBuf>,
 
     /// Don't output the build log to stdout.
     #[clap(short = 'q', long)]

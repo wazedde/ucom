@@ -2,12 +2,13 @@ use std::fs;
 use std::fs::File;
 use std::io::Write;
 use std::io::{BufRead, BufReader};
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::process::Command;
 
 use anyhow::anyhow;
 use colored::Colorize;
 use indexmap::IndexSet;
+use path_absolutize::Absolutize;
 use uuid::Uuid;
 
 use crate::cli::{BuildArguments, BuildMode, BuildTarget, InjectAction};
@@ -41,17 +42,10 @@ pub fn build_project(arguments: BuildArguments) -> anyhow::Result<()> {
         ));
     }
 
-    let Some(log_file) = arguments.log_file.file_name() else {
-        return Err(anyhow!("Invalid log file name: `{}`", arguments.log_file.display()));
-    };
-
-    let log_file = if log_file == arguments.log_file {
-        // Log filename without path was given, use the output path as destination.
-        output_dir.join(log_file)
-    } else {
-        log_file.into()
-    };
-
+    let log_file = arguments
+        .log_file
+        .unwrap_or_else(|| format!("Build-{}.log", arguments.target).into());
+    let log_file = log_file_path(&log_file, &project_dir)?;
     if log_file.exists() {
         fs::remove_file(&log_file)?;
     }
@@ -134,6 +128,24 @@ pub fn build_project(arguments: BuildArguments) -> anyhow::Result<()> {
     }
 
     build_result.map_err(|_| errors_from_log(&log_file))
+}
+
+/// Returns full path to the log file. By default the project's `Logs` directory is used as destination.
+fn log_file_path(log_file: &Path, project_dir: &Path) -> anyhow::Result<PathBuf> {
+    let Some(file_name) = log_file.file_name() else {
+             return Err(anyhow!("Invalid log file name: `{}`", log_file.display()));
+         };
+
+    let path = if log_file == file_name {
+        // Log filename without path was given, use the project's `Logs` directory as destination.
+        project_dir.join("Logs").join(file_name)
+    } else {
+        log_file.into()
+    }
+    .absolutize()?
+    .to_path_buf();
+
+    Ok(path)
 }
 
 /// Returns errors from the given log file as one collected Err.
