@@ -159,7 +159,7 @@ fn clean_output_directory(path: &Path) -> anyhow::Result<()> {
     for dir in delete {
         println!("Removing directory: {}", dir.display());
         fs::remove_dir_all(&dir)
-            .map_err(|_| anyhow!("Could not remove directory: {}", dir.display()))?
+            .map_err(|_| anyhow!("Could not remove directory: {}", dir.display()))?;
     }
 
     Ok(())

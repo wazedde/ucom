@@ -15,10 +15,7 @@ pub fn list_versions(list_type: ListType, partial_version: Option<&str>) -> anyh
 
     match list_type {
         ListType::Installed => {
-            println!(
-                "{}",
-                format!("Unity versions in: {}", dir.display()).bold()
-            );
+            println!("{}", format!("Unity versions in: {}", dir.display()).bold());
 
             print_installed_versions(&matching_versions, &Vec::new())?;
         }
@@ -96,10 +93,10 @@ fn print_installed_versions(
                         // Later version available.
                         colorize_line = |s: &str| s.yellow().bold();
                         line.push_str(&format!(
-                            " - Update available: {} behind {} ({})",
+                            " - {} behind {} ({})",
                             range.iter().filter(|v| v.version > version).count(),
                             latest.version,
-                            latest.date_header
+                            latest.installation_url
                         ));
                     }
                     Ordering::Greater => {
@@ -208,8 +205,8 @@ fn print_latest_versions(
                 println!(
                     "{}",
                     format!(
-                        "{latest_string:<max_len$} - Installed: {joined} (update available: {})",
-                        latest.date_header
+                        "{latest_string:<max_len$} - Installed: {joined} (update: {})",
+                        latest.installation_url
                     )
                     .yellow()
                     .bold()
