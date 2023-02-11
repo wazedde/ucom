@@ -97,14 +97,25 @@ pub fn check_updates(project_dir: &Path, report_path: Option<&Path>) -> anyhow::
 
             writeln!(buf, "{}", "Update(s) available:".bold())?;
             for (v, ri) in &output {
-                writeln!(
-                    buf,
-                    "    {:<max_len$} - {} ({})",
-                    v.yellow().bold(),
-                    ri.installation_url,
-                    release_notes_url(ri.version)
-                )
-                .unwrap();
+                if is_editor_installed(ri.version).unwrap_or(false) {
+                    writeln!(
+                        buf,
+                        "    {:<max_len$} - {} = {}",
+                        v.yellow().bold(),
+                        release_notes_url(ri.version),
+                        "installed".bold()
+                    )
+                    .unwrap();
+                } else {
+                    writeln!(
+                        buf,
+                        "    {:<max_len$} - {} > {}",
+                        v.yellow().bold(),
+                        release_notes_url(ri.version),
+                        ri.installation_url.bold().yellow(),
+                    )
+                    .unwrap();
+                }
             }
         }
 
@@ -169,11 +180,7 @@ fn write_release_notes(buf: &mut Vec<u8>, release: &ReleaseInfo) -> anyhow::Resu
     writeln!(buf)?;
     writeln!(buf, "## Release notes for [{}]({url})", release.version)?;
     writeln!(buf)?;
-    writeln!(
-        buf,
-        "[install in Unity HUB]({})",
-        release.installation_url
-    )?;
+    writeln!(buf, "[install in Unity HUB]({})", release.installation_url)?;
 
     for (header, entries) in release_notes {
         writeln!(buf)?;

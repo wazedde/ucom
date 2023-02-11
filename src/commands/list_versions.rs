@@ -93,7 +93,7 @@ fn print_installed_versions(
                         // Later version available.
                         colorize_line = |s: &str| s.yellow().bold();
                         line.push_str(&format!(
-                            " - {} behind {} ({})",
+                            " - {} behind {} > {}",
                             range.iter().filter(|v| v.version > version).count(),
                             latest.version,
                             latest.installation_url
@@ -205,7 +205,7 @@ fn print_latest_versions(
                 println!(
                     "{}",
                     format!(
-                        "{latest_string:<max_len$} - Installed: {joined} (update: {})",
+                        "{latest_string:<max_len$} - Installed: {joined} (update > {})",
                         latest.installation_url
                     )
                     .yellow()
