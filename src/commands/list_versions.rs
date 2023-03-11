@@ -16,8 +16,7 @@ pub fn list_versions(list_type: ListType, partial_version: Option<&str>) -> anyh
     match list_type {
         ListType::Installed => {
             println!("{}", format!("Unity versions in: {}", dir.display()).bold());
-
-            print_installed_versions(&matching_versions, &Vec::new())?;
+            print_installed_versions(&matching_versions)?;
         }
         ListType::Updates => {
             println!(
@@ -27,7 +26,7 @@ pub fn list_versions(list_type: ListType, partial_version: Option<&str>) -> anyh
             let spinner = Spinner::new(spinners::Dots, "Downloading release data...", None);
             let releases = request_unity_releases()?;
             spinner.clear();
-            print_installed_versions(&matching_versions, &releases)?;
+            print_updates(&matching_versions, &releases)?;
         }
         ListType::Latest => {
             println!("{}", "Latest available minor releases".bold());
@@ -41,25 +40,13 @@ pub fn list_versions(list_type: ListType, partial_version: Option<&str>) -> anyh
     Ok(())
 }
 
-fn print_installed_versions(
-    installed: &[UnityVersion],
-    available: &[ReleaseInfo],
-) -> anyhow::Result<()> {
-    let default_version = env::var_os(ENV_DEFAULT_VERSION)
-        .and_then(|env| {
-            installed
-                .iter()
-                .rev()
-                .find(|v| v.to_string().starts_with(env.to_string_lossy().as_ref()))
-        })
-        .or_else(|| installed.last())
-        .copied()
-        .ok_or_else(|| anyhow!("No Unity versions installed"))?;
+fn print_installed_versions(installed: &[UnityVersion]) -> anyhow::Result<()> {
+    let default_version = default_version(installed)?;
 
     let installed: Vec<_> = installed.iter().map(|v| (v, v.to_string())).collect();
     let max_len = installed.iter().map(|(_, s)| s.len()).max().unwrap();
 
-    let mut previous_range = None;
+    let mut previous_minor = None;
     let mut iter = installed.iter().peekable();
 
     while let Some((&version, version_string)) = iter.next() {
@@ -68,11 +55,45 @@ fn print_installed_versions(
         });
 
         print_list_marker(
-            Some((version.major, version.minor)) == previous_range,
+            Some((version.major, version.minor)) == previous_minor,
             is_next_in_same_range,
         );
 
-        previous_range = Some((version.major, version.minor));
+        previous_minor = Some((version.major, version.minor));
+
+        let mut line = format!("{version_string:<max_len$}");
+
+        if version == default_version {
+            line.push_str(" *default for new projects");
+            println!("{}", &line.bold());
+        } else {
+            println!("{}", &line);
+        }
+    }
+
+    Ok(())
+}
+
+fn print_updates(installed: &[UnityVersion], available: &[ReleaseInfo]) -> anyhow::Result<()> {
+    let default_version = default_version(installed)?;
+
+    let installed: Vec<_> = installed.iter().map(|v| (v, v.to_string())).collect();
+    let max_len = installed.iter().map(|(_, s)| s.len()).max().unwrap();
+
+    let mut previous_minor = None;
+    let mut iter = installed.iter().peekable();
+
+    while let Some((&version, version_string)) = iter.next() {
+        let is_next_in_same_range = iter.peek().map_or(false, |(v, _)| {
+            v.major == version.major && v.minor == version.minor
+        });
+
+        print_list_marker(
+            Some((version.major, version.minor)) == previous_minor,
+            is_next_in_same_range,
+        );
+
+        previous_minor = Some((version.major, version.minor));
 
         let mut colorize_line: fn(&str) -> ColoredString = |s: &str| ColoredString::from(s);
         let mut line = format!("{version_string:<max_len$}");
@@ -214,6 +235,20 @@ fn print_latest_versions(
             }
         }
     }
+}
+
+fn default_version(installed: &[UnityVersion]) -> anyhow::Result<UnityVersion> {
+    let default_version = env::var_os(ENV_DEFAULT_VERSION)
+        .and_then(|env| {
+            installed
+                .iter()
+                .rev()
+                .find(|v| v.to_string().starts_with(env.to_string_lossy().as_ref()))
+        })
+        .or_else(|| installed.last())
+        .copied()
+        .ok_or_else(|| anyhow!("No Unity versions installed"))?;
+    Ok(default_version)
 }
 
 fn print_list_marker(same_as_previous: bool, same_as_next: bool) {

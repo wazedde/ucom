@@ -80,7 +80,7 @@ pub fn request_release_notes(version: UnityVersion) -> Result<(String, String)> 
     Ok((url, body))
 }
 
-/// Extracts releases that match the filter from the html.
+/// Extracts releases from the html that match the filter.
 fn extract_releases(html: &str, filter: &ReleaseFilter) -> Vec<ReleaseInfo> {
     let major_release_class: Cow<'_, str> = match filter {
         ReleaseFilter::All => "release-tab-content".into(),

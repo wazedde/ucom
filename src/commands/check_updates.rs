@@ -60,7 +60,12 @@ pub fn check_updates(project_dir: &Path, report_path: Option<&Path>) -> anyhow::
         project_dir.to_string_lossy().bold()
     )?;
 
-    write!(buf, "    Version used: {}", version.to_string().bold())?;
+    write!(
+        buf,
+        "    Version used: {} > {}",
+        version.to_string().bold(),
+        release_notes_url(version)
+    )?;
 
     if is_editor_installed(version)? {
         writeln!(buf)?;

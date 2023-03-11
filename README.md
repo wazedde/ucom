@@ -9,7 +9,7 @@ More examples:
 
 - `ucom build ios` - Starts an iOS batch-mode build of the project in the current directory.
 - `ucom build android ~/Develop/MyProject --mode editor-quit` - Starts an Android build of the project in the editor and
-  quits it afterwards.
+  quits it afterward.
 
 - `ucom list` - Lists all the Unity versions on the system.
 - `ucom list -u 2021.3` - Lists the Unity versions in the 2021.3 range on the system.
@@ -43,10 +43,10 @@ Because Unity does not support command line arguments for building all supported
 command injects a [build script](src/commands/include/UcomBuilder.cs) into the project to trigger the build for a
 specific platform.
 
-By default the script is removed from the project after the build has been completed. If you want to keep the script,
-add the `--inject persistent` option to the `ucom build` command.
+By default, the script is removed from the project after the build has been completed.
+If you want to keep the script, add the `--inject persistent` option to the `ucom build` command.
 
-Use `ucom --injected-script` or `ucom -I` to print the build script to the console so you can take a look at it.
+Use `ucom --injected-script` or `ucom -I` to print the build script to the console, so you can take a look at it.
 
 ## Environment Variables
 
@@ -61,8 +61,9 @@ Use `ucom --injected-script` or `ucom -I` to print the build script to the conso
 ## Limitations
 
 - Only macOS and Windows are supported.
-- Looks for the editors installations in the default location. If this is not the case, set the `UCOM_EDITOR_DIR`
-  environment variable to the directory where the editors are installed.
+- Looks for the editor installations in the default location.
+  If this is not the case, set the `UCOM_EDITOR_DIR` environment variable to the directory where the editors are
+  installed.
 - Requires that git is available for initializing a repository when using the `new` command.
 - `ucom build` does not support building a project that is already open in the editor.
 

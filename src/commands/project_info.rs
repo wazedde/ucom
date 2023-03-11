@@ -3,6 +3,7 @@ use std::path::Path;
 use colored::Colorize;
 
 use crate::cli::PackagesInfoLevel;
+use crate::unity::release_notes_url;
 use crate::unity::unity_project::*;
 
 /// Shows project information.
@@ -25,7 +26,11 @@ pub fn show_project_info(
         println!("    Version:       {}", ps.bundle_version.bold());
     }
 
-    print!("    Unity Version: {}", version.to_string().bold());
+    print!(
+        "    Unity Version: {} > {}",
+        version.to_string().bold(),
+        release_notes_url(version)
+    );
     if is_editor_installed(version)? {
         println!();
     } else {
