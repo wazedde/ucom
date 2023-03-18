@@ -262,41 +262,21 @@ fn print_latest_versions(
     partial_version: Option<&str>,
 ) {
     // Get the latest version of each range.
-    let latest_releases: Vec<_> = {
-        let mut available_ranges: Vec<_> = available
-            .iter()
-            .filter(|r| partial_version.map_or(true, |p| r.version.to_string().starts_with(p)))
-            .map(|r| (r.version.major, r.version.minor))
-            .collect();
+    let minor_releases: Vec<_> = latest_minor_releases(available, partial_version);
 
-        available_ranges.sort_unstable();
-        available_ranges.dedup();
-
-        available_ranges
-            .iter()
-            .filter_map(|&(major, minor)| {
-                available
-                    .iter()
-                    .filter(|r| r.version.major == major && r.version.minor == minor)
-                    .max()
-            })
-            .map(|r| (r, r.version.to_string()))
-            .collect()
-    };
-
-    let max_len = latest_releases
+    let max_len = minor_releases
         .iter()
-        .map(|(_, s)| s.len())
+        .map(|ri| ri.version.to_string().len())
         .max()
         .unwrap_or(0);
 
     let mut previous_major = None;
-    let mut iter = latest_releases.iter().peekable();
+    let mut iter = minor_releases.iter().peekable();
 
-    while let Some((latest, latest_string)) = iter.next() {
+    while let Some(latest) = iter.next() {
         let is_last_in_range = iter
             .peek()
-            .map_or(true, |(v, _)| v.version.major != latest.version.major);
+            .map_or(true, |v| v.version.major != latest.version.major);
 
         print_list_marker(
             Some(latest.version.major) == previous_major,
@@ -314,40 +294,72 @@ fn print_latest_versions(
 
         if installed_in_range.is_empty() {
             // No installed versions in the range.
-            println!("{latest_string}");
+            println!("{}", latest.version);
         } else {
-            let is_up_to_date = installed_in_range
-                .last()
-                .filter(|&v| v == &latest.version)
-                .is_some()
-                || installed_in_range // Special case for when installed version is newer than latest.
-                    .last()
-                    .map_or(false, |&v| v > latest.version);
-
-            // Concatenate the installed versions for printing.
-            let joined = installed_in_range
-                .iter()
-                .map(ToString::to_string)
-                .collect::<Vec<_>>()
-                .join(", ");
-
-            if is_up_to_date {
-                println!(
-                    "{}",
-                    format!("{latest_string:<max_len$} - Installed: {joined}").bold()
-                );
-            } else {
-                println!(
-                    "{}",
-                    format!(
-                        "{latest_string:<max_len$} - Installed: {joined} (update > {})",
-                        latest.installation_url
-                    )
-                    .yellow()
-                    .bold()
-                );
-            }
+            print_installs(latest, installed_in_range, max_len)
         }
+    }
+}
+
+fn latest_minor_releases<'a>(
+    available: &'a [ReleaseInfo],
+    partial_version: Option<&str>,
+) -> Vec<&'a ReleaseInfo> {
+    let mut available_releases: Vec<_> = available
+        .iter()
+        .filter(|r| partial_version.map_or(true, |p| r.version.to_string().starts_with(p)))
+        .map(|r| (r.version.major, r.version.minor))
+        .collect();
+
+    available_releases.sort_unstable();
+    available_releases.dedup();
+
+    available_releases
+        .iter()
+        .filter_map(|&(major, minor)| {
+            available
+                .iter()
+                .filter(|r| r.version.major == major && r.version.minor == minor)
+                .max()
+        })
+        .collect()
+}
+
+fn print_installs(latest: &ReleaseInfo, installed_in_range: Vec<UnityVersion>, max_len: usize) {
+    let is_up_to_date = installed_in_range
+        .last()
+        .filter(|&v| v == &latest.version)
+        .is_some()
+        || installed_in_range // Special case for when installed version is newer than latest.
+            .last()
+            .map_or(false, |&v| v > latest.version);
+
+    // Concatenate the installed versions for printing.
+    let joined_versions = installed_in_range
+        .iter()
+        .map(ToString::to_string)
+        .collect::<Vec<_>>()
+        .join(", ");
+
+    if is_up_to_date {
+        println!(
+            "{}",
+            format!(
+                "{:<max_len$} - Installed: {}",
+                latest.version, joined_versions
+            )
+            .bold()
+        );
+    } else {
+        println!(
+            "{}",
+            format!(
+                "{:<max_len$} - Installed: {} (update > {}),",
+                latest.version, joined_versions, latest.installation_url
+            )
+            .yellow()
+            .bold()
+        );
     }
 }
 
