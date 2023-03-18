@@ -20,11 +20,14 @@ pub fn check_updates(project_dir: &Path, report_path: Option<&Path>) -> anyhow::
 
     let version = version_used_by_project(&project_dir)?;
 
-    let mut spinner = Spinner::new(
+    let spinner = Spinner::new(
         spinners::Dots,
         format!("Project uses {version}; checking for updates..."),
         None,
     );
+
+    let (current, updates) = request_patch_update_info(version)?;
+    spinner.clear();
 
     if report_path.is_some() {
         // Disable colored output when writing to a file.
@@ -45,7 +48,7 @@ pub fn check_updates(project_dir: &Path, report_path: Option<&Path>) -> anyhow::
     writeln!(
         buf,
         "{}",
-        format!("Unity updates for {product_name}").bold()
+        format!("Unity updates for project `{product_name}`").bold()
     )?;
 
     drop(product_name);
@@ -56,38 +59,46 @@ pub fn check_updates(project_dir: &Path, report_path: Option<&Path>) -> anyhow::
 
     writeln!(
         buf,
-        "    Directory:    {}",
+        "    Directory: {}",
         project_dir.to_string_lossy().bold()
     )?;
 
+    let is_installed = is_editor_installed(version)?;
+
+    writeln!(buf)?;
+    write!(buf, "{}", "Version used:".bold())?;
+
+    if is_installed {
+        if updates.is_empty() {
+            writeln!(buf, " {}", "installed and up to date".bold())?;
+        } else {
+            writeln!(buf, " {}", "installed".bold())?;
+        }
+    } else {
+        writeln!(buf, " {}", "not installed".red().bold())?;
+    }
+
     write!(
         buf,
-        "    Version used: {} > {}",
-        version.to_string().bold(),
+        "    {} - {}",
+        version,
         release_notes_url(version)
     )?;
 
-    if is_editor_installed(version)? {
+    if is_installed {
         writeln!(buf)?;
     } else {
-        writeln!(buf, " {}", "*not installed".red().bold())?;
-    }
-
-    let updates = request_patch_updates_for(version)?;
-    if updates.is_empty() {
         writeln!(
             buf,
-            "    Already uses the latest release in the {}.{}.x range",
-            version.major, version.minor
+            " > {}",
+            current
+                .map(|r| r.installation_url)
+                .unwrap_or_else(|| "No release info available".to_string())
+                .bold()
         )?;
-        spinner.clear();
-        print!("{}", String::from_utf8(buf)?);
-        return Ok(());
     }
 
     if report_path.is_none() {
-        spinner.clear();
-
         let output: Vec<_> = updates
             .iter()
             .map(|ri| (ri.version.to_string(), ri))
@@ -100,12 +111,13 @@ pub fn check_updates(project_dir: &Path, report_path: Option<&Path>) -> anyhow::
                 .max()
                 .unwrap();
 
+            writeln!(buf)?;
             writeln!(buf, "{}", "Update(s) available:".bold())?;
             for (v, ri) in &output {
                 if is_editor_installed(ri.version).unwrap_or(false) {
                     writeln!(
                         buf,
-                        "    {:<max_len$} - {} = {}",
+                        "    {:<max_len$} - {} > {}",
                         v.yellow().bold(),
                         release_notes_url(ri.version),
                         "installed".bold()
@@ -117,7 +129,7 @@ pub fn check_updates(project_dir: &Path, report_path: Option<&Path>) -> anyhow::
                         "    {:<max_len$} - {} > {}",
                         v.yellow().bold(),
                         release_notes_url(ri.version),
-                        ri.installation_url.bold().yellow(),
+                        ri.installation_url.bold(),
                     )
                     .unwrap();
                 }
@@ -128,6 +140,7 @@ pub fn check_updates(project_dir: &Path, report_path: Option<&Path>) -> anyhow::
         return Ok(());
     }
 
+    let mut spinner = Spinner::new(spinners::Dots, "", None);
     for release in updates {
         spinner.update_text(format!(
             "Downloading Unity {} release notes...",

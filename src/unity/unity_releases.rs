@@ -56,7 +56,9 @@ pub fn request_unity_releases() -> Result<Vec<ReleaseInfo>> {
 }
 
 /// Gets patch updates for the given version from the Unity website.
-pub fn request_patch_updates_for(version: UnityVersion) -> Result<Vec<ReleaseInfo>> {
+pub fn request_patch_update_info(
+    version: UnityVersion,
+) -> Result<(Option<ReleaseInfo>, Vec<ReleaseInfo>)> {
     let url = "https://unity.com/releases/editor/archive";
     let body = ureq::get(url).call()?.into_string()?;
 
@@ -66,12 +68,16 @@ pub fn request_patch_updates_for(version: UnityVersion) -> Result<Vec<ReleaseInf
             major: version.major,
             minor: version.minor,
         },
-    )
-    .into_iter()
-    .filter(|ri| ri.version > version)
-    .collect();
+    );
 
-    Ok(releases)
+    let current = releases.iter().find(|ri| ri.version == version).cloned();
+
+    let updates = releases
+        .into_iter()
+        .filter(|ri| ri.version > version)
+        .collect();
+
+    Ok((current, updates))
 }
 
 pub fn request_release_notes(version: UnityVersion) -> Result<(String, String)> {
@@ -300,7 +306,7 @@ mod releases_tests_online {
     use std::str::FromStr;
 
     use crate::unity::{
-        extract_release_notes, request_patch_updates_for, request_release_notes, UnityVersion,
+        extract_release_notes, request_patch_update_info, request_release_notes, UnityVersion,
     };
 
     /// Scraping https://unity.com/releases/editor/archive for updates to 2019.1.0f1.
@@ -308,7 +314,7 @@ mod releases_tests_online {
     #[test]
     fn test_request_updates_2019_1_0() {
         let v = UnityVersion::from_str("2019.1.0f1").unwrap();
-        let updates = request_patch_updates_for(v).unwrap();
+        let (_, updates) = request_patch_update_info(v).unwrap();
 
         assert!(updates.len() >= 15);
     }
@@ -318,7 +324,7 @@ mod releases_tests_online {
     #[test]
     fn test_request_updates_5_0_0() {
         let v = UnityVersion::from_str("5.0.0f1").unwrap();
-        let updates = request_patch_updates_for(v).unwrap();
+        let (_, updates) = request_patch_update_info(v).unwrap();
 
         assert_eq!(updates.len(), 5);
     }

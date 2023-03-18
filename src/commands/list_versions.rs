@@ -229,15 +229,10 @@ fn print_updates(installed: &[UnityVersion], available: &Vec<ReleaseInfo>) -> an
                 }
                 VersionType::Update(update) => {
                     println!(
-                        "{}",
-                        format!(
-                            "{:<max_len$} - {} > {}",
-                            update.version,
-                            release_notes_url(update.version),
-                            update.installation_url,
-                        )
-                        .yellow()
-                        .bold()
+                        "{:<max_len$} - {} > {}",
+                        update.version.to_string().yellow().bold(),
+                        release_notes_url(update.version),
+                        update.installation_url.bold(),
                     );
                 }
             }
