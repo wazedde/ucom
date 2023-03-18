@@ -19,7 +19,7 @@ const PERSISTENT_BUILD_SCRIPT_PATH: &str = "Assets/Plugins/ucom/Editor/UcomBuild
 const PERSISTENT_BUILD_SCRIPT_ROOT: &str = "Assets/Plugins/ucom";
 const AUTO_BUILD_SCRIPT_ROOT: &str = "Assets/ucom";
 
-pub const fn build_script_content() -> &'static str {
+pub const fn unity_build_script() -> &'static str {
     include_str!("include/UcomBuilder.cs")
 }
 
@@ -276,7 +276,7 @@ fn inject_build_script<P: AsRef<Path>>(parent_dir: P) -> anyhow::Result<()> {
     println!("Injecting ucom build script: {}", file_path.display());
 
     let mut file = File::create(file_path)?;
-    write!(file, "{}", build_script_content()).map_err(Into::into)
+    write!(file, "{}", unity_build_script()).map_err(Into::into)
 }
 
 /// Removes the injected build script from the project.

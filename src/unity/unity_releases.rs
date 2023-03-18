@@ -7,7 +7,7 @@ use select::predicate::{Class, Name};
 
 use crate::unity::{MajorVersion, MinorVersion, UnityVersion};
 
-#[derive(Debug, Eq, PartialEq, Ord, PartialOrd)]
+#[derive(Debug, Eq, PartialEq, Ord, PartialOrd, Clone)]
 pub struct ReleaseInfo {
     pub version: UnityVersion,
     pub date_header: String,
