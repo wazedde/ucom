@@ -48,27 +48,27 @@ pub fn list_versions(list_type: ListType, partial_version: Option<&str>) -> anyh
 /// ├─ 2020.3.45f1 - https://unity.com/releases/editor/whats-new/2020.3.45 > unityhub://2020.3.45f1/660cd1701bd5
 /// └─ 2020.3.46f1 - https://unity.com/releases/editor/whats-new/2020.3.46 > unityhub://2020.3.46f1/18bc01a066b4
 /// ┬─ 2021.3.19f1
-/// └─ 2021.3.21f1 - Up to date *default for new projects
+/// └─ 2021.3.21f1 - Up to date *default for projects
 /// ┬─ 2022.2.6f1
 /// ├─ 2022.2.10f1 - Update(s) available
 /// └─ 2022.2.11f1 - https://unity.com/releases/editor/whats-new/2022.2.11 > unityhub://2022.2.11f1/621cd60d08fd
 /// ```
 fn print_installed_versions(installed: &[UnityVersion]) -> anyhow::Result<()> {
     let default_version = default_version(installed)?;
-    let grouped = group_minor_versions(installed);
-    let max_len = max_version_string_length(&grouped);
+    let version_groups = group_minor_versions(installed);
+    let max_len = max_version_string_length(&version_groups);
 
-    for minor in grouped {
-        for entry in &minor {
+    for group in version_groups {
+        for entry in &group {
             print_list_marker(
-                entry.version() != minor.first().unwrap().version(),
-                entry.version() == minor.last().unwrap().version(),
+                entry.version() != group.first().unwrap().version(),
+                entry.version() == group.last().unwrap().version(),
             );
 
             if entry.version() == &default_version {
                 println!(
                     "{}",
-                    format!("{:<max_len$} *default for new projects", entry.version()).bold()
+                    format!("{:<max_len$} *default for projects", entry.version()).bold()
                 );
             } else {
                 println!("{}", entry.version());
@@ -79,83 +79,70 @@ fn print_installed_versions(installed: &[UnityVersion]) -> anyhow::Result<()> {
 }
 
 /// Returns the max length of a version string in a list of lists of versions.
-fn max_version_string_length(vec: &[Vec<VersionType>]) -> usize {
-    vec.iter()
+fn max_version_string_length(version_groups: &[Vec<VersionType>]) -> usize {
+    version_groups
+        .iter()
         .flat_map(|f| f.iter())
         .map(|e| e.version().to_string().len())
         .max()
         .unwrap()
 }
 
-struct InstallInfo {
-    /// Installed version.
-    version: UnityVersion,
-    /// Is the latest installed version in the minor range.
-    is_latest: bool,
-}
-
-impl InstallInfo {
-    fn new(version: UnityVersion, is_latest: bool) -> Self {
-        Self { version, is_latest }
-    }
-}
-
 enum VersionType {
     /// Installed version.
-    Installed(InstallInfo),
+    Installed {
+        version: UnityVersion,
+        /// Is the latest installed version in the minor range.
+        is_latest_minor: bool,
+    },
     /// Update to installed version.
     Update(ReleaseInfo),
 }
 
 impl VersionType {
-    fn new_installed(version: UnityVersion, is_latest: bool) -> VersionType {
-        VersionType::Installed(InstallInfo::new(version, is_latest))
-    }
-
-    fn new_update(version: ReleaseInfo) -> VersionType {
-        VersionType::Update(version)
-    }
-
     fn version(&self) -> &UnityVersion {
         match self {
-            VersionType::Installed(v) => &v.version,
-            VersionType::Update(v) => &v.version,
+            VersionType::Installed { version, .. } => version,
+            VersionType::Update(ri) => &ri.version,
         }
     }
 }
 
-/// Returns list of lists of versions grouped by minor version.
+/// Returns list of grouped versions that are in the same minor range.
 fn group_minor_versions(installed: &[UnityVersion]) -> Vec<Vec<VersionType>> {
-    let mut versions = vec![];
-    let mut minor_range = vec![];
-    let mut current_range = None;
+    let mut version_groups = vec![];
+    let mut group = vec![];
 
     let mut iter = installed.iter().peekable();
     while let Some(&version) = iter.next() {
-        let current_minor = (version.major, version.minor);
-        let is_latest = iter.peek().map_or(true, |v| {
-            let next_minor = (v.major, v.minor);
-            next_minor != current_minor
+        let is_latest_minor = iter.peek().map_or(true, |v| {
+            (v.major, v.minor) != (version.major, version.minor)
         });
 
-        if current_range == Some(current_minor) {
-            // In same minor range
-            minor_range.push(VersionType::new_installed(version, is_latest));
+        if is_latest_minor {
+            // Finished group
+            group.push(VersionType::Installed {
+                version,
+                is_latest_minor,
+            });
+            version_groups.push(group);
+
+            // Create a new group
+            group = vec![];
         } else {
-            // New minor range
-            current_range = Some(current_minor);
-            if !minor_range.is_empty() {
-                versions.push(minor_range);
-            }
-            minor_range = vec![VersionType::new_installed(version, is_latest)];
+            // In current group
+            group.push(VersionType::Installed {
+                version,
+                is_latest_minor,
+            });
         }
     }
 
-    if !minor_range.is_empty() {
-        versions.push(minor_range);
+    if !group.is_empty() {
+        version_groups.push(group);
     }
 
-    versions
+    version_groups
 }
 
 /// Prints list of installed versions and available updates.
@@ -165,7 +152,7 @@ fn group_minor_versions(installed: &[UnityVersion]) -> Vec<Vec<VersionType>> {
 /// ┬─ 2021.3.9f1
 /// ├─ 2021.3.16f1
 /// ├─ 2021.3.19f1
-/// └─ 2021.3.20f1 - Up to date *default for new projects
+/// └─ 2021.3.20f1 - Up to date *default for projects
 /// ┬─ 2022.2.6f1
 /// └─ 2022.2.10f1 - Up to date
 /// ```
@@ -175,53 +162,57 @@ fn print_updates(installed: &[UnityVersion], available: &Vec<ReleaseInfo>) -> an
     }
 
     let default_version = default_version(installed)?;
-    let mut grouped = group_minor_versions(installed);
+    let mut version_groups = group_minor_versions(installed);
 
-    for minor in &mut grouped {
-        let latest_installed = *minor.last().unwrap().version();
+    // Add available updates to groups
+    for group in &mut version_groups {
+        let latest_installed = *group.last().unwrap().version();
 
-        let updates = available.iter().filter(|v| {
-            v.version.major == latest_installed.major
-                && v.version.minor == latest_installed.minor
-                && v.version > latest_installed
-        });
-
-        for update in updates {
-            minor.push(VersionType::new_update(update.clone()));
-        }
+        available
+            .iter()
+            .filter(|ri| {
+                ri.version.major == latest_installed.major
+                    && ri.version.minor == latest_installed.minor
+                    && ri.version > latest_installed
+            })
+            .for_each(|ri| {
+                group.push(VersionType::Update(ri.clone()));
+            });
     }
 
-    let max_len = max_version_string_length(&grouped);
+    let max_len = max_version_string_length(&version_groups);
 
-    for minor in grouped {
-        for entry in &minor {
+    for group in version_groups {
+        for entry in &group {
             print_list_marker(
-                entry.version() != minor.first().unwrap().version(),
-                entry.version() == minor.last().unwrap().version(),
+                entry.version() != group.first().unwrap().version(),
+                entry.version() == group.last().unwrap().version(),
             );
 
-            let last_in_group = entry.version() == minor.last().unwrap().version();
+            let last_in_group = entry.version() == group.last().unwrap().version();
 
             match entry {
-                VersionType::Installed(installed) => {
-                    let has_updates = !last_in_group && installed.is_latest;
-                    let is_default = installed.version == default_version;
+                VersionType::Installed {
+                    version,
+                    is_latest_minor,
+                } => {
+                    let has_updates = !last_in_group && *is_latest_minor;
+                    let is_default = *version == default_version;
 
                     let mut line = String::new();
 
-                    match (installed.is_latest, has_updates) {
-                        (false, _) => line.push_str(&format!("{}", installed.version)),
+                    match (is_latest_minor, has_updates) {
+                        (false, _) => line.push_str(&format!("{}", version)),
                         (true, false) => {
-                            line.push_str(&format!("{:<max_len$} - Up to date", installed.version));
+                            line.push_str(&format!("{:<max_len$} - Up to date", version));
                         }
-                        (true, true) => line.push_str(&format!(
-                            "{:<max_len$} - Update(s) available",
-                            installed.version
-                        )),
+                        (true, true) => {
+                            line.push_str(&format!("{:<max_len$} - Update(s) available", version))
+                        }
                     }
 
                     if is_default {
-                        line.push_str(" *default for new projects");
+                        line.push_str(" *default for projects");
                         println!("{}", line.bold());
                     } else {
                         println!("{}", line);
@@ -249,7 +240,7 @@ fn print_updates(installed: &[UnityVersion], available: &Vec<ReleaseInfo>) -> an
 /// └─ 2019.4.40f1 - Installed: 2019.4.40f1
 /// ┬─ 2020.1.17f1
 /// ├─ 2020.2.7f1
-/// └─ 2020.3.46f1 - Installed: 2020.3.43f1 (update > unityhub://2020.3.46f1/18bc01a066b4)
+/// └─ 2020.3.46f1 - Installed: 2020.3.43f1 - update > unityhub://2020.3.46f1/18bc01a066b4
 /// ┬─ 2021.1.28f1
 /// ├─ 2021.2.19f1
 /// └─ 2021.3.20f1 - Installed: 2021.3.9f1, 2021.3.16f1, 2021.3.19f1, 2021.3.20f1
@@ -354,7 +345,7 @@ fn print_installs(latest: &ReleaseInfo, installed_in_range: Vec<UnityVersion>, m
         println!(
             "{}",
             format!(
-                "{:<max_len$} - Installed: {} (update > {}),",
+                "{:<max_len$} - Installed: {} - update > {}",
                 latest.version, joined_versions, latest.installation_url
             )
             .yellow()
