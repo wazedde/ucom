@@ -83,7 +83,7 @@ fn max_version_string_length(version_groups: &[Vec<VersionType>]) -> usize {
     version_groups
         .iter()
         .flat_map(|f| f.iter())
-        .map(|e| e.version().to_string().len())
+        .map(|e| e.version().len())
         .max()
         .unwrap()
 }
@@ -257,7 +257,7 @@ fn print_latest_versions(
 
     let max_len = minor_releases
         .iter()
-        .map(|ri| ri.version.to_string().len())
+        .map(|ri| ri.version.len())
         .max()
         .unwrap_or(0);
 

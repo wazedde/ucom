@@ -152,7 +152,7 @@ fn write_available_updates(updates: &[ReleaseInfo], buf: &mut Vec<u8>) -> anyhow
 
     let max_len = updates
         .iter()
-        .map(|ri| ri.version.to_string().len())
+        .map(|ri| ri.version.len())
         .max()
         .unwrap();
 

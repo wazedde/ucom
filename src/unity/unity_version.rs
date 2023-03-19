@@ -74,6 +74,31 @@ pub struct UnityVersion {
     pub build: BuildNumber,
 }
 
+impl UnityVersion {
+    /// Returns the length of the string representation of this version.
+    pub fn len(self) -> usize {
+        return len_of_u16(self.major)
+            + len_of_u16(self.minor as u16)
+            + len_of_u16(self.patch as u16)
+            + self.build_type.as_str().len()
+            + len_of_u16(self.build as u16)
+            + 2;
+
+        fn len_of_u16(n: u16) -> usize {
+            if n == 0 {
+                return 1;
+            }
+            let mut len = 0;
+            let mut n = n;
+            while n > 0 {
+                len += 1;
+                n /= 10;
+            }
+            len
+        }
+    }
+}
+
 impl FromStr for UnityVersion {
     type Err = ParseError;
 
@@ -192,5 +217,23 @@ mod version_tests {
 
         let version = UnityVersion::from_str("2022.2.1rc2").unwrap();
         assert_eq!(version.to_string(), "2022.2.1rc2");
+    }
+
+    #[test]
+    fn test_len() {
+        let version = UnityVersion::from_str("5.102.5f123").unwrap();
+        assert_eq!(version.len(), "5.102.5f123".len());
+
+        let version = UnityVersion::from_str("2021.2.14f1").unwrap();
+        assert_eq!(version.len(), "2021.2.14f1".len());
+
+        let version = UnityVersion::from_str("2019.1.1b1").unwrap();
+        assert_eq!(version.len(), "2019.1.1b1".len());
+
+        let version = UnityVersion::from_str("2020.1.1a3").unwrap();
+        assert_eq!(version.len(), "2020.1.1a3".len());
+
+        let version = UnityVersion::from_str("2022.2.1rc2").unwrap();
+        assert_eq!(version.len(), "2022.2.1rc2".len());
     }
 }
