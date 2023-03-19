@@ -78,25 +78,25 @@ impl UnityVersion {
     /// Returns the length of the string representation of this version.
     pub fn len(self) -> usize {
         return len_of_u16(self.major)
-            + len_of_u16(self.minor as u16)
-            + len_of_u16(self.patch as u16)
+            + len_of_u16(u16::from(self.minor))
+            + len_of_u16(u16::from(self.patch))
             + self.build_type.as_str().len()
-            + len_of_u16(self.build as u16)
+            + len_of_u16(u16::from(self.build))
             + 2;
-
-        fn len_of_u16(n: u16) -> usize {
-            if n == 0 {
-                return 1;
-            }
-            let mut len = 0;
-            let mut n = n;
-            while n > 0 {
-                len += 1;
-                n /= 10;
-            }
-            len
-        }
     }
+}
+
+fn len_of_u16(n: u16) -> usize {
+    if n == 0 {
+        return 1;
+    }
+    let mut len = 0;
+    let mut n = n;
+    while n > 0 {
+        len += 1;
+        n /= 10;
+    }
+    len
 }
 
 impl FromStr for UnityVersion {

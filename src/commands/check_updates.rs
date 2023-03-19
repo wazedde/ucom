@@ -41,15 +41,15 @@ pub fn check_updates(project_dir: &Path, report_path: Option<&Path>) -> anyhow::
 
     writeln!(buf)?;
 
-    write_project_version(project_version, project_version_info, &updates, &mut buf)?;
+    write_project_version(
+        project_version,
+        project_version_info,
+        &updates,
+        output_to_file,
+        &mut buf,
+    )?;
 
-    if !output_to_file {
-        if !updates.is_empty() {
-            writeln!(buf)?;
-            write_available_updates(&updates, &mut buf)?;
-        }
-        print!("{}", String::from_utf8(buf)?);
-    } else {
+    if output_to_file {
         let mut spinner = Spinner::new(spinners::Dots, "Downloading Unity release notes...", None);
         for release in updates {
             spinner.update_text(format!(
@@ -67,6 +67,12 @@ pub fn check_updates(project_dir: &Path, report_path: Option<&Path>) -> anyhow::
             "Update report written to: {}",
             file_name.absolutize()?.display()
         );
+    } else {
+        if !updates.is_empty() {
+            writeln!(buf)?;
+            write_available_updates(&updates, &mut buf)?;
+        }
+        print!("{}", String::from_utf8(buf)?);
     }
 
     Ok(())
@@ -81,7 +87,7 @@ fn write_project_header(
         write!(buf, "# ")?;
     }
 
-    let product_name = ProjectSettings::from_project(&project_dir).map_or_else(
+    let product_name = ProjectSettings::from_project(project_dir).map_or_else(
         |_| "<UNKNOWN>".to_string(),
         |s| s.player_settings.product_name,
     );
@@ -89,18 +95,14 @@ fn write_project_header(
     writeln!(
         buf,
         "{}",
-        format!("Unity updates for project `{product_name}`").bold()
+        format!("Unity updates for project: {product_name}").bold()
     )?;
 
     if output_to_file {
         writeln!(buf)?;
     }
 
-    writeln!(
-        buf,
-        "    Directory: {}",
-        project_dir.to_string_lossy().bold()
-    )?;
+    writeln!(buf, "- Directory: {}", project_dir.to_string_lossy().bold())?;
 
     Ok(())
 }
@@ -109,37 +111,56 @@ fn write_project_version(
     project_version: UnityVersion,
     project_version_info: Option<ReleaseInfo>,
     updates: &[ReleaseInfo],
+    output_to_file: bool,
     buf: &mut Vec<u8>,
 ) -> anyhow::Result<()> {
     let is_installed = is_editor_installed(project_version)?;
-    write!(buf, "{}", "Version used:".bold())?;
+    write!(buf, "{}", "The version the project uses is ".bold())?;
 
     if is_installed {
         if updates.is_empty() {
-            writeln!(buf, " {}", "installed and up to date".bold())?;
+            writeln!(buf, "{}", "installed and up to date:".bold())?;
         } else {
-            writeln!(buf, " {}", "installed".bold())?;
+            writeln!(buf, "{}", "installed:".bold())?;
         }
     } else {
-        writeln!(buf, " {}", "not installed".red().bold())?;
+        writeln!(buf, "{}", "not installed:".red().bold())?;
+    }
+
+    if output_to_file {
+        writeln!(buf)?;
     }
 
     write!(
         buf,
-        "    {} - {}",
+        "- {} - {}",
         project_version,
         release_notes_url(project_version)
     )?;
 
     if is_installed {
         writeln!(buf)?;
-    } else {
+    } else if output_to_file {
         writeln!(
             buf,
             " > {}",
             project_version_info
                 .map(|r| r.installation_url)
-                .unwrap_or_else(|| "No release info available".to_string())
+                .map_or_else(
+                    || "No release info available".to_string(),
+                    |s| format!("[install in Unity HUB]({})", s)
+                )
+                .bold()
+        )?;
+    } else {
+        writeln!(
+            buf,
+            " > {}",
+            project_version_info
+                .map_or_else(
+                    || "No release info available".to_string(),
+                    |r| r.installation_url
+                )
                 .bold()
         )?;
     }
@@ -150,17 +171,13 @@ fn write_project_version(
 fn write_available_updates(updates: &[ReleaseInfo], buf: &mut Vec<u8>) -> anyhow::Result<()> {
     writeln!(buf, "{}", "Update(s) available:".bold())?;
 
-    let max_len = updates
-        .iter()
-        .map(|ri| ri.version.len())
-        .max()
-        .unwrap();
+    let max_len = updates.iter().map(|ri| ri.version.len()).max().unwrap();
 
     for ri in updates {
         if is_editor_installed(ri.version).unwrap_or(false) {
             writeln!(
                 buf,
-                "    {:<max_len$} - {} > {}",
+                "- {:<max_len$} - {} > {}",
                 ri.version.to_string().yellow().bold(),
                 release_notes_url(ri.version),
                 "installed".bold()
@@ -169,7 +186,7 @@ fn write_available_updates(updates: &[ReleaseInfo], buf: &mut Vec<u8>) -> anyhow
         } else {
             writeln!(
                 buf,
-                "    {:<max_len$} - {} > {}",
+                "- {:<max_len$} - {} > {}",
                 ri.version.to_string().yellow().bold(),
                 release_notes_url(ri.version),
                 ri.installation_url.bold(),

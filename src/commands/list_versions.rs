@@ -207,7 +207,7 @@ fn print_updates(installed: &[UnityVersion], available: &Vec<ReleaseInfo>) -> an
                             line.push_str(&format!("{:<max_len$} - Up to date", version));
                         }
                         (true, true) => {
-                            line.push_str(&format!("{:<max_len$} - Update(s) available", version))
+                            line.push_str(&format!("{:<max_len$} - Update(s) available", version));
                         }
                     }
 
@@ -287,7 +287,7 @@ fn print_latest_versions(
             // No installed versions in the range.
             println!("{}", latest.version);
         } else {
-            print_installs(latest, installed_in_range, max_len)
+            print_installs(latest, &installed_in_range, max_len);
         }
     }
 }
@@ -316,7 +316,7 @@ fn latest_minor_releases<'a>(
         .collect()
 }
 
-fn print_installs(latest: &ReleaseInfo, installed_in_range: Vec<UnityVersion>, max_len: usize) {
+fn print_installs(latest: &ReleaseInfo, installed_in_range: &[UnityVersion], max_len: usize) {
     let is_up_to_date = installed_in_range
         .last()
         .filter(|&v| v == &latest.version)
