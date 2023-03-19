@@ -68,7 +68,11 @@ fn print_installed_versions(installed: &[UnityVersion]) -> anyhow::Result<()> {
             if entry.version() == &default_version {
                 println!(
                     "{}",
-                    format!("{:<max_len$} *default for projects", entry.version()).bold()
+                    format!(
+                        "{:<max_len$} *default for projects",
+                        entry.version().to_string()
+                    )
+                    .bold()
                 );
             } else {
                 println!("{}", entry.version());
@@ -202,12 +206,18 @@ fn print_updates(installed: &[UnityVersion], available: &Vec<ReleaseInfo>) -> an
                     let mut line = String::new();
 
                     match (is_latest_minor, has_updates) {
-                        (false, _) => line.push_str(&format!("{}", version)),
+                        (false, _) => line.push_str(&version.to_string()),
                         (true, false) => {
-                            line.push_str(&format!("{:<max_len$} - Up to date", version));
+                            line.push_str(&format!(
+                                "{:<max_len$} - Up to date",
+                                version.to_string()
+                            ));
                         }
                         (true, true) => {
-                            line.push_str(&format!("{:<max_len$} - Update(s) available", version));
+                            line.push_str(&format!(
+                                "{:<max_len$} - Update(s) available",
+                                version.to_string()
+                            ));
                         }
                     }
 
@@ -337,7 +347,8 @@ fn print_installs(latest: &ReleaseInfo, installed_in_range: &[UnityVersion], max
             "{}",
             format!(
                 "{:<max_len$} - Installed: {}",
-                latest.version, joined_versions
+                latest.version.to_string(),
+                joined_versions
             )
             .bold()
         );
@@ -346,7 +357,9 @@ fn print_installs(latest: &ReleaseInfo, installed_in_range: &[UnityVersion], max
             "{}",
             format!(
                 "{:<max_len$} - Installed: {} - update > {}",
-                latest.version, joined_versions, latest.installation_url
+                latest.version.to_string(),
+                joined_versions,
+                latest.installation_url
             )
             .yellow()
             .bold()
