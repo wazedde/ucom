@@ -139,8 +139,10 @@ fn write_project_version(
     )?;
 
     if is_installed {
+        // The editor used by the project is installed.
         writeln!(buf)?;
     } else if output_to_file {
+        // The editor used by the project is not installed, and we're writing to a file.
         writeln!(
             buf,
             " > {}",
@@ -153,6 +155,7 @@ fn write_project_version(
                 .bold()
         )?;
     } else {
+        // The editor used by the project is not installed, and we're not writing to a file.
         writeln!(
             buf,
             " > {}",
@@ -175,6 +178,7 @@ fn write_available_updates(updates: &[ReleaseInfo], buf: &mut Vec<u8>) -> anyhow
 
     for ri in updates {
         if is_editor_installed(ri.version).unwrap_or(false) {
+            // The editor is installed, but not used by the project.
             writeln!(
                 buf,
                 "- {:<max_len$} - {} > {}",
@@ -184,6 +188,7 @@ fn write_available_updates(updates: &[ReleaseInfo], buf: &mut Vec<u8>) -> anyhow
             )
             .unwrap();
         } else {
+            // The editor is not installed.
             writeln!(
                 buf,
                 "- {:<max_len$} - {} > {}",

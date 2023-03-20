@@ -74,7 +74,7 @@ pub fn request_patch_update_info(
 
     let updates = releases
         .into_iter()
-        .filter(|ri| ri.version > version)
+        .filter(|ri| ri.version > version) // Only newer versions.
         .collect();
 
     Ok((current, updates))
@@ -105,13 +105,14 @@ fn extract_releases(html: &str, filter: &ReleaseFilter) -> Vec<ReleaseInfo> {
                 .and_then(|n| n.find(Class("release-date")).next())
                 .map(|n| n.text())
                 .and_then(|date_header| {
-                    // Get the Unity Hub installation url.
+                    // Get the Unity Hub installation url, which is the next sibling of the button.
                     n.find(Class("btn"))
                         .next()
                         .and_then(|n| n.attr("href"))
                         .map(|url| (date_header, url))
                 })
         })
+        // Filter out releases that don't match the filter.
         .filter_map(|(date_header, url)| {
             version_from_url(url)
                 .filter(|&v| filter.eval(v))
@@ -155,13 +156,17 @@ pub fn extract_release_notes(html: &str) -> IndexMap<String, Vec<String>> {
     if let Some(node) = document.find(Class("release-notes")).next() {
         let mut topic_header = "General".to_string();
 
+        // Iterate over the children of the release notes node.
         node.children().for_each(|n| match n.name() {
+            // The topic header is the h3 or h4 node.
             Some("h3" | "h4") => topic_header = n.text(),
+            // The topic list is the ul node.
             Some("ul") => {
                 if !release_notes.contains_key(&topic_header) {
                     release_notes.insert(topic_header.clone(), Vec::new());
                 }
 
+                // Iterate over the list items and add them to the topic list.
                 let topic_list = release_notes.get_mut(&topic_header).unwrap();
                 n.find(Name("li")).for_each(|li| {
                     if let Some(release_note_line) = li.text().lines().next() {

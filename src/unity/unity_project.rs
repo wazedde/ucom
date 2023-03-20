@@ -76,9 +76,12 @@ pub fn version_used_by_project<P: AsRef<Path>>(project_dir: &P) -> Result<UnityV
 
 /// Returns the parent directory of the editor installations.
 pub fn editor_parent_dir<'a>() -> Result<Cow<'a, Path>> {
+    // Try to get the directory from the environment variable.
     env::var_os(ENV_EDITOR_DIR).map_or_else(
         || {
+            // Use the default directory.
             let path = Path::new(UNITY_EDITOR_DIR);
+            // If the default directory does not exist, return an error.
             path.exists().then(|| path.into()).ok_or_else(|| {
                 let path = path.display();
                 anyhow!(
@@ -87,7 +90,9 @@ pub fn editor_parent_dir<'a>() -> Result<Cow<'a, Path>> {
             })
         },
         |path| {
+            // Use the directory set by the environment variable.
             let path = Path::new(&path);
+            // If the directory does not exist or is not a directory, return an error.
             (path.exists() && path.is_dir())
                 .then(|| path.to_owned().into())
                 .ok_or_else(|| {
@@ -165,9 +170,13 @@ pub fn available_unity_versions<P: AsRef<Path>>(install_dir: &P) -> Result<Vec<U
                 install_dir.as_ref().display()
             )
         })?
+        // Get the paths of the files and directories.
         .flat_map(|r| r.map(|e| e.path()))
+        // Filter out the directories that do not contain the editor executable.
         .filter(|p| p.is_dir() && p.join(UNITY_EDITOR_EXE).exists())
-        .filter_map(|p| p.file_name().map(std::borrow::ToOwned::to_owned))
+        // Get the file name of the directory.
+        .filter_map(|p| p.file_name().map(ToOwned::to_owned))
+        // Parse the version from the file name.
         .filter_map(|version| version.to_string_lossy().parse::<UnityVersion>().ok())
         .collect();
 

@@ -146,9 +146,9 @@ pub fn build_project(arguments: BuildArguments) -> anyhow::Result<()> {
 
 fn clean_output_directory(path: &Path) -> anyhow::Result<()> {
     let delete: Vec<_> = fs::read_dir(path)?
-        .flat_map(|r| r.map(|e| e.path()))
-        .filter(|p| p.is_dir())
-        .filter(|p| {
+        .flat_map(|r| r.map(|e| e.path())) // Convert to paths.
+        .filter(|p| p.is_dir())// Only directories.
+        .filter(|p| { // Filter out directories that should not be deleted.
             p.to_string_lossy()
                 .ends_with("_BurstDebugInformation_DoNotShip")
                 || p.to_string_lossy()
