@@ -26,7 +26,7 @@ pub const fn unity_build_script() -> &'static str {
 /// Runs the build command.
 pub fn build_project(arguments: BuildArguments) -> anyhow::Result<()> {
     let project_dir = validate_project_path(&arguments.project_dir)?;
-    let (version, editor_exe) = matching_editor_used_by_project(&project_dir)?;
+    let (version, editor_exe) = editor_used_by_project(&project_dir)?;
 
     let output_dir = arguments.build_path.unwrap_or_else(|| {
         // If no build path is given, use <project>/Builds/<target>

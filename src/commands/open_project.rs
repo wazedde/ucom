@@ -12,7 +12,7 @@ pub fn open_project(arguments: OpenArguments) -> anyhow::Result<()> {
     let (version, editor_exe) = if arguments.version_pattern.is_some() {
         matching_editor(arguments.version_pattern.as_deref())?
     } else {
-        matching_editor_used_by_project(&project_dir)?
+        editor_used_by_project(&project_dir)?
     };
 
     // Build the command to execute.

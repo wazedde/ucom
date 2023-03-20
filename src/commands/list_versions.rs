@@ -65,18 +65,17 @@ fn print_installed_versions(installed: &[UnityVersion]) -> anyhow::Result<()> {
                 entry.version() == group.last().unwrap().version(),
             );
 
-            if entry.version() == &default_version {
-                println!(
-                    "{}",
-                    format!(
-                        "{:<max_len$} *default for projects",
-                        entry.version().to_string()
-                    )
-                    .bold()
-                );
+            let line = if entry.version() == &default_version {
+                format!(
+                    "{:<max_len$} *default for projects",
+                    entry.version().to_string()
+                )
+                .bold()
             } else {
-                println!("{}", entry.version());
-            }
+                entry.version().to_string().normal()
+            };
+
+            println!("{}", line);
         }
     }
     Ok(())
@@ -203,23 +202,15 @@ fn print_updates(installed: &[UnityVersion], available: &Vec<ReleaseInfo>) -> an
                     let has_updates = !last_in_group && *is_latest_minor;
                     let is_default = *version == default_version;
 
-                    let mut line = String::new();
-
-                    match (is_latest_minor, has_updates) {
-                        (false, _) => line.push_str(&version.to_string()),
+                    let mut line = match (is_latest_minor, has_updates) {
+                        (false, _) => version.to_string(),
                         (true, false) => {
-                            line.push_str(&format!(
-                                "{:<max_len$} - Up to date",
-                                version.to_string()
-                            ));
+                            format!("{:<max_len$} - Up to date", version.to_string())
                         }
                         (true, true) => {
-                            line.push_str(&format!(
-                                "{:<max_len$} - Update(s) available",
-                                version.to_string()
-                            ));
+                            format!("{:<max_len$} - Update(s) available", version.to_string())
                         }
-                    }
+                    };
 
                     if is_default {
                         line.push_str(" *default for projects");
@@ -342,29 +333,24 @@ fn print_installs(latest: &ReleaseInfo, installed_in_range: &[UnityVersion], max
         .collect::<Vec<_>>()
         .join(", ");
 
-    if is_up_to_date {
-        println!(
-            "{}",
-            format!(
-                "{:<max_len$} - Installed: {}",
-                latest.version.to_string(),
-                joined_versions
-            )
-            .bold()
-        );
+    let line = if is_up_to_date {
+        format!(
+            "{:<max_len$} - Installed: {}",
+            latest.version.to_string(),
+            joined_versions
+        )
+        .bold()
     } else {
-        println!(
-            "{}",
-            format!(
-                "{:<max_len$} - Installed: {} - update > {}",
-                latest.version.to_string(),
-                joined_versions,
-                latest.installation_url
-            )
-            .yellow()
-            .bold()
-        );
-    }
+        format!(
+            "{:<max_len$} - Installed: {} - update > {}",
+            latest.version.to_string(),
+            joined_versions,
+            latest.installation_url
+        )
+        .yellow()
+        .bold()
+    };
+    println!("{}", line);
 }
 
 /// Returns the default version ucom uses for new Unity projects.

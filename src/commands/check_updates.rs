@@ -92,11 +92,8 @@ fn write_project_header(
         |s| s.player_settings.product_name,
     );
 
-    writeln!(
-        buf,
-        "{}",
-        format!("Unity updates for project: {product_name}").bold()
-    )?;
+    let s = format!("Unity updates for project: {product_name}").bold();
+    writeln!(buf, "{s}")?;
 
     if output_to_file {
         writeln!(buf)?;
@@ -139,7 +136,7 @@ fn write_project_version(
     )?;
 
     if is_installed {
-        // The editor used by the project is installed.
+        // The editor used by the project is installed, finish the line.
         writeln!(buf)?;
     } else if output_to_file {
         // The editor used by the project is not installed, and we're writing to a file.

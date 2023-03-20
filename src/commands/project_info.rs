@@ -31,11 +31,13 @@ pub fn show_project_info(
         version.to_string().bold(),
         release_notes_url(version)
     );
+
     if is_editor_installed(version)? {
         println!();
     } else {
         println!(" {}", "*not installed".red().bold());
     }
+
     if packages_level != PackagesInfoLevel::None {
         show_project_packages(project_dir.as_ref(), packages_level);
     };
