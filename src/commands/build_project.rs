@@ -19,9 +19,7 @@ const PERSISTENT_BUILD_SCRIPT_PATH: &str = "Assets/Plugins/ucom/Editor/UcomBuild
 const PERSISTENT_BUILD_SCRIPT_ROOT: &str = "Assets/Plugins/ucom";
 const AUTO_BUILD_SCRIPT_ROOT: &str = "Assets/ucom";
 
-pub const fn unity_build_script() -> &'static str {
-    include_str!("include/UcomBuilder.cs")
-}
+pub const UNITY_BUILD_SCRIPT: &str = include_str!("include/UcomBuilder.cs");
 
 /// Runs the build command.
 pub fn build_project(arguments: BuildArguments) -> anyhow::Result<()> {
@@ -147,8 +145,9 @@ pub fn build_project(arguments: BuildArguments) -> anyhow::Result<()> {
 fn clean_output_directory(path: &Path) -> anyhow::Result<()> {
     let delete: Vec<_> = fs::read_dir(path)?
         .flat_map(|r| r.map(|e| e.path())) // Convert to paths.
-        .filter(|p| p.is_dir())// Only directories.
-        .filter(|p| { // Filter out directories that should not be deleted.
+        .filter(|p| p.is_dir()) // Only directories.
+        .filter(|p| {
+            // Filter out directories that should not be deleted.
             p.to_string_lossy()
                 .ends_with("_BurstDebugInformation_DoNotShip")
                 || p.to_string_lossy()
@@ -276,7 +275,7 @@ fn inject_build_script<P: AsRef<Path>>(parent_dir: P) -> anyhow::Result<()> {
     println!("Injecting ucom build script: {}", file_path.display());
 
     let mut file = File::create(file_path)?;
-    write!(file, "{}", unity_build_script()).map_err(Into::into)
+    write!(file, "{}", UNITY_BUILD_SCRIPT).map_err(Into::into)
 }
 
 /// Removes the injected build script from the project.

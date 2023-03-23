@@ -65,6 +65,7 @@ fn show_project_packages(project_dir: &Path, package_level: PackagesInfoLevel) {
         "{}",
         "Packages (L=local, E=embedded, G=git, R=registry, B=builtin)".bold()
     );
+
     for (name, package) in packages {
         println!(
             "    {} {} ({})",

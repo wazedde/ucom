@@ -81,73 +81,6 @@ fn print_installed_versions(installed: &[UnityVersion]) -> anyhow::Result<()> {
     Ok(())
 }
 
-/// Returns the max length of a version string in a list of lists of versions.
-fn max_version_string_length(version_groups: &[Vec<VersionType>]) -> usize {
-    version_groups
-        .iter()
-        .flat_map(|f| f.iter())
-        .map(|e| e.version().len())
-        .max()
-        .unwrap()
-}
-
-enum VersionType {
-    /// Installed version.
-    Installed {
-        version: UnityVersion,
-        /// Is the latest installed version in the minor range.
-        is_latest_minor: bool,
-    },
-    /// Update to installed version.
-    Update(ReleaseInfo),
-}
-
-impl VersionType {
-    fn version(&self) -> &UnityVersion {
-        match self {
-            VersionType::Installed { version, .. } => version,
-            VersionType::Update(ri) => &ri.version,
-        }
-    }
-}
-
-/// Returns list of grouped versions that are in the same minor range.
-fn group_minor_versions(installed: &[UnityVersion]) -> Vec<Vec<VersionType>> {
-    let mut version_groups = vec![];
-    let mut group = vec![];
-
-    let mut iter = installed.iter().peekable();
-    while let Some(&version) = iter.next() {
-        let is_latest_minor = iter.peek().map_or(true, |v| {
-            (v.major, v.minor) != (version.major, version.minor)
-        });
-
-        if is_latest_minor {
-            // Finished group
-            group.push(VersionType::Installed {
-                version,
-                is_latest_minor,
-            });
-            version_groups.push(group);
-
-            // Create a new group
-            group = vec![];
-        } else {
-            // In current group
-            group.push(VersionType::Installed {
-                version,
-                is_latest_minor,
-            });
-        }
-    }
-
-    if !group.is_empty() {
-        version_groups.push(group);
-    }
-
-    version_groups
-}
-
 /// Prints list of installed versions and available updates.
 /// ```
 /// ── 2019.4.40f1 - Up to date
@@ -288,9 +221,112 @@ fn print_latest_versions(
             // No installed versions in the range.
             println!("{}", latest.version);
         } else {
-            print_installs(latest, &installed_in_range, max_len);
+            print_installs_line(latest, &installed_in_range, max_len);
         }
     }
+}
+
+fn print_installs_line(latest: &ReleaseInfo, installed_in_range: &[UnityVersion], max_len: usize) {
+    let is_up_to_date = installed_in_range
+        .last()
+        .filter(|&v| v == &latest.version)
+        .is_some()
+        || installed_in_range // Special case for when installed version is newer than latest.
+        .last()
+        .map_or(false, |&v| v > latest.version);
+
+    // Concatenate the installed versions for printing.
+    let joined_versions = installed_in_range
+        .iter()
+        .map(ToString::to_string)
+        .collect::<Vec<_>>()
+        .join(", ");
+
+    let line = if is_up_to_date {
+        format!(
+            "{:<max_len$} - Installed: {}",
+            latest.version.to_string(),
+            joined_versions
+        )
+            .bold()
+    } else {
+        format!(
+            "{:<max_len$} - Installed: {} - update > {}",
+            latest.version.to_string(),
+            joined_versions,
+            latest.installation_url
+        )
+            .yellow()
+            .bold()
+    };
+    println!("{}", line);
+}
+
+enum VersionType {
+    /// Installed version.
+    Installed {
+        version: UnityVersion,
+        /// Is the latest installed version in the minor range.
+        is_latest_minor: bool,
+    },
+    /// Update to installed version.
+    Update(ReleaseInfo),
+}
+
+impl VersionType {
+    fn version(&self) -> &UnityVersion {
+        match self {
+            VersionType::Installed { version, .. } => version,
+            VersionType::Update(ri) => &ri.version,
+        }
+    }
+}
+
+/// Returns the max length of a version string in a list of lists of versions.
+fn max_version_string_length(version_groups: &[Vec<VersionType>]) -> usize {
+    version_groups
+        .iter()
+        .flat_map(|f| f.iter())
+        .map(|e| e.version().len())
+        .max()
+        .unwrap()
+}
+
+/// Returns list of grouped versions that are in the same minor range.
+fn group_minor_versions(installed: &[UnityVersion]) -> Vec<Vec<VersionType>> {
+    let mut version_groups = vec![];
+    let mut group = vec![];
+
+    let mut iter = installed.iter().peekable();
+    while let Some(&version) = iter.next() {
+        let is_latest_minor = iter.peek().map_or(true, |v| {
+            (v.major, v.minor) != (version.major, version.minor)
+        });
+
+        if is_latest_minor {
+            // Finished group
+            group.push(VersionType::Installed {
+                version,
+                is_latest_minor,
+            });
+            version_groups.push(group);
+
+            // Create a new group
+            group = vec![];
+        } else {
+            // In current group
+            group.push(VersionType::Installed {
+                version,
+                is_latest_minor,
+            });
+        }
+    }
+
+    if !group.is_empty() {
+        version_groups.push(group);
+    }
+
+    version_groups
 }
 
 fn latest_minor_releases<'a>(
@@ -315,42 +351,6 @@ fn latest_minor_releases<'a>(
                 .max()
         })
         .collect()
-}
-
-fn print_installs(latest: &ReleaseInfo, installed_in_range: &[UnityVersion], max_len: usize) {
-    let is_up_to_date = installed_in_range
-        .last()
-        .filter(|&v| v == &latest.version)
-        .is_some()
-        || installed_in_range // Special case for when installed version is newer than latest.
-            .last()
-            .map_or(false, |&v| v > latest.version);
-
-    // Concatenate the installed versions for printing.
-    let joined_versions = installed_in_range
-        .iter()
-        .map(ToString::to_string)
-        .collect::<Vec<_>>()
-        .join(", ");
-
-    let line = if is_up_to_date {
-        format!(
-            "{:<max_len$} - Installed: {}",
-            latest.version.to_string(),
-            joined_versions
-        )
-        .bold()
-    } else {
-        format!(
-            "{:<max_len$} - Installed: {} - update > {}",
-            latest.version.to_string(),
-            joined_versions,
-            latest.installation_url
-        )
-        .yellow()
-        .bold()
-    };
-    println!("{}", line);
 }
 
 /// Returns the default version ucom uses for new Unity projects.

@@ -25,7 +25,7 @@ fn main() -> Result<()> {
     }
 
     if cli.injected_script {
-        println!("{}", unity_build_script());
+        println!("{}", UNITY_BUILD_SCRIPT);
         exit(0);
     }
 

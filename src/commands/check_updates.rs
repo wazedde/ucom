@@ -100,7 +100,6 @@ fn write_project_header(
     }
 
     writeln!(buf, "- Directory: {}", project_dir.to_string_lossy().bold())?;
-
     Ok(())
 }
 
@@ -173,27 +172,25 @@ fn write_available_updates(updates: &[ReleaseInfo], buf: &mut Vec<u8>) -> anyhow
 
     let max_len = updates.iter().map(|ri| ri.version.len()).max().unwrap();
 
-    for ri in updates {
-        if is_editor_installed(ri.version).unwrap_or(false) {
+    for release in updates {
+        if is_editor_installed(release.version).unwrap_or(false) {
             // The editor is installed, but not used by the project.
             writeln!(
                 buf,
                 "- {:<max_len$} - {} > {}",
-                ri.version.to_string().yellow().bold(),
-                release_notes_url(ri.version),
+                release.version.to_string().yellow().bold(),
+                release_notes_url(release.version),
                 "installed".bold()
-            )
-            .unwrap();
+            )?;
         } else {
             // The editor is not installed.
             writeln!(
                 buf,
                 "- {:<max_len$} - {} > {}",
-                ri.version.to_string().yellow().bold(),
-                release_notes_url(ri.version),
-                ri.installation_url.bold(),
-            )
-            .unwrap();
+                release.version.to_string().yellow().bold(),
+                release_notes_url(release.version),
+                release.installation_url.bold(),
+            )?;
         }
     }
 

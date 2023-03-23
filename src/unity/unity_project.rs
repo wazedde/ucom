@@ -145,9 +145,7 @@ pub fn matching_editor(partial_version: Option<&str>) -> Result<(UnityVersion, P
 }
 
 /// Returns version used by the project and the path to the editor.
-pub fn editor_used_by_project<P: AsRef<Path>>(
-    project_dir: &P,
-) -> Result<(UnityVersion, PathBuf)> {
+pub fn editor_used_by_project<P: AsRef<Path>>(project_dir: &P) -> Result<(UnityVersion, PathBuf)> {
     let version = version_used_by_project(project_dir)?;
 
     // Check if that Unity version is installed.
