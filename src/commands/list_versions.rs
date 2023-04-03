@@ -65,7 +65,7 @@ fn print_installed_versions(installed: &[UnityVersion]) -> anyhow::Result<()> {
                 entry.version() == group.last().unwrap().version(),
             );
 
-            let line = if entry.version() == &default_version {
+            let line = if entry.version() == default_version {
                 format!(
                     "{:<max_len$} *default for projects",
                     entry.version().to_string()
@@ -102,18 +102,33 @@ fn print_updates(installed: &[UnityVersion], available: &Vec<ReleaseInfo>) -> an
 
     // Add available updates to groups
     for group in &mut version_groups {
-        let latest_installed = *group.last().unwrap().version();
+        let latest_installed = group.last().unwrap();
+        let latest_installed_version = latest_installed.version();
 
-        available
+        let available_minor_releases: Vec<_> = available
             .iter()
             .filter(|ri| {
-                ri.version.major == latest_installed.major
-                    && ri.version.minor == latest_installed.minor
-                    && ri.version > latest_installed
+                ri.version.major == latest_installed_version.major
+                    && ri.version.minor == latest_installed_version.minor
             })
-            .for_each(|ri| {
-                group.push(VersionType::Update(ri.clone()));
-            });
+            .collect();
+
+        let has_releases = !available_minor_releases.is_empty();
+
+        if has_releases {
+            // Add update info to group
+            available_minor_releases
+                .iter()
+                .filter(|ri| ri.version > latest_installed_version)
+                .for_each(|&ri| {
+                    group.push(VersionType::Update(ri.clone()));
+                });
+        } else {
+            // No release info available for this minor version, pop it off...
+            let v = group.pop().unwrap().version();
+            // ...and add a NoReleaseInfo entry
+            group.push(VersionType::NoReleaseInfo(v));
+        }
     }
 
     let max_len = max_version_string_length(&version_groups);
@@ -152,13 +167,26 @@ fn print_updates(installed: &[UnityVersion], available: &Vec<ReleaseInfo>) -> an
                         println!("{}", line);
                     }
                 }
-                VersionType::Update(update) => {
+                VersionType::Update(release_info) => {
                     println!(
                         "{:<max_len$} - {} > {}",
-                        update.version.to_string().yellow().bold(),
-                        release_notes_url(update.version),
-                        update.installation_url.bold(),
+                        release_info.version.to_string().yellow().bold(),
+                        release_notes_url(release_info.version),
+                        release_info.installation_url.bold(),
                     );
+                }
+                VersionType::NoReleaseInfo(version) => {
+                    let is_default = *version == default_version;
+                    let mut line = format!(
+                        "{:<max_len$} - No release info available",
+                        version.to_string()
+                    );
+                    if is_default {
+                        line.push_str(" *default for projects");
+                        println!("{}", line.bold());
+                    } else {
+                        println!("{}", line);
+                    }
                 }
             }
         }
@@ -232,8 +260,8 @@ fn print_installs_line(latest: &ReleaseInfo, installed_in_range: &[UnityVersion]
         .filter(|&v| v == &latest.version)
         .is_some()
         || installed_in_range // Special case for when installed version is newer than latest.
-        .last()
-        .map_or(false, |&v| v > latest.version);
+            .last()
+            .map_or(false, |&v| v > latest.version);
 
     // Concatenate the installed versions for printing.
     let joined_versions = installed_in_range
@@ -248,7 +276,7 @@ fn print_installs_line(latest: &ReleaseInfo, installed_in_range: &[UnityVersion]
             latest.version.to_string(),
             joined_versions
         )
-            .bold()
+        .bold()
     } else {
         format!(
             "{:<max_len$} - Installed: {} - update > {}",
@@ -256,8 +284,8 @@ fn print_installs_line(latest: &ReleaseInfo, installed_in_range: &[UnityVersion]
             joined_versions,
             latest.installation_url
         )
-            .yellow()
-            .bold()
+        .yellow()
+        .bold()
     };
     println!("{}", line);
 }
@@ -271,13 +299,16 @@ enum VersionType {
     },
     /// Update to installed version.
     Update(ReleaseInfo),
+    /// Installed version with no release info.
+    NoReleaseInfo(UnityVersion),
 }
 
 impl VersionType {
-    fn version(&self) -> &UnityVersion {
+    fn version(&self) -> UnityVersion {
         match self {
-            VersionType::Installed { version, .. } => version,
-            VersionType::Update(ri) => &ri.version,
+            VersionType::Installed { version, .. } => *version,
+            VersionType::Update(release_info) => release_info.version,
+            VersionType::NoReleaseInfo(version) => *version,
         }
     }
 }
