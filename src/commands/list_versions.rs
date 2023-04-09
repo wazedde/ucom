@@ -61,18 +61,18 @@ fn print_installed_versions(installed: &[UnityVersion]) -> anyhow::Result<()> {
     for group in version_groups {
         for entry in &group {
             print_list_marker(
-                entry.version() != group.first().unwrap().version(),
-                entry.version() == group.last().unwrap().version(),
+                entry.version != group.first().unwrap().version,
+                entry.version == group.last().unwrap().version,
             );
 
-            let line = if entry.version() == default_version {
+            let line = if entry.version == default_version {
                 format!(
                     "{:<max_len$} *default for projects",
-                    entry.version().to_string()
+                    entry.version.to_string()
                 )
                 .bold()
             } else {
-                entry.version().to_string().normal()
+                entry.version.to_string().normal()
             };
 
             println!("{}", line);
@@ -103,7 +103,7 @@ fn print_updates(installed: &[UnityVersion], available: &Vec<ReleaseInfo>) -> an
     // Add available updates to groups
     for group in &mut version_groups {
         let latest_installed = group.last().unwrap();
-        let latest_installed_version = latest_installed.version();
+        let latest_installed_version = latest_installed.version;
 
         let available_minor_releases: Vec<_> = available
             .iter()
@@ -121,53 +121,58 @@ fn print_updates(installed: &[UnityVersion], available: &Vec<ReleaseInfo>) -> an
                 .iter()
                 .filter(|ri| ri.version > latest_installed_version)
                 .for_each(|&ri| {
-                    group.push(VersionType::Update(ri.clone()));
+                    group.push(VersionInfo {
+                        version: ri.version,
+                        v_type: VersionType::UpdateToLatest(ri.clone()),
+                    });
                 });
         } else {
             // No release info available for this minor version, pop it off...
-            let v = group.pop().unwrap().version();
+            let v = group.pop().unwrap().version;
             // ...and add a NoReleaseInfo entry
-            group.push(VersionType::NoReleaseInfo(v));
+            group.push(VersionInfo {
+                version: v,
+                v_type: VersionType::NoReleaseInfo,
+            });
         }
     }
 
     let max_len = max_version_string_length(&version_groups);
 
+    let print_line = |line: &str, is_default: bool| {
+        if is_default {
+            println!("{} {}", line.bold(), "*default for projects".bold());
+        } else {
+            println!("{}", line);
+        }
+    };
+
     for group in version_groups {
-        for entry in &group {
+        for info in &group {
             print_list_marker(
-                entry.version() != group.first().unwrap().version(),
-                entry.version() == group.last().unwrap().version(),
+                info.version != group.first().unwrap().version,
+                info.version == group.last().unwrap().version,
             );
 
-            let last_in_group = entry.version() == group.last().unwrap().version();
+            match &info.v_type {
+                VersionType::HasLaterInstalled => {
+                    print_line(&info.version.to_string(), info.version == default_version);
+                }
+                VersionType::LatestInstalled => {
+                    let last_in_group = info.version == group.last().unwrap().version;
 
-            match entry {
-                VersionType::Installed {
-                    version,
-                    is_latest_minor,
-                } => {
-                    let has_updates = !last_in_group && *is_latest_minor;
-                    let is_default = *version == default_version;
-
-                    let mut line = match (is_latest_minor, has_updates) {
-                        (false, _) => version.to_string(),
-                        (true, false) => {
-                            format!("{:<max_len$} - Up to date", version.to_string())
-                        }
-                        (true, true) => {
-                            format!("{:<max_len$} - Update(s) available", version.to_string())
-                        }
+                    let line = if last_in_group {
+                        format!("{:<max_len$} - Up to date", info.version.to_string())
+                    } else {
+                        format!(
+                            "{:<max_len$} - Update(s) available",
+                            info.version.to_string()
+                        )
                     };
 
-                    if is_default {
-                        line.push_str(" *default for projects");
-                        println!("{}", line.bold());
-                    } else {
-                        println!("{}", line);
-                    }
+                    print_line(&line, info.version == default_version);
                 }
-                VersionType::Update(release_info) => {
+                VersionType::UpdateToLatest(release_info) => {
                     println!(
                         "{:<max_len$} - {} > {}",
                         release_info.version.to_string().yellow().bold(),
@@ -175,18 +180,14 @@ fn print_updates(installed: &[UnityVersion], available: &Vec<ReleaseInfo>) -> an
                         release_info.installation_url.bold(),
                     );
                 }
-                VersionType::NoReleaseInfo(version) => {
-                    let is_default = *version == default_version;
-                    let mut line = format!(
-                        "{:<max_len$} - No release info available",
-                        version.to_string()
+                VersionType::NoReleaseInfo => {
+                    let line = format!(
+                        "{:<max_len$} - {}: No release info available",
+                        info.version.to_string(),
+                        info.version.build_type.as_full_str()
                     );
-                    if is_default {
-                        line.push_str(" *default for projects");
-                        println!("{}", line.bold());
-                    } else {
-                        println!("{}", line);
-                    }
+
+                    print_line(&line, info.version == default_version);
                 }
             }
         }
@@ -290,41 +291,30 @@ fn print_installs_line(latest: &ReleaseInfo, installed_in_range: &[UnityVersion]
     println!("{}", line);
 }
 
-enum VersionType {
-    /// Installed version.
-    Installed {
-        version: UnityVersion,
-        /// Is the latest installed version in the minor range.
-        is_latest_minor: bool,
-    },
-    /// Update to installed version.
-    Update(ReleaseInfo),
-    /// Installed version with no release info.
-    NoReleaseInfo(UnityVersion),
+struct VersionInfo {
+    version: UnityVersion,
+    v_type: VersionType,
 }
 
-impl VersionType {
-    fn version(&self) -> UnityVersion {
-        match self {
-            VersionType::Installed { version, .. } => *version,
-            VersionType::Update(release_info) => release_info.version,
-            VersionType::NoReleaseInfo(version) => *version,
-        }
-    }
+enum VersionType {
+    HasLaterInstalled,
+    LatestInstalled,
+    UpdateToLatest(ReleaseInfo),
+    NoReleaseInfo,
 }
 
 /// Returns the max length of a version string in a list of lists of versions.
-fn max_version_string_length(version_groups: &[Vec<VersionType>]) -> usize {
+fn max_version_string_length(version_groups: &[Vec<VersionInfo>]) -> usize {
     version_groups
         .iter()
         .flat_map(|f| f.iter())
-        .map(|e| e.version().len())
+        .map(|e| e.version.len())
         .max()
         .unwrap()
 }
 
 /// Returns list of grouped versions that are in the same minor range.
-fn group_minor_versions(installed: &[UnityVersion]) -> Vec<Vec<VersionType>> {
+fn group_minor_versions(installed: &[UnityVersion]) -> Vec<Vec<VersionInfo>> {
     let mut version_groups = vec![];
     let mut group = vec![];
 
@@ -336,9 +326,9 @@ fn group_minor_versions(installed: &[UnityVersion]) -> Vec<Vec<VersionType>> {
 
         if is_latest_minor {
             // Finished group
-            group.push(VersionType::Installed {
+            group.push(VersionInfo {
                 version,
-                is_latest_minor,
+                v_type: VersionType::LatestInstalled,
             });
             version_groups.push(group);
 
@@ -346,9 +336,9 @@ fn group_minor_versions(installed: &[UnityVersion]) -> Vec<Vec<VersionType>> {
             group = vec![];
         } else {
             // In current group
-            group.push(VersionType::Installed {
+            group.push(VersionInfo {
                 version,
-                is_latest_minor,
+                v_type: VersionType::HasLaterInstalled,
             });
         }
     }

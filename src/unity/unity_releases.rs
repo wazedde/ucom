@@ -5,7 +5,7 @@ use indexmap::IndexMap;
 use select::document::Document;
 use select::predicate::{Class, Name};
 
-use crate::unity::{MajorVersion, MinorVersion, UnityVersion};
+use crate::unity::{BuildType, MajorVersion, MinorVersion, UnityVersion};
 
 #[derive(Debug, Eq, PartialEq, Ord, PartialOrd, Clone)]
 pub struct ReleaseInfo {
@@ -134,18 +134,27 @@ fn version_from_url(url: &str) -> Option<UnityVersion> {
 }
 
 pub fn release_notes_url(version: UnityVersion) -> String {
-    let version = if version.build == 1 {
-        format!("{}.{}.{}", version.major, version.minor, version.patch)
-    } else {
-        format!(
-            "{}.{}.{}-{}",
-            version.major,
-            version.minor,
-            version.patch,
-            version.build - 2
-        )
-    };
-    format!("https://unity.com/releases/editor/whats-new/{version}")
+    match version.build_type {
+        BuildType::Alpha => format!("https://unity.com/releases/editor/alpha/{version}"),
+        BuildType::Beta => format!("https://unity.com/releases/editor/beta/{version}"),
+        BuildType::Final | BuildType::ReleaseCandidate => {
+            let version = if version.build == 1 {
+                // 2021.2.1f1 -> "2021.2.1"
+                format!("{}.{}.{}", version.major, version.minor, version.patch)
+            } else {
+                // 5.1.0f2 -> "5.1.0-0"
+                format!(
+                    "{}.{}.{}-{}",
+                    version.major,
+                    version.minor,
+                    version.patch,
+                    version.build - 2
+                )
+            };
+
+            format!("https://unity.com/releases/editor/whats-new/{version}")
+        }
+    }
 }
 
 /// Extracts release notes from the supplied html.
@@ -382,5 +391,25 @@ mod releases_tests_online {
         let release_notes = extract_release_notes(html);
         assert_eq!(release_notes.len(), 7, "{url}");
         assert_eq!(release_notes.values().flatten().count(), 2090, "{url}");
+    }
+
+    #[test]
+    fn test_release_notes_2023_1_0b11() {
+        let v = UnityVersion::from_str("2023.1.0b11").unwrap();
+        let (url, html) = &request_release_notes(v).unwrap();
+
+        let release_notes = extract_release_notes(html);
+        assert_eq!(release_notes.len(), 7, "{url}");
+        assert_eq!(release_notes.values().flatten().count(), 2125, "{url}");
+    }
+
+    #[test]
+    fn test_release_notes_2023_2_0a9() {
+        let v = UnityVersion::from_str("2023.2.0a9").unwrap();
+        let (url, html) = &request_release_notes(v).unwrap();
+
+        let release_notes = extract_release_notes(html);
+        assert_eq!(release_notes.len(), 7, "{url}");
+        assert_eq!(release_notes.values().flatten().count(), 892, "{url}");
     }
 }

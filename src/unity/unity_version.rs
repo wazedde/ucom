@@ -24,6 +24,16 @@ impl BuildType {
     }
 
     #[must_use]
+    pub const fn as_full_str(&self) -> &str {
+        match self {
+            Self::Alpha => "Alpha",
+            Self::Beta => "Beta",
+            Self::ReleaseCandidate => "ReleaseCandidate",
+            Self::Final => "Final",
+        }
+    }
+
+    #[must_use]
     pub fn find_in(s: &str) -> Option<Self> {
         if s.contains('f') {
             Some(Self::Final)

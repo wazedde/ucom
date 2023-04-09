@@ -145,7 +145,7 @@ fn write_project_version(
             project_version_info
                 .map(|r| r.installation_url)
                 .map_or_else(
-                    || "No release info available".to_string(),
+                    || "No release info available".into(),
                     |s| format!("[install in Unity HUB]({})", s)
                 )
                 .bold()
