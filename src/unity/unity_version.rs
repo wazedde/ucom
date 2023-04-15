@@ -1,7 +1,7 @@
 use std::fmt::{Display, Formatter};
-use std::str::{FromStr, Split};
+use std::str::FromStr;
 
-#[derive(Debug)]
+#[derive(Debug, Eq, PartialEq)]
 pub struct ParseError;
 
 #[derive(Debug, Eq, PartialEq, Ord, PartialOrd, Copy, Clone)]
@@ -13,8 +13,8 @@ pub enum BuildType {
 }
 
 impl BuildType {
-    #[must_use]
-    pub const fn as_str(&self) -> &str {
+    /// Returns the short name of the build type.
+    pub const fn as_short_str(&self) -> &str {
         match self {
             Self::Alpha => "a",
             Self::Beta => "b",
@@ -23,7 +23,7 @@ impl BuildType {
         }
     }
 
-    #[must_use]
+    /// Returns the full name of the build type.
     pub const fn as_full_str(&self) -> &str {
         match self {
             Self::Alpha => "Alpha",
@@ -33,8 +33,8 @@ impl BuildType {
         }
     }
 
-    #[must_use]
-    pub fn find_in(s: &str) -> Option<Self> {
+    /// Returns the build type from a string.
+    pub fn from(s: &str) -> Option<Self> {
         if s.contains('f') {
             Some(Self::Final)
         } else if s.contains('b') {
@@ -51,21 +51,7 @@ impl BuildType {
 
 impl Display for BuildType {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", self.as_str())
-    }
-}
-
-impl FromStr for BuildType {
-    type Err = ParseError;
-
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        match s {
-            "a" => Ok(Self::Alpha),
-            "b" => Ok(Self::Beta),
-            "rc" => Ok(Self::ReleaseCandidate),
-            "f" => Ok(Self::Final),
-            _ => Err(ParseError),
-        }
+        write!(f, "{}", self.as_short_str())
     }
 }
 
@@ -87,26 +73,27 @@ pub struct UnityVersion {
 impl UnityVersion {
     /// Returns the length of the string representation of this version.
     pub fn len(self) -> usize {
-        return len_of_u16(self.major)
-            + len_of_u16(u16::from(self.minor))
-            + len_of_u16(u16::from(self.patch))
-            + self.build_type.as_str().len()
-            + len_of_u16(u16::from(self.build))
-            + 2;
+        return Self::count_len(self.major)
+            + Self::count_len(self.minor)
+            + Self::count_len(self.patch)
+            + self.build_type.as_short_str().len()
+            + Self::count_len(self.build)
+            + 2; // The 2 dots
     }
-}
 
-fn len_of_u16(n: u16) -> usize {
-    if n == 0 {
-        return 1;
+    fn count_len<T: Into<u16>>(n: T) -> usize {
+        let mut n = n.into();
+        let mut count = 0;
+
+        loop {
+            count += 1;
+            n /= 10;
+            if n == 0 {
+                break;
+            }
+        }
+        count
     }
-    let mut len = 0;
-    let mut n = n;
-    while n > 0 {
-        len += 1;
-        n /= 10;
-    }
-    len
 }
 
 impl FromStr for UnityVersion {
@@ -114,26 +101,23 @@ impl FromStr for UnityVersion {
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         let mut parts = s.split('.');
+
         let major = parts
             .next()
             .and_then(|s| s.parse().ok())
             .ok_or(ParseError)?;
+
         let minor = parts
             .next()
             .and_then(|s| s.parse().ok())
             .ok_or(ParseError)?;
 
-        let build_type = BuildType::find_in(s).ok_or(ParseError)?;
+        let build_part = parts.next().ok_or(ParseError)?;
+        let build_type = BuildType::from(build_part).ok_or(ParseError)?;
 
-        let mut build_parts: Split<'_, &str> =
-            parts.next().ok_or(ParseError)?.split(build_type.as_str());
-        let patch = build_parts
-            .next()
-            .and_then(|s| s.parse().ok())
-            .ok_or(ParseError)?;
-        let build = build_parts
-            .next()
-            .and_then(|s| s.parse().ok())
+        let (patch, build) = build_part
+            .split_once(build_type.as_short_str())
+            .and_then(|(l, r)| l.parse().ok().zip(r.parse().ok()))
             .ok_or(ParseError)?;
 
         Ok(Self {
@@ -158,92 +142,108 @@ impl Display for UnityVersion {
 
 #[cfg(test)]
 mod version_tests {
-    use std::str::FromStr;
+    use crate::unity::ParseError;
 
     use super::{BuildType, UnityVersion};
 
     #[test]
     fn test_version_from_string_f() {
-        let version = UnityVersion::from_str("2021.2.14f1").unwrap();
-        assert_eq!(version.major, 2021);
-        assert_eq!(version.minor, 2);
-        assert_eq!(version.patch, 14);
-        assert_eq!(version.build_type, BuildType::Final);
-        assert_eq!(version.build, 1);
+        let v = "2021.2.14f1".parse::<UnityVersion>().unwrap();
+        assert_eq!(v.major, 2021);
+        assert_eq!(v.minor, 2);
+        assert_eq!(v.patch, 14);
+        assert_eq!(v.build_type, BuildType::Final);
+        assert_eq!(v.build, 1);
     }
 
     #[test]
     fn test_version_from_string_b() {
-        let version = UnityVersion::from_str("2021.1.1b3").unwrap();
-        assert_eq!(version.major, 2021);
-        assert_eq!(version.minor, 1);
-        assert_eq!(version.patch, 1);
-        assert_eq!(version.build_type, BuildType::Beta);
-        assert_eq!(version.build, 3);
+        let v = "2021.1.1b3".parse::<UnityVersion>().unwrap();
+        assert_eq!(v.major, 2021);
+        assert_eq!(v.minor, 1);
+        assert_eq!(v.patch, 1);
+        assert_eq!(v.build_type, BuildType::Beta);
+        assert_eq!(v.build, 3);
     }
 
     #[test]
     fn test_version_from_string_a() {
-        let version = UnityVersion::from_str("2021.1.1a3").unwrap();
-        assert_eq!(version.major, 2021);
-        assert_eq!(version.minor, 1);
-        assert_eq!(version.patch, 1);
-        assert_eq!(version.build_type, BuildType::Alpha);
-        assert_eq!(version.build, 3);
+        let v = "2021.1.1a3".parse::<UnityVersion>().unwrap();
+        assert_eq!(v.major, 2021);
+        assert_eq!(v.minor, 1);
+        assert_eq!(v.patch, 1);
+        assert_eq!(v.build_type, BuildType::Alpha);
+        assert_eq!(v.build, 3);
     }
 
     #[test]
     fn test_version_from_string_rc() {
-        let version = UnityVersion::from_str("2021.1.1rc1").unwrap();
-        assert_eq!(version.major, 2021);
-        assert_eq!(version.minor, 1);
-        assert_eq!(version.patch, 1);
-        assert_eq!(version.build_type, BuildType::ReleaseCandidate);
-        assert_eq!(version.build, 1);
+        let v = "2021.1.1rc1".parse::<UnityVersion>().unwrap();
+        assert_eq!(v.major, 2021);
+        assert_eq!(v.minor, 1);
+        assert_eq!(v.patch, 1);
+        assert_eq!(v.build_type, BuildType::ReleaseCandidate);
+        assert_eq!(v.build, 1);
     }
 
     #[test]
     fn test_version_from_string_invalid_build_type() {
-        let version = UnityVersion::from_str("2021.1.1x1");
-        assert!(version.is_err());
+        assert_eq!("2021.1.1x1".parse::<UnityVersion>(), Err(ParseError));
     }
 
     #[test]
     fn test_version_from_string_invalid() {
-        let version = UnityVersion::from_str("2021.1.1");
-        assert!(version.is_err());
+        assert_eq!("2021.1.1".parse::<UnityVersion>(), Err(ParseError));
     }
 
     #[test]
     fn test_version_to_string() {
-        let version = UnityVersion::from_str("2021.2.14f1").unwrap();
-        assert_eq!(version.to_string(), "2021.2.14f1");
+        assert_eq!(
+            "2021.2.14f1".parse::<UnityVersion>().unwrap().to_string(),
+            "2021.2.14f1"
+        );
 
-        let version = UnityVersion::from_str("2019.1.1b1").unwrap();
-        assert_eq!(version.to_string(), "2019.1.1b1");
+        assert_eq!(
+            "2019.1.1b1".parse::<UnityVersion>().unwrap().to_string(),
+            "2019.1.1b1"
+        );
 
-        let version = UnityVersion::from_str("2020.1.1a3").unwrap();
-        assert_eq!(version.to_string(), "2020.1.1a3");
+        assert_eq!(
+            "2020.1.1a3".parse::<UnityVersion>().unwrap().to_string(),
+            "2020.1.1a3"
+        );
 
-        let version = UnityVersion::from_str("2022.2.1rc2").unwrap();
-        assert_eq!(version.to_string(), "2022.2.1rc2");
+        assert_eq!(
+            "2022.2.1rc2".parse::<UnityVersion>().unwrap().to_string(),
+            "2022.2.1rc2"
+        );
     }
 
     #[test]
     fn test_len() {
-        let version = UnityVersion::from_str("5.102.5f123").unwrap();
-        assert_eq!(version.len(), "5.102.5f123".len());
+        assert_eq!(
+            "5.102.5f123".parse::<UnityVersion>().unwrap().len(),
+            "5.102.5f123".len()
+        );
 
-        let version = UnityVersion::from_str("2021.2.14f1").unwrap();
-        assert_eq!(version.len(), "2021.2.14f1".len());
+        assert_eq!(
+            "2021.2.14f1".parse::<UnityVersion>().unwrap().len(),
+            "2021.2.14f1".len()
+        );
 
-        let version = UnityVersion::from_str("2019.1.1b1").unwrap();
-        assert_eq!(version.len(), "2019.1.1b1".len());
+        assert_eq!(
+            "2019.1.1b1".parse::<UnityVersion>().unwrap().len(),
+            "2019.1.1b1".len()
+        );
 
-        let version = UnityVersion::from_str("2020.1.1a3").unwrap();
-        assert_eq!(version.len(), "2020.1.1a3".len());
+        assert_eq!(
+            "2020.1.1a3".parse::<UnityVersion>().unwrap().len(),
+            "2020.1.1a3".len()
+        );
 
-        let version = UnityVersion::from_str("2022.2.1rc2").unwrap();
-        assert_eq!(version.len(), "2022.2.1rc2".len());
+        assert_eq!(
+            "2022.2.1rc2".parse::<UnityVersion>().unwrap().len(),
+            "2022.2.1rc2".len()
+        );
     }
 }

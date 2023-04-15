@@ -98,45 +98,7 @@ fn print_updates(installed: &[UnityVersion], available: &Vec<ReleaseInfo>) -> an
     }
 
     let default_version = default_version(installed)?;
-    let mut version_groups = group_minor_versions(installed);
-
-    // Add available updates to groups
-    for group in &mut version_groups {
-        let latest_installed = group.last().unwrap();
-        let latest_installed_version = latest_installed.version;
-
-        let available_minor_releases: Vec<_> = available
-            .iter()
-            .filter(|ri| {
-                ri.version.major == latest_installed_version.major
-                    && ri.version.minor == latest_installed_version.minor
-            })
-            .collect();
-
-        let has_releases = !available_minor_releases.is_empty();
-
-        if has_releases {
-            // Add update info to group
-            available_minor_releases
-                .iter()
-                .filter(|ri| ri.version > latest_installed_version)
-                .for_each(|&ri| {
-                    group.push(VersionInfo {
-                        version: ri.version,
-                        v_type: VersionType::UpdateToLatest(ri.clone()),
-                    });
-                });
-        } else {
-            // No release info available for this minor version, pop it off...
-            let v = group.pop().unwrap().version;
-            // ...and add a NoReleaseInfo entry
-            group.push(VersionInfo {
-                version: v,
-                v_type: VersionType::NoReleaseInfo,
-            });
-        }
-    }
-
+    let version_groups = collect_update_info(installed, available);
     let max_len = max_version_string_length(&version_groups);
 
     let print_line = |line: &str, is_default: bool| {
@@ -192,7 +154,52 @@ fn print_updates(installed: &[UnityVersion], available: &Vec<ReleaseInfo>) -> an
             }
         }
     }
+
     Ok(())
+}
+
+/// Collects update information for each installed version.
+fn collect_update_info(
+    installed: &[UnityVersion],
+    available: &[ReleaseInfo],
+) -> Vec<Vec<VersionInfo>> {
+    let mut version_groups = group_minor_versions(installed);
+
+    // Add available updates to groups
+    for group in &mut version_groups {
+        let latest_installed_version = group.last().expect("Group cannot be empty").version;
+
+        let has_releases = available.iter().any(|ri| {
+            ri.version.major == latest_installed_version.major
+                && ri.version.minor == latest_installed_version.minor
+        });
+
+        if has_releases {
+            // Add update info to group (if there are any)
+            available
+                .iter()
+                .filter(|ri| {
+                    ri.version.major == latest_installed_version.major
+                        && ri.version.minor == latest_installed_version.minor
+                        && ri.version > latest_installed_version
+                })
+                .for_each(|ri| {
+                    group.push(VersionInfo {
+                        version: ri.version,
+                        v_type: VersionType::UpdateToLatest(ri.clone()),
+                    });
+                });
+        } else {
+            // No release info available for this minor version, pop it off...
+            let v = group.pop().unwrap().version;
+            // ...and add a NoReleaseInfo entry
+            group.push(VersionInfo {
+                version: v,
+                v_type: VersionType::NoReleaseInfo,
+            });
+        }
+    }
+    version_groups
 }
 
 /// Prints list of latest available Unity versions.
