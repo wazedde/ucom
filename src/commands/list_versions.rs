@@ -65,17 +65,17 @@ fn print_installed_versions(installed: &[UnityVersion]) -> anyhow::Result<()> {
                 entry.version == group.last().unwrap().version,
             );
 
-            let line = if entry.version == default_version {
-                format!(
-                    "{:<max_len$} *default for projects",
-                    entry.version.to_string()
-                )
-                .bold()
-            } else {
-                entry.version.to_string().normal()
-            };
+            let line = format!(
+                "{:<max_len$} - {}",
+                entry.version.to_string(),
+                release_notes_url(entry.version)
+            );
 
-            println!("{}", line);
+            if entry.version == default_version {
+                println!("{} {}", line.bold(), "*default for projects".bold());
+            } else {
+                println!("{}", line);
+            }
         }
     }
     Ok(())

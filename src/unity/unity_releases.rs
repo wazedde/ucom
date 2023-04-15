@@ -38,6 +38,7 @@ pub enum ReleaseFilter {
 }
 
 impl ReleaseFilter {
+    /// Returns true if the version matches the filter.
     const fn eval(&self, v: UnityVersion) -> bool {
         match self {
             Self::All => true,
@@ -80,7 +81,10 @@ pub fn request_patch_update_info(
     Ok((current, updates))
 }
 
-pub fn request_release_notes(version: UnityVersion) -> Result<(String, String)> {
+pub type Url = String;
+
+/// Gets the release notes for the given version from the Unity website.
+pub fn request_release_notes(version: UnityVersion) -> Result<(Url, String)> {
     let url = release_notes_url(version);
     let body = ureq::get(&url).call()?.into_string()?;
     Ok((url, body))
@@ -133,7 +137,7 @@ fn version_from_url(url: &str) -> Option<UnityVersion> {
         .and_then(|v| v.parse::<UnityVersion>().ok())
 }
 
-pub fn release_notes_url(version: UnityVersion) -> String {
+pub fn release_notes_url(version: UnityVersion) -> Url {
     match version.build_type {
         BuildType::Alpha => format!("https://unity.com/releases/editor/alpha/{version}"),
         BuildType::Beta => format!("https://unity.com/releases/editor/beta/{version}"),
