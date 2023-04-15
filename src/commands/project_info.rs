@@ -27,9 +27,9 @@ pub fn show_project_info(
     }
 
     print!(
-        "    Unity Version: {} > {}",
+        "    Unity Version: {} - {}",
         version.to_string().bold(),
-        release_notes_url(version)
+        release_notes_url(version).blue()
     );
 
     if is_editor_installed(version)? {

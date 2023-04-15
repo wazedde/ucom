@@ -131,7 +131,7 @@ fn write_project_version(
         buf,
         "- {} - {}",
         project_version,
-        release_notes_url(project_version)
+        release_notes_url(project_version).blue()
     )?;
 
     if is_installed {
@@ -158,7 +158,7 @@ fn write_project_version(
             project_version_info
                 .map_or_else(
                     || "No release info available".to_string(),
-                    |r| r.installation_url
+                    |r| r.installation_url.blue().to_string()
                 )
                 .bold()
         )?;
@@ -179,7 +179,7 @@ fn write_available_updates(updates: &[ReleaseInfo], buf: &mut Vec<u8>) -> anyhow
                 buf,
                 "- {:<max_len$} - {} > {}",
                 release.version.to_string().yellow().bold(),
-                release_notes_url(release.version),
+                release_notes_url(release.version).blue(),
                 "installed".bold()
             )?;
         } else {
@@ -188,8 +188,8 @@ fn write_available_updates(updates: &[ReleaseInfo], buf: &mut Vec<u8>) -> anyhow
                 buf,
                 "- {:<max_len$} - {} > {}",
                 release.version.to_string().yellow().bold(),
-                release_notes_url(release.version),
-                release.installation_url.bold(),
+                release_notes_url(release.version).blue(),
+                release.installation_url.blue().bold(),
             )?;
         }
     }

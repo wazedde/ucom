@@ -68,7 +68,7 @@ fn print_installed_versions(installed: &[UnityVersion]) -> anyhow::Result<()> {
             let line = format!(
                 "{:<max_len$} - {}",
                 entry.version.to_string(),
-                release_notes_url(entry.version)
+                release_notes_url(entry.version).blue()
             );
 
             if entry.version == default_version {
@@ -135,16 +135,17 @@ fn print_updates(installed: &[UnityVersion], available: &Vec<ReleaseInfo>) -> an
                     print_line(&line, info.version == default_version);
                 }
                 VersionType::UpdateToLatest(release_info) => {
-                    println!(
+                    let line = format!(
                         "{:<max_len$} - {} > {}",
-                        release_info.version.to_string().yellow().bold(),
-                        release_notes_url(release_info.version),
-                        release_info.installation_url.bold(),
+                        release_info.version.to_string().yellow(),
+                        release_notes_url(release_info.version).blue(),
+                        release_info.installation_url.blue(),
                     );
+                    println!("{}", line.bold());
                 }
                 VersionType::NoReleaseInfo => {
                     let line = format!(
-                        "{:<max_len$} - {}: No release info available",
+                        "{:<max_len$} - No {} update info available",
                         info.version.to_string(),
                         info.version.build_type.as_full_str()
                     );
