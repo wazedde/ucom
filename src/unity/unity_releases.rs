@@ -400,7 +400,7 @@ mod releases_tests_online {
 
         let release_notes = extract_release_notes(html);
         assert_eq!(release_notes.len(), 7, "{url}");
-        assert_eq!(release_notes.values().flatten().count(), 2125, "{url}");
+        assert_eq!(release_notes.values().flatten().count(), 2126, "{url}");
     }
 
     #[test]
