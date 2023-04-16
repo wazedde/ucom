@@ -124,30 +124,38 @@ fn print_updates(installed: &[UnityVersion], available: &Vec<ReleaseInfo>) -> an
                     let last_in_group = info.version == group.last().unwrap().version;
 
                     let line = if last_in_group {
-                        format!("{:<max_len$} - Up to date", info.version.to_string())
+                        format!(
+                            "{:<max_len$} - {}",
+                            info.version.to_string().green(),
+                            "Up to date"
+                        )
                     } else {
                         format!(
-                            "{:<max_len$} - Update(s) available",
-                            info.version.to_string()
+                            "{:<max_len$} - {}",
+                            info.version.to_string(),
+                            "Update(s) available".yellow().bold()
                         )
                     };
 
                     print_line(&line, info.version == default_version);
                 }
                 VersionType::UpdateToLatest(release_info) => {
-                    let line = format!(
+                    println!(
                         "{:<max_len$} - {} > {}",
-                        release_info.version.to_string().yellow(),
-                        release_notes_url(release_info.version).blue(),
-                        release_info.installation_url.blue(),
+                        release_info.version.to_string().yellow().bold(),
+                        release_notes_url(release_info.version).blue().bold(),
+                        release_info.installation_url.blue().bold(),
                     );
-                    println!("{}", line.bold());
                 }
                 VersionType::NoReleaseInfo => {
                     let line = format!(
-                        "{:<max_len$} - No {} update info available",
+                        "{:<max_len$} - {}",
                         info.version.to_string(),
-                        info.version.build_type.as_full_str()
+                        format!(
+                            "No {} update info available",
+                            info.version.build_type.as_full_str()
+                        )
+                        .red()
                     );
 
                     print_line(&line, info.version == default_version);
@@ -289,9 +297,9 @@ fn print_installs_line(latest: &ReleaseInfo, installed_in_range: &[UnityVersion]
     } else {
         format!(
             "{:<max_len$} - Installed: {} - update > {}",
-            latest.version.to_string(),
-            joined_versions,
-            latest.installation_url
+            latest.version.to_string().yellow(),
+            joined_versions.yellow(),
+            latest.installation_url.blue()
         )
         .yellow()
         .bold()
