@@ -42,16 +42,13 @@ pub fn list_versions(list_type: ListType, partial_version: Option<&str>) -> anyh
 
 /// Prints list of installed versions.
 /// ```
-/// ── 2019.4.40f1 - Up to date
-/// ┬─ 2020.3.43f1 - Update(s) available
-/// ├─ 2020.3.44f1 - https://unity.com/releases/editor/whats-new/2020.3.44 > unityhub://2020.3.44f1/7f159b6136da
-/// ├─ 2020.3.45f1 - https://unity.com/releases/editor/whats-new/2020.3.45 > unityhub://2020.3.45f1/660cd1701bd5
-/// └─ 2020.3.46f1 - https://unity.com/releases/editor/whats-new/2020.3.46 > unityhub://2020.3.46f1/18bc01a066b4
-/// ┬─ 2021.3.19f1
-/// └─ 2021.3.21f1 - Up to date *default for projects
-/// ┬─ 2022.2.6f1
-/// ├─ 2022.2.10f1 - Update(s) available
-/// └─ 2022.2.11f1 - https://unity.com/releases/editor/whats-new/2022.2.11 > unityhub://2022.2.11f1/621cd60d08fd
+/// ── 2020.3.46f1 - https://unity.com/releases/editor/whats-new/2020.3.46
+/// ┬─ 2021.3.19f1 - https://unity.com/releases/editor/whats-new/2021.3.19
+/// ├─ 2021.3.22f1 - https://unity.com/releases/editor/whats-new/2021.3.22
+/// └─ 2021.3.23f1 - https://unity.com/releases/editor/whats-new/2021.3.23 *default for projects
+/// ── 2022.2.15f1 - https://unity.com/releases/editor/whats-new/2022.2.15
+/// ── 2023.1.0b12 - https://unity.com/releases/editor/beta/2023.1.0b12
+/// ── 2023.2.0a10 - https://unity.com/releases/editor/alpha/2023.2.0a10
 /// ```
 fn print_installed_versions(installed: &[UnityVersion]) -> anyhow::Result<()> {
     let default_version = default_version(installed)?;
@@ -68,7 +65,7 @@ fn print_installed_versions(installed: &[UnityVersion]) -> anyhow::Result<()> {
             let line = format!(
                 "{:<max_len$} - {}",
                 entry.version.to_string(),
-                release_notes_url(entry.version).blue()
+                release_notes_url(entry.version).bright_blue().underline()
             );
 
             if entry.version == default_version {
@@ -83,14 +80,14 @@ fn print_installed_versions(installed: &[UnityVersion]) -> anyhow::Result<()> {
 
 /// Prints list of installed versions and available updates.
 /// ```
-/// ── 2019.4.40f1 - Up to date
-/// ── 2020.3.43f1 - 3 behind 2020.3.46f1 > unityhub://2020.3.46f1/18bc01a066b4
-/// ┬─ 2021.3.9f1
-/// ├─ 2021.3.16f1
-/// ├─ 2021.3.19f1
-/// └─ 2021.3.20f1 - Up to date *default for projects
-/// ┬─ 2022.2.6f1
-/// └─ 2022.2.10f1 - Up to date
+/// ┬─ 2020.3.46f1 - Update(s) available
+/// └─ 2020.3.47f1 - https://unity.com/releases/editor/whats-new/2020.3.47 > unityhub://2020.3.47f1/5ef4f5b5e2d4
+/// ┬─ 2021.3.19f1
+/// ├─ 2021.3.22f1
+/// └─ 2021.3.23f1 - Up to date *default for projects
+/// ── 2022.2.15f1 - Up to date
+/// ── 2023.1.0b12 - No Beta update info available
+/// ── 2023.2.0a10 - No Alpha update info available
 /// ```
 fn print_updates(installed: &[UnityVersion], available: &Vec<ReleaseInfo>) -> anyhow::Result<()> {
     if available.is_empty() {
@@ -133,7 +130,7 @@ fn print_updates(installed: &[UnityVersion], available: &Vec<ReleaseInfo>) -> an
                         format!(
                             "{:<max_len$} - {}",
                             info.version.to_string(),
-                            "Update(s) available".yellow().bold()
+                            "Update(s) available".blue().bold()
                         )
                     };
 
@@ -142,9 +139,16 @@ fn print_updates(installed: &[UnityVersion], available: &Vec<ReleaseInfo>) -> an
                 VersionType::UpdateToLatest(release_info) => {
                     println!(
                         "{:<max_len$} - {} > {}",
-                        release_info.version.to_string().yellow().bold(),
-                        release_notes_url(release_info.version).blue().bold(),
-                        release_info.installation_url.blue().bold(),
+                        release_info.version.to_string().blue().bold(),
+                        release_notes_url(release_info.version)
+                            .bright_blue()
+                            .underline()
+                            .bold(),
+                        release_info
+                            .installation_url
+                            .bright_blue()
+                            .underline()
+                            .bold(),
                     );
                 }
                 VersionType::NoReleaseInfo => {
@@ -155,7 +159,7 @@ fn print_updates(installed: &[UnityVersion], available: &Vec<ReleaseInfo>) -> an
                             "No {} update info available",
                             info.version.build_type.as_full_str()
                         )
-                        .red()
+                        .bright_black()
                     );
 
                     print_line(&line, info.version == default_version);
@@ -297,11 +301,11 @@ fn print_installs_line(latest: &ReleaseInfo, installed_in_range: &[UnityVersion]
     } else {
         format!(
             "{:<max_len$} - Installed: {} - update > {}",
-            latest.version.to_string().yellow(),
-            joined_versions.yellow(),
-            latest.installation_url.blue()
+            latest.version.to_string().blue(),
+            joined_versions.blue(),
+            latest.installation_url.bright_blue().underline()
         )
-        .yellow()
+        .blue()
         .bold()
     };
     println!("{}", line);

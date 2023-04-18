@@ -131,7 +131,7 @@ fn write_project_version(
         buf,
         "- {} - {}",
         project_version,
-        release_notes_url(project_version).blue()
+        release_notes_url(project_version).bright_blue().underline()
     )?;
 
     if is_installed {
@@ -148,7 +148,6 @@ fn write_project_version(
                     || "No release info available".into(),
                     |s| format!("[install in Unity HUB]({})", s)
                 )
-                .bold()
         )?;
     } else {
         // The editor used by the project is not installed, and we're not writing to a file.
@@ -158,7 +157,7 @@ fn write_project_version(
             project_version_info
                 .map_or_else(
                     || "No release info available".to_string(),
-                    |r| r.installation_url.blue().to_string()
+                    |r| r.installation_url.bright_blue().underline().to_string()
                 )
                 .bold()
         )?;
@@ -178,8 +177,8 @@ fn write_available_updates(updates: &[ReleaseInfo], buf: &mut Vec<u8>) -> anyhow
             writeln!(
                 buf,
                 "- {:<max_len$} - {} > {}",
-                release.version.to_string().yellow().bold(),
-                release_notes_url(release.version).blue(),
+                release.version.to_string().blue().bold(),
+                release_notes_url(release.version).bright_blue().underline(),
                 "installed".bold()
             )?;
         } else {
@@ -187,9 +186,9 @@ fn write_available_updates(updates: &[ReleaseInfo], buf: &mut Vec<u8>) -> anyhow
             writeln!(
                 buf,
                 "- {:<max_len$} - {} > {}",
-                release.version.to_string().yellow().bold(),
-                release_notes_url(release.version).blue(),
-                release.installation_url.blue().bold(),
+                release.version.to_string().blue().bold(),
+                release_notes_url(release.version).bright_blue().underline(),
+                release.installation_url.bright_blue().underline().bold(),
             )?;
         }
     }

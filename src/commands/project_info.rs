@@ -29,7 +29,7 @@ pub fn show_project_info(
     print!(
         "    Unity Version: {} - {}",
         version.to_string().bold(),
-        release_notes_url(version).blue()
+        release_notes_url(version).bright_blue().underline()
     );
 
     if is_editor_installed(version)? {
