@@ -11,7 +11,7 @@ strip = true
 
 [dependencies]
 anyhow = "1.0.70"
-clap = { version = "4.2.2", features = ["derive", "env", "wrap_help"] }
+clap = { version = "4.2.4", features = ["derive", "env", "wrap_help"] }
 colored = "2.0.0"
 indexmap = "1.9.3"
 path-absolutize = "3.0.14"
