@@ -47,7 +47,7 @@ pub enum Action {
         project_dir: PathBuf,
 
         /// The level of included packages to show.
-        #[arg(short='p', long, default_value = "non-unity", env = ENV_PACKAGE_LEVEL)]
+        #[arg(short='p', long, default_value = "lev1", env = ENV_PACKAGE_LEVEL)]
         packages: PackagesInfoLevel,
     },
 
@@ -258,13 +258,13 @@ pub enum ListType {
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, ValueEnum)]
 pub enum PackagesInfoLevel {
     /// Don't show any included packages.
-    None,
+    Lev0,
     /// Show local, non-Unity, packages.
-    NonUnity,
+    Lev1,
     /// + packages from the Unity registry.
-    Registry,
+    Lev2,
     /// + builtin packages and dependencies.
-    All,
+    Lev3,
 }
 
 impl Display for PackagesInfoLevel {

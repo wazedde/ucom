@@ -38,36 +38,39 @@ pub fn print_project_info(
         println!(" {}", "*not installed".red().bold());
     }
 
-    if packages_level != PackagesInfoLevel::None {
-        print_project_packages(project_dir.as_ref(), packages_level);
+    if packages_level != PackagesInfoLevel::Lev0 {
+        print_project_packages(project_dir.as_ref(), packages_level)?;
     };
 
     Ok(())
 }
 
 /// Show packages used by the project.
-fn print_project_packages(project_dir: &Path, package_level: PackagesInfoLevel) {
-    let Ok(packages) = Packages::from_project(project_dir) else {
-        return;
-    };
+fn print_project_packages(
+    project_dir: &Path,
+    package_level: PackagesInfoLevel,
+) -> anyhow::Result<()> {
+    let packages = Packages::from_project(project_dir)?;
 
-    let packages: Vec<_> = packages
+    let mut packages: Vec<_> = packages
         .dependencies
         .iter()
         .filter(|(_, package)| package_level.eval(package))
         .collect();
 
+    packages.sort_by(|(_, pi1), (_, pi2)| pi1.source.cmp(&pi2.source));
+
     if packages.is_empty() {
-        return;
+        return Ok(());
     }
 
     println!();
 
     let (enabled, disabled) = match package_level {
-        PackagesInfoLevel::None => ("", ", L=local, E=embedded, G=git"),
-        PackagesInfoLevel::NonUnity => (", L=local, E=embedded, G=git", ", R=registry, B=builtin"),
-        PackagesInfoLevel::Registry => (", L=local, E=embedded, G=git, R=registry", ", B=builtin"),
-        PackagesInfoLevel::All => (", L=local, E=embedded, G=git, R=registry, B=builtin", ""),
+        PackagesInfoLevel::Lev0 => ("", ", L=local, E=embedded, G=git"),
+        PackagesInfoLevel::Lev1 => (", L=local, E=embedded, G=git", ", R=registry, B=builtin"),
+        PackagesInfoLevel::Lev2 => (", L=local, E=embedded, G=git, R=registry", ", B=builtin"),
+        PackagesInfoLevel::Lev3 => (", L=local, E=embedded, G=git, R=registry, B=builtin", ""),
     };
 
     let line = format!(
@@ -82,32 +85,34 @@ fn print_project_packages(project_dir: &Path, package_level: PackagesInfoLevel) 
     for (name, package) in packages {
         println!(
             "    {} {} ({})",
-            package.source.chars().next().unwrap_or(' ').to_uppercase(),
+            package.source.as_ref().map_or("?", |s| s.to_short_str()),
             name,
             package.version,
         );
     }
+
+    Ok(())
 }
 
 impl PackagesInfoLevel {
     // Evaluates if the PackageInfo is allowed by the info level.
     fn eval(self, package: &PackageInfo) -> bool {
         match self {
-            Self::None => false,
-            Self::NonUnity => {
+            Self::Lev0 => false,
+            Self::Lev1 => {
                 package.depth == 0
-                    && (package.source == "git"
-                        || package.source == "embedded"
-                        || package.source == "local")
+                    && (package.source == Some(PackageSource::Git)
+                        || package.source == Some(PackageSource::Embedded)
+                        || package.source == Some(PackageSource::Local))
             }
-            Self::Registry => {
+            Self::Lev2 => {
                 package.depth == 0
-                    && (package.source == "git"
-                        || package.source == "embedded"
-                        || package.source == "local"
-                        || package.source == "registry")
+                    && (package.source == Some(PackageSource::Git)
+                        || package.source == Some(PackageSource::Embedded)
+                        || package.source == Some(PackageSource::Local)
+                        || package.source == Some(PackageSource::Registry))
             }
-            Self::All => true,
+            Self::Lev3 => true,
         }
     }
 }

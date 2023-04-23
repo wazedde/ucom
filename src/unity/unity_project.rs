@@ -231,9 +231,31 @@ impl Manifest {
 pub struct PackageInfo {
     pub version: String,
     pub depth: u32,
-    pub source: String,
+    pub source: Option<PackageSource>,
     pub dependencies: BTreeMap<String, String>,
     pub url: Option<String>,
+}
+
+#[derive(Deserialize, Debug, PartialEq, Eq, PartialOrd, Ord, Clone, Copy)]
+#[serde(rename_all = "lowercase")]
+pub enum PackageSource {
+    Local,
+    Embedded,
+    Git,
+    Registry,
+    Builtin,
+}
+
+impl PackageSource {
+    pub fn to_short_str(self) -> &'static str {
+        match self {
+            PackageSource::Local => "L",
+            PackageSource::Embedded => "E",
+            PackageSource::Git => "G",
+            PackageSource::Registry => "R",
+            PackageSource::Builtin => "B",
+        }
+    }
 }
 
 #[derive(Deserialize, Debug)]
