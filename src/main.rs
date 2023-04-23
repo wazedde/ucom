@@ -45,7 +45,7 @@ fn main() -> Result<()> {
         Action::Info {
             project_dir,
             packages,
-        } => show_project_info(&project_dir, packages)
+        } => print_project_info(&project_dir, packages)
             .context("Cannot show project info".red().bold()),
 
         Action::UpdateCheck {

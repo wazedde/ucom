@@ -267,6 +267,12 @@ pub enum PackagesInfoLevel {
     All,
 }
 
+impl Display for PackagesInfoLevel {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{self:?}")
+    }
+}
+
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, ValueEnum)]
 pub enum InjectAction {
     /// If there is no build script, inject one and remove it after the build.

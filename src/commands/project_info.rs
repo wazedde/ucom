@@ -7,7 +7,7 @@ use crate::unity::release_notes_url;
 use crate::unity::unity_project::*;
 
 /// Shows project information.
-pub fn show_project_info(
+pub fn print_project_info(
     project_dir: &Path,
     packages_level: PackagesInfoLevel,
 ) -> anyhow::Result<()> {
@@ -39,14 +39,14 @@ pub fn show_project_info(
     }
 
     if packages_level != PackagesInfoLevel::None {
-        show_project_packages(project_dir.as_ref(), packages_level);
+        print_project_packages(project_dir.as_ref(), packages_level);
     };
 
     Ok(())
 }
 
 /// Show packages used by the project.
-fn show_project_packages(project_dir: &Path, package_level: PackagesInfoLevel) {
+fn print_project_packages(project_dir: &Path, package_level: PackagesInfoLevel) {
     let Ok(packages) = Packages::from_project(project_dir) else {
         return;
     };
@@ -61,17 +61,30 @@ fn show_project_packages(project_dir: &Path, package_level: PackagesInfoLevel) {
         return;
     }
 
-    println!(
-        "{}",
-        "Packages (L=local, E=embedded, G=git, R=registry, B=builtin)".bold()
+    println!();
+
+    let (enabled, disabled) = match package_level {
+        PackagesInfoLevel::None => ("", ", L=local, E=embedded, G=git"),
+        PackagesInfoLevel::NonUnity => (", L=local, E=embedded, G=git", ", R=registry, B=builtin"),
+        PackagesInfoLevel::Registry => (", L=local, E=embedded, G=git, R=registry", ", B=builtin"),
+        PackagesInfoLevel::All => (", L=local, E=embedded, G=git, R=registry, B=builtin", ""),
+    };
+
+    let line = format!(
+        "Packages (Level={}{}{})",
+        package_level,
+        enabled,
+        disabled.bright_black()
     );
+
+    println!("{}", line.bold());
 
     for (name, package) in packages {
         println!(
             "    {} {} ({})",
             package.source.chars().next().unwrap_or(' ').to_uppercase(),
             name,
-            package.version
+            package.version,
         );
     }
 }

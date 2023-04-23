@@ -58,7 +58,7 @@ fn print_installed_versions(installed: &[UnityVersion]) -> anyhow::Result<()> {
     for group in version_groups {
         for entry in &group {
             print_list_marker(
-                entry.version != group.first().unwrap().version,
+                entry.version == group.first().unwrap().version,
                 entry.version == group.last().unwrap().version,
             );
 
@@ -109,7 +109,7 @@ fn print_updates(installed: &[UnityVersion], available: &Vec<ReleaseInfo>) -> an
     for group in version_groups {
         for info in &group {
             print_list_marker(
-                info.version != group.first().unwrap().version,
+                info.version == group.first().unwrap().version,
                 info.version == group.last().unwrap().version,
             );
 
@@ -253,7 +253,7 @@ fn print_latest_versions(
             .map_or(true, |v| v.version.major != latest.version.major);
 
         print_list_marker(
-            Some(latest.version.major) == previous_major,
+            Some(latest.version.major) != previous_major,
             is_last_in_range,
         );
 
@@ -410,16 +410,16 @@ fn default_version(installed: &[UnityVersion]) -> anyhow::Result<UnityVersion> {
 }
 
 /// Prints the list marker for the current item.
-fn print_list_marker(is_continuation: bool, is_last: bool) {
-    print!("{} ", list_marker(is_continuation, is_last));
+fn print_list_marker(is_first: bool, is_last: bool) {
+    print!("{} ", list_marker(is_first, is_last));
 }
 
 /// Returns the list marker for the current item.
-fn list_marker(is_continuation: bool, is_last: bool) -> &'static str {
-    match (is_continuation, is_last) {
-        (false, true) => "──",
-        (false, false) => "┬─",
-        (true, false) => "├─",
-        (true, true) => "└─",
+fn list_marker(is_first: bool, is_last: bool) -> &'static str {
+    match (is_first, is_last) {
+        (true, true) => "──",
+        (true, false) => "┬─",
+        (false, false) => "├─",
+        (false, true) => "└─",
     }
 }
