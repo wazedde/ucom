@@ -84,10 +84,10 @@ fn print_project_packages(
         println!();
 
         let (enabled, disabled) = match package_level {
-            PackagesInfoLevel::Lev0 => ("", ", L=local, E=embedded, G=git"),
-            PackagesInfoLevel::Lev1 => (", L=local, E=embedded, G=git", ", R=registry, B=builtin"),
-            PackagesInfoLevel::Lev2 => (", L=local, E=embedded, G=git, R=registry", ", B=builtin"),
-            PackagesInfoLevel::Lev3 => (", L=local, E=embedded, G=git, R=registry, B=builtin", ""),
+            PackagesInfoLevel::Lev0 => ("", ", L=local, E=embedded, G=git, T=tarball"),
+            PackagesInfoLevel::Lev1 => (", L=local, E=embedded, G=git, T=tarball", ", R=registry, B=builtin"),
+            PackagesInfoLevel::Lev2 => (", L=local, E=embedded, G=git, T=tarball, R=registry", ", B=builtin"),
+            PackagesInfoLevel::Lev3 => (", L=local, E=embedded, G=git, T=tarball, R=registry, B=builtin", ""),
         };
 
         let line = format!(
@@ -120,12 +120,14 @@ impl PackagesInfoLevel {
                 package.depth == 0
                     && (package.source == Some(PackageSource::Git)
                         || package.source == Some(PackageSource::Embedded)
+                        || package.source == Some(PackageSource::LocalTarball)
                         || package.source == Some(PackageSource::Local))
             }
             Self::Lev2 => {
                 package.depth == 0
                     && (package.source == Some(PackageSource::Git)
                         || package.source == Some(PackageSource::Embedded)
+                        || package.source == Some(PackageSource::LocalTarball)
                         || package.source == Some(PackageSource::Local)
                         || package.source == Some(PackageSource::Registry))
             }

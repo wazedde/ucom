@@ -250,6 +250,8 @@ pub enum PackageSource {
     Local,
     Embedded,
     Git,
+    #[serde(rename = "local-tarball")]
+    LocalTarball,
     Registry,
     Builtin,
 }
@@ -260,6 +262,7 @@ impl PackageSource {
             PackageSource::Local => "L",
             PackageSource::Embedded => "E",
             PackageSource::Git => "G",
+            PackageSource::LocalTarball => "T",
             PackageSource::Registry => "R",
             PackageSource::Builtin => "B",
         }
