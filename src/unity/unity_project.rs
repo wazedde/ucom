@@ -10,6 +10,7 @@ use path_absolutize::Absolutize;
 use serde::Deserialize;
 
 use crate::cli::ENV_EDITOR_DIR;
+use crate::unity::PackagesAvailability::{LockFileDisabled, NoManifest};
 use crate::unity::UnityVersion;
 
 /// Sub path to the executable on macOS.
@@ -217,17 +218,24 @@ pub fn validate_project_path<P: AsRef<Path>>(project_dir: &P) -> Result<Cow<'_, 
 #[derive(Deserialize, Debug)]
 pub struct Manifest {
     pub dependencies: BTreeMap<String, String>,
+    #[serde(rename = "enableLockFile")]
+    pub enable_lock_file: Option<bool>,
+}
+
+#[derive(Deserialize, Debug)]
+pub struct PackagesLock {
+    pub dependencies: BTreeMap<String, String>,
 }
 
 #[allow(dead_code)]
-impl Manifest {
+impl PackagesLock {
     pub fn from_project(project_dir: &Path) -> Result<Self> {
         let file = File::open(project_dir.join("Packages/manifest.json"))?;
         serde_json::from_reader(BufReader::new(file)).map_err(Into::into)
     }
 }
 
-#[derive(Deserialize, Debug)]
+#[derive(Deserialize, Debug, PartialEq, Eq)]
 pub struct PackageInfo {
     pub version: String,
     pub depth: u32,
@@ -258,15 +266,43 @@ impl PackageSource {
     }
 }
 
-#[derive(Deserialize, Debug)]
+#[derive(Deserialize, Debug, Default, PartialEq, Eq)]
 pub struct Packages {
     pub dependencies: BTreeMap<String, PackageInfo>,
 }
 
+#[derive(PartialEq, Eq, Debug)]
+pub enum PackagesAvailability {
+    /// The project does not have a manifest file.
+    NoManifest,
+    /// The project has a manifest file but the lock file is disabled.
+    LockFileDisabled,
+    /// The project has a manifest file and the lock file is enabled.
+    Packages(Packages),
+}
+
 impl Packages {
-    pub fn from_project(project_dir: &Path) -> Result<Self> {
-        let file = File::open(project_dir.join("Packages/packages-lock.json"))?;
-        serde_json::from_reader(BufReader::new(file)).map_err(Into::into)
+    pub fn from_project<P: AsRef<Path>>(project_dir: &P) -> Result<PackagesAvailability> {
+        let project_dir = project_dir.as_ref();
+        const MANIFEST_FILE: &str = "Packages/manifest.json";
+        const PACKAGES_LOCK_FILE: &str = "Packages/packages-lock.json";
+
+        if !project_dir.join(MANIFEST_FILE).exists() {
+            return Ok(NoManifest);
+        }
+
+        let file = File::open(project_dir.join(MANIFEST_FILE))?;
+        let manifest: Manifest = serde_json::from_reader(BufReader::new(file))?;
+        if manifest.enable_lock_file == Some(false) {
+            // TODO: Read packages from Library/PackageManager/ProjectCache
+            return Ok(LockFileDisabled);
+        }
+
+        let file = File::open(project_dir.join(PACKAGES_LOCK_FILE))
+            .map_err(|_| anyhow!("Missing `{}` file.", PACKAGES_LOCK_FILE))?;
+
+        let packages = serde_json::from_reader(BufReader::new(file))?;
+        Ok(PackagesAvailability::Packages(packages))
     }
 }
 
@@ -295,8 +331,11 @@ pub struct PlayerSettings {
 }
 
 impl ProjectSettings {
-    pub fn from_project(project_dir: &Path) -> Result<Self> {
+    pub fn from_project<P: AsRef<Path>>(project_dir: &P) -> Result<Self> {
+        let project_dir = project_dir.as_ref();
         let file = File::open(project_dir.join("ProjectSettings/ProjectSettings.asset"))?;
-        serde_yaml::from_reader(BufReader::new(file)).map_err(Into::into)
+        serde_yaml::from_reader(BufReader::new(file))
+            .context("Error reading `ProjectSettings/ProjectSettings.asset`")
+            .map_err(Into::into)
     }
 }

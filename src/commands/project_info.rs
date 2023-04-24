@@ -19,12 +19,11 @@ pub fn print_project_info(
         format!("Project info for: {}", project_dir.display()).bold()
     );
 
-    if let Ok(settings) = ProjectSettings::from_project(&project_dir) {
-        let ps = settings.player_settings;
-        println!("    Product Name:  {}", ps.product_name.bold());
-        println!("    Company Name:  {}", ps.company_name.bold());
-        println!("    Version:       {}", ps.bundle_version.bold());
-    }
+    let settings = ProjectSettings::from_project(&project_dir)?;
+    let ps = settings.player_settings;
+    println!("    Product Name:  {}", ps.product_name.bold());
+    println!("    Company Name:  {}", ps.company_name.bold());
+    println!("    Version:       {}", ps.bundle_version.bold());
 
     print!(
         "    Unity Version: {} - {}",
@@ -50,47 +49,65 @@ fn print_project_packages(
     project_dir: &Path,
     package_level: PackagesInfoLevel,
 ) -> anyhow::Result<()> {
-    let packages = Packages::from_project(project_dir)?;
+    let availability = Packages::from_project(&project_dir)?;
 
-    let mut packages: Vec<_> = packages
-        .dependencies
-        .iter()
-        .filter(|(_, package)| package_level.eval(package))
-        .collect();
-
-    packages.sort_by(|(_, pi1), (_, pi2)| pi1.source.cmp(&pi2.source));
-
-    if packages.is_empty() {
+    if availability == PackagesAvailability::NoManifest {
+        println!(
+            "{}",
+            "No `manifest.json` file found, no packages info available.".yellow()
+        );
         return Ok(());
     }
 
-    println!();
-
-    let (enabled, disabled) = match package_level {
-        PackagesInfoLevel::Lev0 => ("", ", L=local, E=embedded, G=git"),
-        PackagesInfoLevel::Lev1 => (", L=local, E=embedded, G=git", ", R=registry, B=builtin"),
-        PackagesInfoLevel::Lev2 => (", L=local, E=embedded, G=git, R=registry", ", B=builtin"),
-        PackagesInfoLevel::Lev3 => (", L=local, E=embedded, G=git, R=registry, B=builtin", ""),
-    };
-
-    let line = format!(
-        "Packages (Level={}{}{})",
-        package_level,
-        enabled,
-        disabled.bright_black()
-    );
-
-    println!("{}", line.bold());
-
-    for (name, package) in packages {
+    if availability == PackagesAvailability::LockFileDisabled {
         println!(
-            "    {} {} ({})",
-            package.source.as_ref().map_or("?", |s| s.to_short_str()),
-            name,
-            package.version,
+            "{}",
+            "Packages lock file is disabled in `manifest.json`, no packages info available."
+                .yellow()
         );
+        return Ok(());
     }
 
+    if let PackagesAvailability::Packages(packages) = availability {
+        let mut packages: Vec<_> = packages
+            .dependencies
+            .iter()
+            .filter(|(_, package)| package_level.eval(package))
+            .collect();
+
+        if packages.is_empty() {
+            return Ok(());
+        }
+
+        packages.sort_by(|(_, pi1), (_, pi2)| pi1.source.cmp(&pi2.source));
+
+        println!();
+
+        let (enabled, disabled) = match package_level {
+            PackagesInfoLevel::Lev0 => ("", ", L=local, E=embedded, G=git"),
+            PackagesInfoLevel::Lev1 => (", L=local, E=embedded, G=git", ", R=registry, B=builtin"),
+            PackagesInfoLevel::Lev2 => (", L=local, E=embedded, G=git, R=registry", ", B=builtin"),
+            PackagesInfoLevel::Lev3 => (", L=local, E=embedded, G=git, R=registry, B=builtin", ""),
+        };
+
+        let line = format!(
+            "Packages (Level={}{}{})",
+            package_level,
+            enabled,
+            disabled.bright_black()
+        );
+
+        println!("{}", line.bold());
+
+        for (name, package) in packages {
+            println!(
+                "    {} {} ({})",
+                package.source.as_ref().map_or("?", |s| s.to_short_str()),
+                name,
+                package.version,
+            );
+        }
+    }
     Ok(())
 }
 

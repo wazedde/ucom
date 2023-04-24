@@ -87,7 +87,7 @@ fn write_project_header(
         write!(buf, "# ")?;
     }
 
-    let product_name = ProjectSettings::from_project(project_dir).map_or_else(
+    let product_name = ProjectSettings::from_project(&project_dir).map_or_else(
         |_| "<UNKNOWN>".to_string(),
         |s| s.player_settings.product_name,
     );
