@@ -118,7 +118,10 @@ namespace ucom
                 return false;
             }
 
-            if (!TryCreateApplicationPath(outputDirectory, Application.productName, EditorUserBuildSettings.activeBuildTarget, out string applicationPath))
+            if (!TryGetBuildLocationPath(outputDirectory,
+                    Application.productName,
+                    EditorUserBuildSettings.activeBuildTarget,
+                    out string applicationPath))
             {
                 return false;
             }
@@ -128,7 +131,7 @@ namespace ucom
                 scenes = scenes,
                 locationPathName = applicationPath,
                 target = EditorUserBuildSettings.activeBuildTarget,
-                options = options
+                options = options,
             };
 
             BuildReport report;
@@ -178,14 +181,21 @@ namespace ucom
         }
 
         /// <summary>
-        /// Tries to create the full path of the application to build.
+        /// Tries to get the full path of build location.
         /// </summary>
-        private static bool TryCreateApplicationPath(string outputDirectory, string appName, BuildTarget buildTarget, out string fullOutputPath)
+        private static bool TryGetBuildLocationPath(string outputDirectory,
+            string appName,
+            BuildTarget buildTarget,
+            out string fullOutputPath)
         {
+            appName = string.Join("_", appName.Split(Path.GetInvalidFileNameChars()));
+
             switch (buildTarget)
             {
                 case BuildTarget.iOS:
                 case BuildTarget.WebGL:
+                    appName = string.Join("_", appName.Split(Path.GetInvalidPathChars()));
+                    appName = appName.Replace(" ", "_");
                     fullOutputPath = Path.Combine(outputDirectory, appName);
                     return true;
                 case BuildTarget.StandaloneWindows:
