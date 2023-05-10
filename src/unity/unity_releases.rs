@@ -2,6 +2,7 @@ use std::borrow::Cow;
 
 use anyhow::Result;
 use indexmap::IndexMap;
+use itertools::Itertools;
 use select::document::Document;
 use select::predicate::{Class, Name};
 
@@ -99,7 +100,7 @@ fn extract_releases(html: &str, filter: &ReleaseFilter) -> Vec<ReleaseInfo> {
         }
     };
 
-    let mut versions: Vec<_> = Document::from(html)
+    Document::from(html)
         .find(Class(major_release_class.as_ref()))
         .flat_map(|n| n.find(Class("download-release-wrapper")))
         .filter_map(|n| {
@@ -122,10 +123,8 @@ fn extract_releases(html: &str, filter: &ReleaseFilter) -> Vec<ReleaseInfo> {
                 .filter(|&v| filter.eval(v))
                 .map(|version| ReleaseInfo::new(version, date_header, url.to_owned()))
         })
-        .collect();
-
-    versions.sort_unstable();
-    versions
+        .sorted_unstable()
+        .collect()
 }
 
 /// Get the version from the url.
@@ -327,7 +326,7 @@ mod releases_tests_online {
         extract_release_notes, request_patch_update_info, request_release_notes, UnityVersion,
     };
 
-    /// Scraping https://unity.com/releases/editor/archive for updates to 2019.1.0f1.
+    /// Scraping <https://unity.com/releases/editor/archive> for updates to 2019.1.0f1.
     /// At the time of writing there were 15.
     #[test]
     fn test_request_updates_2019_1_0() {
@@ -337,7 +336,7 @@ mod releases_tests_online {
         assert!(updates.len() >= 15);
     }
 
-    /// Scraping https://unity.com/releases/editor/archive for updates to 5.0.0f1.
+    /// Scraping <https://unity.com/releases/editor/archive> for updates to 5.0.0f1.
     /// At the time of writing there were 5 and it is assumed that this will not change.
     #[test]
     fn test_request_updates_5_0_0() {

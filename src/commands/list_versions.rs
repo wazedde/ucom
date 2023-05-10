@@ -2,6 +2,7 @@ use std::env;
 
 use anyhow::anyhow;
 use colored::Colorize;
+use itertools::Itertools;
 use spinoff::{spinners, Spinner};
 
 use crate::cli::{ListType, ENV_DEFAULT_VERSION};
@@ -71,7 +72,7 @@ fn print_installed_versions(installed: &[UnityVersion]) -> anyhow::Result<()> {
             if entry.version == default_version {
                 println!("{} {}", line.bold(), "*default for projects".bold());
             } else {
-                println!("{}", line);
+                println!("{line}");
             }
         }
     }
@@ -102,7 +103,7 @@ fn print_updates(installed: &[UnityVersion], available: &Vec<ReleaseInfo>) -> an
         if is_default {
             println!("{} {}", line.bold(), "*default for projects".bold());
         } else {
-            println!("{}", line);
+            println!("{line}");
         }
     };
 
@@ -260,11 +261,11 @@ fn print_latest_versions(
         previous_major = Some(latest.version.major);
 
         // Find all installed versions in the same range as the latest version.
-        let installed_in_range: Vec<_> = installed
+        let installed_in_range = installed
             .iter()
             .filter(|v| v.major == latest.version.major && v.minor == latest.version.minor)
             .copied()
-            .collect();
+            .collect_vec();
 
         if installed_in_range.is_empty() {
             // No installed versions in the range.
@@ -308,7 +309,7 @@ fn print_installs_line(latest: &ReleaseInfo, installed_in_range: &[UnityVersion]
         .blue()
         .bold()
     };
-    println!("{}", line);
+    println!("{line}");
 }
 
 struct VersionInfo {
@@ -374,18 +375,13 @@ fn latest_minor_releases<'a>(
     available: &'a [ReleaseInfo],
     partial_version: Option<&str>,
 ) -> Vec<&'a ReleaseInfo> {
-    let mut available_releases: Vec<_> = available
+    available
         .iter()
         .filter(|r| partial_version.map_or(true, |p| r.version.to_string().starts_with(p)))
         .map(|r| (r.version.major, r.version.minor))
-        .collect();
-
-    available_releases.sort_unstable();
-    available_releases.dedup();
-
-    available_releases
-        .iter()
-        .filter_map(|&(major, minor)| {
+        .sorted_unstable()
+        .dedup()
+        .filter_map(|(major, minor)| {
             available
                 .iter()
                 .filter(|r| r.version.major == major && r.version.minor == minor)

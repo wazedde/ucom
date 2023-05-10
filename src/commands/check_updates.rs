@@ -1,4 +1,3 @@
-use std::ffi::OsStr;
 use std::fs;
 use std::io::Write;
 use std::path::Path;
@@ -23,7 +22,7 @@ pub fn check_updates(project_dir: &Path, report_path: Option<&Path>) -> anyhow::
 
     let spinner = Spinner::new(
         spinners::Dots,
-        format!("Project uses {}; checking for updates...", project_version),
+        format!("Project uses {project_version}; checking for updates..."),
         None,
     );
 
@@ -146,7 +145,7 @@ fn write_project_version(
                 .map(|r| r.installation_url)
                 .map_or_else(
                     || "No release info available".into(),
-                    |s| format!("[install in Unity HUB]({})", s)
+                    |s| format!("[install in Unity HUB]({s})")
                 )
         )?;
     } else {
@@ -204,11 +203,7 @@ fn validate_report_path(path: &Path) -> anyhow::Result<()> {
         ));
     }
 
-    if path
-        .extension()
-        .filter(|e| e == &OsStr::new("md"))
-        .is_none()
-    {
+    if path.extension().filter(|&e| e == "md").is_none() {
         return Err(anyhow!(
             "Make sure the report file name has the `md` extension: {}",
             path.display()

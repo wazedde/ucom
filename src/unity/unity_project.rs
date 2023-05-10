@@ -6,6 +6,7 @@ use std::path::{Path, PathBuf};
 use std::{env, fs};
 
 use anyhow::{anyhow, Context, Result};
+use itertools::Itertools;
 use path_absolutize::Absolutize;
 use serde::Deserialize;
 
@@ -57,7 +58,7 @@ pub fn version_used_by_project<P: AsRef<Path>>(project_dir: &P) -> Result<UnityV
 
     let mut line = String::new();
     // Read the 1st line.
-    let _ = reader.read_line(&mut line)?;
+    _ = reader.read_line(&mut line)?;
 
     line.starts_with("m_EditorVersion:")
         .then_some(line)
@@ -120,10 +121,10 @@ pub fn matching_versions(
         return Ok(versions);
     };
 
-    let versions: Vec<_> = versions
+    let versions = versions
         .into_iter()
         .filter(|v| v.to_string().starts_with(partial_version))
-        .collect();
+        .collect_vec();
 
     if versions.is_empty() {
         Err(anyhow!(
@@ -162,7 +163,7 @@ pub fn editor_used_by_project<P: AsRef<Path>>(project_dir: &P) -> Result<(UnityV
 
 /// Returns a list of available Unity versions sorted from the oldest to the newest.
 pub fn available_unity_versions<P: AsRef<Path>>(install_dir: &P) -> Result<Vec<UnityVersion>> {
-    let mut versions: Vec<_> = fs::read_dir(install_dir)
+    let versions = fs::read_dir(install_dir)
         .with_context(|| {
             format!(
                 "Cannot read available Unity editors in `{}`",
@@ -177,7 +178,8 @@ pub fn available_unity_versions<P: AsRef<Path>>(install_dir: &P) -> Result<Vec<U
         .filter_map(|p| p.file_name().map(ToOwned::to_owned))
         // Parse the version from the file name.
         .filter_map(|version| version.to_string_lossy().parse::<UnityVersion>().ok())
-        .collect();
+        .sorted_unstable()
+        .collect_vec();
 
     if versions.is_empty() {
         Err(anyhow!(
@@ -185,7 +187,6 @@ pub fn available_unity_versions<P: AsRef<Path>>(install_dir: &P) -> Result<Vec<U
             install_dir.as_ref().display()
         ))
     } else {
-        versions.sort_unstable();
         Ok(versions)
     }
 }
@@ -286,9 +287,10 @@ pub enum PackagesAvailability {
 
 impl Packages {
     pub fn from_project<P: AsRef<Path>>(project_dir: &P) -> Result<PackagesAvailability> {
-        let project_dir = project_dir.as_ref();
         const MANIFEST_FILE: &str = "Packages/manifest.json";
         const PACKAGES_LOCK_FILE: &str = "Packages/packages-lock.json";
+
+        let project_dir = project_dir.as_ref();
 
         if !project_dir.join(MANIFEST_FILE).exists() {
             return Ok(NoManifest);

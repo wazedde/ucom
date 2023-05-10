@@ -1,6 +1,7 @@
 use std::path::Path;
 
 use colored::Colorize;
+use itertools::Itertools;
 
 use crate::cli::PackagesInfoLevel;
 use crate::unity::release_notes_url;
@@ -69,11 +70,11 @@ fn print_project_packages(
     }
 
     if let PackagesAvailability::Packages(packages) = availability {
-        let mut packages: Vec<_> = packages
+        let mut packages = packages
             .dependencies
             .iter()
-            .filter(|(_, package)| package_level.eval(package))
-            .collect();
+            .filter(|(_, package)| package_level.evaluate(package))
+            .collect_vec();
 
         if packages.is_empty() {
             return Ok(());
@@ -85,9 +86,18 @@ fn print_project_packages(
 
         let (enabled, disabled) = match package_level {
             PackagesInfoLevel::Lev0 => ("", ", L=local, E=embedded, G=git, T=tarball"),
-            PackagesInfoLevel::Lev1 => (", L=local, E=embedded, G=git, T=tarball", ", R=registry, B=builtin"),
-            PackagesInfoLevel::Lev2 => (", L=local, E=embedded, G=git, T=tarball, R=registry", ", B=builtin"),
-            PackagesInfoLevel::Lev3 => (", L=local, E=embedded, G=git, T=tarball, R=registry, B=builtin", ""),
+            PackagesInfoLevel::Lev1 => (
+                ", L=local, E=embedded, G=git, T=tarball",
+                ", R=registry, B=builtin",
+            ),
+            PackagesInfoLevel::Lev2 => (
+                ", L=local, E=embedded, G=git, T=tarball, R=registry",
+                ", B=builtin",
+            ),
+            PackagesInfoLevel::Lev3 => (
+                ", L=local, E=embedded, G=git, T=tarball, R=registry, B=builtin",
+                "",
+            ),
         };
 
         let line = format!(
@@ -112,26 +122,20 @@ fn print_project_packages(
 }
 
 impl PackagesInfoLevel {
-    // Evaluates if the PackageInfo is allowed by the info level.
-    fn eval(self, package: &PackageInfo) -> bool {
-        match self {
-            Self::Lev0 => false,
-            Self::Lev1 => {
-                package.depth == 0
-                    && (package.source == Some(PackageSource::Git)
-                        || package.source == Some(PackageSource::Embedded)
-                        || package.source == Some(PackageSource::LocalTarball)
-                        || package.source == Some(PackageSource::Local))
-            }
-            Self::Lev2 => {
-                package.depth == 0
-                    && (package.source == Some(PackageSource::Git)
-                        || package.source == Some(PackageSource::Embedded)
-                        || package.source == Some(PackageSource::LocalTarball)
-                        || package.source == Some(PackageSource::Local)
-                        || package.source == Some(PackageSource::Registry))
-            }
-            Self::Lev3 => true,
+    /// Evaluates if the `PackageInfo` is allowed by the info level.
+    fn evaluate(self, package: &PackageInfo) -> bool {
+        match (self, package.depth) {
+            (Self::Lev0, ..) => false,
+
+            (Self::Lev1, 0) => package
+                .source
+                .map_or(false, |ps| ps < PackageSource::Registry),
+
+            (Self::Lev2, 0) => package
+                .source
+                .map_or(false, |ps| ps < PackageSource::Builtin),
+
+            _ => true,
         }
     }
 }

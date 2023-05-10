@@ -26,12 +26,12 @@ fn main() -> Result<()> {
     }
 
     if cli.injected_script {
-        println!("{}", UNITY_BUILD_SCRIPT);
+        println!("{UNITY_BUILD_SCRIPT}");
         exit(0);
     }
 
     let Some(command) = cli.command else {
-        let _ = Cli::command().print_help();
+        _ = Cli::command().print_help();
         exit(0)
     };
 

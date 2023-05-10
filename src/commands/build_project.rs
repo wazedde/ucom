@@ -8,6 +8,7 @@ use std::process::Command;
 use anyhow::anyhow;
 use colored::Colorize;
 use indexmap::IndexSet;
+use itertools::Itertools;
 use path_absolutize::Absolutize;
 use uuid::Uuid;
 
@@ -85,7 +86,7 @@ pub fn build_project(arguments: BuildArguments) -> anyhow::Result<()> {
     }
 
     // Add any additional arguments.
-    cmd.args(arguments.args.as_deref().unwrap_or_default());
+    cmd.args(arguments.args.unwrap_or_default());
 
     if arguments.dry_run {
         println!("{}", cmd_to_string(&cmd));
@@ -143,7 +144,7 @@ pub fn build_project(arguments: BuildArguments) -> anyhow::Result<()> {
 }
 
 fn clean_output_directory(path: &Path) -> anyhow::Result<()> {
-    let delete: Vec<_> = fs::read_dir(path)?
+    let delete = fs::read_dir(path)?
         .flat_map(|r| r.map(|e| e.path())) // Convert to paths.
         .filter(|p| p.is_dir()) // Only directories.
         .filter(|p| {
@@ -153,7 +154,7 @@ fn clean_output_directory(path: &Path) -> anyhow::Result<()> {
                 || p.to_string_lossy()
                     .ends_with("_BackUpThisFolder_ButDontShipItWithYourGame")
         })
-        .collect();
+        .collect_vec();
 
     for dir in delete {
         println!("Removing directory: {}", dir.display());
@@ -275,7 +276,7 @@ fn inject_build_script<P: AsRef<Path>>(parent_dir: P) -> anyhow::Result<()> {
     println!("Injecting ucom build script: {}", file_path.display());
 
     let mut file = File::create(file_path)?;
-    write!(file, "{}", UNITY_BUILD_SCRIPT).map_err(Into::into)
+    write!(file, "{UNITY_BUILD_SCRIPT}").map_err(Into::into)
 }
 
 /// Removes the injected build script from the project.
