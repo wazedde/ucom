@@ -73,12 +73,12 @@ pub struct UnityVersion {
 impl UnityVersion {
     /// Returns the length of the string representation of this version.
     pub fn len(self) -> usize {
-        return Self::count_len(self.major)
+        Self::count_len(self.major)
             + Self::count_len(self.minor)
             + Self::count_len(self.patch)
             + self.build_type.as_short_str().len()
             + Self::count_len(self.build)
-            + 2; // The 2 dots
+            + 2 // The 2 dots
     }
 
     fn count_len<T: Into<u16>>(n: T) -> usize {

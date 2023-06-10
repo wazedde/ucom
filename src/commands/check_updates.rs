@@ -171,25 +171,19 @@ fn write_available_updates(updates: &[ReleaseInfo], buf: &mut Vec<u8>) -> anyhow
     let max_len = updates.iter().map(|ri| ri.version.len()).max().unwrap();
 
     for release in updates {
-        if is_editor_installed(release.version).unwrap_or(false) {
-            // The editor is installed, but not used by the project.
-            writeln!(
-                buf,
-                "- {:<max_len$} - {} > {}",
-                release.version.to_string().blue().bold(),
-                release_notes_url(release.version).bright_blue().underline(),
-                "installed".bold()
-            )?;
+        let status = if is_editor_installed(release.version)? {
+            "installed".bold()
         } else {
-            // The editor is not installed.
-            writeln!(
-                buf,
-                "- {:<max_len$} - {} > {}",
-                release.version.to_string().blue().bold(),
-                release_notes_url(release.version).bright_blue().underline(),
-                release.installation_url.bright_blue().underline().bold(),
-            )?;
-        }
+            release.installation_url.bright_blue().underline().bold()
+        };
+
+        writeln!(
+            buf,
+            "- {:<max_len$} - {} > {}",
+            release.version.to_string().blue().bold(),
+            release_notes_url(release.version).bright_blue().underline(),
+            status
+        )?;
     }
 
     Ok(())
@@ -197,41 +191,39 @@ fn write_available_updates(updates: &[ReleaseInfo], buf: &mut Vec<u8>) -> anyhow
 
 fn validate_report_path(path: &Path) -> anyhow::Result<()> {
     if path.is_dir() {
-        return Err(anyhow!(
+        Err(anyhow!(
             "The report file name provided is a directory: {}",
             path.display()
-        ));
-    }
-
-    if path.extension().filter(|&e| e == "md").is_none() {
-        return Err(anyhow!(
+        ))
+    } else if path.extension().filter(|&e| e == "md").is_none() {
+        Err(anyhow!(
             "Make sure the report file name has the `md` extension: {}",
             path.display()
-        ));
+        ))
+    } else {
+        Ok(())
     }
-
-    Ok(())
 }
 
 fn write_release_notes(buf: &mut Vec<u8>, release: &ReleaseInfo) -> anyhow::Result<()> {
     let (url, body) = request_release_notes(release.version)?;
     let release_notes = extract_release_notes(&body);
-    if release_notes.is_empty() {
-        return Ok(());
-    }
 
-    writeln!(buf)?;
-    writeln!(buf, "## Release notes for [{}]({url})", release.version)?;
-    writeln!(buf)?;
-    writeln!(buf, "[install in Unity HUB]({})", release.installation_url)?;
+    if !release_notes.is_empty() {
+        writeln!(buf)?;
+        writeln!(buf, "## Release notes for [{}]({url})", release.version)?;
+        writeln!(buf)?;
+        writeln!(buf, "[install in Unity HUB]({})", release.installation_url)?;
 
-    for (header, entries) in release_notes {
-        writeln!(buf)?;
-        writeln!(buf, "### {header}")?;
-        writeln!(buf)?;
-        for e in &entries {
-            writeln!(buf, "- {e}")?;
+        for (header, entries) in release_notes {
+            writeln!(buf)?;
+            writeln!(buf, "### {header}")?;
+            writeln!(buf)?;
+            for e in &entries {
+                writeln!(buf, "- {e}")?;
+            }
         }
     }
+
     Ok(())
 }

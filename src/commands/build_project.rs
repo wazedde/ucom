@@ -145,14 +145,13 @@ pub fn build_project(arguments: BuildArguments) -> anyhow::Result<()> {
 
 fn clean_output_directory(path: &Path) -> anyhow::Result<()> {
     let delete = fs::read_dir(path)?
-        .flat_map(|r| r.map(|e| e.path())) // Convert to paths.
+        .filter_map(|r| r.ok().map(|e| e.path()))
         .filter(|p| p.is_dir()) // Only directories.
         .filter(|p| {
             // Filter out directories that should not be deleted.
-            p.to_string_lossy()
-                .ends_with("_BurstDebugInformation_DoNotShip")
-                || p.to_string_lossy()
-                    .ends_with("_BackUpThisFolder_ButDontShipItWithYourGame")
+            let dir_str = p.to_string_lossy();
+            dir_str.ends_with("_BurstDebugInformation_DoNotShip")
+                || dir_str.ends_with("_BackUpThisFolder_ButDontShipItWithYourGame")
         })
         .collect_vec();
 
@@ -167,9 +166,9 @@ fn clean_output_directory(path: &Path) -> anyhow::Result<()> {
 
 /// Returns full path to the log file. By default the project's `Logs` directory is used as destination.
 fn log_file_path(log_file: &Path, project_dir: &Path) -> anyhow::Result<PathBuf> {
-    let Some(file_name) = log_file.file_name() else {
-             return Err(anyhow!("Invalid log file name: {}", log_file.display()));
-         };
+    let file_name = log_file
+        .file_name()
+        .ok_or_else(|| anyhow!("Invalid log file name: {}", log_file.display()))?;
 
     let path = if log_file == file_name {
         // Log filename without path was given, use the project's `Logs` directory as destination.
@@ -199,10 +198,11 @@ fn errors_from_log(log_file: &Path) -> anyhow::Error {
         0 => anyhow!("No errors found in log"),
         1 => anyhow!("{}", errors[0]),
         _ => {
-            let mut joined = String::new();
-            for (i, error) in errors.iter().enumerate() {
-                joined.push_str(format!("{error}: {}\n", format!("{}", i + 1).bold()).as_str());
-            }
+            let joined = errors
+                .iter()
+                .enumerate()
+                .map(|(i, error)| format!("{error}: {}\n", format!("{}", i + 1).bold()))
+                .collect::<String>();
             anyhow!(joined)
         }
     }
@@ -210,12 +210,16 @@ fn errors_from_log(log_file: &Path) -> anyhow::Error {
 
 /// Returns true if the given line is an error.
 fn is_log_error(line: &str) -> bool {
-    line.starts_with("[Builder] Error:")
-        || line.contains("error CS")
-        || line.starts_with("Fatal Error")
-        || line.starts_with("Error building Player")
-        || line.starts_with("error:")
-        || line.starts_with("BuildFailedException:")
+    let error_prefixes = &[
+        "[Builder] Error:",
+        "error CS",
+        "Fatal Error",
+        "Error building Player",
+        "error:",
+        "BuildFailedException:",
+    ];
+
+    error_prefixes.iter().any(|prefix| line.starts_with(prefix))
 }
 
 type ResultFn = Box<dyn FnOnce() -> anyhow::Result<()>>;
@@ -225,18 +229,15 @@ fn new_build_script_injection_functions(
     project_dir: &Path,
     inject: InjectAction,
 ) -> (ResultFn, ResultFn) {
-    match (
-        inject,
-        project_dir.join(PERSISTENT_BUILD_SCRIPT_PATH).exists(),
-    ) {
-        (InjectAction::Auto, true) => {
-            // Build script already present, no need to inject.
-            (Box::new(|| Ok(())), Box::new(|| Ok(())))
-        }
+    let script_exists = project_dir.join(PERSISTENT_BUILD_SCRIPT_PATH).exists();
+    let do_nothing: (ResultFn, ResultFn) = (Box::new(|| Ok(())), Box::new(|| Ok(())));
 
-        (InjectAction::Auto, false) => {
-            // Build script not present, inject it.
-            // Place the build script in a unique directory to avoid conflicts.
+    match inject {
+        // Build script already present, no need to inject.
+        InjectAction::Auto if script_exists => do_nothing,
+
+        // Build script not present, inject it in a unique directory to avoid conflicts.
+        InjectAction::Auto => {
             let uuid = Uuid::new_v4();
             let pre_root = project_dir.join(format!("{AUTO_BUILD_SCRIPT_ROOT}-{uuid}"));
             let post_root = pre_root.clone();
@@ -246,13 +247,11 @@ fn new_build_script_injection_functions(
             )
         }
 
-        (InjectAction::Persistent, true) => {
-            // Build script already present, no need to inject.
-            (Box::new(|| Ok(())), Box::new(|| Ok(())))
-        }
+        // Build script already present, no need to inject.
+        InjectAction::Persistent if script_exists => do_nothing,
 
-        (InjectAction::Persistent, false) => {
-            // Build script not present, inject it.
+        // Build script not present, inject it.
+        InjectAction::Persistent => {
             let persistent_root = project_dir.join(PERSISTENT_BUILD_SCRIPT_ROOT);
             (
                 Box::new(|| inject_build_script(persistent_root)),
@@ -260,10 +259,8 @@ fn new_build_script_injection_functions(
             )
         }
 
-        (InjectAction::Off, _) => {
-            // No need to do anything.
-            (Box::new(|| Ok(())), Box::new(|| Ok(())))
-        }
+        // No need to do anything.
+        InjectAction::Off => do_nothing,
     }
 }
 
@@ -281,28 +278,26 @@ fn inject_build_script<P: AsRef<Path>>(parent_dir: P) -> anyhow::Result<()> {
 
 /// Removes the injected build script from the project.
 fn remove_build_script<P: AsRef<Path>>(parent_dir: P) -> anyhow::Result<()> {
-    if !parent_dir.as_ref().exists() {
+    let parent_dir = parent_dir.as_ref();
+    if !parent_dir.exists() {
         return Ok(());
     }
 
     println!(
         "Removing injected ucom build script: {}",
-        parent_dir.as_ref().display()
+        parent_dir.display()
     );
 
     // Remove the directory where the build script is located.
-    fs::remove_dir_all(&parent_dir).map_err(|_| {
-        anyhow!(
-            "Could not remove directory: {}",
-            parent_dir.as_ref().display()
-        )
-    })?;
+    fs::remove_dir_all(parent_dir)
+        .map_err(|_| anyhow!("Could not remove directory: {}", parent_dir.display()))?;
 
     // Remove the .meta file.
-    let meta_file = parent_dir.as_ref().with_extension("meta");
-    if !meta_file.exists() {
-        return Ok(());
+    let meta_file = parent_dir.with_extension("meta");
+    if meta_file.exists() {
+        fs::remove_file(&meta_file)
+            .map_err(|_| anyhow!("Could not remove: {}", meta_file.display()))?;
     }
 
-    fs::remove_file(&meta_file).map_err(|_| anyhow!("Could not remove: {}", meta_file.display()))
+    Ok(())
 }

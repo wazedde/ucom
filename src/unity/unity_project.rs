@@ -38,10 +38,11 @@ const UNITY_EDITOR_DIR: &str = r"C:\Program Files\Unity\Hub\Editor";
 #[cfg(not(any(target_os = "macos", target_os = "windows")))]
 const UNITY_EDITOR_DIR: &str = compile_error!("Unsupported platform");
 
-/// Returns the Unity version used for the project.
+/// Returns the Unity version for the project.
 pub fn version_used_by_project<P: AsRef<Path>>(project_dir: &P) -> Result<UnityVersion> {
-    const PROJECT_VERSION_FILE: &str = "ProjectSettings/ProjectVersion.txt";
-    let version_file = project_dir.as_ref().join(PROJECT_VERSION_FILE);
+    let version_file = project_dir
+        .as_ref()
+        .join("ProjectSettings/ProjectVersion.txt");
 
     if !version_file.exists() {
         return Err(anyhow!(

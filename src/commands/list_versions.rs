@@ -172,7 +172,8 @@ fn print_updates(installed: &[UnityVersion], available: &Vec<ReleaseInfo>) -> an
     Ok(())
 }
 
-/// Collects update information for each installed version.
+/// Groups installed versions by major.minor version
+/// and collects update information for each installed version.
 fn collect_update_info(
     installed: &[UnityVersion],
     available: &[ReleaseInfo],
@@ -237,7 +238,7 @@ fn print_latest_versions(
     partial_version: Option<&str>,
 ) {
     // Get the latest version of each range.
-    let minor_releases: Vec<_> = latest_minor_releases(available, partial_version);
+    let minor_releases = latest_minor_releases(available, partial_version);
 
     let max_len = minor_releases
         .iter()
@@ -328,7 +329,7 @@ enum VersionType {
 fn max_version_string_length(version_groups: &[Vec<VersionInfo>]) -> usize {
     version_groups
         .iter()
-        .flat_map(|f| f.iter())
+        .flatten()
         .map(|e| e.version.len())
         .max()
         .unwrap()
@@ -339,31 +340,27 @@ fn group_minor_versions(installed: &[UnityVersion]) -> Vec<Vec<VersionInfo>> {
     let mut version_groups = vec![];
     let mut group = vec![];
 
-    let mut iter = installed.iter().peekable();
-    while let Some(&version) = iter.next() {
-        let is_latest_minor = iter.peek().map_or(true, |v| {
+    for (i, &version) in installed.iter().enumerate() {
+        let next_version = installed.get(i + 1);
+        let is_latest_minor = next_version.map_or(true, |v| {
             (v.major, v.minor) != (version.major, version.minor)
         });
 
-        if is_latest_minor {
-            // Finished group
-            group.push(VersionInfo {
-                version,
-                v_type: VersionType::LatestInstalled,
-            });
-            version_groups.push(group);
-
-            // Create a new group
-            group = vec![];
+        let v_type = if is_latest_minor {
+            VersionType::LatestInstalled
         } else {
-            // In current group
-            group.push(VersionInfo {
-                version,
-                v_type: VersionType::HasLaterInstalled,
-            });
+            VersionType::HasLaterInstalled
+        };
+
+        group.push(VersionInfo { version, v_type });
+
+        // Finished group
+        if is_latest_minor {
+            version_groups.push(std::mem::take(&mut group));
         }
     }
 
+    // Add the last group
     if !group.is_empty() {
         version_groups.push(group);
     }

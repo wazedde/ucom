@@ -104,20 +104,16 @@ fn extract_releases(html: &str, filter: &ReleaseFilter) -> Vec<ReleaseInfo> {
         .find(Class(major_release_class.as_ref()))
         .flat_map(|n| n.find(Class("download-release-wrapper")))
         .filter_map(|n| {
-            n.find(Class("release-title-date"))
-                .next()
-                // Get the release date.
-                .and_then(|n| n.find(Class("release-date")).next())
-                .map(|n| n.text())
-                .and_then(|date_header| {
-                    // Get the Unity Hub installation url, which is the next sibling of the button.
-                    n.find(Class("btn"))
-                        .next()
-                        .and_then(|n| n.attr("href"))
-                        .map(|url| (date_header, url))
-                })
+            let date_header = n
+                .find(Class("release-title-date"))
+                .next()?
+                .find(Class("release-date"))
+                .next()?
+                .text();
+
+            let url = n.find(Class("btn")).next()?.attr("href")?;
+            Some((date_header, url))
         })
-        // Filter out releases that don't match the filter.
         .filter_map(|(date_header, url)| {
             version_from_url(url)
                 .filter(|&v| filter.eval(v))
@@ -174,12 +170,8 @@ pub fn extract_release_notes(html: &str) -> IndexMap<String, Vec<String>> {
             Some("h3" | "h4") => topic_header = n.text(),
             // The topic list is the ul node.
             Some("ul") => {
-                if !release_notes.contains_key(&topic_header) {
-                    release_notes.insert(topic_header.clone(), Vec::new());
-                }
-
                 // Iterate over the list items and add them to the topic list.
-                let topic_list = release_notes.get_mut(&topic_header).unwrap();
+                let topic_list = release_notes.entry(topic_header.clone()).or_default();
                 n.find(Name("li")).for_each(|li| {
                     if let Some(release_note_line) = li.text().lines().next() {
                         topic_list.push(release_note_line.to_string());
