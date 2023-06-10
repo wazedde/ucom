@@ -223,7 +223,7 @@ pub struct BuildArguments {
         short = 'f',
         long,
         value_name = "FUNCTION",
-        default_value = "ucom.UcomBuilder.Build"
+        default_value = "Ucom.UnityBuilder.Build"
     )]
     pub build_function: String,
 

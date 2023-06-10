@@ -15,12 +15,12 @@ use uuid::Uuid;
 use crate::cli::{BuildArguments, BuildMode, BuildOptions, BuildTarget, InjectAction};
 use crate::unity::*;
 
-const BUILD_SCRIPT_NAME: &str = "UcomBuilder.cs";
-const PERSISTENT_BUILD_SCRIPT_PATH: &str = "Assets/Plugins/ucom/Editor/UcomBuilder.cs";
+const BUILD_SCRIPT_NAME: &str = "UnityBuilder.cs";
+const PERSISTENT_BUILD_SCRIPT_PATH: &str = "Assets/Plugins/ucom/Editor/UnityBuilder.cs";
 const PERSISTENT_BUILD_SCRIPT_ROOT: &str = "Assets/Plugins/ucom";
 const AUTO_BUILD_SCRIPT_ROOT: &str = "Assets/ucom";
 
-pub const UNITY_BUILD_SCRIPT: &str = include_str!("include/UcomBuilder.cs");
+pub const UNITY_BUILD_SCRIPT: &str = include_str!("include/UnityBuilder.cs");
 
 /// Runs the build command.
 pub fn build_project(arguments: BuildArguments) -> anyhow::Result<()> {

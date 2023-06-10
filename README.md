@@ -40,7 +40,7 @@ Or build manually:
 ## Injected Build Script
 
 Because Unity does not support command line arguments for building all supported target platforms, the `ucom build`
-command injects a [build script](src/commands/include/UcomBuilder.cs) into the project to trigger the build for a
+command injects a [build script](src/commands/include/UnityBuilder.cs) into the project to trigger the build for a
 specific platform.
 
 By default, the script is removed from the project after the build has been completed.
@@ -222,7 +222,7 @@ Options:
   -f, --build-function <FUNCTION>
           A static method in the Unity project that is called to build the project
 
-          [default: ucom.UcomBuilder.Build]
+          [default: Ucom.UnityBuilder.Build]
 
   -l, --log-file <FILE>
           The log file to write Unity's output to

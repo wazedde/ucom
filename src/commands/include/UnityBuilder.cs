@@ -8,14 +8,14 @@ using UnityEditor;
 using UnityEditor.Build.Reporting;
 using UnityEngine;
 
-namespace ucom
+namespace Ucom
 {
     /// <summary>
     /// Build companion script for ucom.<br/>
     /// - Lines after "[Builder] Build Report" until an empty line are printed to the console after the build finishes.<br/>
     /// - Lines starting with "[Builder] Error:" are printed to the console if the build fails.<br/>
     /// </summary>
-    public static class UcomBuilder
+    public static class UnityBuilder
     {
         /// <summary>
         /// The output path for the build.
@@ -38,9 +38,9 @@ namespace ucom
         [UsedImplicitly]
         public static void Build()
         {
-            string[] args = Environment.GetCommandLineArgs();
+            var args = Environment.GetCommandLineArgs();
 
-            bool invalidArgs = false;
+            var invalidArgs = false;
 
             // Get the output directory.
             if (!args.TryGetArgValue(BuildOutputArg, out string outputDirectory))
@@ -81,7 +81,7 @@ namespace ucom
 
             if (args.TryGetArgValue(BuildOptionsArg, out string boValue))
             {
-                if (int.TryParse(boValue, out int bo))
+                if (int.TryParse(boValue, out var bo))
                 {
                     options = (BuildOptions)bo;
                 }
@@ -93,7 +93,7 @@ namespace ucom
                 }
             }
 
-            bool buildFailed = invalidArgs || !Build(outputDirectory, options);
+            var buildFailed = invalidArgs || !Build(outputDirectory, GetScenePaths(), options);
 
             if (Array.IndexOf(args, "-quit") != -1)
             {
@@ -106,12 +106,11 @@ namespace ucom
         /// Builds the application for the <see cref="EditorUserBuildSettings.activeBuildTarget"/>.
         /// </summary>
         /// <param name="outputDirectory">The parent directory where the application will be built.</param>
+        /// <param name="scenes">The scenes to include in the build</param>
         /// <param name="options">Building options. Multiple options can be combined together.</param>
         /// <returns><c>true</c> if the build succeeded; <c>false</c> otherwise.</returns>
-        public static bool Build(string outputDirectory, BuildOptions options)
+        public static bool Build(string outputDirectory, string[] scenes, BuildOptions options)
         {
-            var scenes = GetScenePaths();
-
             if (scenes.Length == 0)
             {
                 Log("[Builder] Error: no active scenes in Build Settings.", LogType.Error);
@@ -121,7 +120,7 @@ namespace ucom
             if (!TryGetBuildLocationPath(outputDirectory,
                     Application.productName,
                     EditorUserBuildSettings.activeBuildTarget,
-                    out string applicationPath))
+                    out var applicationPath))
             {
                 return false;
             }
@@ -183,39 +182,66 @@ namespace ucom
         /// <summary>
         /// Tries to get the full path of build location.
         /// </summary>
-        private static bool TryGetBuildLocationPath(string outputDirectory,
+        /// <param name="outputDirectory">The parent directory where the application will be built.</param>
+        /// <param name="appName">The name of the application</param>
+        /// <param name="buildTarget">The build target</param>
+        /// <param name="fullOutputPath">The full path of the build location</param>
+        /// <returns>True if the path is valid; False otherwise.</returns>
+        [PublicAPI]
+        public static bool TryGetBuildLocationPath(string outputDirectory,
             string appName,
             BuildTarget buildTarget,
             out string fullOutputPath)
         {
-            appName = string.Join("_", appName.Split(Path.GetInvalidFileNameChars()));
+            if (TryGetAppFileName(appName, buildTarget, out var appFileName))
+            {
+                fullOutputPath = Path.Combine(outputDirectory, appFileName);
+                return true;
+            }
 
+            fullOutputPath = null;
+            return false;
+        }
+
+        /// <summary>
+        /// Tries to get the file name of the application.
+        /// </summary>
+        /// <param name="appName">The name of the application</param>
+        /// <param name="buildTarget">The build target</param>
+        /// <param name="fileName">The file name</param>
+        /// <returns>True if the file name is valid; False otherwise.</returns>
+        [PublicAPI]
+        public static bool TryGetAppFileName(string appName, BuildTarget buildTarget, out string fileName)
+        {
+            fileName = string.Join("_", appName.Split(Path.GetInvalidFileNameChars()));
             switch (buildTarget)
             {
                 case BuildTarget.iOS:
                 case BuildTarget.WebGL:
-                    appName = string.Join("_", appName.Split(Path.GetInvalidPathChars()));
-                    appName = appName.Replace(" ", "_");
-                    fullOutputPath = Path.Combine(outputDirectory, appName);
-                    return true;
+                    // Build output is a directory.
+                    fileName = string.Join("_", fileName.Split(Path.GetInvalidPathChars()))
+                                     .Replace(" ", "_");
+                    break;
                 case BuildTarget.StandaloneWindows:
                 case BuildTarget.StandaloneWindows64:
-                    fullOutputPath = Path.Combine(outputDirectory, $"{appName}.exe");
-                    return true;
+                    fileName = $"{fileName}.exe";
+                    break;
                 case BuildTarget.StandaloneOSX:
-                    fullOutputPath = Path.Combine(outputDirectory, $"{appName}.app");
-                    return true;
+                    fileName = $"{fileName}.app";
+                    break;
                 case BuildTarget.StandaloneLinux64:
-                    fullOutputPath = Path.Combine(outputDirectory, $"{appName}.x86_64");
-                    return true;
+                    fileName = $"{fileName}.x86_64";
+                    break;
                 case BuildTarget.Android:
-                    fullOutputPath = Path.Combine(outputDirectory, $"{appName}.apk");
-                    return true;
+                    fileName = $"{fileName}.apk";
+                    break;
                 default:
                     Log($"[Builder] Error: '{buildTarget}' build target not supported.", LogType.Error);
-                    fullOutputPath = null;
+                    fileName = null;
                     return false;
             }
+
+            return true;
         }
 
         /// <summary>
@@ -223,7 +249,7 @@ namespace ucom
         /// </summary>
         private static bool TryGetArgValue(this string[] source, string arg, out string value)
         {
-            int index = Array.IndexOf(source, arg);
+            var index = Array.IndexOf(source, arg);
             if (index == -1 || index + 1 >= source.Length)
             {
                 value = null;
