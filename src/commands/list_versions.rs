@@ -66,7 +66,7 @@ fn print_installed_versions(installed: &[UnityVersion]) -> anyhow::Result<()> {
             let line = format!(
                 "{:<max_len$} - {}",
                 entry.version.to_string(),
-                release_notes_url(entry.version).bright_blue().underline()
+                release_notes_url(entry.version).bright_blue()
             );
 
             if entry.version == default_version {
@@ -141,15 +141,8 @@ fn print_updates(installed: &[UnityVersion], available: &Vec<ReleaseInfo>) -> an
                     println!(
                         "{:<max_len$} - {} > {}",
                         release_info.version.to_string().blue().bold(),
-                        release_notes_url(release_info.version)
-                            .bright_blue()
-                            .underline()
-                            .bold(),
-                        release_info
-                            .installation_url
-                            .bright_blue()
-                            .underline()
-                            .bold(),
+                        release_notes_url(release_info.version).bright_blue().bold(),
+                        release_info.installation_url.bright_blue().bold(),
                     );
                 }
                 VersionType::NoReleaseInfo => {
@@ -305,7 +298,7 @@ fn print_installs_line(latest: &ReleaseInfo, installed_in_range: &[UnityVersion]
             "{:<max_len$} - Installed: {} - update > {}",
             latest.version.to_string().blue(),
             joined_versions.blue(),
-            latest.installation_url.bright_blue().underline()
+            latest.installation_url.bright_blue()
         )
         .blue()
         .bold()
