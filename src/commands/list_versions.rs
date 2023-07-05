@@ -263,7 +263,11 @@ fn print_latest_versions(
 
         if installed_in_range.is_empty() {
             // No installed versions in the range.
-            println!("{}", latest.version);
+            println!(
+                "{:<max_len$} > {}",
+                latest.version.to_string(),
+                latest.installation_url.bright_blue()
+            );
         } else {
             print_installs_line(latest, &installed_in_range, max_len);
         }
