@@ -15,6 +15,8 @@ pub fn open_project(arguments: OpenArguments) -> anyhow::Result<()> {
         editor_used_by_project(&project_dir)?
     };
 
+    check_for_assets_directory(&project_dir)?;
+    
     // Build the command to execute.
     let mut cmd = Command::new(editor_exe);
     cmd.args(["-projectPath", &project_dir.to_string_lossy()])

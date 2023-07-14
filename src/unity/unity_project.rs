@@ -77,6 +77,20 @@ pub fn version_used_by_project<P: AsRef<Path>>(project_dir: &P) -> Result<UnityV
         })
 }
 
+/// Checks if the project directory has an `Assets` directory.
+pub fn check_for_assets_directory<P: AsRef<Path>>(project_dir: &P) -> Result<()> {
+    let assets_path = project_dir.as_ref().join("Assets");
+
+    if !assets_path.exists() {
+        return Err(anyhow!(
+            "Unity project does not have an `Assets` directory: `{}`",
+            project_dir.as_ref().display()
+        ));
+    };
+
+    Ok(())
+}
+
 /// Returns the parent directory of the editor installations.
 pub fn editor_parent_dir<'a>() -> Result<Cow<'a, Path>> {
     // Try to get the directory from the environment variable.
