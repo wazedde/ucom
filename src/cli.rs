@@ -47,7 +47,7 @@ pub enum Action {
         project_dir: PathBuf,
 
         /// The level of included packages to show.
-        #[arg(short='p', long, default_value = "lev2", env = ENV_PACKAGE_LEVEL)]
+        #[arg(short='p', long, default_value = "lev1", env = ENV_PACKAGE_LEVEL)]
         packages: PackagesInfoLevel,
     },
 
