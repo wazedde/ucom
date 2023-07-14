@@ -48,7 +48,7 @@ fn main() -> Result<()> {
         } => print_project_info(&project_dir, packages)
             .context("Cannot show project info".red().bold()),
 
-        Action::UpdateCheck {
+        Action::Check {
             project_dir,
             create_report: report_path,
         } => check_updates(&project_dir, report_path.as_deref())
