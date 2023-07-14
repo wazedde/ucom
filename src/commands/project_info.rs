@@ -135,7 +135,7 @@ impl PackagesInfoLevel {
                 .source
                 .map_or(false, |ps| ps < PackageSource::Builtin),
 
-            (Self::Lev3, ..) => false,
+            (Self::Lev3, ..) => true,
 
             _ => false,
         }
