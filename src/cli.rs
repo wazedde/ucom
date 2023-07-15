@@ -166,9 +166,18 @@ pub struct OpenArguments {
     #[arg(short = 'u', long = "unity", value_name = "VERSION")]
     pub version_pattern: Option<String>,
 
+    /// The active build target to open the project with.
+    /// When omitted the project will be opened with the latest build target.
+    #[arg(short = 't', long, value_name = "NAME")]
+    pub target: Option<OpenTarget>,
+
     /// Waits for the command to finish before continuing.
     #[clap(short = 'w', long)]
     pub wait: bool,
+
+    /// Quits the editor after the project has been opened.
+    #[clap(short = 'Q', long)]
+    pub quit: bool,
 
     /// Do not print ucom log messages.
     #[clap(short = 'q', long)]
@@ -187,7 +196,7 @@ pub struct OpenArguments {
 pub struct BuildArguments {
     /// The target platform to build for.
     #[arg(value_enum, env = ENV_BUILD_TARGET)]
-    pub target: Target,
+    pub target: BuildOpenTarget,
 
     /// The directory of the project.
     #[arg(value_name = "DIRECTORY", value_hint = clap::ValueHint::DirPath, default_value = ".")]
@@ -302,9 +311,41 @@ pub enum BuildMode {
     Editor,
 }
 
+/// The build target to open the project with.
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, ValueEnum)]
 #[allow(non_camel_case_types)]
-pub enum Target {
+pub enum OpenTarget {
+    Standalone,
+    #[value(name = "win32")]
+    Win,
+    #[value(name = "win64")]
+    Win64,
+    #[value(name = "macos")]
+    OSXUniversal,
+    #[value(name = "linux64")]
+    Linux64,
+    #[value(name = "ios")]
+    iOS,
+    #[value(name = "android")]
+    Android,
+    #[value(name = "webgl")]
+    WebGL,
+    #[value(name = "winstore")]
+    WindowsStoreApps,
+    #[value(name = "tvos")]
+    tvOS,
+}
+
+impl Display for OpenTarget {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{self:?}")
+    }
+}
+
+/// The build target to open the project to build with.
+#[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, ValueEnum)]
+#[allow(non_camel_case_types)]
+pub enum BuildOpenTarget {
     #[value(name = "win32")]
     Win,
     #[value(name = "win64")]
@@ -321,15 +362,16 @@ pub enum Target {
     WebGL,
 }
 
-impl Display for Target {
+impl Display for BuildOpenTarget {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         write!(f, "{self:?}")
     }
 }
 
+/// The build target to pass to the Unity build script.
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, ValueEnum)]
 #[allow(non_camel_case_types)]
-pub enum BuildTarget {
+pub enum BuildScriptTarget {
     StandaloneOSX,
     StandaloneWindows,
     StandaloneWindows64,
@@ -339,22 +381,22 @@ pub enum BuildTarget {
     WebGL,
 }
 
-impl Display for BuildTarget {
+impl Display for BuildScriptTarget {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         write!(f, "{self:?}")
     }
 }
 
-impl From<Target> for BuildTarget {
-    fn from(target: Target) -> Self {
+impl From<BuildOpenTarget> for BuildScriptTarget {
+    fn from(target: BuildOpenTarget) -> Self {
         match target {
-            Target::Win => Self::StandaloneWindows,
-            Target::Win64 => Self::StandaloneWindows64,
-            Target::OSXUniversal => Self::StandaloneOSX,
-            Target::Linux64 => Self::StandaloneLinux64,
-            Target::iOS => Self::iOS,
-            Target::Android => Self::Android,
-            Target::WebGL => Self::WebGL,
+            BuildOpenTarget::Win => Self::StandaloneWindows,
+            BuildOpenTarget::Win64 => Self::StandaloneWindows64,
+            BuildOpenTarget::OSXUniversal => Self::StandaloneOSX,
+            BuildOpenTarget::Linux64 => Self::StandaloneLinux64,
+            BuildOpenTarget::iOS => Self::iOS,
+            BuildOpenTarget::Android => Self::Android,
+            BuildOpenTarget::WebGL => Self::WebGL,
         }
     }
 }

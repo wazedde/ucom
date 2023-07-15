@@ -166,7 +166,7 @@ fn write_project_version(
 }
 
 fn write_available_updates(updates: &[ReleaseInfo], buf: &mut Vec<u8>) -> anyhow::Result<()> {
-    writeln!(buf, "{}", "Update(s) available:".bold())?;
+    writeln!(buf, "{}", "Available update(s):".bold())?;
 
     let max_len = updates.iter().map(|ri| ri.version.len()).max().unwrap();
 

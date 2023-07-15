@@ -12,7 +12,7 @@ use itertools::Itertools;
 use path_absolutize::Absolutize;
 use uuid::Uuid;
 
-use crate::cli::{BuildArguments, BuildMode, BuildOptions, BuildTarget, InjectAction};
+use crate::cli::{BuildArguments, BuildMode, BuildOptions, BuildScriptTarget, InjectAction};
 use crate::unity::*;
 
 const BUILD_SCRIPT_NAME: &str = "UnityBuilder.cs";
@@ -58,7 +58,7 @@ pub fn build_project(arguments: BuildArguments) -> anyhow::Result<()> {
         .args(["--ucom-build-output", &output_dir.to_string_lossy()])
         .args([
             "--ucom-build-target",
-            &BuildTarget::from(arguments.target).to_string(),
+            &BuildScriptTarget::from(arguments.target).to_string(),
         ]);
 
     // Combine the build option flags into an int.

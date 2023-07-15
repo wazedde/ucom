@@ -16,11 +16,20 @@ pub fn open_project(arguments: OpenArguments) -> anyhow::Result<()> {
     };
 
     check_for_assets_directory(&project_dir)?;
-    
+
     // Build the command to execute.
     let mut cmd = Command::new(editor_exe);
-    cmd.args(["-projectPath", &project_dir.to_string_lossy()])
-        .args(arguments.args.unwrap_or_default());
+    cmd.args(["-projectPath", &project_dir.to_string_lossy()]);
+
+    if let Some(target) = arguments.target {
+        cmd.args(["-buildTarget", &target.to_string()]);
+    }
+
+    if arguments.quit {
+        cmd.arg("-quit");
+    }
+
+    cmd.args(arguments.args.unwrap_or_default());
 
     if arguments.dry_run {
         println!("{}", cmd_to_string(&cmd));
