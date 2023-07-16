@@ -9,11 +9,15 @@ use crate::unity::*;
 pub fn open_project(arguments: OpenArguments) -> anyhow::Result<()> {
     let project_dir = validate_project_path(&arguments.project_dir)?;
 
-    let (version, editor_exe) = if arguments.version_pattern.is_some() {
-        matching_editor(arguments.version_pattern.as_deref())?
-    } else {
-        editor_used_by_project(&project_dir)?
-    };
+    let project_unity_version = version_used_by_project(&project_dir)?;
+
+    let open_unity_version = match arguments.version_pattern {
+        Some(Some(pattern)) => matching_available_version(Some(&pattern)),
+        Some(None) => matching_available_version(Some(&project_unity_version.minor_partial())),
+        None => Ok(project_unity_version),
+    }?;
+
+    let editor_exe = editor_executable_path(open_unity_version)?;
 
     check_for_assets_directory(&project_dir)?;
 
@@ -41,7 +45,7 @@ pub fn open_project(arguments: OpenArguments) -> anyhow::Result<()> {
             "{}",
             format!(
                 "Open Unity {} project in: {}",
-                version,
+                open_unity_version,
                 project_dir.display()
             )
             .bold()

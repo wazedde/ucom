@@ -18,15 +18,15 @@ pub fn check_updates(project_dir: &Path, report_path: Option<&Path>) -> anyhow::
         validate_report_path(path)?;
     }
 
-    let project_version = version_used_by_project(&project_dir)?;
+    let unity_version = version_used_by_project(&project_dir)?;
 
     let spinner = Spinner::new(
         spinners::Dots,
-        format!("Project uses {project_version}; checking for updates..."),
+        format!("Project uses {unity_version}; checking for updates..."),
         None,
     );
 
-    let (project_version_info, updates) = request_patch_update_info(project_version)?;
+    let (project_version_info, updates) = request_patch_update_info(unity_version)?;
     spinner.clear();
 
     if output_to_file {
@@ -41,7 +41,7 @@ pub fn check_updates(project_dir: &Path, report_path: Option<&Path>) -> anyhow::
     writeln!(buf)?;
 
     write_project_version(
-        project_version,
+        unity_version,
         project_version_info,
         &updates,
         output_to_file,

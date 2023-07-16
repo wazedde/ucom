@@ -13,7 +13,7 @@ pub fn print_project_info(
     packages_level: PackagesInfoLevel,
 ) -> anyhow::Result<()> {
     let project_dir = validate_project_path(&project_dir)?;
-    let version = version_used_by_project(&project_dir)?;
+    let unity_version = version_used_by_project(&project_dir)?;
 
     println!(
         "{}",
@@ -28,11 +28,11 @@ pub fn print_project_info(
 
     print!(
         "    Unity Version: {} - {}",
-        version.to_string().bold(),
-        release_notes_url(version).bright_blue()
+        unity_version.to_string().bold(),
+        release_notes_url(unity_version).bright_blue()
     );
 
-    if is_editor_installed(version)? {
+    if is_editor_installed(unity_version)? {
         println!();
     } else {
         println!(" {}", "*not installed".red().bold());

@@ -3,11 +3,12 @@ use std::process::Command;
 use colored::Colorize;
 
 use crate::cli::RunArguments;
-use crate::unity::{cmd_to_string, matching_editor, spawn_and_forget, wait_with_stdout};
+use crate::unity::*;
 
 /// Runs the Unity Editor with the given arguments.
 pub fn run_unity(arguments: RunArguments) -> anyhow::Result<()> {
-    let (version, editor_exe) = matching_editor(arguments.version_pattern.as_deref())?;
+    let unity_version = matching_available_version(arguments.version_pattern.as_deref())?;
+    let editor_exe = editor_executable_path(unity_version)?;
 
     let mut cmd = Command::new(editor_exe);
     cmd.args(arguments.args.unwrap_or_default());
@@ -18,7 +19,7 @@ pub fn run_unity(arguments: RunArguments) -> anyhow::Result<()> {
     }
 
     if !arguments.quiet {
-        println!("{}", format!("Run Unity {version}").bold());
+        println!("{}", format!("Run Unity {unity_version}").bold());
     }
 
     if arguments.wait {

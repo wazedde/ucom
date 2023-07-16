@@ -9,7 +9,7 @@ use path_absolutize::Absolutize;
 use spinoff::{spinners, Spinner};
 
 use crate::cli::NewArguments;
-use crate::unity::{cmd_to_string, matching_editor, spawn_and_forget, wait_with_stdout};
+use crate::unity::*;
 
 const GIT_IGNORE: &str = include_str!("include/unity-gitignore.txt");
 
@@ -24,7 +24,8 @@ pub fn new_project(arguments: NewArguments) -> anyhow::Result<()> {
         ));
     }
 
-    let (version, editor_exe) = matching_editor(arguments.version_pattern.as_deref())?;
+    let version = matching_available_version(arguments.version_pattern.as_deref())?;
+    let editor_exe = editor_executable_path(version)?;
 
     let mut cmd = Command::new(editor_exe);
     cmd.arg("-createProject")

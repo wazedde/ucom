@@ -150,29 +150,26 @@ pub fn matching_versions(
     }
 }
 
-/// Returns version and path to the editor app of the latest installed version that matches the partial version.
-pub fn matching_editor(partial_version: Option<&str>) -> Result<(UnityVersion, PathBuf)> {
+/// Returns version of the latest installed version that matches the partial version.
+pub fn matching_available_version(partial_version: Option<&str>) -> Result<UnityVersion> {
     let parent_dir = editor_parent_dir()?;
     let version = *matching_versions(available_unity_versions(&parent_dir)?, partial_version)?
         .last()
         .expect("There should be at least one entry");
 
-    let editor_exe = parent_dir.join(version.to_string()).join(UNITY_EDITOR_EXE);
-    Ok((version, editor_exe))
+    Ok(version)
 }
 
-/// Returns version used by the project and the path to the editor.
-pub fn editor_used_by_project<P: AsRef<Path>>(project_dir: &P) -> Result<(UnityVersion, PathBuf)> {
-    let version = version_used_by_project(project_dir)?;
+/// Returns the path to the editor executable.
+pub fn editor_executable_path(version: UnityVersion) -> Result<PathBuf> {
+    let exe_path = editor_parent_dir()?
+        .join(version.to_string())
+        .join(UNITY_EDITOR_EXE);
 
-    // Check if that Unity version is installed.
-    let editor_dir = editor_parent_dir()?.join(version.to_string());
-    if editor_dir.exists() {
-        Ok((version, editor_dir.join(UNITY_EDITOR_EXE)))
+    if exe_path.exists() {
+        Ok(exe_path)
     } else {
-        Err(anyhow!(
-            "Unity version that the project uses is not installed: {version}"
-        ))
+        Err(anyhow!("Unity version is not installed: {version}"))
     }
 }
 

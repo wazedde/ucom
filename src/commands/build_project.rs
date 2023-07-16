@@ -25,7 +25,9 @@ pub const UNITY_BUILD_SCRIPT: &str = include_str!("include/UnityBuilder.cs");
 /// Runs the build command.
 pub fn build_project(arguments: BuildArguments) -> anyhow::Result<()> {
     let project_dir = validate_project_path(&arguments.project_dir)?;
-    let (version, editor_exe) = editor_used_by_project(&project_dir)?;
+
+    let unity_version = version_used_by_project(&project_dir)?;
+    let editor_exe = editor_executable_path(unity_version)?;
 
     let output_dir = arguments.build_path.unwrap_or_else(|| {
         // If no build path is given, use <project>/Builds/<target>
@@ -96,7 +98,7 @@ pub fn build_project(arguments: BuildArguments) -> anyhow::Result<()> {
     println!(
         "{}",
         format!(
-            "Building Unity {version} {} project in: {}",
+            "Building Unity {unity_version} {} project in: {}",
             arguments.target,
             project_dir.display()
         )
