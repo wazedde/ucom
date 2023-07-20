@@ -46,7 +46,7 @@ pub fn list_versions(list_type: ListType, partial_version: Option<&str>) -> anyh
 /// ── 2020.3.46f1 - https://unity.com/releases/editor/whats-new/2020.3.46
 /// ┬─ 2021.3.19f1 - https://unity.com/releases/editor/whats-new/2021.3.19
 /// ├─ 2021.3.22f1 - https://unity.com/releases/editor/whats-new/2021.3.22
-/// └─ 2021.3.23f1 - https://unity.com/releases/editor/whats-new/2021.3.23 *default for projects
+/// └─ 2021.3.23f1 - https://unity.com/releases/editor/whats-new/2021.3.23 (default for new projects)
 /// ── 2022.2.15f1 - https://unity.com/releases/editor/whats-new/2022.2.15
 /// ── 2023.1.0b12 - https://unity.com/releases/editor/beta/2023.1.0b12
 /// ── 2023.2.0a10 - https://unity.com/releases/editor/alpha/2023.2.0a10
@@ -70,7 +70,7 @@ fn print_installed_versions(installed: &[UnityVersion]) -> anyhow::Result<()> {
             );
 
             if entry.version == default_version {
-                println!("{} {}", line.bold(), "*default for projects".bold());
+                println!("{} {}", line.bold(), "(default for new projects)".bold());
             } else {
                 println!("{line}");
             }
@@ -85,7 +85,7 @@ fn print_installed_versions(installed: &[UnityVersion]) -> anyhow::Result<()> {
 /// └─ 2020.3.47f1 - https://unity.com/releases/editor/whats-new/2020.3.47 > unityhub://2020.3.47f1/5ef4f5b5e2d4
 /// ┬─ 2021.3.19f1
 /// ├─ 2021.3.22f1
-/// └─ 2021.3.23f1 - Up to date *default for projects
+/// └─ 2021.3.23f1 - Up to date (default for new projects)
 /// ── 2022.2.15f1 - Up to date
 /// ── 2023.1.0b12 - No Beta update info available
 /// ── 2023.2.0a10 - No Alpha update info available
@@ -101,7 +101,7 @@ fn print_updates(installed: &[UnityVersion], available: &Vec<ReleaseInfo>) -> an
 
     let print_line = |line: &str, is_default: bool| {
         if is_default {
-            println!("{} {}", line.bold(), "*default for projects".bold());
+            println!("{} {}", line.bold(), "(default for new projects)".bold());
         } else {
             println!("{line}");
         }

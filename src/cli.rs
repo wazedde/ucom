@@ -12,7 +12,7 @@ pub const ENV_PACKAGE_LEVEL: &str = "UCOM_PACKAGE_LEVEL";
 #[derive(clap::Parser)]
 #[command(author, version, about)]
 pub struct Cli {
-    /// Display the build script that is injected into the project.
+    /// Displays the build script that is injected into the project.
     #[arg(long)]
     pub injected_script: bool,
 
@@ -33,8 +33,8 @@ pub enum Action {
         #[arg(value_enum, default_value = "installed")]
         list_type: ListType,
 
-        /// The Unity versions to list. You can specify a partial version; e.g. 2021 will list all
-        /// the 2021.x.y versions you have installed on your system.
+        /// A filter for the Unity versions to list.
+        /// A partial version like '2021' lists all installed 2021.x.y versions.
         #[arg(short = 'u', long = "unity", value_name = "VERSION")]
         version_pattern: Option<String>,
     },
@@ -63,27 +63,29 @@ pub enum Action {
         create_report: Option<PathBuf>,
     },
 
-    /// Creates a new Unity project and Git repository (uses latest installed version by default)
+    /// Creates a new Unity project and Git repository.
+    /// Defaults to using the latest installed Unity version.
     #[command(visible_alias = "n")]
     New(NewArguments),
 
-    /// Opens the given Unity project in the Unity Editor
+    /// Opens the given Unity project in the Unity Editor.
     #[command(visible_alias = "o")]
     Open(OpenArguments),
 
-    /// Builds the given Unity project
+    /// Builds the given Unity project.
     #[command(visible_alias = "b")]
     Build(BuildArguments),
 
-    /// Runs Unity with the givens arguments (uses latest installed version by default)
+    /// Runs Unity with the given arguments.
+    /// Defaults to using the latest installed Unity version.
     #[command(visible_alias = "r")]
     Run(RunArguments),
 }
 
 #[derive(Args)]
 pub struct RunArguments {
-    /// The Unity version to run. You can specify a partial version; e.g. 2021 will match the
-    /// latest 2021.x.y version you have installed on your system.
+    /// The Unity version to run.
+    /// A partial version like '2021' runs the latest installed 2021.x.y version.
     #[arg(
         short = 'u',
         long = "unity",
@@ -111,8 +113,8 @@ pub struct RunArguments {
 
 #[derive(Args)]
 pub struct NewArguments {
-    /// The Unity version to use for the new project. You can specify a partial version;
-    /// e.g. 2021 will match the latest 2021.x.y version you have installed on your system.
+    /// Specifies Unity version for the new project.
+    /// A partial version like '2021' uses the latest installed 2021.x.y version.
     #[arg(
         short = 'u',
         long = "unity",
@@ -129,7 +131,7 @@ pub struct NewArguments {
     )]
     pub project_dir: PathBuf,
 
-    /// Suppress initializing a new git repository.
+    /// Suppresses initializing a new git repository.
     #[clap(long)]
     pub no_git: bool,
 
@@ -160,16 +162,13 @@ pub struct OpenArguments {
     #[arg(value_name = "DIRECTORY", value_hint = clap::ValueHint::DirPath, default_value = ".")]
     pub project_dir: PathBuf,
 
-    /// Update the project to a newer Unity version.
-    /// A partial version will use the latest installed version that matches the pattern;
-    /// e.g. 2021 will match the latest 2021.x.y version you have installed on your system.
-    /// If no (partial) version is specified the latest installed version in the same major.minor
-    /// range as the project will be used.
+    /// Upgrades Unity project version.
+    /// A partial version like '2021' selects the latest matching installed version.
+    /// Without a specified version, it uses the latest within the project's major.minor range.
     #[arg(short = 'U', long = "update", value_name = "VERSION")]
     pub version_pattern: Option<Option<String>>,
 
-    /// The active build target to open the project with.
-    /// When omitted the project will be opened with the latest build target.
+    /// Specifies the active build target to open the project with.
     #[arg(short = 't', long, value_name = "NAME")]
     pub target: Option<OpenTarget>,
 
@@ -204,7 +203,8 @@ pub struct BuildArguments {
     #[arg(value_name = "DIRECTORY", value_hint = clap::ValueHint::DirPath, default_value = ".")]
     pub project_dir: PathBuf,
 
-    /// The output directory of the build. When omitted the build will be placed in <PROJECT_DIR>/Builds/<TARGET>.
+    /// The output directory of the build.
+    /// If omitted the build will be placed in <PROJECT_DIR>/Builds/<TARGET>.
     #[arg(
         short = 'o',
         long = "output",
@@ -217,7 +217,7 @@ pub struct BuildArguments {
     #[arg(num_args(0..), short = 'O', long, value_name = "OPTIONS", default_value="none")]
     pub build_options: Vec<BuildOptions>,
 
-    /// Removes directories from the output directory that should not be included in the build.
+    /// Removes directories from the output directory that should not be included when distributing.
     #[clap(short = 'C', long)]
     pub clean: bool,
 
@@ -229,7 +229,7 @@ pub struct BuildArguments {
     #[arg(short = 'm', long, value_name = "MODE", default_value = "batch")]
     pub mode: BuildMode,
 
-    /// A static method in the Unity project that is called to build the project.
+    /// The static method in the Unity project that is called to build the project.
     #[arg(
         short = 'f',
         long,
@@ -243,7 +243,7 @@ pub struct BuildArguments {
     #[arg(short = 'l', long, value_name = "FILE")]
     pub log_file: Option<PathBuf>,
 
-    /// Don't output the build log to stdout.
+    /// Suppresses outputting the build log to stdout.
     #[clap(short = 'q', long)]
     pub quiet: bool,
 
@@ -258,11 +258,11 @@ pub struct BuildArguments {
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, ValueEnum)]
 pub enum ListType {
-    /// List installed Unity versions.
+    /// Lists installed Unity versions.
     Installed,
-    /// List installed Unity versions and checks for updates online.
+    /// Lists installed Unity versions and checks for updates online.
     Updates,
-    /// Check for the latest Unity versions online.
+    /// Lists all the latest available Unity versions.
     Latest,
 }
 
