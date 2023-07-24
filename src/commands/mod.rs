@@ -13,3 +13,4 @@ pub mod new_project;
 pub mod open_project;
 pub mod project_info;
 pub mod run_unity;
+pub mod terminal_spinner;

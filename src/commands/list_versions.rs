@@ -3,9 +3,9 @@ use std::env;
 use anyhow::anyhow;
 use colored::Colorize;
 use itertools::Itertools;
-use spinoff::{spinners, Spinner};
 
 use crate::cli::{ListType, ENV_DEFAULT_VERSION};
+use crate::commands::terminal_spinner::TerminalSpinner;
 use crate::unity::*;
 
 /// Lists installed Unity versions.
@@ -24,16 +24,16 @@ pub fn list_versions(list_type: ListType, partial_version: Option<&str>) -> anyh
                 "{}",
                 format!("Updates for Unity versions in: {}", dir.display()).bold()
             );
-            let spinner = Spinner::new(spinners::Dots, "Downloading release data...", None);
+            let spinner = TerminalSpinner::new("Downloading release data...");
             let releases = request_unity_releases()?;
-            spinner.clear();
+            drop(spinner);
             print_updates(&matching_versions, &releases)?;
         }
         ListType::Latest => {
             println!("{}", "Latest available minor releases".bold());
-            let spinner = Spinner::new(spinners::Dots, "Downloading release data...", None);
+            let spinner = TerminalSpinner::new("Downloading release data...");
             let releases = request_unity_releases()?;
-            spinner.clear();
+            drop(spinner);
             print_latest_versions(&matching_versions, &releases, partial_version);
         }
     }

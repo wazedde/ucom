@@ -6,9 +6,9 @@ use std::process::Command;
 use anyhow::anyhow;
 use colored::Colorize;
 use path_absolutize::Absolutize;
-use spinoff::{spinners, Spinner};
 
 use crate::cli::NewArguments;
+use crate::commands::terminal_spinner::TerminalSpinner;
 use crate::unity::*;
 
 const GIT_IGNORE: &str = include_str!("include/unity-gitignore.txt");
@@ -59,9 +59,8 @@ pub fn new_project(arguments: NewArguments) -> anyhow::Result<()> {
 
     match (arguments.wait, arguments.quit && !arguments.quiet) {
         (true, true) => {
-            let spinner = Spinner::new(spinners::Dots, "Creating project...", None);
+            _ = TerminalSpinner::new("Creating project...");
             wait_with_stdout(cmd)?;
-            spinner.clear();
         }
         (true, false) => wait_with_stdout(cmd)?,
         (false, _) => spawn_and_forget(cmd)?,

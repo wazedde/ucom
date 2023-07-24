@@ -2,10 +2,10 @@ use std::fs;
 use std::io::Write;
 use std::path::Path;
 
+use crate::commands::terminal_spinner::TerminalSpinner;
 use anyhow::anyhow;
 use colored::Colorize;
 use path_absolutize::Absolutize;
-use spinoff::{spinners, Spinner};
 
 use crate::unity::*;
 
@@ -20,14 +20,12 @@ pub fn check_updates(project_dir: &Path, report_path: Option<&Path>) -> anyhow::
 
     let unity_version = version_used_by_project(&project_dir)?;
 
-    let spinner = Spinner::new(
-        spinners::Dots,
-        format!("Project uses {unity_version}; checking for updates..."),
-        None,
-    );
+    let spinner = TerminalSpinner::new(format!(
+        "Project uses {unity_version}; checking for updates..."
+    ));
 
     let (project_version_info, updates) = request_patch_update_info(unity_version)?;
-    spinner.clear();
+    drop(spinner);
 
     if output_to_file {
         // Disable colored output when writing to a file.
@@ -49,7 +47,7 @@ pub fn check_updates(project_dir: &Path, report_path: Option<&Path>) -> anyhow::
     )?;
 
     if output_to_file {
-        let mut spinner = Spinner::new(spinners::Dots, "Downloading Unity release notes...", None);
+        let mut spinner = TerminalSpinner::new("Downloading Unity release notes...");
         for release in updates {
             spinner.update_text(format!(
                 "Downloading Unity {} release notes...",
@@ -58,7 +56,7 @@ pub fn check_updates(project_dir: &Path, report_path: Option<&Path>) -> anyhow::
 
             write_release_notes(&mut buf, &release)?;
         }
-        spinner.clear();
+        drop(spinner);
 
         let file_name = report_path.expect("Already validated");
         fs::write(file_name, String::from_utf8(buf)?)?;
