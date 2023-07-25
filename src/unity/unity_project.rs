@@ -11,7 +11,6 @@ use path_absolutize::Absolutize;
 use serde::Deserialize;
 
 use crate::cli::ENV_EDITOR_DIR;
-use crate::unity::PackagesAvailability::{LockFileDisabled, NoManifest};
 use crate::unity::UnityVersion;
 
 /// Sub path to the executable on macOS.
@@ -295,6 +294,8 @@ pub enum PackagesAvailability {
     LockFileDisabled,
     /// The project has a manifest file and the lock file is enabled.
     Packages(Packages),
+    /// The project has no lock file.
+    NoLockFile,
 }
 
 impl Packages {
@@ -303,21 +304,25 @@ impl Packages {
         const PACKAGES_LOCK_FILE: &str = "Packages/packages-lock.json";
 
         let project_dir = project_dir.as_ref();
+        let manifest_path = project_dir.join(MANIFEST_FILE);
 
-        if !project_dir.join(MANIFEST_FILE).exists() {
-            return Ok(NoManifest);
+        if !manifest_path.exists() {
+            return Ok(PackagesAvailability::NoManifest);
         }
 
-        let file = File::open(project_dir.join(MANIFEST_FILE))?;
+        let file = File::open(manifest_path)?;
         let manifest: Manifest = serde_json::from_reader(BufReader::new(file))?;
         if manifest.enable_lock_file == Some(false) {
             // TODO: Read packages from Library/PackageManager/ProjectCache
-            return Ok(LockFileDisabled);
+            return Ok(PackagesAvailability::LockFileDisabled);
         }
 
-        let file = File::open(project_dir.join(PACKAGES_LOCK_FILE))
-            .map_err(|_| anyhow!("Missing `{}` file.", PACKAGES_LOCK_FILE))?;
+        let lock_file_path = project_dir.join(PACKAGES_LOCK_FILE);
+        if !lock_file_path.exists() {
+            return Ok(PackagesAvailability::NoLockFile);
+        }
 
+        let file = File::open(lock_file_path)?;
         let packages = serde_json::from_reader(BufReader::new(file))?;
         Ok(PackagesAvailability::Packages(packages))
     }

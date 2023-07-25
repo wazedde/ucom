@@ -52,73 +52,80 @@ fn print_project_packages(
 ) -> anyhow::Result<()> {
     let availability = Packages::from_project(&project_dir)?;
 
-    if availability == PackagesAvailability::NoManifest {
-        println!(
-            "{}",
-            "No `manifest.json` file found, no packages info available.".yellow()
-        );
-        return Ok(());
-    }
-
-    if availability == PackagesAvailability::LockFileDisabled {
-        println!(
-            "{}",
-            "Packages lock file is disabled in `manifest.json`, no packages info available."
-                .yellow()
-        );
-        return Ok(());
-    }
-
-    if let PackagesAvailability::Packages(packages) = availability {
-        let mut packages = packages
-            .dependencies
-            .iter()
-            .filter(|(_, package)| package_level.evaluate(package))
-            .collect_vec();
-
-        if packages.is_empty() {
-            return Ok(());
-        }
-
-        packages.sort_by(|(_, pi1), (_, pi2)| pi1.source.cmp(&pi2.source));
-
-        println!();
-
-        let (enabled, disabled) = match package_level {
-            PackagesInfoLevel::Lev0 => ("", "L=local, E=embedded, G=git, T=tarball"),
-            PackagesInfoLevel::Lev1 => (
-                "L=local, E=embedded, G=git, T=tarball",
-                ", R=registry, B=builtin",
-            ),
-            PackagesInfoLevel::Lev2 => (
-                "L=local, E=embedded, G=git, T=tarball, R=registry",
-                ", B=builtin",
-            ),
-            PackagesInfoLevel::Lev3 => (
-                "L=local, E=embedded, G=git, T=tarball, R=registry, B=builtin",
-                "",
-            ),
-        };
-
-        let line = format!(
-            "Packages: {} ({}{})",
-            package_level,
-            enabled,
-            disabled.bright_black()
-        );
-
-        println!("{}", line.bold());
-
-        for (name, package) in packages {
+    match availability {
+        PackagesAvailability::NoManifest => {
             println!(
-                "    {} {} ({})",
-                package.source.as_ref().map_or("?", |s| s.to_short_str()),
-                name,
-                package.version,
+                "{}",
+                "No `manifest.json` file found, no packages info available.".yellow()
             );
+            Ok(())
+        }
+        PackagesAvailability::LockFileDisabled => {
+            println!(
+                "{}",
+                "Packages lock file is disabled in `manifest.json`, no packages info available."
+                    .yellow()
+            );
+            Ok(())
+        }
+        PackagesAvailability::NoLockFile => {
+            println!(
+                "{}",
+                "No `packages-lock.json` file found, no packages info available.".yellow()
+            );
+            Ok(())
+        }
+        PackagesAvailability::Packages(packages) => {
+            let mut packages = packages
+                .dependencies
+                .iter()
+                .filter(|(_, package)| package_level.evaluate(package))
+                .collect_vec();
+
+            if packages.is_empty() {
+                return Ok(());
+            }
+
+            packages.sort_by(|(_, pi1), (_, pi2)| pi1.source.cmp(&pi2.source));
+
+
+            let (enabled, disabled) = match package_level {
+                PackagesInfoLevel::Lev0 => ("", "L=local, E=embedded, G=git, T=tarball"),
+                PackagesInfoLevel::Lev1 => (
+                    "L=local, E=embedded, G=git, T=tarball",
+                    ", R=registry, B=builtin",
+                ),
+                PackagesInfoLevel::Lev2 => (
+                    "L=local, E=embedded, G=git, T=tarball, R=registry",
+                    ", B=builtin",
+                ),
+                PackagesInfoLevel::Lev3 => (
+                    "L=local, E=embedded, G=git, T=tarball, R=registry, B=builtin",
+                    "",
+                ),
+            };
+
+            let line = format!(
+                "Packages: {} ({}{})",
+                package_level,
+                enabled,
+                disabled.bright_black()
+            );
+
+            println!();
+            println!("{}", line.bold());
+
+            for (name, package) in packages {
+                println!(
+                    "    {} {} ({})",
+                    package.source.as_ref().map_or("?", |s| s.to_short_str()),
+                    name,
+                    package.version,
+                );
+            }
+            Ok(())
         }
     }
-    Ok(())
 }
 
 impl PackagesInfoLevel {
