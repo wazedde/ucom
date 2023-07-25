@@ -162,11 +162,11 @@ pub struct OpenArguments {
     #[arg(value_name = "DIRECTORY", value_hint = clap::ValueHint::DirPath, default_value = ".")]
     pub project_dir: PathBuf,
 
-    /// Upgrades Unity project version.
+    /// Upgrades Unity version used by the project.
     /// A partial version like '2021' selects the latest matching installed version.
     /// Without a specified version, it uses the latest within the project's major.minor range.
-    #[arg(short = 'U', long = "update", value_name = "VERSION")]
-    pub version_pattern: Option<Option<String>>,
+    #[arg(short = 'U', long = "upgrade", value_name = "VERSION")]
+    pub upgrade_version: Option<Option<String>>,
 
     /// Specifies the active build target to open the project with.
     #[arg(short = 't', long, value_name = "NAME")]
