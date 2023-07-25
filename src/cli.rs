@@ -280,7 +280,12 @@ pub enum PackagesInfoLevel {
 
 impl Display for PackagesInfoLevel {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{self:?}")
+        match self {
+            PackagesInfoLevel::Lev0 => write!(f, "lev0"),
+            PackagesInfoLevel::Lev1 => write!(f, "lev1"),
+            PackagesInfoLevel::Lev2 => write!(f, "lev2"),
+            PackagesInfoLevel::Lev3 => write!(f, "lev3"),
+        }
     }
 }
 

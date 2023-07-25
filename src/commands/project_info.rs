@@ -85,23 +85,23 @@ fn print_project_packages(
         println!();
 
         let (enabled, disabled) = match package_level {
-            PackagesInfoLevel::Lev0 => ("", ", L=local, E=embedded, G=git, T=tarball"),
+            PackagesInfoLevel::Lev0 => ("", "L=local, E=embedded, G=git, T=tarball"),
             PackagesInfoLevel::Lev1 => (
-                ", L=local, E=embedded, G=git, T=tarball",
+                "L=local, E=embedded, G=git, T=tarball",
                 ", R=registry, B=builtin",
             ),
             PackagesInfoLevel::Lev2 => (
-                ", L=local, E=embedded, G=git, T=tarball, R=registry",
+                "L=local, E=embedded, G=git, T=tarball, R=registry",
                 ", B=builtin",
             ),
             PackagesInfoLevel::Lev3 => (
-                ", L=local, E=embedded, G=git, T=tarball, R=registry, B=builtin",
+                "L=local, E=embedded, G=git, T=tarball, R=registry, B=builtin",
                 "",
             ),
         };
 
         let line = format!(
-            "Packages (Level={}{}{})",
+            "Packages: {} ({}{})",
             package_level,
             enabled,
             disabled.bright_black()
