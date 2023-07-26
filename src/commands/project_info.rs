@@ -38,7 +38,7 @@ pub fn print_project_info(
         println!(" {}", "*not installed".red().bold());
     }
 
-    if packages_level != PackagesInfoLevel::Lev0 {
+    if packages_level != PackagesInfoLevel::None {
         print_project_packages(project_dir.as_ref(), packages_level)?;
     };
 
@@ -90,16 +90,16 @@ fn print_project_packages(
 
 
             let (enabled, disabled) = match package_level {
-                PackagesInfoLevel::Lev0 => ("", "L=local, E=embedded, G=git, T=tarball"),
-                PackagesInfoLevel::Lev1 => (
+                PackagesInfoLevel::None => ("", "L=local, E=embedded, G=git, T=tarball"),
+                PackagesInfoLevel::Local => (
                     "L=local, E=embedded, G=git, T=tarball",
                     ", R=registry, B=builtin",
                 ),
-                PackagesInfoLevel::Lev2 => (
+                PackagesInfoLevel::Registry => (
                     "L=local, E=embedded, G=git, T=tarball, R=registry",
                     ", B=builtin",
                 ),
-                PackagesInfoLevel::Lev3 => (
+                PackagesInfoLevel::All => (
                     "L=local, E=embedded, G=git, T=tarball, R=registry, B=builtin",
                     "",
                 ),
@@ -132,17 +132,17 @@ impl PackagesInfoLevel {
     /// Evaluates if the `PackageInfo` is allowed by the info level.
     fn evaluate(self, package: &PackageInfo) -> bool {
         match (self, package.depth) {
-            (Self::Lev0, ..) => false,
+            (Self::None, ..) => false,
 
-            (Self::Lev1, 0) => package
+            (Self::Local, 0) => package
                 .source
                 .map_or(false, |ps| ps < PackageSource::Registry),
 
-            (Self::Lev2, 0) => package
+            (Self::Registry, 0) => package
                 .source
                 .map_or(false, |ps| ps < PackageSource::Builtin),
 
-            (Self::Lev3, ..) => true,
+            (Self::All, ..) => true,
 
             _ => false,
         }

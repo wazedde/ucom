@@ -47,7 +47,7 @@ pub enum Action {
         project_dir: PathBuf,
 
         /// The level of included packages to show.
-        #[arg(short='p', long, default_value = "lev1", env = ENV_PACKAGE_LEVEL)]
+        #[arg(short='p', long, default_value = "local", env = ENV_PACKAGE_LEVEL)]
         packages: PackagesInfoLevel,
     },
 
@@ -269,22 +269,22 @@ pub enum ListType {
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, ValueEnum)]
 pub enum PackagesInfoLevel {
     /// Don't show any included packages.
-    Lev0,
+    None,
     /// Show local, non-Unity, packages.
-    Lev1,
+    Local,
     /// + packages from the Unity registry.
-    Lev2,
+    Registry,
     /// + builtin packages and dependencies.
-    Lev3,
+    All,
 }
 
 impl Display for PackagesInfoLevel {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
-            PackagesInfoLevel::Lev0 => write!(f, "lev0"),
-            PackagesInfoLevel::Lev1 => write!(f, "lev1"),
-            PackagesInfoLevel::Lev2 => write!(f, "lev2"),
-            PackagesInfoLevel::Lev3 => write!(f, "lev3"),
+            PackagesInfoLevel::None => write!(f, "none"),
+            PackagesInfoLevel::Local => write!(f, "local"),
+            PackagesInfoLevel::Registry => write!(f, "registry"),
+            PackagesInfoLevel::All => write!(f, "all"),
         }
     }
 }
