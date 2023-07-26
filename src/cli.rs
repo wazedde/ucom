@@ -8,15 +8,15 @@ pub const ENV_DEFAULT_VERSION: &str = "UCOM_DEFAULT_VERSION";
 pub const ENV_BUILD_TARGET: &str = "UCOM_BUILD_TARGET";
 pub const ENV_PACKAGE_LEVEL: &str = "UCOM_PACKAGE_LEVEL";
 
-/// Unity Commander, a command line interface for Unity projects.
+/// Unity Commander: A command-line interface for Unity projects.
 #[derive(clap::Parser)]
 #[command(author, version, about)]
 pub struct Cli {
-    /// Displays the build script that is injected into the project.
+    /// Shows the build script injected into the project.
     #[arg(long)]
-    pub injected_script: bool,
+    pub build_script: bool,
 
-    /// Disable colored output.
+    /// Disables colored output.
     #[arg(long, short = 'D')]
     pub disable_color: bool,
 
@@ -26,210 +26,204 @@ pub struct Cli {
 
 #[derive(clap::Subcommand)]
 pub enum Action {
-    /// Shows a list of the installed Unity versions.
+    /// Lists installed Unity versions.
     #[command(visible_alias = "l")]
     List {
-        /// What to list.
+        /// Defines what to list.
         #[arg(value_enum, default_value = "installed")]
         list_type: ListType,
 
-        /// A filter for the Unity versions to list.
-        /// A partial version like '2021' lists all installed 2021.x.y versions.
+        /// Filters the Unity versions to list based on the pattern. For example, '2021' will list all 2021.x.y versions.
         #[arg(short = 'u', long = "unity", value_name = "VERSION")]
         version_pattern: Option<String>,
     },
 
-    /// Shows project information.
+    /// Displays project information.
     #[command(visible_alias = "i")]
     Info {
-        /// The directory of the project.
+        /// Specifies the project's directory.
         #[arg(value_name = "DIRECTORY", value_hint = clap::ValueHint::DirPath, default_value = ".")]
         project_dir: PathBuf,
 
-        /// The level of included packages to show.
+        /// Determines the level of package information to display.
         #[arg(short='p', long, default_value = "local", env = ENV_PACKAGE_LEVEL)]
         packages: PackagesInfoLevel,
     },
 
-    /// Checks on the Unity website for updates to the version used by the project.
+    /// Checks the Unity website for updates to the project's version.
     #[command(visible_alias = "c")]
     Check {
-        /// The directory of the project.
+        /// Specifies the project's directory.
         #[arg(value_name = "DIRECTORY", value_hint = clap::ValueHint::DirPath, default_value = ".")]
         project_dir: PathBuf,
 
-        /// Creates a Markdown report of the releases that are available.
+        /// Generates a Markdown report of available releases.
         #[clap(short = 'r', long, value_name = "FILE.md", value_hint = clap::ValueHint::FilePath)]
         create_report: Option<PathBuf>,
     },
 
-    /// Creates a new Unity project and Git repository.
-    /// Defaults to using the latest installed Unity version.
+    /// Creates a new Unity project and Git repository, defaulting to the latest installed Unity version.
     #[command(visible_alias = "n")]
     New(NewArguments),
 
-    /// Opens the given Unity project in the Unity Editor.
+    /// Opens a specified Unity project in the Unity Editor.
     #[command(visible_alias = "o")]
     Open(OpenArguments),
 
-    /// Builds the given Unity project.
+    /// Builds a specified Unity project.
     #[command(visible_alias = "b")]
     Build(BuildArguments),
 
-    /// Runs Unity with the given arguments.
-    /// Defaults to using the latest installed Unity version.
+    /// Runs Unity with specified arguments, defaulting to the latest installed Unity version.
     #[command(visible_alias = "r")]
     Run(RunArguments),
 }
 
 #[derive(Args)]
 pub struct RunArguments {
-    /// The Unity version to run.
-    /// A partial version like '2021' runs the latest installed 2021.x.y version.
+    /// Specifies the Unity version to run. For example, '2021' runs the latest installed 2021.x.y version.
     #[arg(
-        short = 'u',
-        long = "unity",
-        value_name = "VERSION",
-        env = ENV_DEFAULT_VERSION,
+    short = 'u',
+    long = "unity",
+    value_name = "VERSION",
+    env = ENV_DEFAULT_VERSION,
     )]
     pub version_pattern: Option<String>,
 
-    /// Waits for the command to finish before continuing.
+    /// Waits for the command to complete before proceeding.
     #[clap(short = 'w', long)]
     pub wait: bool,
 
-    /// Do not print ucom log messages.
+    /// Suppresses ucom messages.
     #[clap(short = 'q', long)]
     pub quiet: bool,
 
-    /// Show what would be run, but do not actually run it.
+    /// Displays the command to be run without actually executing it.
     #[clap(short = 'n', long)]
     pub dry_run: bool,
 
-    /// A list of arguments passed directly to Unity.
+    /// A list of arguments to be passed directly to Unity.
     #[arg(last = true, value_name = "UNITY_ARGS", required = true)]
     pub args: Option<Vec<String>>,
 }
 
 #[derive(Args)]
 pub struct NewArguments {
-    /// Specifies Unity version for the new project.
-    /// A partial version like '2021' uses the latest installed 2021.x.y version.
+    /// Specifies the Unity version for the new project. For example, '2021' uses the latest installed 2021.x.y version.
     #[arg(
-        short = 'u',
-        long = "unity",
-        value_name = "VERSION",
-        env = ENV_DEFAULT_VERSION
+    short = 'u',
+    long = "unity",
+    value_name = "VERSION",
+    env = ENV_DEFAULT_VERSION
     )]
     pub version_pattern: Option<String>,
 
-    /// The directory where the project is created. This directory should not exist yet.
+    /// Defines the directory for creating the project. This directory should not pre-exist.
     #[arg(
-        required = true,
-        value_name = "DIRECTORY",
-        value_hint = clap::ValueHint::DirPath
+    required = true,
+    value_name = "DIRECTORY",
+    value_hint = clap::ValueHint::DirPath
     )]
     pub project_dir: PathBuf,
 
-    /// Suppresses initializing a new git repository.
+    /// Skips initialization of a new git repository.
     #[clap(long)]
     pub no_git: bool,
 
-    /// Waits for the command to finish before continuing.
+    /// Waits for the command to complete before proceeding.
     #[clap(short = 'w', long)]
     pub wait: bool,
 
-    /// Quits the editor after the project has been created.
+    /// Closes the editor after the project creation.
     #[clap(short = 'Q', long)]
     pub quit: bool,
 
-    /// Do not print ucom log messages.
+    /// Suppresses ucom messages.
     #[clap(short = 'q', long)]
     pub quiet: bool,
 
-    /// Show what would be run, but do not actually run it.
+    /// Shows the command to be run without actually executing it.
     #[clap(short = 'n', long)]
     pub dry_run: bool,
 
-    /// A list of arguments passed directly to Unity.
+    /// A list of arguments to be passed directly to Unity.
     #[arg(last = true, value_name = "UNITY_ARGS")]
     pub args: Option<Vec<String>>,
 }
 
 #[derive(Args)]
 pub struct OpenArguments {
-    /// The directory of the project.
+    /// Specifies the project's directory.
     #[arg(value_name = "DIRECTORY", value_hint = clap::ValueHint::DirPath, default_value = ".")]
     pub project_dir: PathBuf,
 
-    /// Upgrades Unity version used by the project.
-    /// A partial version like '2021' selects the latest matching installed version.
-    /// Without a specified version, it uses the latest within the project's major.minor range.
+    /// Upgrades the project's Unity version.
+    /// A partial version like '2021' selects the latest installed version within the 2021.x.y range.
+    /// If no version is specified, it defaults to the latest available version within the project's major.minor range.
     #[arg(short = 'U', long = "upgrade", value_name = "VERSION")]
     pub upgrade_version: Option<Option<String>>,
 
-    /// Specifies the active build target to open the project with.
+    /// Determines the active build target to open the project with.
     #[arg(short = 't', long, value_name = "NAME")]
     pub target: Option<OpenTarget>,
 
-    /// Waits for the command to finish before continuing.
+    /// Waits for the command to complete before proceeding.
     #[clap(short = 'w', long)]
     pub wait: bool,
 
-    /// Quits the editor after the project has been opened.
+    /// Closes the editor after opening the project.
     #[clap(short = 'Q', long)]
     pub quit: bool,
 
-    /// Do not print ucom log messages.
+    /// Suppresses ucom messages.
     #[clap(short = 'q', long)]
     pub quiet: bool,
 
-    /// Show what would be run, but do not actually run it.
+    /// Shows the command to be run without actually executing it.
     #[clap(short = 'n', long)]
     pub dry_run: bool,
 
-    /// A list of arguments passed directly to Unity.
+    /// A list of arguments to be passed directly to Unity.
     #[arg(last = true, value_name = "UNITY_ARGS")]
     pub args: Option<Vec<String>>,
 }
 
 #[derive(Args)]
 pub struct BuildArguments {
-    /// The target platform to build for.
+    /// Specifies the target platform for the build.
     #[arg(value_enum, env = ENV_BUILD_TARGET)]
     pub target: BuildOpenTarget,
 
-    /// The directory of the project.
+    /// Defines the project's directory.
     #[arg(value_name = "DIRECTORY", value_hint = clap::ValueHint::DirPath, default_value = ".")]
     pub project_dir: PathBuf,
 
-    /// The output directory of the build.
-    /// If omitted the build will be placed in <PROJECT_DIR>/Builds/<TARGET>.
+    /// Sets the output directory for the build. If omitted, the build is placed in <PROJECT_DIR>/Builds/<TARGET>.
     #[arg(
-        short = 'o',
-        long = "output",
-        value_name = "DIRECTORY",
-        value_hint = clap::ValueHint::FilePath
+    short = 'o',
+    long = "output",
+    value_name = "DIRECTORY",
+    value_hint = clap::ValueHint::FilePath
     )]
     pub build_path: Option<PathBuf>,
 
-    /// Building options. Multiple options can be combined together.
-    #[arg(num_args(0..), short = 'O', long, value_name = "OPTIONS", default_value="none")]
+    /// Sets the build options. Multiple options can be combined by separating them with spaces.
+    #[arg(num_args(0..), short = 'O', long, value_name = "OPTION", default_value="none")]
     pub build_options: Vec<BuildOptions>,
 
-    /// Removes directories from the output directory that should not be included when distributing.
+    /// Removes directories from the output directory not needed for distribution.
     #[clap(short = 'C', long)]
     pub clean: bool,
 
-    /// Build script injection method.
+    /// Determines the method of build script injection.
     #[arg(short = 'i', long, value_name = "METHOD", default_value = "auto")]
     pub inject: InjectAction,
 
-    /// Build mode.
+    /// Defines the build mode.
     #[arg(short = 'm', long, value_name = "MODE", default_value = "batch")]
     pub mode: BuildMode,
 
-    /// The static method in the Unity project that is called to build the project.
+    /// Specifies the static method in the Unity project used for building the project.
     #[arg(
         short = 'f',
         long,
@@ -238,43 +232,42 @@ pub struct BuildArguments {
     )]
     pub build_function: String,
 
-    /// The log file to write Unity's build output to.
-    /// By default the log is written to the `Logs` directory of the project.
+    /// Designates the log file for Unity's build output. By default, log is written to the project's `Logs` directory.
     #[arg(short = 'l', long, value_name = "FILE")]
     pub log_file: Option<PathBuf>,
 
-    /// Suppresses outputting the build log to stdout.
+    /// Suppresses build log output to stdout.
     #[clap(short = 'q', long)]
     pub quiet: bool,
 
-    /// Show what would be run, but do not actually run it.
+    /// Displays the command to be run without actually executing it.
     #[clap(short = 'n', long)]
     pub dry_run: bool,
 
-    /// A list of arguments passed directly to Unity.
+    /// A list of arguments to be passed directly to Unity.
     #[arg(last = true, value_name = "UNITY_ARGS")]
     pub args: Option<Vec<String>>,
 }
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, ValueEnum)]
 pub enum ListType {
-    /// Lists installed Unity versions.
+    /// Lists the installed Unity versions.
     Installed,
-    /// Lists installed Unity versions and checks for updates online.
+    /// Displays installed Unity versions and checks for online updates.
     Updates,
-    /// Lists all the latest available Unity versions.
+    /// Shows the latest available Unity versions.
     Latest,
 }
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, ValueEnum)]
 pub enum PackagesInfoLevel {
-    /// Don't show any included packages.
+    /// No package information is displayed.
     None,
-    /// Show local, non-Unity, packages.
+    /// Displays information for local, non-Unity packages only.
     Local,
-    /// + packages from the Unity registry.
+    /// Additionally includes information for packages from the Unity registry.
     Registry,
-    /// + builtin packages and dependencies.
+    /// Displays all package information including built-in packages and dependencies.
     All,
 }
 
@@ -291,29 +284,29 @@ impl Display for PackagesInfoLevel {
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, ValueEnum)]
 pub enum InjectAction {
-    /// If there is no build script, inject one and remove it after the build.
+    /// Inject a build script if none exists, and remove it post-build.
     Auto,
-    /// Inject the build script into the project and don't remove it afterwards.
+    /// Inject a build script into the project and retain it post-build.
     Persistent,
-    /// Don't inject the build script and use the one that is already in the project.
+    /// Use the existing build script in the project, without any injection.
     Off,
 }
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, ValueEnum)]
 pub enum BuildMode {
-    /// Build in batch mode and wait for the build to finish.
+    /// Execute build in 'batch' mode and await completion.
     #[value(name = "batch")]
     Batch,
 
-    /// Build in batch mode without the graphics device and wait for the build to finish.
+    /// Execute build in 'batch' mode without utilizing the graphics device, and await completion.
     #[value(name = "batch-nogfx")]
     BatchNoGraphics,
 
-    /// Build in the editor and quit after the build.
+    /// Execute build within the editor and terminate post-build.
     #[value(name = "editor-quit")]
     EditorQuit,
 
-    /// Build in the editor and keep it open (handy for debugging the build process).
+    /// Execute build within the editor, keeping it open post-build. Useful for debugging.
     #[value(name = "editor")]
     Editor,
 }

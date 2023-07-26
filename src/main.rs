@@ -24,7 +24,7 @@ fn main() -> Result<()> {
         colored::control::set_virtual_terminal(true).expect("Always returns Ok()");
     }
 
-    if cli.injected_script {
+    if cli.build_script {
         println!("{UNITY_BUILD_SCRIPT}");
         exit(0);
     }
