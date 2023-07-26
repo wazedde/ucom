@@ -1,5 +1,4 @@
 #![warn(rust_2018_idioms, clippy::trivially_copy_pass_by_ref)]
-// #![warn(clippy::pedantic)]
 
 use std::process::exit;
 

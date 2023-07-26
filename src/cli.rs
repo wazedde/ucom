@@ -429,7 +429,6 @@ pub enum BuildOptions {
     /// Used when building Xcode (iOS) or Eclipse (Android) projects.
     AcceptExternalModificationsToPlayer = 32, // 0x00000020
 
-    // Specified, but doesn't seem to be use: InstallInBuildFolder = 64, // 0x00000040
     /// Clear all cached build results, resulting in a full rebuild of all scripts and all player data.
     CleanBuildCache = 128, // 0x00000080
 
@@ -439,7 +438,9 @@ pub enum BuildOptions {
     /// Allow script debuggers to attach to the player remotely.
     AllowDebugging = 512, // 0x00000200
 
-    /// Symlink sources when generating the project. This is useful if you're changing source files inside the generated project and want to bring the changes back into your Unity project or a package.
+    /// Symlink sources when generating the project.
+    /// This is useful if you're changing source files inside the generated project
+    /// and want to bring the changes back into your Unity project or a package.
     SymlinkSources = 1024, // 0x00000400
 
     /// Don't compress the data when creating the asset bundle.
@@ -462,7 +463,7 @@ pub enum BuildOptions {
     CompressWithLz4 = 262144, // 0x00040000
 
     /// Use chunk-based LZ4 high-compression when building the Player.
-    CompressWithLz4Hc = 524288, // 0x00080000
+    CompressWithLz4HC = 524288, // 0x00080000
 
     /// Do not allow the build to succeed if any errors are reporting during it.
     StrictMode = 2097152, // 0x00200000
@@ -476,7 +477,9 @@ pub enum BuildOptions {
     /// Sets the Player to wait for player connection on player start.
     WaitForPlayerConnection = 33554432, // 0x02000000
 
-    /// Enables code coverage. You can use this as a complimentary way of enabling code coverage on platforms that do not support command line arguments.
+    /// Enables code coverage.
+    /// You can use this as a complimentary way of enabling code coverage on platforms that do not
+    /// support command line arguments.
     EnableCodeCoverage = 67108864, // 0x04000000
 
     /// Enables Deep Profiling support in the player.
