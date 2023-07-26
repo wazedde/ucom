@@ -17,6 +17,8 @@ given range. This tool simplifies the task of tracking and managing multiple Uni
 - `ucom build android ~/Develop/MyProject --mode editor-quit` starts an Android build for the specified project and then
   closes the editor.
 - `ucom list` or `ucom l` lists all Unity versions installed on your system.
+- `ucom list updates` checks for any updates available for your installed Unity versions.
+- `ucom list latest` Lists the latest versions of all officially released Unity versions.
 - `ucom list -u 2021.3` displays all Unity versions within the 2021.3 range installed on your system.
 - `ucom info` or `ucom i` provides information about the Unity project in the current directory.
 - `ucom check` or `ucom c` checks for Unity updates for the project in the current directory.
