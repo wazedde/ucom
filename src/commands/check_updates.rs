@@ -2,11 +2,11 @@ use std::fs;
 use std::io::Write;
 use std::path::Path;
 
-use crate::commands::terminal_spinner::TerminalSpinner;
 use anyhow::anyhow;
 use colored::Colorize;
 use path_absolutize::Absolutize;
 
+use crate::commands::terminal_spinner::TerminalSpinner;
 use crate::unity::*;
 
 /// Checks on the Unity website for updates to the version used by the project.
@@ -110,14 +110,11 @@ fn write_project_version(
     let is_installed = is_editor_installed(project_version)?;
     write!(buf, "{}", "The version the project uses is ".bold())?;
 
-    if is_installed {
-        if updates.is_empty() {
-            writeln!(buf, "{}", "installed and up to date:".bold())?;
-        } else {
-            writeln!(buf, "{}", "installed:".bold())?;
-        }
-    } else {
-        writeln!(buf, "{}", "not installed:".red().bold())?;
+    match (is_installed, updates.is_empty()) {
+        (true, true) => writeln!(buf, "{}", "installed and up to date:".bold())?,
+        (true, false) => writeln!(buf, "{}", "installed and out of date:".bold())?,
+        (false, true) => writeln!(buf, "{}", "not installed and up to date:".red().bold())?,
+        (false, false) => writeln!(buf, "{}", "not installed and out of date:".red().bold())?,
     }
 
     if output_to_file {

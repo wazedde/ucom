@@ -293,7 +293,7 @@ fn print_installs_line(latest: &ReleaseInfo, installed_in_range: &[UnityVersion]
     let line = if is_up_to_date {
         format!(
             "{:<max_len$} - Installed: {}",
-            latest.version.to_string(),
+            latest.version.to_string().green(),
             joined_versions
         )
         .bold()
@@ -301,10 +301,10 @@ fn print_installs_line(latest: &ReleaseInfo, installed_in_range: &[UnityVersion]
         format!(
             "{:<max_len$} - Installed: {} - update > {}",
             latest.version.to_string().blue(),
-            joined_versions.blue(),
+            joined_versions,
             latest.installation_url.bright_blue()
         )
-        .blue()
+        // .blue()
         .bold()
     };
     println!("{line}");
