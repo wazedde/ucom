@@ -1,6 +1,7 @@
 use std::borrow::Cow;
-use spinoff::{Spinner, spinners};
 use std::io::IsTerminal;
+
+use spinoff::{spinners, Spinner};
 
 /// Terminal spinner that shows a spinner when output is to a terminal.
 /// Clears the spinner line when dropped.

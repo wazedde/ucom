@@ -88,37 +88,24 @@ fn print_project_packages(
 
             packages.sort_by(|(_, pi1), (_, pi2)| pi1.source.cmp(&pi2.source));
 
-
-            let (enabled, disabled) = match package_level {
-                PackagesInfoLevel::None => ("", "L=local, E=embedded, G=git, T=tarball"),
-                PackagesInfoLevel::Local => (
-                    "L=local, E=embedded, G=git, T=tarball",
-                    ", R=registry, B=builtin",
-                ),
-                PackagesInfoLevel::Registry => (
-                    "L=local, E=embedded, G=git, T=tarball, R=registry",
-                    ", B=builtin",
-                ),
-                PackagesInfoLevel::All => (
-                    "L=local, E=embedded, G=git, T=tarball, R=registry, B=builtin",
-                    "",
-                ),
-            };
-
-            let line = format!(
-                "Packages: {} ({}{})",
-                package_level,
-                enabled,
-                disabled.bright_black()
-            );
-
             println!();
-            println!("{}", line.bold());
+            println!(
+                "{} {} ({})",
+                "Packages:".bold(),
+                package_level.to_string().bold(),
+                "L=local, E=embedded, G=git, T=tarball, R=registry, B=builtin"
+                    .bold()
+                    .italic(),
+            );
 
             for (name, package) in packages {
                 println!(
                     "    {} {} ({})",
-                    package.source.as_ref().map_or("?", |s| s.to_short_str()),
+                    package
+                        .source
+                        .as_ref()
+                        .map_or("?", |s| s.to_short_str())
+                        .italic(),
                     name,
                     package.version,
                 );
@@ -134,11 +121,17 @@ impl PackagesInfoLevel {
         match (self, package.depth) {
             (Self::None, ..) => false,
 
-            (Self::Local, 0) => package
-                .source
-                .map_or(false, |ps| ps < PackageSource::Registry),
+            (Self::ExcludingUnity, 0) => package.source.map_or(false, |ps| {
+                ps < PackageSource::Registry
+                    // Registry packages that are not from the Unity registry.
+                    || (ps == PackageSource::Registry
+                        && package
+                            .url
+                            .as_ref()
+                            .map_or(false, |u| u != "https://packages.unity.com"))
+            }),
 
-            (Self::Registry, 0) => package
+            (Self::IncludingUnity, 0) => package
                 .source
                 .map_or(false, |ps| ps < PackageSource::Builtin),
 

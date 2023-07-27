@@ -133,21 +133,21 @@ Usage: ucom info [OPTIONS] [DIRECTORY]
 Arguments:
   [DIRECTORY]
           Specifies the project's directory
-          
+
           [default: .]
 
 Options:
   -p, --packages <PACKAGES>
           Determines the level of package information to display
-          
+
           [env: UCOM_PACKAGE_LEVEL=]
-          [default: local]
+          [default: excluding-unity]
 
           Possible values:
-          - none:     No package information is displayed
-          - local:    Displays information for local, non-Unity packages only
-          - registry: Additionally includes information for packages from the Unity registry
-          - all:      Displays all package information including built-in packages and dependencies
+          - none:            No package information is displayed
+          - excluding-unity: Displays non-Unity packages only
+          - including-unity: Additionally includes information for packages from the Unity registry
+          - all:             Displays all package information including built-in packages and dependencies
 
   -h, --help
           Print help (see a summary with '-h')
@@ -298,8 +298,7 @@ Options:
           - batch:       Execute build in 'batch' mode and await completion
           - batch-nogfx: Execute build in 'batch' mode without utilizing the graphics device, and await completion
           - editor-quit: Execute build within the editor and terminate post-build
-          - editor:      Execute build within the editor, keeping it open post-build. Useful for
-            debugging
+          - editor:      Execute build within the editor, keeping it open post-build. Useful for debugging
 
   -f, --build-function <FUNCTION>
           Specifies the static method in the Unity project used for building the project
