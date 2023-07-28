@@ -90,12 +90,11 @@ fn print_project_packages(
 
             println!();
             println!(
-                "{} {} ({})",
+                "{} {} {}",
                 "Packages:".bold(),
                 package_level.to_string().bold(),
-                "L=local, E=embedded, G=git, T=tarball, R=registry, B=builtin"
+                "(L=local, E=embedded, G=git, T=tarball, R=registry, B=builtin)"
                     .bold()
-                    .italic(),
             );
 
             for (name, package) in packages {
@@ -104,8 +103,7 @@ fn print_project_packages(
                     package
                         .source
                         .as_ref()
-                        .map_or("?", |s| s.to_short_str())
-                        .italic(),
+                        .map_or("?", |s| s.to_short_str()),
                     name,
                     package.version,
                 );
