@@ -129,6 +129,10 @@ pub struct NewArguments {
     )]
     pub project_dir: PathBuf,
 
+    /// Includes a .gitattributes file configured with Unity-specific LFS settings.
+    #[clap(long = "lfs")]
+    pub include_lfs: bool,
+
     /// Skips initialization of a new git repository.
     #[clap(long)]
     pub no_git: bool,

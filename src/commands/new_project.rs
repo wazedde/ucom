@@ -52,7 +52,7 @@ pub fn new_project(arguments: NewArguments) -> anyhow::Result<()> {
     }
 
     if !arguments.no_git {
-        git_init(project_dir)?;
+        git_init(project_dir, arguments.include_lfs)?;
     }
 
     match (arguments.wait, arguments.quit && !arguments.quiet) {
@@ -68,7 +68,7 @@ pub fn new_project(arguments: NewArguments) -> anyhow::Result<()> {
 }
 
 /// Initializes a new git repository with a default Unity specific .gitignore.
-fn git_init<P: AsRef<Path>>(project_dir: P) -> anyhow::Result<()> {
+fn git_init<P: AsRef<Path>>(project_dir: P, include_lfs: bool) -> anyhow::Result<()> {
     let project_dir = project_dir.as_ref();
     Command::new("git")
         .arg("init")
@@ -76,6 +76,12 @@ fn git_init<P: AsRef<Path>>(project_dir: P) -> anyhow::Result<()> {
         .output()
         .map_err(|_| anyhow!("Could not create git repository. Make sure git is available or add the --no-git flag."))?;
 
-    let mut file = File::create(project_dir.join(".gitignore"))?;
-    write!(file, "{}", Template::GitIgnore.content()).map_err(Into::into)
+    let mut ignore_file = File::create(project_dir.join(".gitignore"))?;
+    write!(ignore_file, "{}", Template::GitIgnore.content())?;
+
+    if include_lfs {
+        let mut attributes_file = File::create(project_dir.join(".gitattributes"))?;
+        write!(attributes_file, "{}", Template::GitAttributes.content())?;
+    }
+    Ok(())
 }

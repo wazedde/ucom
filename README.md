@@ -175,13 +175,12 @@ Creates a new Unity project and Git repository, defaulting to the latest install
 Usage: ucom new [OPTIONS] <DIRECTORY> [-- <UNITY_ARGS>...]
 
 Arguments:
-  <DIRECTORY>      Defines the directory for creating the project. This directory should not
-                   pre-exist
+  <DIRECTORY>      Defines the directory for creating the project. This directory should not pre-exist
   [UNITY_ARGS]...  A list of arguments to be passed directly to Unity
 
 Options:
-  -u, --unity <VERSION>  Specifies the Unity version for the new project. For example, '2021' uses
-                         the latest installed 2021.x.y version [env: UCOM_DEFAULT_VERSION=2021]
+  -u, --unity <VERSION>  Specifies the Unity version for the new project. For example, '2021' uses the latest installed 2021.x.y version [env: UCOM_DEFAULT_VERSION=2022.3]
+      --lfs              Includes a .gitattributes file configured with Unity-specific LFS settings
       --no-git           Skips initialization of a new git repository
   -w, --wait             Waits for the command to complete before proceeding
   -Q, --quit             Closes the editor after the project creation
