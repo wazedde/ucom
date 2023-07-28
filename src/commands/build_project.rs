@@ -12,15 +12,15 @@ use itertools::Itertools;
 use path_absolutize::Absolutize;
 use uuid::Uuid;
 
-use crate::cli::{BuildArguments, BuildMode, BuildOptions, BuildScriptTarget, InjectAction};
+use crate::cli::{
+    BuildArguments, BuildMode, BuildOptions, BuildScriptTarget, InjectAction, Template,
+};
 use crate::unity::*;
 
 const BUILD_SCRIPT_NAME: &str = "UnityBuilder.cs";
 const PERSISTENT_BUILD_SCRIPT_PATH: &str = "Assets/Plugins/ucom/Editor/UnityBuilder.cs";
 const PERSISTENT_BUILD_SCRIPT_ROOT: &str = "Assets/Plugins/ucom";
 const AUTO_BUILD_SCRIPT_ROOT: &str = "Assets/ucom";
-
-pub const BUILD_SCRIPT_TEMPLATE: &str = include_str!("include/UnityBuilder.cs");
 
 /// Runs the build command.
 pub fn build_project(arguments: BuildArguments) -> anyhow::Result<()> {
@@ -275,7 +275,7 @@ fn inject_build_script<P: AsRef<Path>>(parent_dir: P) -> anyhow::Result<()> {
     println!("Injecting ucom build script: {}", file_path.display());
 
     let mut file = File::create(file_path)?;
-    write!(file, "{}", BUILD_SCRIPT_TEMPLATE).map_err(Into::into)
+    write!(file, "{}", Template::BuildScript.content()).map_err(Into::into)
 }
 
 /// Removes the injected build script from the project.

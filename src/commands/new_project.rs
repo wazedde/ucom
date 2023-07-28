@@ -7,11 +7,9 @@ use anyhow::anyhow;
 use colored::Colorize;
 use path_absolutize::Absolutize;
 
-use crate::cli::NewArguments;
+use crate::cli::{NewArguments, Template};
 use crate::commands::terminal_spinner::TerminalSpinner;
 use crate::unity::*;
-
-pub const GIT_IGNORE_TEMPLATE: &str = include_str!("include/unity-gitignore.txt");
 
 /// Creates a new Unity project and optional Git repository in the given directory.
 pub fn new_project(arguments: NewArguments) -> anyhow::Result<()> {
@@ -79,5 +77,5 @@ fn git_init<P: AsRef<Path>>(project_dir: P) -> anyhow::Result<()> {
         .map_err(|_| anyhow!("Could not create git repository. Make sure git is available or add the --no-git flag."))?;
 
     let mut file = File::create(project_dir.join(".gitignore"))?;
-    write!(file, "{}", GIT_IGNORE_TEMPLATE).map_err(Into::into)
+    write!(file, "{}", Template::GitIgnore.content()).map_err(Into::into)
 }

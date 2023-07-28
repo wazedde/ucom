@@ -495,4 +495,17 @@ pub enum Template {
 
     /// The .gitignore file for newly created projects.
     GitIgnore,
+
+    /// The .gitattributes file for newly created projects.
+    GitAttributes,
+}
+
+impl Template {
+    pub fn content(self) -> &'static str {
+        match self {
+            Self::BuildScript => include_str!("commands/include/UnityBuilder.cs"),
+            Self::GitIgnore => include_str!("commands/include/unity-gitignore.txt"),
+            Self::GitAttributes => include_str!("commands/include/unity-gitattributes.txt"),
+        }
+    }
 }

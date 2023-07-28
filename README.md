@@ -347,8 +347,9 @@ Usage: ucom template <TEMPLATE>
 Arguments:
   <TEMPLATE>
           Possible values:
-          - build-script: The C# script injected into the project when building
-          - git-ignore:   The .gitignore file for newly created projects
+          - build-script:   The C# script injected into the project when building
+          - git-ignore:     The .gitignore file for newly created projects
+          - git-attributes: The .gitattributes file for newly created projects
 
 Options:
   -h, --help

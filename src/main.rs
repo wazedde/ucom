@@ -7,7 +7,7 @@ use clap::CommandFactory;
 use clap::Parser;
 use colored::Colorize;
 
-use crate::cli::{Action, Cli, Template};
+use crate::cli::{Action, Cli};
 use crate::commands::*;
 
 mod cli;
@@ -63,15 +63,8 @@ fn main() -> anyhow::Result<()> {
         }
 
         Action::Template { template } => {
-            print_template(template).context("Cannot print template".red().bold())
+            println!("{}", template.content());
+            Ok(())
         }
     }
-}
-
-fn print_template(template: Template) -> anyhow::Result<()> {
-    match template {
-        Template::BuildScript => println!("{}", build_project::BUILD_SCRIPT_TEMPLATE),
-        Template::GitIgnore => println!("{}", new_project::GIT_IGNORE_TEMPLATE),
-    }
-    Ok(())
 }
