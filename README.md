@@ -49,7 +49,7 @@ build for a specific platform. This is due to Unity's lack of CLI argument suppo
 By default, the script is removed after the build is completed. To retain the script, add the `--inject persistent`
 option to the `ucom build` command.
 
-To view the build script, use `ucom --build-script`.
+To view the build script, use `ucom template build-script`.
 
 ## Environment Variables
 
@@ -78,19 +78,18 @@ Unity Commander: A command-line interface for Unity projects
 Usage: ucom [OPTIONS] [COMMAND]
 
 Commands:
-  list   Lists installed Unity versions [aliases: l]
-  info   Displays project information [aliases: i]
-  check  Checks the Unity website for updates to the project's version [aliases: c]
-  new    Creates a new Unity project and Git repository, defaulting to the latest installed
-             Unity version [aliases: n]
-  open   Opens a specified Unity project in the Unity Editor [aliases: o]
-  build  Builds a specified Unity project [aliases: b]
-  run    Runs Unity with specified arguments, defaulting to the latest installed Unity version
-             [aliases: r]
-  help   Print this message or the help of the given subcommand(s)
+  list      Lists installed Unity versions [aliases: l]
+  info      Displays project information [aliases: i]
+  check     Checks the Unity website for updates to the project's version [aliases: c]
+  new       Creates a new Unity project and Git repository, defaulting to the latest installed Unity version
+                [aliases: n]
+  open      Opens a specified Unity project in the Unity Editor [aliases: o]
+  build     Builds a specified Unity project [aliases: b]
+  run       Runs Unity with specified arguments, defaulting to the latest installed Unity version [aliases: r]
+  template  Prints the specified template to standard output
+  help      Print this message or the help of the given subcommand(s)
 
 Options:
-      --build-script   Shows the build script injected into the project
   -D, --disable-color  Disables colored output
   -h, --help           Print help
   -V, --version        Print version
@@ -337,3 +336,21 @@ Options:
   -n, --dry-run          Displays the command to be run without actually executing it
   -h, --help             Print help
 ```
+
+## `ucom help template`
+
+```
+Prints the specified template to standard output
+
+Usage: ucom template <TEMPLATE>
+
+Arguments:
+  <TEMPLATE>
+          Possible values:
+          - build-script: The C# script injected into the project when building
+          - git-ignore:   The .gitignore file for newly created projects
+
+Options:
+  -h, --help
+          Print help (see a summary with '-h')
+  ```

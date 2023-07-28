@@ -12,10 +12,6 @@ pub const ENV_PACKAGE_LEVEL: &str = "UCOM_PACKAGE_LEVEL";
 #[derive(clap::Parser)]
 #[command(author, version, about)]
 pub struct Cli {
-    /// Shows the build script injected into the project.
-    #[arg(long)]
-    pub build_script: bool,
-
     /// Disables colored output.
     #[arg(long, short = 'D')]
     pub disable_color: bool,
@@ -77,6 +73,13 @@ pub enum Action {
     /// Runs Unity with specified arguments, defaulting to the latest installed Unity version.
     #[command(visible_alias = "r")]
     Run(RunArguments),
+
+    /// Prints the specified template to standard output.
+    #[command()]
+    Template {
+        #[arg(value_enum)]
+        template: Template,
+    },
 }
 
 #[derive(Args)]
@@ -483,4 +486,13 @@ pub enum BuildOptions {
 
     /// Enable Shader Livelink support.
     ShaderLivelinkSupport = 1073741824, // 0x40000000
+}
+
+#[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, ValueEnum)]
+pub enum Template {
+    /// The C# script injected into the project when building.
+    BuildScript,
+
+    /// The .gitignore file for newly created projects.
+    GitIgnore,
 }

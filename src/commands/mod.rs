@@ -1,4 +1,4 @@
-pub use crate::commands::build_project::{build_project, UNITY_BUILD_SCRIPT};
+pub use crate::commands::build_project::build_project;
 pub use crate::commands::check_updates::check_updates;
 pub use crate::commands::list_versions::list_versions;
 pub use crate::commands::new_project::new_project;

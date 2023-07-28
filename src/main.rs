@@ -2,19 +2,19 @@
 
 use std::process::exit;
 
-use anyhow::{Context, Result};
+use anyhow::Context;
 use clap::CommandFactory;
 use clap::Parser;
 use colored::Colorize;
 
-use crate::cli::{Action, Cli};
+use crate::cli::{Action, Cli, Template};
 use crate::commands::*;
 
 mod cli;
 mod commands;
 mod unity;
 
-fn main() -> Result<()> {
+fn main() -> anyhow::Result<()> {
     let cli = Cli::parse();
 
     if cli.disable_color {
@@ -22,11 +22,6 @@ fn main() -> Result<()> {
     } else {
         #[cfg(windows)]
         colored::control::set_virtual_terminal(true).expect("Always returns Ok()");
-    }
-
-    if cli.build_script {
-        println!("{UNITY_BUILD_SCRIPT}");
-        exit(0);
     }
 
     let Some(command) = cli.command else {
@@ -66,5 +61,17 @@ fn main() -> Result<()> {
         Action::Build(settings) => {
             build_project(settings).context("Cannot build project".red().bold())
         }
+
+        Action::Template { template } => {
+            print_template(template).context("Cannot print template".red().bold())
+        }
     }
+}
+
+fn print_template(template: Template) -> anyhow::Result<()> {
+    match template {
+        Template::BuildScript => println!("{}", build_project::BUILD_SCRIPT_TEMPLATE),
+        Template::GitIgnore => println!("{}", new_project::GIT_IGNORE_TEMPLATE),
+    }
+    Ok(())
 }
