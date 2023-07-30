@@ -1,3 +1,4 @@
+use std::cmp;
 use std::fmt::{Display, Formatter};
 use std::str::FromStr;
 
@@ -73,26 +74,17 @@ pub struct UnityVersion {
 impl UnityVersion {
     /// Returns the length of the string representation of this version.
     pub fn len(self) -> usize {
-        Self::count_len(self.major)
-            + Self::count_len(self.minor)
-            + Self::count_len(self.patch)
+        Self::count_len(self.major.into())
+            + Self::count_len(self.minor.into())
+            + Self::count_len(self.patch.into())
             + self.build_type.as_short_str().len()
-            + Self::count_len(self.build)
+            + Self::count_len(self.build.into())
             + 2 // The 2 dots
     }
 
-    fn count_len<T: Into<u16>>(n: T) -> usize {
-        let mut n = n.into();
-        let mut count = 0;
-
-        loop {
-            count += 1;
-            n /= 10;
-            if n == 0 {
-                break;
-            }
-        }
-        count
+    fn count_len(n: usize) -> usize {
+        let digits = ((n as f64).log10() as usize) + 1;
+        cmp::max(digits, 1)
     }
 
     /// Returns the major.minor part of this version.
