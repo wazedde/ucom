@@ -110,12 +110,24 @@ fn write_project_version(
     let is_installed = is_editor_installed(project_version)?;
     write!(buf, "{}", "The version the project uses is ".bold())?;
 
-    match (is_installed, updates.is_empty()) {
-        (true, true) => writeln!(buf, "{}", "installed and up to date:".bold())?,
-        (true, false) => writeln!(buf, "{}", "installed and out of date:".bold())?,
-        (false, true) => writeln!(buf, "{}", "not installed and up to date:".red().bold())?,
-        (false, false) => writeln!(buf, "{}", "not installed and out of date:".red().bold())?,
-    }
+    let version = match (is_installed, updates.is_empty()) {
+        (true, true) => {
+            writeln!(buf, "{}", "installed and up to date:".bold())?;
+            project_version.to_string().green()
+        }
+        (true, false) => {
+            writeln!(buf, "{}", "installed and out of date:".bold())?;
+            project_version.to_string().yellow()
+        }
+        (false, true) => {
+            writeln!(buf, "{}", "not installed and up to date:".red().bold())?;
+            project_version.to_string().red()
+        }
+        (false, false) => {
+            writeln!(buf, "{}", "not installed and out of date:".red().bold())?;
+            project_version.to_string().red()
+        }
+    };
 
     if output_to_file {
         writeln!(buf)?;
@@ -124,7 +136,7 @@ fn write_project_version(
     write!(
         buf,
         "- {} - {}",
-        project_version,
+        version,
         release_notes_url(project_version).bright_blue()
     )?;
 
