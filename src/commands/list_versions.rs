@@ -16,14 +16,20 @@ pub fn list_versions(list_type: ListType, partial_version: Option<&str>) -> anyh
 
     match list_type {
         ListType::Installed => {
-            println!("{}", format!("Unity versions in: {}", dir.display()).bold());
+            let line = format!(
+                "Unity versions in: {} (*=default for new projects)",
+                dir.display(),
+            );
+            println!("{}", line.bold());
             print_installed_versions(&matching_versions)?;
         }
+
         ListType::Updates => {
-            println!(
-                "{}",
-                format!("Updates for Unity versions in: {}", dir.display()).bold()
+            let line = format!(
+                "Updates for Unity versions in: {} (*=default for new projects)",
+                dir.display(),
             );
+            println!("{}", line.bold());
             let spinner = TerminalSpinner::new("Downloading release data...");
             let releases = request_unity_releases()?;
             drop(spinner);
@@ -46,7 +52,7 @@ pub fn list_versions(list_type: ListType, partial_version: Option<&str>) -> anyh
 /// ── 2020.3.46f1 - https://unity.com/releases/editor/whats-new/2020.3.46
 /// ┬─ 2021.3.19f1 - https://unity.com/releases/editor/whats-new/2021.3.19
 /// ├─ 2021.3.22f1 - https://unity.com/releases/editor/whats-new/2021.3.22
-/// └─ 2021.3.23f1 - https://unity.com/releases/editor/whats-new/2021.3.23 (default for new projects)
+/// └─ 2021.3.23f1 - https://unity.com/releases/editor/whats-new/2021.3.23 (*)
 /// ── 2022.2.15f1 - https://unity.com/releases/editor/whats-new/2022.2.15
 /// ── 2023.1.0b12 - https://unity.com/releases/editor/beta/2023.1.0b12
 /// ── 2023.2.0a10 - https://unity.com/releases/editor/alpha/2023.2.0a10
@@ -70,7 +76,7 @@ fn print_installed_versions(installed: &[UnityVersion]) -> anyhow::Result<()> {
             );
 
             if entry.version == default_version {
-                println!("{} {}", line.bold(), "(default for new projects)".bold());
+                println!("{} {}", line.bold(), "(*)".bold());
             } else {
                 println!("{line}");
             }
@@ -85,7 +91,7 @@ fn print_installed_versions(installed: &[UnityVersion]) -> anyhow::Result<()> {
 /// └─ 2020.3.47f1 - https://unity.com/releases/editor/whats-new/2020.3.47 > unityhub://2020.3.47f1/5ef4f5b5e2d4
 /// ┬─ 2021.3.19f1
 /// ├─ 2021.3.22f1
-/// └─ 2021.3.23f1 - Up to date (default for new projects)
+/// └─ 2021.3.23f1 - Up to date (*)
 /// ── 2022.2.15f1 - Up to date
 /// ── 2023.1.0b12 - No Beta update info available
 /// ── 2023.2.0a10 - No Alpha update info available
@@ -101,7 +107,7 @@ fn print_updates(installed: &[UnityVersion], available: &Vec<ReleaseInfo>) -> an
 
     let print_line = |line: &str, is_default: bool| {
         if is_default {
-            println!("{} {}", line.bold(), "(default for new projects)".bold());
+            println!("{} {}", line.bold(), "(*)".bold());
         } else {
             println!("{line}");
         }
@@ -212,18 +218,21 @@ fn collect_update_info(
 
 /// Prints list of latest available Unity versions.
 /// ```
-/// ┬─ 2019.1.14f1
-/// ├─ 2019.2.21f1
-/// ├─ 2019.3.15f1
-/// └─ 2019.4.40f1 - Installed: 2019.4.40f1
-/// ┬─ 2020.1.17f1
-/// ├─ 2020.2.7f1
-/// └─ 2020.3.46f1 - Installed: 2020.3.43f1 - update > unityhub://2020.3.46f1/18bc01a066b4
-/// ┬─ 2021.1.28f1
-/// ├─ 2021.2.19f1
-/// └─ 2021.3.20f1 - Installed: 2021.3.9f1, 2021.3.16f1, 2021.3.19f1, 2021.3.20f1
-/// ┬─ 2022.1.24f1
-/// └─ 2022.2.10f1 - Installed: 2022.2.6f1, 2022.2.10f1
+/// ...
+/// ┬─ 2019.1.14f1 > unityhub://2019.1.14f1/148b5891095a
+/// ├─ 2019.2.21f1 > unityhub://2019.2.21f1/9d528d026557
+/// ├─ 2019.3.15f1 > unityhub://2019.3.15f1/59ff3e03856d
+/// └─ 2019.4.40f1 > unityhub://2019.4.40f1/ffc62b691db5
+/// ┬─ 2020.1.17f1 > unityhub://2020.1.17f1/9957aee8edc2
+/// ├─ 2020.2.7f1  > unityhub://2020.2.7f1/c53830e277f1
+/// └─ 2020.3.48f1 > unityhub://2020.3.48f1/b805b124c6b7
+/// ┬─ 2021.1.28f1 > unityhub://2021.1.28f1/f3f9dc10f3dd
+/// ├─ 2021.2.19f1 > unityhub://2021.2.19f1/602ecdbb2fb0
+/// └─ 2021.3.29f1 - Installed: 2021.3.26f1, 2021.3.29f1
+/// ┬─ 2022.1.24f1 > unityhub://2022.1.24f1/709dddfb713f
+/// ├─ 2022.2.21f1 > unityhub://2022.2.21f1/4907324dc95b
+/// └─ 2022.3.5f1  - Installed: 2022.3.5f1
+/// ── 2023.1.6f1  > unityhub://2023.1.6f1/964b2488c462
 /// ```
 fn print_latest_versions(
     installed: &[UnityVersion],
