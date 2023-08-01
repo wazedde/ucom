@@ -6,6 +6,7 @@ use itertools::Itertools;
 
 use crate::cli::{ListType, ENV_DEFAULT_VERSION};
 use crate::commands::terminal_spinner::TerminalSpinner;
+use crate::commands::ColoredStringIf;
 use crate::unity::*;
 
 /// Lists installed Unity versions.
@@ -49,18 +50,18 @@ pub fn list_versions(list_type: ListType, partial_version: Option<&str>) -> anyh
 
 /// Prints list of installed versions.
 /// ```
-/// ── 2020.3.46f1 - https://unity.com/releases/editor/whats-new/2020.3.46
-/// ┬─ 2021.3.19f1 - https://unity.com/releases/editor/whats-new/2021.3.19
-/// ├─ 2021.3.22f1 - https://unity.com/releases/editor/whats-new/2021.3.22
-/// └─ 2021.3.23f1 - https://unity.com/releases/editor/whats-new/2021.3.23 (*)
-/// ── 2022.2.15f1 - https://unity.com/releases/editor/whats-new/2022.2.15
-/// ── 2023.1.0b12 - https://unity.com/releases/editor/beta/2023.1.0b12
-/// ── 2023.2.0a10 - https://unity.com/releases/editor/alpha/2023.2.0a10
+/// ── 2020.3.46f1  - https://unity.com/releases/editor/whats-new/2020.3.46
+/// ┬─ 2021.3.19f1  - https://unity.com/releases/editor/whats-new/2021.3.19
+/// ├─ 2021.3.22f1  - https://unity.com/releases/editor/whats-new/2021.3.22
+/// └─ 2021.3.23f1* - https://unity.com/releases/editor/whats-new/2021.3.23
+/// ── 2022.2.15f1  - https://unity.com/releases/editor/whats-new/2022.2.15
+/// ── 2023.1.0b12  - https://unity.com/releases/editor/beta/2023.1.0b12
+/// ── 2023.2.0a10  - https://unity.com/releases/editor/alpha/2023.2.0a10
 /// ```
 fn print_installed_versions(installed: &[UnityVersion]) -> anyhow::Result<()> {
     let default_version = default_version(installed)?;
     let version_groups = group_minor_versions(installed);
-    let max_len = max_version_string_length(&version_groups);
+    let max_len = max_version_string_length(&version_groups).max(default_version.len() + 1);
 
     for group in version_groups {
         for entry in &group {
@@ -69,17 +70,17 @@ fn print_installed_versions(installed: &[UnityVersion]) -> anyhow::Result<()> {
                 entry.version == group.last().unwrap().version,
             );
 
+            let mut version_str = entry.version.to_string();
+            if entry.version == default_version {
+                version_str.push('*');
+            }
+
             let line = format!(
                 "{:<max_len$} - {}",
-                entry.version.to_string(),
+                version_str,
                 release_notes_url(entry.version).bright_blue()
             );
-
-            if entry.version == default_version {
-                println!("{} {}", line.bold(), "(*)".bold());
-            } else {
-                println!("{line}");
-            }
+            println!("{}", line.bold_if(entry.version == default_version));
         }
     }
     Ok(())
@@ -87,14 +88,14 @@ fn print_installed_versions(installed: &[UnityVersion]) -> anyhow::Result<()> {
 
 /// Prints list of installed versions and available updates.
 /// ```
-/// ┬─ 2020.3.46f1 - Update(s) available
-/// └─ 2020.3.47f1 - https://unity.com/releases/editor/whats-new/2020.3.47 > unityhub://2020.3.47f1/5ef4f5b5e2d4
+/// ┬─ 2020.3.46f1  - Update(s) available
+/// └─ 2020.3.47f1  - https://unity.com/releases/editor/whats-new/2020.3.47 > unityhub://2020.3.47f1/5ef4f5b5e2d4
 /// ┬─ 2021.3.19f1
 /// ├─ 2021.3.22f1
-/// └─ 2021.3.23f1 - Up to date (*)
-/// ── 2022.2.15f1 - Up to date
-/// ── 2023.1.0b12 - No Beta update info available
-/// ── 2023.2.0a10 - No Alpha update info available
+/// └─ 2021.3.23f1* - Up to date
+/// ── 2022.2.15f1  - Up to date
+/// ── 2023.1.0b12  - No Beta update info available
+/// ── 2023.2.0a10  - No Alpha update info available
 /// ```
 fn print_updates(installed: &[UnityVersion], available: &Vec<ReleaseInfo>) -> anyhow::Result<()> {
     if available.is_empty() {
@@ -103,15 +104,7 @@ fn print_updates(installed: &[UnityVersion], available: &Vec<ReleaseInfo>) -> an
 
     let default_version = default_version(installed)?;
     let version_groups = collect_update_info(installed, available);
-    let max_len = max_version_string_length(&version_groups);
-
-    let print_line = |line: &str, is_default: bool| {
-        if is_default {
-            println!("{} {}", line.bold(), "(*)".bold());
-        } else {
-            println!("{line}");
-        }
-    };
+    let max_len = max_version_string_length(&version_groups).max(default_version.len() + 1);
 
     for group in version_groups {
         for info in &group {
@@ -120,51 +113,48 @@ fn print_updates(installed: &[UnityVersion], available: &Vec<ReleaseInfo>) -> an
                 info.version == group.last().unwrap().version,
             );
 
-            match &info.v_type {
-                VersionType::HasLaterInstalled => {
-                    print_line(&info.version.to_string(), info.version == default_version);
-                }
+            let mut version_str = info.version.to_string();
+            if info.version == default_version {
+                version_str.push('*');
+            }
+
+            let line = match &info.v_type {
+                VersionType::HasLaterInstalled => version_str,
                 VersionType::LatestInstalled => {
                     let last_in_group = info.version == group.last().unwrap().version;
 
-                    let line = if last_in_group {
-                        format!(
-                            "{:<max_len$} - {}",
-                            info.version.to_string().green(),
-                            "Up to date"
-                        )
+                    if last_in_group {
+                        format!("{:<max_len$} - {}", version_str.green(), "Up to date")
                     } else {
                         format!(
                             "{:<max_len$} - {}",
-                            info.version.to_string(),
+                            version_str,
                             "Update(s) available".blue().bold()
                         )
-                    };
-
-                    print_line(&line, info.version == default_version);
+                    }
                 }
                 VersionType::UpdateToLatest(release_info) => {
-                    println!(
+                    format!(
                         "{:<max_len$} - {} > {}",
                         release_info.version.to_string().blue().bold(),
                         release_notes_url(release_info.version).bright_blue().bold(),
                         release_info.installation_url.bright_blue().bold(),
-                    );
+                    )
                 }
                 VersionType::NoReleaseInfo => {
-                    let line = format!(
+                    format!(
                         "{:<max_len$} - {}",
-                        info.version.to_string(),
+                        version_str,
                         format!(
                             "No {} update info available",
                             info.version.build_type.as_full_str()
                         )
                         .bright_black()
-                    );
-
-                    print_line(&line, info.version == default_version);
+                    )
                 }
-            }
+            };
+
+            println!("{}", line.bold_if(info.version == default_version));
         }
     }
 
@@ -313,7 +303,6 @@ fn print_installs_line(latest: &ReleaseInfo, installed_in_range: &[UnityVersion]
             joined_versions,
             latest.installation_url.bright_blue()
         )
-        // .blue()
         .bold()
     };
     println!("{line}");
