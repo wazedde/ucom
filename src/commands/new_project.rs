@@ -1,9 +1,10 @@
+use std::env;
 use std::fs::File;
 use std::io::Write;
 use std::path::Path;
 use std::process::Command;
 
-use anyhow::anyhow;
+use anyhow::{anyhow, Context};
 use colored::Colorize;
 use path_absolutize::Absolutize;
 
@@ -70,16 +71,37 @@ pub fn new_project(arguments: NewArguments) -> anyhow::Result<()> {
 /// Initializes a new git repository with a default Unity specific .gitignore.
 fn git_init<P: AsRef<Path>>(project_dir: P, include_lfs: bool) -> anyhow::Result<()> {
     let project_dir = project_dir.as_ref();
-    Command::new("git")
+
+    let init_context =
+        "Could not create Git repository. Make sure Git is available or add the --no-git flag.";
+    let output = Command::new("git")
         .arg("init")
         .arg(project_dir)
         .output()
-        .map_err(|_| anyhow!("Could not create git repository. Make sure git is available or add the --no-git flag."))?;
+        .context(init_context)?;
+
+    if !output.stderr.is_empty() {
+        return Err(anyhow!("{}", String::from_utf8_lossy(&output.stderr))).context(init_context);
+    }
 
     let mut ignore_file = File::create(project_dir.join(".gitignore"))?;
     write!(ignore_file, "{}", Template::GitIgnore.content())?;
 
     if include_lfs {
+        env::set_current_dir(project_dir)?;
+
+        let lfs_context =
+            "Could not initialize Git LFS. Make sure LFS is available or don't add the --lfs flag.";
+        let output = Command::new("git")
+            .arg("lfs")
+            .arg("install")
+            .output()
+            .context(lfs_context)?;
+
+        if !output.stderr.is_empty() {
+            return Err(anyhow!("{}", String::from_utf8_lossy(&output.stderr)))
+                .context(lfs_context);
+        }
         let mut attributes_file = File::create(project_dir.join(".gitattributes"))?;
         write!(attributes_file, "{}", Template::GitAttributes.content())?;
     }

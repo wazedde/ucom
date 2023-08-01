@@ -23,7 +23,7 @@ given range. This tool simplifies the task of tracking and managing multiple Uni
 - `ucom info` or `ucom i` provides information about the Unity project in the current directory.
 - `ucom check` or `ucom c` checks for Unity updates for the project in the current directory.
 - `ucom new ~/Develop/MyProject` or `ucom n ~/Develop/MyProject` creates a new project using the latest system Unity
-  version and initializes a git repository with a Unity-specific `.gitignore`.
+  version and initializes a Git repository with a Unity-specific `.gitignore`.
 - `ucom new ~/Develop/MyProject -Q -u 2021.3` creates a new project using the latest 2021.3 version on the system and
   closes the editor afterward.
 - `ucom open ~/Develop/MyProject` opens the project in the specified directory.
@@ -179,9 +179,11 @@ Arguments:
   [UNITY_ARGS]...  A list of arguments to be passed directly to Unity
 
 Options:
-  -u, --unity <VERSION>  Specifies the Unity version for the new project. For example, '2021' uses the latest installed 2021.x.y version [env: UCOM_DEFAULT_VERSION=2022.3]
-      --lfs              Includes a .gitattributes file configured with Unity-specific LFS settings
-      --no-git           Skips initialization of a new git repository
+  -u, --unity <VERSION>  Specifies the Unity version for the new project. For example, '2021' uses the latest installed
+                         2021.x.y version [env: UCOM_DEFAULT_VERSION=]
+      --lfs              Initializes LFS for the repository and includes a .gitattributes file with Unity-specific LFS
+                         settings
+      --no-git           Skips initialization of a new Git repository
   -w, --wait             Waits for the command to complete before proceeding
   -Q, --quit             Closes the editor after the project creation
   -q, --quiet            Suppresses ucom messages
