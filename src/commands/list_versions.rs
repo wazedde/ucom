@@ -23,6 +23,7 @@ pub fn list_versions(list_type: ListType, partial_version: Option<&str>) -> anyh
             );
             println!("{}", line.bold());
             print_installed_versions(&matching_versions)?;
+            Ok(())
         }
 
         ListType::Updates => {
@@ -35,6 +36,7 @@ pub fn list_versions(list_type: ListType, partial_version: Option<&str>) -> anyh
             let releases = request_unity_releases()?;
             drop(spinner);
             print_updates(&matching_versions, &releases)?;
+            Ok(())
         }
         ListType::Latest => {
             println!("{}", "Latest available minor releases".bold());
@@ -42,10 +44,9 @@ pub fn list_versions(list_type: ListType, partial_version: Option<&str>) -> anyh
             let releases = request_unity_releases()?;
             drop(spinner);
             print_latest_versions(&matching_versions, &releases, partial_version);
+            Ok(())
         }
     }
-
-    Ok(())
 }
 
 /// Prints list of installed versions.
@@ -122,15 +123,10 @@ fn print_updates(installed: &[UnityVersion], available: &Vec<ReleaseInfo>) -> an
                 VersionType::HasLaterInstalled => version_str,
                 VersionType::LatestInstalled => {
                     let last_in_group = info.version == group.last().unwrap().version;
-
                     if last_in_group {
-                        format!("{:<max_len$} - {}", version_str.green(), "Up to date")
+                        format!("{:<max_len$} - Up to date", version_str.green())
                     } else {
-                        format!(
-                            "{:<max_len$} - {}",
-                            version_str,
-                            "Update(s) available".blue().bold()
-                        )
+                        format!("{:<max_len$} - Update(s) available", version_str)
                     }
                 }
                 VersionType::UpdateToLatest(release_info) => {
