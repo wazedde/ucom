@@ -220,11 +220,7 @@ pub fn validate_project_path<P: AsRef<Path>>(project_dir: &P) -> Result<Cow<'_, 
         return Err(anyhow!("Path is not a directory: `{}`", path.display()));
     }
 
-    if path.has_root() {
-        Ok(path.into())
-    } else {
-        Ok(path.absolutize()?)
-    }
+    Ok(path.absolutize()?)
 }
 
 #[derive(Deserialize, Debug)]

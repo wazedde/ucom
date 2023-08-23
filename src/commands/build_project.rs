@@ -29,12 +29,15 @@ pub fn build_project(arguments: BuildArguments) -> anyhow::Result<()> {
     let unity_version = version_used_by_project(&project_dir)?;
     let editor_exe = editor_executable_path(unity_version)?;
 
-    let output_dir = arguments.build_path.unwrap_or_else(|| {
-        // If no build path is given, use <project>/Builds/<target>
-        project_dir
-            .join("Builds")
-            .join(arguments.target.to_string())
-    });
+    let output_dir = match arguments.build_path {
+        Some(path) => path.absolutize()?.into(),
+        None => {
+            // If no build path is given, use <project>/Builds/<target>
+            project_dir
+                .join("Builds")
+                .join(arguments.target.to_string())
+        }
+    };
 
     if project_dir == output_dir {
         return Err(anyhow!(
