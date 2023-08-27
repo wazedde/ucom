@@ -9,6 +9,7 @@ use colored::Colorize;
 
 use crate::cli::{Action, Cli};
 use crate::commands::*;
+use crate::unity::http_cache::HttpCache;
 
 mod cli;
 mod commands;
@@ -28,6 +29,8 @@ fn main() -> anyhow::Result<()> {
         _ = Cli::command().print_help();
         exit(0)
     };
+
+    HttpCache::set_cache_from_env();
 
     match command {
         Action::List {

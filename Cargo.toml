@@ -23,3 +23,6 @@ uuid = { version = "1.4", features = ["v4"] }
 ureq = "2.7"
 spinoff = "0.7"
 itertools = "0.11"
+dirs = "5.0"
+chrono = "0.4"
+lazy_static = "1.4.0"
