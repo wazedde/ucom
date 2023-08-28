@@ -197,6 +197,7 @@ fn errors_from_log(log_file: &Path) -> anyhow::Error {
         .lines()
         .flatten()
         .filter(|l| is_log_error(l))
+        .unique()
         .collect();
 
     match errors.len() {
@@ -224,7 +225,7 @@ fn is_log_error(line: &str) -> bool {
         "BuildFailedException:",
     ];
 
-    error_prefixes.iter().any(|prefix| line.starts_with(prefix))
+    error_prefixes.iter().any(|prefix| line.contains(prefix))
 }
 
 type ResultFn = Box<dyn FnOnce() -> anyhow::Result<()>>;
