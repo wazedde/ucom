@@ -69,5 +69,13 @@ fn main() -> anyhow::Result<()> {
             println!("{}", template.content());
             Ok(())
         }
+        Action::ClearCache => {
+            http_cache::clear();
+            println!(
+                "Cleared cache at: {}",
+                http_cache::ucom_cache_dir().display()
+            );
+            Ok(())
+        }
     }
 }

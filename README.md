@@ -356,3 +356,18 @@ Options:
   -h, --help
           Print help (see a summary with '-h')
   ```
+
+## ucom help clear-cache
+
+```
+Purges the download cache.
+
+Unity release data, once downloaded, is stored for an hour to improve performance. Set the `UCOM_ENABLE_CACHE`
+environment variable to `false` to turn off the download cache.
+
+Usage: ucom clear-cache
+
+Options:
+  -h, --help
+          Print help (see a summary with '-h')
+```

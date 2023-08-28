@@ -39,12 +39,8 @@ pub fn get(url: &str) -> anyhow::Result<String> {
 }
 
 /// Clears the cache.
-#[allow(dead_code)]
-pub fn clear() -> anyhow::Result<()> {
-    let cache_dir = ucom_cache_dir();
-    _ = fs::remove_dir_all(&cache_dir);
-    create_dir_all(&cache_dir)?;
-    Ok(())
+pub fn clear() {
+    _ = fs::remove_dir_all(ucom_cache_dir());
 }
 
 /// Sets whether the cache is enabled or not.
@@ -54,12 +50,12 @@ pub fn set_cache_enabled(enabled: bool) {
     *cache_enabled = enabled;
 }
 
-/// Sets whether the cache is enabled or not based on environment variable UCOM_DISABLE_CACHE.
+/// Sets whether the cache is enabled or not based on environment variable UCOM_ENABLE_CACHE.
 pub fn set_cache_from_env() {
-    if env::var("UCOM_DISABLE_CACHE").is_ok() {
+    if let Ok(val) = env::var("UCOM_ENABLE_CACHE") {
         let mut cache_enabled = CACHE_ENABLED.lock().unwrap();
-        *cache_enabled = false;
-    }
+        *cache_enabled = val == "true" || val == "1";
+    };
 }
 
 /// Returns whether the cache is enabled or not.
@@ -68,7 +64,7 @@ pub fn is_cache_enabled() -> bool {
     *cache_enabled
 }
 
-fn ucom_cache_dir() -> PathBuf {
+pub fn ucom_cache_dir() -> PathBuf {
     cache_dir()
         .expect("unable to get cache directory")
         .join("ucom")

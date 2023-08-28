@@ -80,6 +80,12 @@ pub enum Action {
         #[arg(value_enum)]
         template: Template,
     },
+    /// Purges the download cache.
+    ///
+    /// Unity release data, once downloaded, is stored for an hour to improve performance.
+    /// Set the `UCOM_ENABLE_CACHE` environment variable to `false` to turn off the download cache.
+    #[command()]
+    ClearCache,
 }
 
 #[derive(Args)]
