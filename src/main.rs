@@ -9,7 +9,7 @@ use colored::Colorize;
 
 use crate::cli::{Action, Cli};
 use crate::commands::*;
-use crate::unity::http_cache::HttpCache;
+use crate::unity::http_cache;
 
 mod cli;
 mod commands;
@@ -30,7 +30,7 @@ fn main() -> anyhow::Result<()> {
         exit(0)
     };
 
-    HttpCache::set_cache_from_env();
+    http_cache::set_cache_from_env();
 
     match command {
         Action::List {
