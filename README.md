@@ -163,8 +163,8 @@ Arguments:
   [DIRECTORY]  Specifies the project's directory [default: .]
 
 Options:
-  -r, --create-report <FILE.md>  Generates a Markdown report of available releases
-  -h, --help                     Print help
+  -r, --report  Generates a Markdown report of aggregated release notes
+  -h, --help    Print help
 ```
 
 ## `ucom help new`
