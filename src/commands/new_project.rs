@@ -80,12 +80,14 @@ fn git_init<P: AsRef<Path>>(project_dir: P, include_lfs: bool) -> anyhow::Result
         .output()
         .context(init_context)?;
 
-    if !output.stderr.is_empty() {
+    if !output.status.success() {
         return Err(anyhow!("{}", String::from_utf8_lossy(&output.stderr))).context(init_context);
     }
 
-    let mut ignore_file = File::create(project_dir.join(".gitignore"))?;
+    let ignore_path = project_dir.join(".gitignore");
+    let mut ignore_file = File::create(&ignore_path)?;
     write!(ignore_file, "{}", Template::GitIgnore.content())?;
+    println!("  Git repository initialized: {}", ignore_path.display());
 
     if include_lfs {
         env::set_current_dir(project_dir)?;
@@ -98,12 +100,15 @@ fn git_init<P: AsRef<Path>>(project_dir: P, include_lfs: bool) -> anyhow::Result
             .output()
             .context(lfs_context)?;
 
-        if !output.stderr.is_empty() {
+        if !output.status.success() {
             return Err(anyhow!("{}", String::from_utf8_lossy(&output.stderr)))
                 .context(lfs_context);
         }
-        let mut attributes_file = File::create(project_dir.join(".gitattributes"))?;
+
+        let attributes_path = project_dir.join(".gitattributes");
+        let mut attributes_file = File::create(&attributes_path)?;
         write!(attributes_file, "{}", Template::GitAttributes.content())?;
+        println!("  Git LFS initialized: {}", attributes_path.display());
     }
     Ok(())
 }
