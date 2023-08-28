@@ -47,8 +47,8 @@ fn main() -> anyhow::Result<()> {
 
         Action::Check {
             project_dir,
-            create_report: report_path,
-        } => check_updates(&project_dir, report_path.as_deref())
+            report: report_path,
+        } => check_updates(&project_dir, report_path)
             .context("Cannot show Unity updates for project".red().bold()),
 
         Action::Run(settings) => run_unity(settings).context("Cannot run Unity".red().bold()),

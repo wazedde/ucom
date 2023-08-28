@@ -53,9 +53,9 @@ pub enum Action {
         #[arg(value_name = "DIRECTORY", value_hint = clap::ValueHint::DirPath, default_value = ".")]
         project_dir: PathBuf,
 
-        /// Generates a Markdown report of available releases.
-        #[clap(short = 'r', long, value_name = "FILE.md", value_hint = clap::ValueHint::FilePath)]
-        create_report: Option<PathBuf>,
+        /// Generates a Markdown report of aggregated release notes.
+        #[clap(short = 'r', long)]
+        report: bool,
     },
 
     /// Creates a new Unity project and Git repository, defaulting to the latest installed Unity version.
@@ -86,10 +86,10 @@ pub enum Action {
 pub struct RunArguments {
     /// Specifies the Unity version to run. For example, '2021' runs the latest installed 2021.x.y version.
     #[arg(
-    short = 'u',
-    long = "unity",
-    value_name = "VERSION",
-    env = ENV_DEFAULT_VERSION,
+        short = 'u',
+        long = "unity",
+        value_name = "VERSION",
+        env = ENV_DEFAULT_VERSION,
     )]
     pub version_pattern: Option<String>,
 
@@ -114,18 +114,18 @@ pub struct RunArguments {
 pub struct NewArguments {
     /// Specifies the Unity version for the new project. For example, '2021' uses the latest installed 2021.x.y version.
     #[arg(
-    short = 'u',
-    long = "unity",
-    value_name = "VERSION",
-    env = ENV_DEFAULT_VERSION
+        short = 'u',
+        long = "unity",
+        value_name = "VERSION",
+        env = ENV_DEFAULT_VERSION
     )]
     pub version_pattern: Option<String>,
 
     /// Defines the directory for creating the project. This directory should not pre-exist.
     #[arg(
-    required = true,
-    value_name = "DIRECTORY",
-    value_hint = clap::ValueHint::DirPath
+        required = true,
+        value_name = "DIRECTORY",
+        value_hint = clap::ValueHint::DirPath
     )]
     pub project_dir: PathBuf,
 
@@ -207,10 +207,10 @@ pub struct BuildArguments {
 
     /// Sets the output directory for the build. If omitted, the build is placed in <PROJECT_DIR>/Builds/<TARGET>.
     #[arg(
-    short = 'o',
-    long = "output",
-    value_name = "DIRECTORY",
-    value_hint = clap::ValueHint::FilePath
+        short = 'o',
+        long = "output",
+        value_name = "DIRECTORY",
+        value_hint = clap::ValueHint::FilePath
     )]
     pub build_path: Option<PathBuf>,
 

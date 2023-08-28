@@ -1,23 +1,13 @@
-use std::fs;
+use colored::Colorize;
 use std::io::Write;
 use std::path::Path;
-
-use anyhow::anyhow;
-use colored::Colorize;
-use path_absolutize::Absolutize;
 
 use crate::commands::terminal_spinner::TerminalSpinner;
 use crate::unity::*;
 
 /// Checks on the Unity website for updates to the version used by the project.
-pub fn check_updates(project_dir: &Path, report_path: Option<&Path>) -> anyhow::Result<()> {
+pub fn check_updates(project_dir: &Path, create_report: bool) -> anyhow::Result<()> {
     let project_dir = validate_project_path(&project_dir)?;
-    let output_to_file = report_path.is_some();
-
-    if let Some(path) = report_path {
-        validate_report_path(path)?;
-    }
-
     let unity_version = version_used_by_project(&project_dir)?;
 
     let spinner = TerminalSpinner::new(format!(
@@ -27,14 +17,13 @@ pub fn check_updates(project_dir: &Path, report_path: Option<&Path>) -> anyhow::
     let (project_version_info, updates) = request_patch_update_info(unity_version)?;
     drop(spinner);
 
-    if output_to_file {
-        // Disable colored output when writing to a file.
+    if create_report {
         colored::control::set_override(false);
     }
 
     let mut buf = Vec::new();
 
-    write_project_header(&project_dir, output_to_file, &mut buf)?;
+    write_project_header(&project_dir, create_report, &mut buf)?;
 
     writeln!(buf)?;
 
@@ -42,11 +31,11 @@ pub fn check_updates(project_dir: &Path, report_path: Option<&Path>) -> anyhow::
         unity_version,
         project_version_info,
         &updates,
-        output_to_file,
+        create_report,
         &mut buf,
     )?;
 
-    if output_to_file {
+    if create_report {
         let mut spinner = TerminalSpinner::new("Downloading Unity release notes...");
         for release in updates {
             spinner.update_text(format!(
@@ -57,13 +46,7 @@ pub fn check_updates(project_dir: &Path, report_path: Option<&Path>) -> anyhow::
             write_release_notes(&mut buf, &release)?;
         }
         drop(spinner);
-
-        let file_name = report_path.expect("Already validated");
-        fs::write(file_name, String::from_utf8(buf)?)?;
-        println!(
-            "Update report written to: {}",
-            file_name.absolutize()?.display()
-        );
+        print!("{}", String::from_utf8(buf)?);
     } else {
         if !updates.is_empty() {
             writeln!(buf)?;
@@ -77,10 +60,10 @@ pub fn check_updates(project_dir: &Path, report_path: Option<&Path>) -> anyhow::
 
 fn write_project_header(
     project_dir: &Path,
-    output_to_file: bool,
+    create_report: bool,
     buf: &mut Vec<u8>,
 ) -> anyhow::Result<()> {
-    if output_to_file {
+    if create_report {
         write!(buf, "# ")?;
     }
 
@@ -92,7 +75,7 @@ fn write_project_header(
     let s = format!("Unity updates for project: {product_name}").bold();
     writeln!(buf, "{s}")?;
 
-    if output_to_file {
+    if create_report {
         writeln!(buf)?;
     }
 
@@ -104,7 +87,7 @@ fn write_project_version(
     project_version: UnityVersion,
     project_version_info: Option<ReleaseInfo>,
     updates: &[ReleaseInfo],
-    output_to_file: bool,
+    create_report: bool,
     buf: &mut Vec<u8>,
 ) -> anyhow::Result<()> {
     let is_installed = is_editor_installed(project_version)?;
@@ -129,7 +112,7 @@ fn write_project_version(
         }
     };
 
-    if output_to_file {
+    if create_report {
         writeln!(buf)?;
     }
 
@@ -143,7 +126,7 @@ fn write_project_version(
     if is_installed {
         // The editor used by the project is installed, finish the line.
         writeln!(buf)?;
-    } else if output_to_file {
+    } else if create_report {
         // The editor used by the project is not installed, and we're writing to a file.
         writeln!(
             buf,
@@ -194,22 +177,6 @@ fn write_available_updates(updates: &[ReleaseInfo], buf: &mut Vec<u8>) -> anyhow
     }
 
     Ok(())
-}
-
-fn validate_report_path(path: &Path) -> anyhow::Result<()> {
-    if path.is_dir() {
-        Err(anyhow!(
-            "The report file name provided is a directory: {}",
-            path.display()
-        ))
-    } else if path.extension().filter(|&e| e == "md").is_none() {
-        Err(anyhow!(
-            "Make sure the report file name has the `md` extension: {}",
-            path.display()
-        ))
-    } else {
-        Ok(())
-    }
 }
 
 fn write_release_notes(buf: &mut Vec<u8>, release: &ReleaseInfo) -> anyhow::Result<()> {
