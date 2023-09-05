@@ -270,6 +270,8 @@ pub enum ListType {
     Updates,
     /// Shows the latest available Unity versions.
     Latest,
+    /// Shows all available Unity versions.
+    All,
 }
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, ValueEnum)]

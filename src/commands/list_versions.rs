@@ -13,10 +13,10 @@ use crate::unity::*;
 pub fn list_versions(list_type: ListType, partial_version: Option<&str>) -> anyhow::Result<()> {
     let dir = editor_parent_dir()?;
     let versions = available_unity_versions(&dir)?;
-    let matching_versions = matching_versions(versions, partial_version)?;
 
     match list_type {
         ListType::Installed => {
+            let matching_versions = matching_versions(versions, partial_version)?;
             let line = format!(
                 "Unity versions in: {} (*=default for new projects)",
                 dir.display(),
@@ -25,8 +25,8 @@ pub fn list_versions(list_type: ListType, partial_version: Option<&str>) -> anyh
             print_installed_versions(&matching_versions)?;
             Ok(())
         }
-
         ListType::Updates => {
+            let matching_versions = matching_versions(versions, partial_version)?;
             let line = format!(
                 "Updates for Unity versions in: {} (*=default for new projects)",
                 dir.display(),
@@ -39,11 +39,24 @@ pub fn list_versions(list_type: ListType, partial_version: Option<&str>) -> anyh
             Ok(())
         }
         ListType::Latest => {
+            let matching_versions =
+                matching_versions(versions, partial_version).unwrap_or_default();
             println!("{}", "Latest available minor releases".bold());
             let spinner = TerminalSpinner::new("Downloading release data...");
             let releases = request_unity_releases()?;
             drop(spinner);
             print_latest_versions(&matching_versions, &releases, partial_version);
+            Ok(())
+        }
+        ListType::All => {
+            let matching_versions =
+                matching_versions(versions, partial_version).unwrap_or_default();
+
+            println!("{}", "Available releases".bold());
+            let spinner = TerminalSpinner::new("Downloading release data...");
+            let releases = request_unity_releases()?;
+            drop(spinner);
+            print_available_versions(&matching_versions, &releases, partial_version);
             Ok(())
         }
     }
@@ -228,6 +241,14 @@ fn print_latest_versions(
     // Get the latest version of each range.
     let minor_releases = latest_minor_releases(available, partial_version);
 
+    if minor_releases.is_empty() {
+        println!(
+            "No releases available that match `{}`",
+            partial_version.unwrap_or("*")
+        );
+        return;
+    }
+
     let max_len = minor_releases
         .iter()
         .map(|ri| ri.version.len())
@@ -265,6 +286,80 @@ fn print_latest_versions(
             );
         } else {
             print_installs_line(latest, &installed_in_range, max_len);
+        }
+    }
+}
+
+/// Prints list of available Unity versions.
+/// ```
+/// ...
+/// ├─ 2021.1.4f1  - https://unity.com/releases/editor/whats-new/2021.1.4 > unityhub://2021.1.4f1/4cd64a618c1b
+/// ├─ 2021.1.5f1  - https://unity.com/releases/editor/whats-new/2021.1.5 > unityhub://2021.1.5f1/3737af19df53
+/// ├─ 2021.1.6f1  - https://unity.com/releases/editor/whats-new/2021.1.6 > unityhub://2021.1.6f1/c0fade0cc7e9
+/// ├─ 2021.1.7f1  - https://unity.com/releases/editor/whats-new/2021.1.7 > unityhub://2021.1.7f1/d91830b65d9b
+/// ├─ 2021.1.9f1  - https://unity.com/releases/editor/whats-new/2021.1.9 > unityhub://2021.1.9f1/7a790e367ab3
+/// ├─ 2021.1.10f1 - https://unity.com/releases/editor/whats-new/2021.1.10 > unityhub://2021.1.10f1/b15f561b2cef
+/// ├─ 2021.1.11f1 - https://unity.com/releases/editor/whats-new/2021.1.11 > unityhub://2021.1.11f1/4d8c25f7477e
+/// ├─ 2021.1.12f1 - https://unity.com/releases/editor/whats-new/2021.1.12 > unityhub://2021.1.12f1/afcadd793de6
+/// ├─ 2021.1.13f1 - https://unity.com/releases/editor/whats-new/2021.1.13 > unityhub://2021.1.13f1/a03098edbbe0
+/// ├─ 2021.1.14f1 - https://unity.com/releases/editor/whats-new/2021.1.14 > unityhub://2021.1.14f1/51d2f824827f
+/// ...
+/// ```
+fn print_available_versions(
+    installed: &[UnityVersion],
+    available: &[ReleaseInfo],
+    partial_version: Option<&str>,
+) {
+    let releases: Vec<_> = available
+        .iter()
+        .filter(|r| partial_version.map_or(true, |p| r.version.to_string().starts_with(p)))
+        .sorted_unstable()
+        .dedup()
+        .collect();
+
+    if releases.is_empty() {
+        println!(
+            "No releases available that match `{}`",
+            partial_version.unwrap_or("*")
+        );
+        return;
+    }
+
+    let versions: Vec<_> = releases.iter().map(|r| r.version).collect();
+    let version_groups = group_minor_versions(&versions);
+    let max_len = max_version_string_length(&version_groups);
+
+    for group in version_groups {
+        for entry in &group {
+            print_list_marker(
+                entry.version == group.first().unwrap().version,
+                entry.version == group.last().unwrap().version,
+            );
+
+            let is_installed = installed.contains(&entry.version);
+            let version_str = entry.version.to_string();
+
+            if is_installed {
+                let line = format!(
+                    "{:<max_len$} - {} > installed",
+                    version_str.green(),
+                    release_notes_url(entry.version).bright_blue()
+                );
+                println!("{}", line.bold());
+            } else {
+                let ri = releases
+                    .iter()
+                    .find(|p| p.version == entry.version)
+                    .expect("Could not find release info for version");
+
+                let line = format!(
+                    "{:<max_len$} - {} > {}",
+                    version_str,
+                    release_notes_url(entry.version).bright_blue(),
+                    ri.installation_url.bright_blue()
+                );
+                println!("{}", line);
+            }
         }
     }
 }
