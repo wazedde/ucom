@@ -11,7 +11,7 @@ pub struct TerminalSpinner {
 
 impl Drop for TerminalSpinner {
     fn drop(&mut self) {
-        if let Some(spinner) = self.spinner.take() {
+        if let Some(mut spinner) = self.spinner.take() {
             spinner.clear();
         }
     }
@@ -33,7 +33,7 @@ impl TerminalSpinner {
     }
 
     pub fn clear(mut self) {
-        if let Some(spinner) = self.spinner.take() {
+        if let Some(mut spinner) = self.spinner.take() {
             spinner.clear();
         }
     }
