@@ -79,7 +79,7 @@ fn print_project_packages(
             let mut packages = packages
                 .dependencies
                 .iter()
-                .filter(|(_, package)| package_level.evaluate(package))
+                .filter(|(name, package)| package_level.evaluate(name, package))
                 .collect_vec();
 
             if packages.is_empty() {
@@ -111,27 +111,30 @@ fn print_project_packages(
 
 impl PackagesInfoLevel {
     /// Evaluates if the `PackageInfo` is allowed by the info level.
-    fn evaluate(self, package: &PackageInfo) -> bool {
-        match (self, package.depth) {
-            (Self::None, ..) => false,
+    fn evaluate(self, name: &str, package: &PackageInfo) -> bool {
+        match self {
+            Self::None => false,
 
-            (Self::ExcludingUnity, 0) => package.source.map_or(false, |ps| {
-                ps < PackageSource::Registry
-                    // Registry packages that are not from the Unity registry.
-                    || (ps == PackageSource::Registry
-                        && package
-                            .url
-                            .as_ref()
-                            .map_or(false, |u| u != "https://packages.unity.com"))
-            }),
+            Self::ExcludingUnity => {
+                package.depth == 0
+                    && package.source.map_or(false, |ps| {
+                        ps < PackageSource::Registry
+                            || (ps == PackageSource::Registry
+                                && package
+                                    .url
+                                    .as_ref()
+                                    .map_or(false, |u| u != "https://packages.unity.com"))
+                    })
+            }
 
-            (Self::IncludingUnity, 0) => package
-                .source
-                .map_or(false, |ps| ps < PackageSource::Builtin),
+            Self::IncludingUnity => {
+                package.depth == 0
+                    && package.source.map_or(false, |ps| {
+                        ps < PackageSource::Builtin || name.starts_with("com.unity.feature.")
+                    })
+            }
 
-            (Self::All, ..) => true,
-
-            _ => false,
+            Self::All => true,
         }
     }
 }

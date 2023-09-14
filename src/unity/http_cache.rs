@@ -50,7 +50,7 @@ pub fn set_cache_enabled(enabled: bool) {
     *cache_enabled = enabled;
 }
 
-/// Sets whether the cache is enabled or not based on environment variable UCOM_ENABLE_CACHE.
+/// Sets whether the cache is enabled or not based on environment variable `UCOM_ENABLE_CACHE`.
 pub fn set_cache_from_env() {
     if let Ok(val) = env::var("UCOM_ENABLE_CACHE") {
         let mut cache_enabled = CACHE_ENABLED.lock().unwrap();

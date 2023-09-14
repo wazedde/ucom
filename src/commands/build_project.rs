@@ -153,12 +153,10 @@ fn clean_output_directory(path: &Path) -> anyhow::Result<()> {
         .filter_map(|r| r.ok().map(|e| e.path()))
         .filter(|p| p.is_dir()) // Only directories.
         .filter(|p| {
-            // Filter out directories that should not be deleted.
             let dir_str = p.to_string_lossy();
             dir_str.ends_with("_BurstDebugInformation_DoNotShip")
                 || dir_str.ends_with("_BackUpThisFolder_ButDontShipItWithYourGame")
-        })
-        .collect_vec();
+        });
 
     for dir in delete {
         println!("Removing directory: {}", dir.display());
