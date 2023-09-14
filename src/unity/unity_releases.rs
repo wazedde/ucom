@@ -1,12 +1,10 @@
-use std::borrow::Cow;
-
+use crate::unity::http_cache;
+use crate::unity::{BuildType, MajorVersion, MinorVersion, UnityVersion};
 use indexmap::IndexMap;
 use itertools::Itertools;
 use select::document::Document;
 use select::predicate::{Class, Name};
-
-use crate::unity::http_cache;
-use crate::unity::{BuildType, MajorVersion, MinorVersion, UnityVersion};
+use std::borrow::Cow;
 
 #[derive(Debug, Eq, PartialEq, Ord, PartialOrd, Clone)]
 pub struct ReleaseInfo {
@@ -53,7 +51,7 @@ impl ReleaseFilter {
 pub fn request_unity_releases() -> anyhow::Result<Vec<ReleaseInfo>> {
     let url = "https://unity.com/releases/editor/archive";
     let body = http_cache::get(url)?;
-    let releases = extract_releases(&body, &ReleaseFilter::All);
+    let releases = extract_releases_from_html(&body, &ReleaseFilter::All);
     Ok(releases)
 }
 
@@ -63,7 +61,7 @@ pub fn request_patch_update_info(
 ) -> anyhow::Result<(Option<ReleaseInfo>, Vec<ReleaseInfo>)> {
     let url = "https://unity.com/releases/editor/archive";
     let body = http_cache::get(url)?;
-    let releases = extract_releases(
+    let releases = extract_releases_from_html(
         &body,
         &ReleaseFilter::Minor {
             major: version.major,
@@ -91,9 +89,11 @@ pub fn request_release_notes(version: UnityVersion) -> anyhow::Result<(Url, Stri
 }
 
 /// Extracts releases from the html that match the filter.
-fn extract_releases(html: &str, filter: &ReleaseFilter) -> Vec<ReleaseInfo> {
+fn extract_releases_from_html(html: &str, filter: &ReleaseFilter) -> Vec<ReleaseInfo> {
     let major_release_class: Cow<'_, str> = match filter {
+        // Look for release-tab-content class
         ReleaseFilter::All => "release-tab-content".into(),
+        // Look for class with major version only
         ReleaseFilter::Major { major } | ReleaseFilter::Minor { major, .. } => {
             major.to_string().into()
         }
@@ -103,20 +103,26 @@ fn extract_releases(html: &str, filter: &ReleaseFilter) -> Vec<ReleaseInfo> {
         .find(Class(major_release_class.as_ref()))
         .flat_map(|n| n.find(Class("download-release-wrapper")))
         .filter_map(|n| {
-            let date_header = n
+            let release_date = n
                 .find(Class("release-title-date"))
                 .next()?
                 .find(Class("release-date"))
                 .next()?
                 .text();
 
-            let url = n.find(Class("btn")).next()?.attr("href")?;
-            Some((date_header, url))
-        })
-        .filter_map(|(date_header, url)| {
-            version_from_url(url)
-                .filter(|&v| filter.eval(v))
-                .map(|version| ReleaseInfo::new(version, date_header, url.to_owned()))
+            let install_url = n
+                .find(Class("release-links"))
+                .next()?
+                .find(Class("btn"))
+                .next()?
+                .attr("href")?;
+
+            let version = version_from_url(install_url)?;
+            filter.eval(version).then_some(ReleaseInfo::new(
+                version,
+                release_date,
+                install_url.to_owned(),
+            ))
         })
         .sorted_unstable()
         .collect()
@@ -125,10 +131,8 @@ fn extract_releases(html: &str, filter: &ReleaseFilter) -> Vec<ReleaseInfo> {
 /// Get the version from the url.
 /// The url looks like: `unityhub://2021.2.14f1/bcb93e5482d2`
 fn version_from_url(url: &str) -> Option<UnityVersion> {
-    url.split('/')
-        .rev()
-        .nth(1)
-        .and_then(|v| v.parse::<UnityVersion>().ok())
+    let version_part = url.split('/').rev().nth(1)?;
+    version_part.parse::<UnityVersion>().ok()
 }
 
 pub fn release_notes_url(version: UnityVersion) -> Url {
@@ -190,7 +194,7 @@ mod releases_tests {
 
     use crate::unity::{ReleaseFilter, UnityVersion};
 
-    use super::{extract_releases, version_from_url};
+    use super::{extract_releases_from_html, version_from_url};
 
     #[test]
     fn test_version_from_url() {
@@ -216,21 +220,21 @@ mod releases_tests {
     #[test]
     fn test_find_releases_all() {
         let html = include_str!("test_data/unity_download_archive.html");
-        let releases = extract_releases(html, &ReleaseFilter::All);
+        let releases = extract_releases_from_html(html, &ReleaseFilter::All);
         assert_eq!(releases.len(), 473);
     }
 
     #[test]
     fn test_find_releases_major() {
         let html = include_str!("test_data/unity_download_archive.html");
-        let releases = extract_releases(html, &ReleaseFilter::Major { major: 2021 });
+        let releases = extract_releases_from_html(html, &ReleaseFilter::Major { major: 2021 });
         assert_eq!(releases.len(), 66);
     }
 
     #[test]
     fn test_find_releases_minor() {
         let html = include_str!("test_data/unity_download_archive.html");
-        let releases = extract_releases(
+        let releases = extract_releases_from_html(
             html,
             &ReleaseFilter::Minor {
                 major: 2019,
