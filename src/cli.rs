@@ -42,7 +42,7 @@ pub enum Action {
         project_dir: PathBuf,
 
         /// Determines the level of package information to display.
-        #[arg(short='p', long, default_value = "excluding-unity", env = ENV_PACKAGE_LEVEL)]
+        #[arg(short='p', long, default_value = "no-unity", env = ENV_PACKAGE_LEVEL)]
         packages: PackagesInfoLevel,
     },
 
@@ -277,12 +277,19 @@ pub enum ListType {
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, ValueEnum)]
 pub enum PackagesInfoLevel {
     /// No package information is displayed.
+    #[value(name = "none")]
     None,
-    /// Displays non-Unity packages only.
+
+    /// Shows non-Unity packages only.
+    #[value(name = "no-unity")]
     ExcludingUnity,
+
     /// Additionally includes information for packages from the Unity registry.
+    #[value(name = "inc-unity")]
     IncludingUnity,
+
     /// Displays all package information including built-in packages and dependencies.
+    #[value(name = "all")]
     All,
 }
 
@@ -290,8 +297,8 @@ impl Display for PackagesInfoLevel {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
             PackagesInfoLevel::None => write!(f, "none"),
-            PackagesInfoLevel::ExcludingUnity => write!(f, "excluding-unity"),
-            PackagesInfoLevel::IncludingUnity => write!(f, "including-unity"),
+            PackagesInfoLevel::ExcludingUnity => write!(f, "no-unity"),
+            PackagesInfoLevel::IncludingUnity => write!(f, "inc-unity"),
             PackagesInfoLevel::All => write!(f, "all"),
         }
     }
