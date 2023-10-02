@@ -24,7 +24,7 @@ const AUTO_BUILD_SCRIPT_ROOT: &str = "Assets/ucom";
 
 /// Runs the build command.
 pub fn build_project(arguments: BuildArguments) -> anyhow::Result<()> {
-    let project_dir = validate_project_path(&arguments.project_dir)?;
+    let project_dir = validate_directory(&arguments.project_dir)?;
 
     let unity_version = version_used_by_project(&project_dir)?;
     let editor_exe = editor_executable_path(unity_version)?;

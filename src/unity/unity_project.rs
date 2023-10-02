@@ -1,17 +1,16 @@
+use crate::cli::ENV_EDITOR_DIR;
+use crate::unity::UnityVersion;
+use anyhow::{anyhow, Context, Result};
+use itertools::Itertools;
+use path_absolutize::Absolutize;
+use serde::Deserialize;
 use std::borrow::Cow;
 use std::collections::BTreeMap;
 use std::fs::File;
 use std::io::{BufRead, BufReader};
 use std::path::{Path, PathBuf};
 use std::{env, fs};
-
-use anyhow::{anyhow, Context, Result};
-use itertools::Itertools;
-use path_absolutize::Absolutize;
-use serde::Deserialize;
-
-use crate::cli::ENV_EDITOR_DIR;
-use crate::unity::UnityVersion;
+use walkdir::{DirEntry, IntoIter, WalkDir};
 
 /// Sub path to the executable on macOS.
 #[cfg(target_os = "macos")]
@@ -74,6 +73,14 @@ pub fn version_used_by_project<P: AsRef<Path>>(project_dir: &P) -> Result<UnityV
                 version_file.display()
             )
         })
+}
+
+/// Checks if the project directory contains a Unity project.
+pub fn contains_unity_project<P: AsRef<Path>>(project_dir: &P) -> bool {
+    project_dir
+        .as_ref()
+        .join("ProjectSettings/ProjectVersion.txt")
+        .exists()
 }
 
 /// Checks if the project directory has an `Assets` directory.
@@ -202,9 +209,9 @@ pub fn available_unity_versions<P: AsRef<Path>>(install_dir: &P) -> Result<Vec<U
     }
 }
 
-/// Returns validated absolute path to the project directory.
-pub fn validate_project_path<P: AsRef<Path>>(project_dir: &P) -> Result<Cow<'_, Path>> {
-    let path = project_dir.as_ref();
+/// Returns validated absolute path to the directory.
+pub fn validate_directory<P: AsRef<Path>>(dir: &P) -> Result<Cow<'_, Path>> {
+    let path = dir.as_ref();
     if cfg!(target_os = "windows") && path.starts_with("~") {
         return Err(anyhow!(
             "On Windows the path cannot start with '~': `{}`",
@@ -223,6 +230,20 @@ pub fn validate_project_path<P: AsRef<Path>>(project_dir: &P) -> Result<Cow<'_, 
     Ok(path.absolutize()?)
 }
 
+pub fn recursive_dir_iter(root: &Path) -> walkdir::FilterEntry<IntoIter, fn(&DirEntry) -> bool> {
+    WalkDir::new(root)
+        .max_depth(5)
+        .into_iter()
+        .filter_entry(|e| e.file_type().is_dir() && !is_hidden(e))
+}
+
+fn is_hidden(entry: &DirEntry) -> bool {
+    entry
+        .file_name()
+        .to_str()
+        .map(|s| s.starts_with('.'))
+        .unwrap_or(false)
+}
 #[derive(Deserialize, Debug)]
 pub struct Manifest {
     pub dependencies: BTreeMap<String, String>,

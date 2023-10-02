@@ -1,26 +1,46 @@
-use std::path::Path;
-
-use colored::Colorize;
-use itertools::Itertools;
-
 use crate::cli::PackagesInfoLevel;
 use crate::unity::release_notes_url;
 use crate::unity::unity_project::*;
+use colored::Colorize;
+use itertools::Itertools;
+use std::path::Path;
 
 /// Shows project information.
-pub fn print_project_info(
+pub fn project_info(
     project_dir: &Path,
     packages_level: PackagesInfoLevel,
+    recursive: bool,
 ) -> anyhow::Result<()> {
-    let project_dir = validate_project_path(&project_dir)?;
-    let unity_version = version_used_by_project(&project_dir)?;
+    let dir = validate_directory(&project_dir)?;
 
-    println!(
-        "{}",
-        format!("Project info for: {}", project_dir.display()).bold()
-    );
+    if !recursive {
+        return print_project_info(packages_level, &dir);
+    }
 
-    let settings = ProjectSettings::from_project(&project_dir)?;
+    println!("Searching for Unity projects in: {}", dir.display(),);
+
+    let mut it = recursive_dir_iter(&dir);
+    while let Some(entry) = it.next() {
+        if let Ok(entry) = entry {
+            if contains_unity_project(&entry.path()) {
+                println!();
+                if let Err(err) = print_project_info(packages_level, entry.path()) {
+                    println!("    {}", err.to_string().red());
+                }
+                it.skip_current_dir();
+            }
+        }
+    }
+
+    Ok(())
+}
+
+fn print_project_info(packages_level: PackagesInfoLevel, dir: &Path) -> anyhow::Result<()> {
+    let unity_version = version_used_by_project(&dir)?;
+
+    println!("{}", format!("Project info for: {}", dir.display()).bold());
+
+    let settings = ProjectSettings::from_project(&dir)?;
     let ps = settings.player_settings;
     println!("    Product Name:  {}", ps.product_name.bold());
     println!("    Company Name:  {}", ps.company_name.bold());
@@ -39,7 +59,7 @@ pub fn print_project_info(
     }
 
     if packages_level != PackagesInfoLevel::None {
-        print_project_packages(project_dir.as_ref(), packages_level)?;
+        print_project_packages(dir, packages_level)?;
     };
 
     Ok(())
@@ -55,14 +75,14 @@ fn print_project_packages(
     match availability {
         PackagesAvailability::NoManifest => {
             println!(
-                "{}",
+                "    {}",
                 "No `manifest.json` file found, no packages info available.".yellow()
             );
             Ok(())
         }
         PackagesAvailability::LockFileDisabled => {
             println!(
-                "{}",
+                "    {}",
                 "Packages lock file is disabled in `manifest.json`, no packages info available."
                     .yellow()
             );
@@ -70,7 +90,7 @@ fn print_project_packages(
         }
         PackagesAvailability::NoLockFile => {
             println!(
-                "{}",
+                "    {}",
                 "No `packages-lock.json` file found, no packages info available.".yellow()
             );
             Ok(())
@@ -90,7 +110,7 @@ fn print_project_packages(
 
             println!();
             println!(
-                "{} {} {}",
+                "    {} {} {}",
                 "Packages:".bold(),
                 package_level.to_string().bold(),
                 "(L=local, E=embedded, G=git, T=tarball, R=registry, B=builtin)".bold()

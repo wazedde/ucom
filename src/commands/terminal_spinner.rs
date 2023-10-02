@@ -32,7 +32,7 @@ impl TerminalSpinner {
         }
     }
 
-    pub fn clear(mut self) {
+    pub fn clear(&mut self) {
         if let Some(mut spinner) = self.spinner.take() {
             spinner.clear();
         }

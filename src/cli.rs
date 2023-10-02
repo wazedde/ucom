@@ -41,6 +41,10 @@ pub enum Action {
         #[arg(value_name = "DIRECTORY", value_hint = clap::ValueHint::DirPath, default_value = ".")]
         project_dir: PathBuf,
 
+        /// Recursively searches for Unity projects in the given directory.
+        #[clap(short = 'R', long)]
+        recursive: bool,
+
         /// Determines the level of package information to display.
         #[arg(short='p', long, default_value = "no-unity", env = ENV_PACKAGE_LEVEL)]
         packages: PackagesInfoLevel,

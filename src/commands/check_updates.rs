@@ -7,7 +7,7 @@ use crate::unity::*;
 
 /// Checks on the Unity website for updates to the version used by the project.
 pub fn check_updates(project_dir: &Path, create_report: bool) -> anyhow::Result<()> {
-    let project_dir = validate_project_path(&project_dir)?;
+    let project_dir = validate_directory(&project_dir)?;
     let unity_version = version_used_by_project(&project_dir)?;
 
     let spinner = TerminalSpinner::new(format!(

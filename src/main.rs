@@ -41,8 +41,9 @@ fn main() -> anyhow::Result<()> {
 
         Action::Info {
             project_dir,
+            recursive,
             packages,
-        } => print_project_info(&project_dir, packages)
+        } => project_info(&project_dir, packages, recursive)
             .context("Cannot show project info".red().bold()),
 
         Action::Check {
