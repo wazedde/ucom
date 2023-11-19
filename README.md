@@ -31,7 +31,7 @@ given range. This tool simplifies the task of tracking and managing multiple Uni
 
 ## Installation
 
-Ensure you have [Rust](https://www.rust-lang.org) (v1.65.0 or later) installed on your system. Then,
+Ensure you have [Rust](https://www.rust-lang.org) (v1.74.0 or later) installed on your system. Then,
 execute `cargo install --git https://github.com/jakkovanhunen/ucom` in your terminal. The `ucom` command should now be
 available.
 

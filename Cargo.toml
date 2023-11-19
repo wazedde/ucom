@@ -9,6 +9,12 @@ edition = "2021"
 lto = true
 strip = true
 
+[lints.rust]
+rust_2018_idioms = "warn"
+
+[lints.clippy]
+trivially_copy_pass_by_ref = "warn"
+
 [dependencies]
 anyhow = "1.0"
 clap = { version = "4.3", features = ["derive", "env", "wrap_help"] }
