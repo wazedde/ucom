@@ -62,6 +62,7 @@
 *.mpg                filter=lfs diff=lfs merge=lfs -text
 *.ogv                filter=lfs diff=lfs merge=lfs -text
 *.wmv                filter=lfs diff=lfs merge=lfs -text
+*.webm               filter=lfs diff=lfs merge=lfs -text
 
 # Images
 *.bmp                filter=lfs diff=lfs merge=lfs -text
