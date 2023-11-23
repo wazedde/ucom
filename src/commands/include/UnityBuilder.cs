@@ -8,6 +8,7 @@ using UnityEditor;
 using UnityEditor.Build.Reporting;
 using UnityEngine;
 
+// ReSharper disable once CheckNamespace
 namespace Ucom
 {
     /// <summary>
@@ -93,7 +94,7 @@ namespace Ucom
                 }
             }
 
-            var buildFailed = invalidArgs || !Build(outputDirectory, GetScenePaths(), options);
+            var buildFailed = invalidArgs || !Build(outputDirectory, GetActiveScenes(), options);
 
             if (Array.IndexOf(args, "-quit") != -1)
             {
@@ -183,10 +184,10 @@ namespace Ucom
         /// Tries to get the full path of build location.
         /// </summary>
         /// <param name="outputDirectory">The parent directory where the application will be built.</param>
-        /// <param name="appName">The name of the application</param>
-        /// <param name="buildTarget">The build target</param>
-        /// <param name="fullOutputPath">The full path of the build location</param>
-        /// <returns>True if the path is valid; False otherwise.</returns>
+        /// <param name="appName">The name of the application.</param>
+        /// <param name="buildTarget">The <see cref="BuildTarget"/>.</param>
+        /// <param name="fullOutputPath">The full path of the build location.</param>
+        /// <returns>True if the build target is supported; False otherwise.</returns>
         [PublicAPI]
         public static bool TryGetBuildLocationPath(string outputDirectory,
             string appName,
@@ -206,10 +207,10 @@ namespace Ucom
         /// <summary>
         /// Tries to get the file name of the application.
         /// </summary>
-        /// <param name="appName">The name of the application</param>
-        /// <param name="buildTarget">The build target</param>
-        /// <param name="fileName">The file name</param>
-        /// <returns>True if the file name is valid; False otherwise.</returns>
+        /// <param name="appName">The name of the application.</param>
+        /// <param name="buildTarget">The <see cref="BuildTarget"/>.</param>
+        /// <param name="fileName">The file name.</param>
+        /// <returns>True if the build target is supported; False otherwise.</returns>
         [PublicAPI]
         public static bool TryGetAppFileName(string appName, BuildTarget buildTarget, out string fileName)
         {
@@ -245,8 +246,71 @@ namespace Ucom
         }
 
         /// <summary>
+        /// Returns the paths of the active scenes in the build settings.
+        /// </summary>
+        /// <returns>The paths of the active scenes in the build settings.</returns>
+        [PublicAPI, NotNull]
+        public static string[] GetActiveScenes()
+        {
+            return EditorBuildSettings
+                   .scenes
+                   .Where(scene => scene.enabled)
+                   .Select(scene => scene.path)
+                   .ToArray();
+        }
+
+        /// <summary>
+        /// Tries to get the default build output path for the current build target.
+        /// The path is in the Builds directory relative to the project root.
+        /// </summary>
+        /// <param name="outputPath">The output path for the current build target.</param>
+        /// <returns>True if current build target is supported; False otherwise.</returns>
+        [PublicAPI]
+        public static bool TryGetDefaultBuildOutputPath(out string outputPath)
+        {
+            outputPath = null;
+
+            if (!TryGetBuildTargetDirName(EditorUserBuildSettings.activeBuildTarget, out var target))
+                return false;
+
+            var parent = new DirectoryInfo(Application.dataPath).Parent;
+            if (parent == null)
+                return false;
+
+            outputPath = Path.Combine(parent.FullName, "Builds", target);
+            return true;
+        }
+
+
+        /// <summary>
+        /// Tries to get the build target directory name.
+        /// </summary>
+        /// <param name="buildTarget">The <see cref="BuildTarget"/>.</param>
+        /// <param name="dirName">The directory name for the specified build target.</param>
+        /// <returns>True if the specified build target is supported; False otherwise.</returns>
+        private static bool TryGetBuildTargetDirName(BuildTarget buildTarget, out string dirName)
+        {
+            dirName = buildTarget switch
+            {
+                BuildTarget.StandaloneWindows => "Win",
+                BuildTarget.StandaloneWindows64 => "Win64",
+                BuildTarget.StandaloneOSX => "OSXUniversal",
+                BuildTarget.StandaloneLinux64 => "Linux64",
+                BuildTarget.Android => "Android",
+                BuildTarget.iOS => "iOS",
+                BuildTarget.WebGL => "WebGL",
+                _ => null, // Unsupported
+            };
+            return dirName != null;
+        }
+
+        /// <summary>
         /// Tries to get the value of the specified argument.
         /// </summary>
+        /// <param name="source">The command line arguments.</param>
+        /// <param name="arg">The argument.</param>
+        /// <param name="value">The value of the argument.</param>
+        /// <returns>True if the argument was found; False otherwise.</returns>
         private static bool TryGetArgValue(this string[] source, string arg, out string value)
         {
             var index = Array.IndexOf(source, arg);
@@ -261,22 +325,11 @@ namespace Ucom
         }
 
         /// <summary>
-        /// Returns the paths of the active scenes in the build settings.
-        /// </summary>
-        [NotNull]
-        private static string[] GetScenePaths()
-        {
-            return EditorBuildSettings
-                   .scenes
-                   .Where(scene => scene.enabled)
-                   .Select(scene => scene.path)
-                   .ToArray();
-        }
-
-        /// <summary>
         /// Logs a message to the Unity console without the stack trace.
         /// </summary>
-        private static void Log(string message, LogType logType)
+        /// <param name="message">The message.</param>
+        /// <param name="logType">The <see cref="LogType"/>.</param>
+        public static void Log(string message, LogType logType = LogType.Log)
         {
             Debug.LogFormat(logType, LogOption.NoStacktrace, null, message);
         }

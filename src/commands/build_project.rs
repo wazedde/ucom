@@ -18,9 +18,9 @@ use crate::cli::{
 use crate::unity::*;
 
 const BUILD_SCRIPT_NAME: &str = "UnityBuilder.cs";
-const PERSISTENT_BUILD_SCRIPT_PATH: &str = "Assets/Plugins/ucom/Editor/UnityBuilder.cs";
-const PERSISTENT_BUILD_SCRIPT_ROOT: &str = "Assets/Plugins/ucom";
-const AUTO_BUILD_SCRIPT_ROOT: &str = "Assets/ucom";
+const PERSISTENT_BUILD_SCRIPT_PATH: &str = "Assets/Plugins/Ucom/Editor/UnityBuilder.cs";
+const PERSISTENT_BUILD_SCRIPT_ROOT: &str = "Assets/Plugins/Ucom";
+const AUTO_BUILD_SCRIPT_ROOT: &str = "Assets/Ucom";
 
 /// Runs the build command.
 pub fn build_project(arguments: BuildArguments) -> anyhow::Result<()> {
