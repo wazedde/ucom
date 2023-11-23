@@ -1,20 +1,24 @@
-use crate::unity::http_cache;
-use crate::unity::{BuildType, MajorVersion, MinorVersion, UnityVersion};
+use std::borrow::Cow;
+
 use indexmap::IndexMap;
 use itertools::Itertools;
 use select::document::Document;
 use select::predicate::{Class, Name};
-use std::borrow::Cow;
+
+use crate::unity::http_cache;
+use crate::unity::{BuildType, Major, Minor, Version};
+
+const RELEASES_ARCHIVE_URL: &str = "https://unity.com/releases/editor/archive";
 
 #[derive(Debug, Eq, PartialEq, Ord, PartialOrd, Clone)]
 pub struct ReleaseInfo {
-    pub version: UnityVersion,
+    pub version: Version,
     pub date_header: String,
     pub installation_url: String,
 }
 
 impl ReleaseInfo {
-    const fn new(version: UnityVersion, date_header: String, installation_url: String) -> Self {
+    const fn new(version: Version, date_header: String, installation_url: String) -> Self {
         Self {
             version,
             date_header,
@@ -28,17 +32,14 @@ pub enum ReleaseFilter {
     /// Match all releases.
     All,
     /// Match releases on major version.
-    Major { major: MajorVersion },
+    Major { major: Major },
     /// Match releases on major and minor version.
-    Minor {
-        major: MajorVersion,
-        minor: MinorVersion,
-    },
+    Minor { major: Major, minor: Minor },
 }
 
 impl ReleaseFilter {
     /// Returns true if the version matches the filter.
-    const fn eval(&self, v: UnityVersion) -> bool {
+    const fn eval(&self, v: Version) -> bool {
         match self {
             Self::All => true,
             Self::Major { major } => v.major == *major,
@@ -48,19 +49,17 @@ impl ReleaseFilter {
 }
 
 /// Gets Unity releases from the Unity website.
-pub fn request_unity_releases() -> anyhow::Result<Vec<ReleaseInfo>> {
-    let url = "https://unity.com/releases/editor/archive";
-    let body = http_cache::get(url)?;
+pub fn fetch_unity_editor_releases() -> anyhow::Result<Vec<ReleaseInfo>> {
+    let body = http_cache::fetch_content(RELEASES_ARCHIVE_URL)?;
     let releases = extract_releases_from_html(&body, &ReleaseFilter::All);
     Ok(releases)
 }
 
 /// Gets patch updates for the given version from the Unity website.
-pub fn request_patch_update_info(
-    version: UnityVersion,
+pub fn fetch_patch_updates(
+    version: Version,
 ) -> anyhow::Result<(Option<ReleaseInfo>, Vec<ReleaseInfo>)> {
-    let url = "https://unity.com/releases/editor/archive";
-    let body = http_cache::get(url)?;
+    let body = http_cache::fetch_content(RELEASES_ARCHIVE_URL)?;
     let releases = extract_releases_from_html(
         &body,
         &ReleaseFilter::Minor {
@@ -82,9 +81,9 @@ pub fn request_patch_update_info(
 pub type Url = String;
 
 /// Gets the release notes for the given version from the Unity website.
-pub fn request_release_notes(version: UnityVersion) -> anyhow::Result<(Url, String)> {
+pub fn fetch_release_notes(version: Version) -> anyhow::Result<(Url, String)> {
     let url = release_notes_url(version);
-    let body = http_cache::get(&url)?;
+    let body = http_cache::fetch_content(&url)?;
     Ok((url, body))
 }
 
@@ -130,12 +129,12 @@ fn extract_releases_from_html(html: &str, filter: &ReleaseFilter) -> Vec<Release
 
 /// Get the version from the url.
 /// The url looks like: `unityhub://2021.2.14f1/bcb93e5482d2`
-fn version_from_url(url: &str) -> Option<UnityVersion> {
+fn version_from_url(url: &str) -> Option<Version> {
     let version_part = url.split('/').rev().nth(1)?;
-    version_part.parse::<UnityVersion>().ok()
+    version_part.parse::<Version>().ok()
 }
 
-pub fn release_notes_url(version: UnityVersion) -> Url {
+pub fn release_notes_url(version: Version) -> Url {
     match version.build_type {
         BuildType::Alpha => format!("https://unity.com/releases/editor/alpha/{version}"),
         BuildType::Beta => format!("https://unity.com/releases/editor/beta/{version}"),
@@ -192,7 +191,7 @@ pub fn extract_release_notes(html: &str) -> IndexMap<String, Vec<String>> {
 mod releases_tests {
     use std::str::FromStr;
 
-    use crate::unity::{ReleaseFilter, UnityVersion};
+    use crate::unity::{ReleaseFilter, Version};
 
     use super::{extract_releases_from_html, version_from_url};
 
@@ -200,7 +199,7 @@ mod releases_tests {
     fn test_version_from_url() {
         let url = "unityhub://2021.2.14f1/bcb93e5482d2";
         let version = version_from_url(url).unwrap();
-        assert_eq!(version, UnityVersion::from_str("2021.2.14f1").unwrap());
+        assert_eq!(version, Version::from_str("2021.2.14f1").unwrap());
     }
 
     #[test]
@@ -246,28 +245,28 @@ mod releases_tests {
 
     #[test]
     fn test_release_notes_url() {
-        let version = UnityVersion::from_str("2021.2.14f1").unwrap();
+        let version = Version::from_str("2021.2.14f1").unwrap();
         let url = super::release_notes_url(version);
         assert_eq!(url, "https://unity.com/releases/editor/whats-new/2021.2.14");
     }
 
     #[test]
     fn test_release_notes_url_5_1_0_1() {
-        let version = UnityVersion::from_str("5.1.0f1").unwrap();
+        let version = Version::from_str("5.1.0f1").unwrap();
         let url = super::release_notes_url(version);
         assert_eq!(url, "https://unity.com/releases/editor/whats-new/5.1.0");
     }
 
     #[test]
     fn test_release_notes_url_5_1_0_2() {
-        let version = UnityVersion::from_str("5.1.0f2").unwrap();
+        let version = Version::from_str("5.1.0f2").unwrap();
         let url = super::release_notes_url(version);
         assert_eq!(url, "https://unity.com/releases/editor/whats-new/5.1.0-0");
     }
 
     #[test]
     fn test_release_notes_url_5_1_0_3() {
-        let version = UnityVersion::from_str("5.1.0f3").unwrap();
+        let version = Version::from_str("5.1.0f3").unwrap();
         let url = super::release_notes_url(version);
         assert_eq!(url, "https://unity.com/releases/editor/whats-new/5.1.0-1");
     }
@@ -318,8 +317,7 @@ mod releases_tests_online {
     use std::str::FromStr;
 
     use crate::unity::{
-        extract_release_notes, http_cache, request_patch_update_info, request_release_notes,
-        UnityVersion,
+        extract_release_notes, fetch_patch_updates, fetch_release_notes, http_cache, Version,
     };
 
     /// Scraping <https://unity.com/releases/editor/archive> for updates to 2019.1.0f1.
@@ -327,8 +325,8 @@ mod releases_tests_online {
     #[test]
     fn test_request_updates_2019_1_0() {
         http_cache::set_cache_from_env();
-        let v = UnityVersion::from_str("2019.1.0f1").unwrap();
-        let (_, updates) = request_patch_update_info(v).unwrap();
+        let v = Version::from_str("2019.1.0f1").unwrap();
+        let (_, updates) = fetch_patch_updates(v).unwrap();
 
         assert!(updates.len() >= 15);
     }
@@ -338,8 +336,8 @@ mod releases_tests_online {
     #[test]
     fn test_request_updates_5_0_0() {
         http_cache::set_cache_from_env();
-        let v = UnityVersion::from_str("5.0.0f1").unwrap();
-        let (_, updates) = request_patch_update_info(v).unwrap();
+        let v = Version::from_str("5.0.0f1").unwrap();
+        let (_, updates) = fetch_patch_updates(v).unwrap();
 
         assert_eq!(updates.len(), 5);
     }
@@ -347,8 +345,8 @@ mod releases_tests_online {
     #[test]
     fn test_release_notes_5_0_0() {
         http_cache::set_cache_from_env();
-        let v = UnityVersion::from_str("5.0.0f1").unwrap();
-        let (url, html) = &request_release_notes(v).unwrap();
+        let v = Version::from_str("5.0.0f1").unwrap();
+        let (url, html) = &fetch_release_notes(v).unwrap();
 
         let release_notes = extract_release_notes(html);
         assert_eq!(release_notes.len(), 47, "{url}");
@@ -358,8 +356,8 @@ mod releases_tests_online {
     #[test]
     fn test_release_notes_2017_1_0() {
         http_cache::set_cache_from_env();
-        let v = UnityVersion::from_str("2017.1.0f3").unwrap();
-        let (url, html) = &request_release_notes(v).unwrap();
+        let v = Version::from_str("2017.1.0f3").unwrap();
+        let (url, html) = &fetch_release_notes(v).unwrap();
 
         let release_notes = extract_release_notes(html);
         assert_eq!(release_notes.len(), 6, "{url}");
@@ -369,8 +367,8 @@ mod releases_tests_online {
     #[test]
     fn test_release_notes_2017_2_5() {
         http_cache::set_cache_from_env();
-        let v = UnityVersion::from_str("2017.2.5f1").unwrap();
-        let (url, html) = &request_release_notes(v).unwrap();
+        let v = Version::from_str("2017.2.5f1").unwrap();
+        let (url, html) = &fetch_release_notes(v).unwrap();
 
         let release_notes = extract_release_notes(html);
         assert_eq!(release_notes.len(), 1, "{url}");
@@ -380,8 +378,8 @@ mod releases_tests_online {
     #[test]
     fn test_release_notes_2021_3_17() {
         http_cache::set_cache_from_env();
-        let v = UnityVersion::from_str("2021.3.17f1").unwrap();
-        let (url, html) = &request_release_notes(v).unwrap();
+        let v = Version::from_str("2021.3.17f1").unwrap();
+        let (url, html) = &fetch_release_notes(v).unwrap();
 
         let release_notes = extract_release_notes(html);
         assert_eq!(release_notes.len(), 7, "{url}");
@@ -391,8 +389,8 @@ mod releases_tests_online {
     #[test]
     fn test_release_notes_2022_2_0() {
         http_cache::set_cache_from_env();
-        let v = UnityVersion::from_str("2022.2.0f1").unwrap();
-        let (url, html) = &request_release_notes(v).unwrap();
+        let v = Version::from_str("2022.2.0f1").unwrap();
+        let (url, html) = &fetch_release_notes(v).unwrap();
 
         let release_notes = extract_release_notes(html);
         assert_eq!(release_notes.len(), 7, "{url}");
@@ -402,8 +400,8 @@ mod releases_tests_online {
     #[test]
     fn test_release_notes_2023_1_0b11() {
         http_cache::set_cache_from_env();
-        let v = UnityVersion::from_str("2023.1.0b11").unwrap();
-        let (url, html) = &request_release_notes(v).unwrap();
+        let v = Version::from_str("2023.1.0b11").unwrap();
+        let (url, html) = &fetch_release_notes(v).unwrap();
 
         let release_notes = extract_release_notes(html);
         assert_eq!(release_notes.len(), 7, "{url}");
@@ -413,8 +411,8 @@ mod releases_tests_online {
     #[test]
     fn test_release_notes_2023_2_0a9() {
         http_cache::set_cache_from_env();
-        let v = UnityVersion::from_str("2023.2.0a9").unwrap();
-        let (url, html) = &request_release_notes(v).unwrap();
+        let v = Version::from_str("2023.2.0a9").unwrap();
+        let (url, html) = &fetch_release_notes(v).unwrap();
 
         let release_notes = extract_release_notes(html);
         assert_eq!(release_notes.len(), 7, "{url}");

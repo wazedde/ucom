@@ -8,7 +8,7 @@ use crate::unity::*;
 /// Opens the given Unity project in the Unity Editor.
 pub fn open_project(arguments: OpenArguments) -> anyhow::Result<()> {
     let project_dir = validate_directory(&arguments.project_dir)?;
-    let project_unity_version = version_used_by_project(&project_dir)?;
+    let project_unity_version = determine_unity_version(&project_dir)?;
 
     let open_unity_version = match arguments.upgrade_version {
         // If a specific version is given, use that.
@@ -38,7 +38,7 @@ pub fn open_project(arguments: OpenArguments) -> anyhow::Result<()> {
     cmd.args(arguments.args.unwrap_or_default());
 
     if arguments.dry_run {
-        println!("{}", cmd_to_string(&cmd));
+        println!("{}", build_command_line(&cmd));
         return Ok(());
     }
 

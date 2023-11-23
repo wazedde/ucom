@@ -26,7 +26,7 @@ const AUTO_BUILD_SCRIPT_ROOT: &str = "Assets/Ucom";
 pub fn build_project(arguments: BuildArguments) -> anyhow::Result<()> {
     let project_dir = validate_directory(&arguments.project_dir)?;
 
-    let unity_version = version_used_by_project(&project_dir)?;
+    let unity_version = determine_unity_version(&project_dir)?;
     let editor_exe = editor_executable_path(unity_version)?;
 
     let output_dir = match arguments.build_path {
@@ -49,7 +49,7 @@ pub fn build_project(arguments: BuildArguments) -> anyhow::Result<()> {
     let log_file = arguments
         .log_file
         .unwrap_or_else(|| format!("Build-{}.log", arguments.target).into());
-    let log_file = log_file_path(&log_file, &project_dir)?;
+    let log_file = get_full_log_path(&log_file, &project_dir)?;
     if log_file.exists() {
         fs::remove_file(&log_file)?;
     }
@@ -94,7 +94,7 @@ pub fn build_project(arguments: BuildArguments) -> anyhow::Result<()> {
     cmd.args(arguments.args.unwrap_or_default());
 
     if arguments.dry_run {
-        println!("{}", cmd_to_string(&cmd));
+        println!("{}", build_command_line(&cmd));
         return Ok(());
     }
 
@@ -108,10 +108,10 @@ pub fn build_project(arguments: BuildArguments) -> anyhow::Result<()> {
         .bold()
     );
 
-    let (inject_build_script, remove_build_script) =
-        new_build_script_injection_functions(&project_dir, arguments.inject);
+    let (inject_build_script_hook, cleanup_build_script_hook) =
+        csharp_build_script_injection_hooks(&project_dir, arguments.inject);
 
-    inject_build_script()?;
+    inject_build_script_hook()?;
 
     let show_log = !arguments.quiet
         && (arguments.mode == BuildMode::Batch || arguments.mode == BuildMode::BatchNoGraphics);
@@ -122,7 +122,7 @@ pub fn build_project(arguments: BuildArguments) -> anyhow::Result<()> {
         wait_with_stdout(cmd)
     };
 
-    remove_build_script()?;
+    cleanup_build_script_hook()?;
 
     if build_result.is_ok() {
         if arguments.clean {
@@ -145,7 +145,7 @@ pub fn build_project(arguments: BuildArguments) -> anyhow::Result<()> {
             .for_each(|l| println!("{l}"));
     }
 
-    build_result.map_err(|_| errors_from_log(&log_file))
+    build_result.map_err(|_| collect_log_errors(&log_file))
 }
 
 fn clean_output_directory(path: &Path) -> anyhow::Result<()> {
@@ -168,7 +168,7 @@ fn clean_output_directory(path: &Path) -> anyhow::Result<()> {
 }
 
 /// Returns full path to the log file. By default the project's `Logs` directory is used as destination.
-fn log_file_path(log_file: &Path, project_dir: &Path) -> anyhow::Result<PathBuf> {
+fn get_full_log_path(log_file: &Path, project_dir: &Path) -> anyhow::Result<PathBuf> {
     let file_name = log_file
         .file_name()
         .ok_or_else(|| anyhow!("Invalid log file name: {}", log_file.display()))?;
@@ -186,7 +186,7 @@ fn log_file_path(log_file: &Path, project_dir: &Path) -> anyhow::Result<PathBuf>
 }
 
 /// Returns errors from the given log file as one collected Err.
-fn errors_from_log(log_file: &Path) -> anyhow::Error {
+fn collect_log_errors(log_file: &Path) -> anyhow::Error {
     let Ok(log_file) = File::open(log_file) else {
         return anyhow!("Failed to open log file: {}", log_file.display());
     };
@@ -194,7 +194,7 @@ fn errors_from_log(log_file: &Path) -> anyhow::Error {
     let errors: IndexSet<_> = BufReader::new(log_file)
         .lines()
         .flatten()
-        .filter(|l| is_log_error(l))
+        .filter(|l| line_contains_error(l))
         .unique()
         .collect();
 
@@ -205,15 +205,17 @@ fn errors_from_log(log_file: &Path) -> anyhow::Error {
             let joined = errors
                 .iter()
                 .enumerate()
-                .map(|(i, error)| format!("{error}: {}\n", format!("{}", i + 1).bold()))
-                .collect::<String>();
+                .fold(String::new(), |mut output, (i, error)| {
+                    output += &format!("{}: {}\n", i + 1, error);
+                    output
+                });
             anyhow!(joined)
         }
     }
 }
 
 /// Returns true if the given line is an error.
-fn is_log_error(line: &str) -> bool {
+fn line_contains_error(line: &str) -> bool {
     let error_prefixes = &[
         "[Builder] Error:",
         "error CS",
@@ -229,7 +231,7 @@ fn is_log_error(line: &str) -> bool {
 type ResultFn = Box<dyn FnOnce() -> anyhow::Result<()>>;
 
 /// Creates actions that inject a script into the project before and after the build.
-fn new_build_script_injection_functions(
+fn csharp_build_script_injection_hooks(
     project_dir: &Path,
     inject: InjectAction,
 ) -> (ResultFn, ResultFn) {
@@ -246,8 +248,8 @@ fn new_build_script_injection_functions(
             let pre_root = project_dir.join(format!("{AUTO_BUILD_SCRIPT_ROOT}-{uuid}"));
             let post_root = pre_root.clone();
             (
-                Box::new(|| inject_build_script(pre_root)),
-                Box::new(|| remove_build_script(post_root)),
+                Box::new(|| inject_csharp_build_script(pre_root)),
+                Box::new(|| cleanup_csharp_build_script(post_root)),
             )
         }
 
@@ -258,7 +260,7 @@ fn new_build_script_injection_functions(
         InjectAction::Persistent => {
             let persistent_root = project_dir.join(PERSISTENT_BUILD_SCRIPT_ROOT);
             (
-                Box::new(|| inject_build_script(persistent_root)),
+                Box::new(|| inject_csharp_build_script(persistent_root)),
                 Box::new(|| Ok(())),
             )
         }
@@ -269,7 +271,7 @@ fn new_build_script_injection_functions(
 }
 
 /// Injects the build script into the project.
-fn inject_build_script<P: AsRef<Path>>(parent_dir: P) -> anyhow::Result<()> {
+fn inject_csharp_build_script<P: AsRef<Path>>(parent_dir: P) -> anyhow::Result<()> {
     let inject_dir = parent_dir.as_ref().join("Editor");
     fs::create_dir_all(&inject_dir)?;
 
@@ -281,7 +283,7 @@ fn inject_build_script<P: AsRef<Path>>(parent_dir: P) -> anyhow::Result<()> {
 }
 
 /// Removes the injected build script from the project.
-fn remove_build_script<P: AsRef<Path>>(parent_dir: P) -> anyhow::Result<()> {
+fn cleanup_csharp_build_script<P: AsRef<Path>>(parent_dir: P) -> anyhow::Result<()> {
     let parent_dir = parent_dir.as_ref();
     if !parent_dir.exists() {
         return Ok(());

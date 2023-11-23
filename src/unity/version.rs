@@ -1,4 +1,3 @@
-use std::cmp;
 use std::fmt::{Display, Formatter};
 use std::str::FromStr;
 
@@ -56,44 +55,50 @@ impl Display for BuildType {
     }
 }
 
-pub type MajorVersion = u16;
-pub type MinorVersion = u8;
-pub type PatchVersion = u8;
+pub type Major = u16;
+pub type Minor = u8;
+pub type Patch = u8;
 pub type BuildNumber = u8;
 
 /// The Unity version separated into its components.
 #[derive(Debug, Eq, PartialEq, Ord, PartialOrd, Copy, Clone)]
-pub struct UnityVersion {
-    pub major: MajorVersion,
-    pub minor: MinorVersion,
-    pub patch: PatchVersion,
+pub struct Version {
+    pub major: Major,
+    pub minor: Minor,
+    pub patch: Patch,
     pub build_type: BuildType,
     pub build: BuildNumber,
 }
 
-impl UnityVersion {
+impl Version {
     /// Returns the length of the string representation of this version.
     pub fn len(self) -> usize {
-        Self::count_len(self.major.into())
-            + Self::count_len(self.minor.into())
-            + Self::count_len(self.patch.into())
+        Self::calculate_the_number_of_digits(self.major.into())
+            + Self::calculate_the_number_of_digits(self.minor.into())
+            + Self::calculate_the_number_of_digits(self.patch.into())
             + self.build_type.as_short_str().len()
-            + Self::count_len(self.build.into())
+            + Self::calculate_the_number_of_digits(self.build.into())
             + 2 // The 2 dots
-    }
-
-    fn count_len(n: usize) -> usize {
-        let digits = ((n as f64).log10() as usize) + 1;
-        cmp::max(digits, 1)
     }
 
     /// Returns the major.minor part of this version.
     pub fn minor_partial(self) -> String {
         format!("{}.{}", self.major, self.minor)
     }
+
+    fn calculate_the_number_of_digits(number: usize) -> usize {
+        // The maximum number of digits for a version number is 5.
+        match number {
+            0..=9 => 1,
+            10..=99 => 2,
+            100..=999 => 3,
+            1000..=9999 => 4,
+            _ => 5,
+        }
+    }
 }
 
-impl FromStr for UnityVersion {
+impl FromStr for Version {
     type Err = ParseError;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
@@ -127,7 +132,7 @@ impl FromStr for UnityVersion {
     }
 }
 
-impl Display for UnityVersion {
+impl Display for Version {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         write!(
             f,
@@ -141,11 +146,11 @@ impl Display for UnityVersion {
 mod version_tests {
     use crate::unity::ParseError;
 
-    use super::{BuildType, UnityVersion};
+    use super::{BuildType, Version};
 
     #[test]
     fn test_version_from_string_f() {
-        let v = "2021.2.14f1".parse::<UnityVersion>().unwrap();
+        let v = "2021.2.14f1".parse::<Version>().unwrap();
         assert_eq!(v.major, 2021);
         assert_eq!(v.minor, 2);
         assert_eq!(v.patch, 14);
@@ -155,7 +160,7 @@ mod version_tests {
 
     #[test]
     fn test_version_from_string_b() {
-        let v = "2021.1.1b3".parse::<UnityVersion>().unwrap();
+        let v = "2021.1.1b3".parse::<Version>().unwrap();
         assert_eq!(v.major, 2021);
         assert_eq!(v.minor, 1);
         assert_eq!(v.patch, 1);
@@ -165,7 +170,7 @@ mod version_tests {
 
     #[test]
     fn test_version_from_string_a() {
-        let v = "2021.1.1a3".parse::<UnityVersion>().unwrap();
+        let v = "2021.1.1a3".parse::<Version>().unwrap();
         assert_eq!(v.major, 2021);
         assert_eq!(v.minor, 1);
         assert_eq!(v.patch, 1);
@@ -175,7 +180,7 @@ mod version_tests {
 
     #[test]
     fn test_version_from_string_rc() {
-        let v = "2021.1.1rc1".parse::<UnityVersion>().unwrap();
+        let v = "2021.1.1rc1".parse::<Version>().unwrap();
         assert_eq!(v.major, 2021);
         assert_eq!(v.minor, 1);
         assert_eq!(v.patch, 1);
@@ -185,33 +190,33 @@ mod version_tests {
 
     #[test]
     fn test_version_from_string_invalid_build_type() {
-        assert_eq!("2021.1.1x1".parse::<UnityVersion>(), Err(ParseError));
+        assert_eq!("2021.1.1x1".parse::<Version>(), Err(ParseError));
     }
 
     #[test]
     fn test_version_from_string_invalid() {
-        assert_eq!("2021.1.1".parse::<UnityVersion>(), Err(ParseError));
+        assert_eq!("2021.1.1".parse::<Version>(), Err(ParseError));
     }
 
     #[test]
     fn test_version_to_string() {
         assert_eq!(
-            "2021.2.14f1".parse::<UnityVersion>().unwrap().to_string(),
+            "2021.2.14f1".parse::<Version>().unwrap().to_string(),
             "2021.2.14f1"
         );
 
         assert_eq!(
-            "2019.1.1b1".parse::<UnityVersion>().unwrap().to_string(),
+            "2019.1.1b1".parse::<Version>().unwrap().to_string(),
             "2019.1.1b1"
         );
 
         assert_eq!(
-            "2020.1.1a3".parse::<UnityVersion>().unwrap().to_string(),
+            "2020.1.1a3".parse::<Version>().unwrap().to_string(),
             "2020.1.1a3"
         );
 
         assert_eq!(
-            "2022.2.1rc2".parse::<UnityVersion>().unwrap().to_string(),
+            "2022.2.1rc2".parse::<Version>().unwrap().to_string(),
             "2022.2.1rc2"
         );
     }
@@ -219,27 +224,27 @@ mod version_tests {
     #[test]
     fn test_len() {
         assert_eq!(
-            "5.102.5f123".parse::<UnityVersion>().unwrap().len(),
+            "5.102.5f123".parse::<Version>().unwrap().len(),
             "5.102.5f123".len()
         );
 
         assert_eq!(
-            "2021.2.14f1".parse::<UnityVersion>().unwrap().len(),
+            "2021.2.14f1".parse::<Version>().unwrap().len(),
             "2021.2.14f1".len()
         );
 
         assert_eq!(
-            "2019.1.1b1".parse::<UnityVersion>().unwrap().len(),
+            "2019.1.1b1".parse::<Version>().unwrap().len(),
             "2019.1.1b1".len()
         );
 
         assert_eq!(
-            "2020.1.1a3".parse::<UnityVersion>().unwrap().len(),
+            "2020.1.1a3".parse::<Version>().unwrap().len(),
             "2020.1.1a3".len()
         );
 
         assert_eq!(
-            "2022.2.1rc2".parse::<UnityVersion>().unwrap().len(),
+            "2022.2.1rc2".parse::<Version>().unwrap().len(),
             "2022.2.1rc2".len()
         );
     }

@@ -9,7 +9,7 @@ use std::{fs, io, thread};
 use anyhow::{anyhow, Context, Result};
 
 /// Returns the full command line string.
-pub fn cmd_to_string(cmd: &Command) -> String {
+pub fn build_command_line(cmd: &Command) -> String {
     let mut line = cmd.get_program().to_string_lossy().to_string();
 
     // Handle spaces in path.
@@ -49,7 +49,7 @@ pub fn wait_with_log_output(mut cmd: Command, log_file: &Path) -> Result<()> {
     let echo_runner = thread::spawn({
         let build_finished = build_finished.clone();
         let log_file = log_file.to_owned();
-        move || echo_log_file(&log_file, Duration::from_millis(100), &build_finished)
+        move || monitor_log_file(&log_file, Duration::from_millis(100), &build_finished)
     });
 
     let output = child
@@ -101,7 +101,7 @@ pub fn wait_with_stdout(mut cmd: Command) -> Result<()> {
 }
 
 /// Continuously reads the log file and prints it to the console.
-fn echo_log_file(log_file: &Path, update_interval: Duration, stop_logging: &Arc<AtomicBool>) {
+fn monitor_log_file(log_file: &Path, update_interval: Duration, stop_logging: &Arc<AtomicBool>) {
     // Wait until file exists.
     while !log_file.exists() {
         if stop_logging.load(Ordering::SeqCst) {

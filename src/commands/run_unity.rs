@@ -14,7 +14,7 @@ pub fn run_unity(arguments: RunArguments) -> anyhow::Result<()> {
     cmd.args(arguments.args.unwrap_or_default());
 
     if arguments.dry_run {
-        println!("{}", cmd_to_string(&cmd));
+        println!("{}", build_command_line(&cmd));
         return Ok(());
     }
 

@@ -1,6 +1,7 @@
-use colored::Colorize;
 use std::io::Write;
 use std::path::Path;
+
+use colored::Colorize;
 
 use crate::commands::terminal_spinner::TerminalSpinner;
 use crate::unity::*;
@@ -8,13 +9,13 @@ use crate::unity::*;
 /// Checks on the Unity website for updates to the version used by the project.
 pub fn check_updates(project_dir: &Path, create_report: bool) -> anyhow::Result<()> {
     let project_dir = validate_directory(&project_dir)?;
-    let unity_version = version_used_by_project(&project_dir)?;
+    let unity_version = determine_unity_version(&project_dir)?;
 
     let spinner = TerminalSpinner::new(format!(
         "Project uses {unity_version}; checking for updates..."
     ));
 
-    let (project_version_info, updates) = request_patch_update_info(unity_version)?;
+    let (project_version_info, updates) = fetch_patch_updates(unity_version)?;
     drop(spinner);
 
     if create_report {
@@ -67,7 +68,7 @@ fn write_project_header(
         write!(buf, "# ")?;
     }
 
-    let product_name = ProjectSettings::from_project(&project_dir).map_or_else(
+    let product_name = Settings::from_project_dir(&project_dir).map_or_else(
         |_| "<UNKNOWN>".to_string(),
         |s| s.player_settings.product_name,
     );
@@ -84,7 +85,7 @@ fn write_project_header(
 }
 
 fn write_project_version(
-    project_version: UnityVersion,
+    project_version: Version,
     project_version_info: Option<ReleaseInfo>,
     updates: &[ReleaseInfo],
     create_report: bool,
@@ -180,7 +181,7 @@ fn write_available_updates(updates: &[ReleaseInfo], buf: &mut Vec<u8>) -> anyhow
 }
 
 fn write_release_notes(buf: &mut Vec<u8>, release: &ReleaseInfo) -> anyhow::Result<()> {
-    let (url, body) = request_release_notes(release.version)?;
+    let (url, body) = fetch_release_notes(release.version)?;
     let release_notes = extract_release_notes(&body);
 
     if !release_notes.is_empty() {

@@ -36,7 +36,7 @@ pub fn new_project(arguments: NewArguments) -> anyhow::Result<()> {
     }
 
     if arguments.dry_run {
-        println!("{}", cmd_to_string(&cmd));
+        println!("{}", build_command_line(&cmd));
         return Ok(());
     }
 

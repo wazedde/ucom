@@ -33,7 +33,7 @@ pub fn list_versions(list_type: ListType, partial_version: Option<&str>) -> anyh
             );
             println!("{}", line.bold());
             let spinner = TerminalSpinner::new("Downloading release data...");
-            let releases = request_unity_releases()?;
+            let releases = fetch_unity_editor_releases()?;
             drop(spinner);
             print_updates(&matching_versions, &releases)?;
             Ok(())
@@ -43,7 +43,7 @@ pub fn list_versions(list_type: ListType, partial_version: Option<&str>) -> anyh
                 matching_versions(versions, partial_version).unwrap_or_default();
             println!("{}", "Latest available minor releases".bold());
             let spinner = TerminalSpinner::new("Downloading release data...");
-            let releases = request_unity_releases()?;
+            let releases = fetch_unity_editor_releases()?;
             drop(spinner);
             print_latest_versions(&matching_versions, &releases, partial_version);
             Ok(())
@@ -54,7 +54,7 @@ pub fn list_versions(list_type: ListType, partial_version: Option<&str>) -> anyh
 
             println!("{}", "Available releases".bold());
             let spinner = TerminalSpinner::new("Downloading release data...");
-            let releases = request_unity_releases()?;
+            let releases = fetch_unity_editor_releases()?;
             drop(spinner);
             print_available_versions(&matching_versions, &releases, partial_version);
             Ok(())
@@ -72,7 +72,7 @@ pub fn list_versions(list_type: ListType, partial_version: Option<&str>) -> anyh
 /// ── 2023.1.0b12  - https://unity.com/releases/editor/beta/2023.1.0b12
 /// ── 2023.2.0a10  - https://unity.com/releases/editor/alpha/2023.2.0a10
 /// ```
-fn print_installed_versions(installed: &[UnityVersion]) -> anyhow::Result<()> {
+fn print_installed_versions(installed: &[Version]) -> anyhow::Result<()> {
     let default_version = default_version(installed)?;
     let version_groups = group_minor_versions(installed);
     let max_len = max_version_string_length(&version_groups).max(default_version.len() + 1);
@@ -111,7 +111,7 @@ fn print_installed_versions(installed: &[UnityVersion]) -> anyhow::Result<()> {
 /// ── 2023.1.0b12  - No Beta update info available
 /// ── 2023.2.0a10  - No Alpha update info available
 /// ```
-fn print_updates(installed: &[UnityVersion], available: &Vec<ReleaseInfo>) -> anyhow::Result<()> {
+fn print_updates(installed: &[Version], available: &Vec<ReleaseInfo>) -> anyhow::Result<()> {
     if available.is_empty() {
         return Err(anyhow!("No update information available."));
     }
@@ -172,10 +172,7 @@ fn print_updates(installed: &[UnityVersion], available: &Vec<ReleaseInfo>) -> an
 
 /// Groups installed versions by major.minor version
 /// and collects update information for each installed version.
-fn collect_update_info(
-    installed: &[UnityVersion],
-    available: &[ReleaseInfo],
-) -> Vec<Vec<VersionInfo>> {
+fn collect_update_info(installed: &[Version], available: &[ReleaseInfo]) -> Vec<Vec<VersionInfo>> {
     let mut version_groups = group_minor_versions(installed);
 
     // Add available updates to groups
@@ -234,7 +231,7 @@ fn collect_update_info(
 /// ── 2023.1.6f1  > unityhub://2023.1.6f1/964b2488c462
 /// ```
 fn print_latest_versions(
-    installed: &[UnityVersion],
+    installed: &[Version],
     available: &[ReleaseInfo],
     partial_version: Option<&str>,
 ) {
@@ -306,7 +303,7 @@ fn print_latest_versions(
 /// ...
 /// ```
 fn print_available_versions(
-    installed: &[UnityVersion],
+    installed: &[Version],
     available: &[ReleaseInfo],
     partial_version: Option<&str>,
 ) {
@@ -364,7 +361,7 @@ fn print_available_versions(
     }
 }
 
-fn print_installs_line(latest: &ReleaseInfo, installed_in_range: &[UnityVersion], max_len: usize) {
+fn print_installs_line(latest: &ReleaseInfo, installed_in_range: &[Version], max_len: usize) {
     let is_up_to_date = installed_in_range
         .last()
         .filter(|&v| v == &latest.version)
@@ -400,7 +397,7 @@ fn print_installs_line(latest: &ReleaseInfo, installed_in_range: &[UnityVersion]
 }
 
 struct VersionInfo {
-    version: UnityVersion,
+    version: Version,
     v_type: VersionType,
 }
 
@@ -422,7 +419,7 @@ fn max_version_string_length(version_groups: &[Vec<VersionInfo>]) -> usize {
 }
 
 /// Returns list of grouped versions that are in the same minor range.
-fn group_minor_versions(installed: &[UnityVersion]) -> Vec<Vec<VersionInfo>> {
+fn group_minor_versions(installed: &[Version]) -> Vec<Vec<VersionInfo>> {
     let mut version_groups = vec![];
     let mut group = vec![];
 
@@ -474,7 +471,7 @@ fn latest_minor_releases<'a>(
 }
 
 /// Returns the default version ucom uses for new Unity projects.
-fn default_version(installed: &[UnityVersion]) -> anyhow::Result<UnityVersion> {
+fn default_version(installed: &[Version]) -> anyhow::Result<Version> {
     let default_version = env::var_os(ENV_DEFAULT_VERSION)
         .and_then(|env| {
             installed
@@ -483,9 +480,8 @@ fn default_version(installed: &[UnityVersion]) -> anyhow::Result<UnityVersion> {
                 .find(|v| v.to_string().starts_with(env.to_string_lossy().as_ref()))
         })
         .or_else(|| installed.last())
-        .copied()
         .ok_or_else(|| anyhow!("No Unity versions installed"))?;
-    Ok(default_version)
+    Ok(*default_version)
 }
 
 /// Prints the list marker for the current item.

@@ -1,9 +1,11 @@
-use crate::cli::PackagesInfoLevel;
-use crate::unity::release_notes_url;
-use crate::unity::unity_project::*;
+use std::path::Path;
+
 use colored::Colorize;
 use itertools::Itertools;
-use std::path::Path;
+
+use crate::cli::PackagesInfoLevel;
+use crate::unity::project::*;
+use crate::unity::release_notes_url;
 
 /// Shows project information.
 pub fn project_info(
@@ -20,27 +22,24 @@ pub fn project_info(
     println!("Searching for Unity projects in: {}", dir.display(),);
 
     let mut it = recursive_dir_iter(&dir);
-    while let Some(entry) = it.next() {
-        if let Ok(entry) = entry {
-            if contains_unity_project(&entry.path()) {
-                println!();
-                if let Err(err) = print_project_info(packages_level, entry.path()) {
-                    println!("    {}", err.to_string().red());
-                }
-                it.skip_current_dir();
+    while let Some(Ok(entry)) = it.next() {
+        if is_unity_project_directory(&entry.path()) {
+            println!();
+            if let Err(err) = print_project_info(packages_level, entry.path()) {
+                println!("    {}", err.to_string().red());
             }
+            it.skip_current_dir();
         }
     }
-
     Ok(())
 }
 
 fn print_project_info(packages_level: PackagesInfoLevel, dir: &Path) -> anyhow::Result<()> {
-    let unity_version = version_used_by_project(&dir)?;
+    let unity_version = determine_unity_version(&dir)?;
 
     println!("{}", format!("Project info for: {}", dir.display()).bold());
 
-    let settings = ProjectSettings::from_project(&dir)?;
+    let settings = Settings::from_project_dir(&dir)?;
     let ps = settings.player_settings;
     println!("    Product Name:  {}", ps.product_name.bold());
     println!("    Company Name:  {}", ps.company_name.bold());
