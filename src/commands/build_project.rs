@@ -66,11 +66,39 @@ pub fn build_project(arguments: BuildArguments) -> anyhow::Result<()> {
             &BuildScriptTarget::from(arguments.target).to_string(),
         ]);
 
+    let mut bo = arguments.build_options;
+
+    if arguments.run_player {
+        bo.push(BuildOptions::AutoRunPlayer);
+    }
+
+    if arguments.development_build {
+        bo.push(BuildOptions::Development);
+    }
+
+    if arguments.show_built_player {
+        bo.push(BuildOptions::ShowBuiltPlayer);
+    }
+
+    if arguments.allow_debugging {
+        bo.push(BuildOptions::AllowDebugging);
+        bo.push(BuildOptions::Development);
+    }
+
+    if arguments.connect_with_profiler {
+        bo.push(BuildOptions::ConnectWithProfiler);
+    }
+
+    if arguments.deep_profiling {
+        bo.push(BuildOptions::EnableDeepProfilingSupport);
+    }
+
+    if arguments.connect_to_host {
+        bo.push(BuildOptions::ConnectToHost);
+    }
+
     // Combine the build option flags into an int.
-    let build_options = arguments
-        .build_options
-        .iter()
-        .fold(0, |options, &o| options | (o as i32));
+    let build_options = bo.iter().fold(0, |options, &o| options | (o as i32));
 
     if build_options != (BuildOptions::None as i32) {
         cmd.args(["--ucom-build-options", &build_options.to_string()]);

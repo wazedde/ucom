@@ -236,6 +236,34 @@ pub struct BuildArguments {
     )]
     pub build_path: Option<PathBuf>,
 
+    /// Run the built player. Same as `--build-options auto-run-player`.
+    #[arg(short = 'r', long("run"))]
+    pub run_player: bool,
+
+    /// Build a development version of the player. Same as `--build-options development`.
+    #[arg(short = 'd', long("development"))]
+    pub development_build: bool,
+
+    /// Show the built player. Same as `--build-options show-built-player`.
+    #[arg(short = 'S', long("show"))]
+    pub show_built_player: bool,
+
+    /// Allow script debuggers to attach to the player remotely. Same as `--build-options allow-debugging`.
+    #[arg(short = 'D', long("debugging"))]
+    pub allow_debugging: bool,
+
+    /// Start the player with a connection to the profiler in the editor. Same as `--build-options connect-with-profiler`.
+    #[arg(short = 'p', long("profiling"))]
+    pub connect_with_profiler: bool,
+
+    /// Enables Deep Profiling support in the player. Same as `--build-options enable-deep-profiling-support`.
+    #[arg(short = 'P', long("deep-profiling"))]
+    pub deep_profiling: bool,
+ 
+    /// Sets the Player to connect to the Editor. Same as `--build-options connect-to-host`.
+    #[arg(short = 'H', long("connect-host"))]
+    pub connect_to_host: bool,
+
     /// Sets the build options. Multiple options can be combined by separating them with spaces.
     #[arg(num_args(0..), short = 'O', long, value_name = "OPTION", default_value="none")]
     pub build_options: Vec<BuildOptions>,
