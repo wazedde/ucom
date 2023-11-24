@@ -1,12 +1,15 @@
 using System;
+using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
 using System.Linq;
+using System.Reflection;
 using System.Text;
 using JetBrains.Annotations;
 using UnityEditor;
 using UnityEditor.Build.Reporting;
 using UnityEngine;
+using Debug = UnityEngine.Debug;
 
 // ReSharper disable once CheckNamespace
 namespace Ucom
@@ -34,6 +37,11 @@ namespace Ucom
         private const string BuildOptionsArg = "--ucom-build-options";
 
         /// <summary>
+        /// Custom arguments passed to the build script.
+        /// </summary>
+        private const string PreBuildArgs = "--ucom-pre-build-args";
+
+        /// <summary>
         /// This method is called by ucom to build the project.
         /// </summary>
         [UsedImplicitly]
@@ -44,7 +52,7 @@ namespace Ucom
             var invalidArgs = false;
 
             // Get the output directory.
-            if (!args.TryGetArgValue(BuildOutputArg, out string outputDirectory))
+            if (!args.TryGetArgValue(BuildOutputArg, out var outputDirectory))
             {
                 // No output path specified.
                 Log($"[Builder] Error: Output path '{BuildOutputArg} <path>' not specified.", LogType.Error);
@@ -52,7 +60,7 @@ namespace Ucom
             }
 
             // Get the build target.
-            if (!args.TryGetArgValue(BuildTargetArg, out string argValue))
+            if (!args.TryGetArgValue(BuildTargetArg, out var argValue))
             {
                 // No build target specified.
                 Log($"[Builder] Error: Build target '{BuildTargetArg} <target>' not specified.", LogType.Error);
@@ -80,7 +88,7 @@ namespace Ucom
 
             var options = BuildOptions.None;
 
-            if (args.TryGetArgValue(BuildOptionsArg, out string boValue))
+            if (args.TryGetArgValue(BuildOptionsArg, out var boValue))
             {
                 if (int.TryParse(boValue, out var bo))
                 {
@@ -94,7 +102,10 @@ namespace Ucom
                 }
             }
 
-            var buildFailed = invalidArgs || !Build(outputDirectory, GetActiveScenes(), options);
+            if (!args.TryGetArgValue(PreBuildArgs, out var preBuildArgs))
+                preBuildArgs = "";
+
+            var buildFailed = invalidArgs || !Build(outputDirectory, GetActiveScenes(), options, preBuildArgs);
 
             if (Array.IndexOf(args, "-quit") != -1)
             {
@@ -109,12 +120,13 @@ namespace Ucom
         /// <param name="outputDirectory">The parent directory where the application will be built.</param>
         /// <param name="scenes">The scenes to include in the build</param>
         /// <param name="options">Building options. Multiple options can be combined together.</param>
+        /// <param name="preBuildArgs">The pre-build arguments that are passed to methods with the <see cref="UcomPreProcessBuildAttribute"/>.</param>
         /// <returns><c>true</c> if the build succeeded; <c>false</c> otherwise.</returns>
-        public static bool Build(string outputDirectory, string[] scenes, BuildOptions options)
+        public static bool Build(string outputDirectory, string[] scenes, BuildOptions options, string preBuildArgs)
         {
             if (scenes.Length == 0)
             {
-                Log("[Builder] Error: no active scenes in Build Settings.", LogType.Error);
+                Log("[Builder] Error: no scenes to build specified.", LogType.Error);
                 return false;
             }
 
@@ -125,6 +137,9 @@ namespace Ucom
             {
                 return false;
             }
+
+            if (!RunPreProcessBuildMethods(preBuildArgs))
+                return false;
 
             var buildPlayerOptions = new BuildPlayerOptions
             {
@@ -159,10 +174,8 @@ namespace Ucom
               .AppendLine($"    Errors:       {summary.totalErrors}")
               .AppendLine($"    Warnings:     {summary.totalWarnings}");
 
-            if (Environment.GetCommandLineArgs().TryGetArgValue("-logFile", out string logFile))
-            {
+            if (Environment.GetCommandLineArgs().TryGetArgValue("-logFile", out var logFile))
                 sb.AppendLine($"    Log file:     {logFile}");
-            }
 
             // End of build report.
             sb.AppendLine();
@@ -170,8 +183,8 @@ namespace Ucom
             switch (summary.result)
             {
                 case BuildResult.Succeeded:
-                    Log("[Builder] Build succeeded.", LogType.Log);
-                    Log(sb.ToString(), LogType.Log);
+                    Log("[Builder] Build succeeded.");
+                    Log(sb.ToString());
                     return true;
                 default:
                     Log("[Builder] Build failed.", LogType.Error);
@@ -281,6 +294,15 @@ namespace Ucom
             return true;
         }
 
+        /// <summary>
+        /// Logs a message to the Unity console without the stack trace.
+        /// </summary>
+        /// <param name="message">The message.</param>
+        /// <param name="logType">The <see cref="LogType"/>.</param>
+        public static void Log(string message, LogType logType = LogType.Log)
+        {
+            Debug.LogFormat(logType, LogOption.NoStacktrace, null, message);
+        }
 
         /// <summary>
         /// Tries to get the build target directory name.
@@ -324,14 +346,40 @@ namespace Ucom
             return true;
         }
 
-        /// <summary>
-        /// Logs a message to the Unity console without the stack trace.
-        /// </summary>
-        /// <param name="message">The message.</param>
-        /// <param name="logType">The <see cref="LogType"/>.</param>
-        public static void Log(string message, LogType logType = LogType.Log)
+        private static bool RunPreProcessBuildMethods(string arg)
         {
-            Debug.LogFormat(logType, LogOption.NoStacktrace, null, message);
+            return AppDomain.CurrentDomain
+                            .GetAssemblies()
+                            .SelectMany(assembly => assembly.GetTypes(), (_, type) => type)
+                            .SelectMany(GetPreProcessBuildMethods)
+                            .All(method => InvokeMethod(method, arg));
+        }
+
+        private static IEnumerable<MethodInfo> GetPreProcessBuildMethods(Type type)
+        {
+            return type.GetMethods(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Static)
+                       .Where(m => m.GetCustomAttributes(typeof(UcomPreProcessBuildAttribute), false).Any());
+        }
+
+        private static bool InvokeMethod(MethodBase method, string message)
+        {
+            var parameters = method.GetParameters();
+            if (parameters.Length == 1 && parameters[0].ParameterType == typeof(string))
+            {
+                method.Invoke(null, new object[] { message });
+                return true;
+            }
+
+            Log($"Invalid method signature for UcomPreProcessBuildAttribute: {method.ReflectedType.FullName}.{method.Name}", LogType.Error);
+            return false;
         }
     }
+
+    /// <summary>
+    /// Add this attribute to a method to get a notification just before building the player.
+    /// The method must be static with a single string parameter.
+    /// The string parameter will be the argument passed in from the command line.
+    /// </summary>
+    [AttributeUsage(AttributeTargets.Method)]
+    public class UcomPreProcessBuildAttribute : Attribute { }
 }

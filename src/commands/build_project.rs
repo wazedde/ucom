@@ -76,6 +76,10 @@ pub fn build_project(arguments: BuildArguments) -> anyhow::Result<()> {
         cmd.args(["--ucom-build-options", &build_options.to_string()]);
     }
 
+    if let Some(build_args) = arguments.build_args {
+        cmd.args(["--ucom-pre-build-args", &build_args]);
+    }
+
     // Add the build mode.
     match arguments.mode {
         BuildMode::BatchNoGraphics => {

@@ -42,7 +42,7 @@ pub enum Action {
         project_dir: PathBuf,
 
         /// Recursively searches for Unity projects in the given directory.
-        #[clap(short = 'R', long)]
+        #[arg(short = 'R', long)]
         recursive: bool,
 
         /// Determines the level of package information to display.
@@ -58,7 +58,7 @@ pub enum Action {
         project_dir: PathBuf,
 
         /// Generates a Markdown report of aggregated release notes.
-        #[clap(short = 'r', long)]
+        #[arg(short = 'r', long)]
         report: bool,
     },
 
@@ -104,15 +104,15 @@ pub struct RunArguments {
     pub version_pattern: Option<String>,
 
     /// Waits for the command to complete before proceeding.
-    #[clap(short = 'w', long)]
+    #[arg(short = 'w', long)]
     pub wait: bool,
 
     /// Suppresses ucom messages.
-    #[clap(short = 'q', long)]
+    #[arg(short = 'q', long)]
     pub quiet: bool,
 
     /// Displays the command to be run without actually executing it.
-    #[clap(short = 'n', long)]
+    #[arg(short = 'n', long)]
     pub dry_run: bool,
 
     /// A list of arguments to be passed directly to Unity.
@@ -140,27 +140,27 @@ pub struct NewArguments {
     pub project_dir: PathBuf,
 
     /// Initializes LFS for the repository and includes a .gitattributes file with Unity-specific LFS settings.
-    #[clap(long = "lfs")]
+    #[arg(long = "lfs")]
     pub include_lfs: bool,
 
     /// Skips initialization of a new Git repository.
-    #[clap(long)]
+    #[arg(long)]
     pub no_git: bool,
 
     /// Waits for the command to complete before proceeding.
-    #[clap(short = 'w', long)]
+    #[arg(short = 'w', long)]
     pub wait: bool,
 
     /// Closes the editor after the project creation.
-    #[clap(short = 'Q', long)]
+    #[arg(short = 'Q', long)]
     pub quit: bool,
 
     /// Suppresses ucom messages.
-    #[clap(short = 'q', long)]
+    #[arg(short = 'q', long)]
     pub quiet: bool,
 
     /// Shows the command to be run without actually executing it.
-    #[clap(short = 'n', long)]
+    #[arg(short = 'n', long)]
     pub dry_run: bool,
 
     /// A list of arguments to be passed directly to Unity.
@@ -185,19 +185,19 @@ pub struct OpenArguments {
     pub target: Option<OpenTarget>,
 
     /// Waits for the command to complete before proceeding.
-    #[clap(short = 'w', long)]
+    #[arg(short = 'w', long)]
     pub wait: bool,
 
     /// Closes the editor after opening the project.
-    #[clap(short = 'Q', long)]
+    #[arg(short = 'Q', long)]
     pub quit: bool,
 
     /// Suppresses ucom messages.
-    #[clap(short = 'q', long)]
+    #[arg(short = 'q', long)]
     pub quiet: bool,
 
     /// Shows the command to be run without actually executing it.
-    #[clap(short = 'n', long)]
+    #[arg(short = 'n', long)]
     pub dry_run: bool,
 
     /// A list of arguments to be passed directly to Unity.
@@ -228,8 +228,16 @@ pub struct BuildArguments {
     #[arg(num_args(0..), short = 'O', long, value_name = "OPTION", default_value="none")]
     pub build_options: Vec<BuildOptions>,
 
+    /// A string to be passed directly to functions tagged with the UcomPreProcessBuild attribute.
+    ///
+    /// Use it pass custom arguments to your own C# build scripts before the project is built,
+    /// like e.g. a release, debug or test build tag or a version number.
+    /// This requires the use of ucom's injected build script as it passes the arguments through.
+    #[arg(short = 'a', long, value_name = "STRING")]
+    pub build_args: Option<String>,
+
     /// Removes directories from the output directory not needed for distribution.
-    #[clap(short = 'C', long)]
+    #[arg(short = 'C', long)]
     pub clean: bool,
 
     /// Determines the method of build script injection.
@@ -254,11 +262,11 @@ pub struct BuildArguments {
     pub log_file: Option<PathBuf>,
 
     /// Suppresses build log output to stdout.
-    #[clap(short = 'q', long)]
+    #[arg(short = 'q', long)]
     pub quiet: bool,
 
     /// Displays the command to be run without actually executing it.
-    #[clap(short = 'n', long)]
+    #[arg(short = 'n', long)]
     pub dry_run: bool,
 
     /// A list of arguments to be passed directly to Unity.
