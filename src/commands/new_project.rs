@@ -36,6 +36,10 @@ pub fn new_project(arguments: NewArguments) -> anyhow::Result<()> {
         cmd.arg("-quit");
     }
 
+    if let Some(target) = arguments.target {
+        cmd.args(["-buildTarget", &target.to_string()]);
+    }
+
     if arguments.dry_run {
         println!("{}", build_command_line(&cmd));
         return Ok(());

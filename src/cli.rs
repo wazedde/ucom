@@ -139,6 +139,10 @@ pub struct NewArguments {
     )]
     pub project_dir: PathBuf,
 
+    /// Determines the active build target to open the project with.
+    #[arg(short = 't', long, value_name = "NAME")]
+    pub target: Option<OpenTarget>,
+
     /// Add the C# build script to the project.
     ///
     /// This script will run each time the project is built from the command line
