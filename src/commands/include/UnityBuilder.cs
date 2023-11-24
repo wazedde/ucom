@@ -141,7 +141,7 @@ namespace Ucom
         /// <param name="options">Building options. Multiple options can be combined together.</param>
         /// <param name="preBuildArgs">The pre-build arguments that are passed to methods with the <see cref="UcomPreProcessBuildAttribute"/>.</param>
         /// <returns><c>true</c> if the build succeeded; <c>false</c> otherwise.</returns>
-        public static bool Build(string outputDirectory, string[] scenes, BuildOptions options, string preBuildArgs)
+        public static bool Build(string outputDirectory, string[] scenes, BuildOptions options = BuildOptions.None, string preBuildArgs = "")
         {
             if (scenes.Length == 0)
             {
@@ -401,4 +401,120 @@ namespace Ucom
     /// </summary>
     [AttributeUsage(AttributeTargets.Method)]
     public class UcomPreProcessBuildAttribute : Attribute { }
+
+
+    /// <summary>
+    /// The Ucom preferences in the Unity Editor.
+    /// </summary>
+    public static class UcomPreferences
+    {
+        private const string Symbol = "UCOM_MENU";
+
+        [PreferenceItem("Ucom")]
+        public static void PreferencesGUI()
+        {
+            var hasSymbol = HasCompilerSymbol(Symbol);
+            var newHasSymbol = EditorGUILayout.Toggle("Enable Ucom Menu", hasSymbol);
+            EditorGUILayout.LabelField($"Enabling the menu adds the {Symbol} compiler symbol to the current build target ({EditorUserBuildSettings.selectedBuildTargetGroup}).", EditorStyles.wordWrappedLabel);
+
+            if (newHasSymbol != hasSymbol)
+                SetCompilerSymbol(Symbol, newHasSymbol);
+        }
+
+        private static bool HasCompilerSymbol(string symbol)
+        {
+            var symbols = PlayerSettings.GetScriptingDefineSymbolsForGroup(EditorUserBuildSettings.selectedBuildTargetGroup);
+            return symbols.Contains(symbol);
+        }
+
+        private static void SetCompilerSymbol(string symbol, bool enabled)
+        {
+            var symbols = PlayerSettings.GetScriptingDefineSymbolsForGroup(EditorUserBuildSettings.selectedBuildTargetGroup);
+            var symbolList = symbols.Split(';');
+
+            switch (enabled)
+            {
+                case true when !symbolList.Contains(symbol):
+                    symbols += ";" + symbol;
+                    break;
+                case false when symbolList.Contains(symbol):
+                    symbols = string.Join(";", symbolList.Where(s => s != symbol));
+                    break;
+                default:
+                    return;
+            }
+
+            PlayerSettings.SetScriptingDefineSymbolsForGroup(EditorUserBuildSettings.selectedBuildTargetGroup, symbols);
+        }
+    }
+
+#if UCOM_MENU
+    namespace Ucom
+    {
+        /// <summary>
+        /// Menu options for building the project.
+        /// Also serves as example usage of the <see cref="UnityBuilder"/> class for building with your own settings.
+        /// E.g. you can create menu options for building specific scenes only or a debug build.
+        /// </summary>
+        public static class UcomMenu
+        {
+            public const string MenuName = "Ucom";
+
+            /// <summary>
+            /// Builds the project to the Builds directory in the project root.
+            /// </summary>
+            [MenuItem(MenuName + "/Build to Builds Directory")]
+            public static void Build()
+            {
+                if (!GetOutputDirectory(out var outputDirectory) || !ValidateActiveScenes())
+                    return;
+
+                if (UnityBuilder.Build(outputDirectory, UnityBuilder.GetActiveScenes()))
+                    EditorUtility.OpenWithDefaultApp(outputDirectory);
+            }
+
+            /// <summary>
+            /// Builds the project to the Builds directory in the project root and runs it.
+            /// </summary>
+            [MenuItem(MenuName + "/Build to Builds Directory and Run")]
+            public static void BuildAndRun()
+            {
+                if (GetOutputDirectory(out var outputDirectory) && ValidateActiveScenes())
+                    UnityBuilder.Build(outputDirectory, UnityBuilder.GetActiveScenes(), BuildOptions.AutoRunPlayer);
+            }
+
+            /// <summary>
+            /// Opens the Builds directory in the project root.
+            /// </summary>
+            [MenuItem(MenuName + "/Open Build's Directory")]
+            public static void OpenBuildDirectory()
+            {
+                if (GetOutputDirectory(out var outputDirectory))
+                    EditorUtility.OpenWithDefaultApp(outputDirectory);
+            }
+
+            [MenuItem(MenuName + "/Open Build's Directory", true)]
+            public static bool ValidateOpenBuildDirectory() =>
+                GetOutputDirectory(out var outputDirectory) && Directory.Exists(outputDirectory);
+
+            private static bool GetOutputDirectory(out string outputDirectory)
+            {
+                if (UnityBuilder.TryGetDefaultBuildOutputPath(out outputDirectory))
+                    return true;
+
+                UnityBuilder.Log($"[Builder] Unsupported build target{EditorUserBuildSettings.activeBuildTarget}", LogType.Error);
+                return false;
+            }
+
+            private static bool ValidateActiveScenes()
+            {
+                if (UnityBuilder.GetActiveScenes().Length > 0)
+                    return true;
+
+                EditorUtility.DisplayDialog("No Active Scenes to Build", "Add at least one active scene to the Build Settings.", "Ok");
+                return false;
+            }
+        }
+    }
+#endif
 }

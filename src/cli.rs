@@ -139,6 +139,14 @@ pub struct NewArguments {
     )]
     pub project_dir: PathBuf,
 
+    /// Add the C# build script to the project.
+    ///
+    /// This script will run each time the project is built from the command line
+    /// and provides menu items to build the project (when enabled in the Editor Preferences).
+    /// If the script is not added, building from the command line will automatically inject it and remove it afterwards.
+    #[arg(short = 'B', long)]
+    pub add_build_script: bool,
+
     /// Initializes LFS for the repository and includes a .gitattributes file with Unity-specific LFS settings.
     #[arg(long = "lfs")]
     pub include_lfs: bool,

@@ -9,6 +9,7 @@ use colored::Colorize;
 use path_absolutize::Absolutize;
 
 use crate::cli::{NewArguments, Template};
+use crate::commands::build_project::inject_persistent_csharp_build_script;
 use crate::commands::terminal_spinner::TerminalSpinner;
 use crate::unity::*;
 
@@ -50,6 +51,10 @@ pub fn new_project(arguments: NewArguments) -> anyhow::Result<()> {
             )
             .bold()
         );
+    }
+
+    if arguments.add_build_script {
+        inject_persistent_csharp_build_script(&project_dir)?;
     }
 
     if !arguments.no_git {

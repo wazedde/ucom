@@ -152,6 +152,12 @@ pub fn build_project(arguments: BuildArguments) -> anyhow::Result<()> {
     build_result.map_err(|_| collect_log_errors(&log_file))
 }
 
+/// Injects a persistent C# build script into the project.
+pub fn inject_persistent_csharp_build_script<P: AsRef<Path>>(project_dir: P) -> anyhow::Result<()> {
+    let persistent_root = project_dir.as_ref().join(PERSISTENT_BUILD_SCRIPT_ROOT);
+    return inject_csharp_build_script(persistent_root);
+}
+
 fn clean_output_directory(path: &Path) -> anyhow::Result<()> {
     let delete = fs::read_dir(path)?
         .filter_map(|r| r.ok().map(|e| e.path()))
@@ -262,9 +268,9 @@ fn csharp_build_script_injection_hooks(
 
         // Build script not present, inject it.
         InjectAction::Persistent => {
-            let persistent_root = project_dir.join(PERSISTENT_BUILD_SCRIPT_ROOT);
+            let project_dir = project_dir.to_owned();
             (
-                Box::new(|| inject_csharp_build_script(persistent_root)),
+                Box::new(|| inject_persistent_csharp_build_script(project_dir)),
                 Box::new(|| Ok(())),
             )
         }
@@ -273,7 +279,6 @@ fn csharp_build_script_injection_hooks(
         InjectAction::Off => do_nothing,
     }
 }
-
 /// Injects the build script into the project.
 fn inject_csharp_build_script<P: AsRef<Path>>(parent_dir: P) -> anyhow::Result<()> {
     let inject_dir = parent_dir.as_ref().join("Editor");
