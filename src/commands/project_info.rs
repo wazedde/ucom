@@ -39,11 +39,22 @@ fn print_project_info(packages_level: PackagesInfoLevel, dir: &Path) -> anyhow::
 
     println!("{}", format!("Project info for: {}", dir.display()).bold());
 
-    let settings = Settings::from_project_dir(&dir)?;
-    let ps = settings.player_settings;
-    println!("    Product Name:  {}", ps.product_name.bold());
-    println!("    Company Name:  {}", ps.company_name.bold());
-    println!("    Version:       {}", ps.bundle_version.bold());
+    match Settings::from_project_dir(&dir) {
+        Ok(settings) => {
+            let ps = settings.player_settings;
+            println!("    Product Name:  {}", ps.product_name.bold());
+            println!("    Company Name:  {}", ps.company_name.bold());
+            println!("    Version:       {}", ps.bundle_version.bold());
+        }
+
+        Err(e) => {
+            println!(
+                "    {}: {}",
+                "No project settings found".yellow(),
+                e.to_string().yellow()
+            );
+        }
+    }
 
     print!(
         "    Unity Version: {} - {}",
