@@ -17,7 +17,7 @@
  * limitations under the License.
  */
 
-#if UNITY_2018_1_OR_NEWER
+#if UNITY_2018_3_OR_NEWER
 using System;
 using System.Collections.Generic;
 using System.Globalization;
@@ -555,7 +555,6 @@ namespace Ucom
         }
     }
 
-#if UNITY_2018_3_OR_NEWER
     namespace Ucom
     {
         /// <summary>
@@ -728,7 +727,6 @@ namespace Ucom
         }
     }
 #endif // UCOM_MENU
-#endif // UNITY_2019_1_OR_NEWER
 }
 #else
 #error "Ucom command line building is not supported for this version of Unity; version 2018.3 or newer is required."
