@@ -35,6 +35,7 @@ pub fn build_project(arguments: BuildArguments) -> anyhow::Result<()> {
             // If no build path is given, use <project>/Builds/<target>
             project_dir
                 .join("Builds")
+                .join(arguments.output_type.to_string())
                 .join(arguments.target.to_string())
         }
     };
@@ -82,7 +83,6 @@ pub fn build_project(arguments: BuildArguments) -> anyhow::Result<()> {
 
     if arguments.allow_debugging {
         bo.push(BuildOptions::AllowDebugging);
-        bo.push(BuildOptions::Development);
     }
 
     if arguments.connect_with_profiler {

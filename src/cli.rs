@@ -227,7 +227,8 @@ pub struct BuildArguments {
     #[arg(value_name = "DIRECTORY", value_hint = clap::ValueHint::DirPath, default_value = ".")]
     pub project_dir: PathBuf,
 
-    /// Sets the output directory for the build. If omitted, the build is placed in <PROJECT_DIR>/Builds/<TARGET>.
+    /// Sets the output directory for the build.
+    /// If omitted, the build is placed in <PROJECT_DIR>/Builds/<TYPE>/<TARGET>.
     #[arg(
         short = 'o',
         long = "output",
@@ -236,44 +237,56 @@ pub struct BuildArguments {
     )]
     pub build_path: Option<PathBuf>,
 
-    /// Run the built player.
+    /// Sets the output type for the build.
     /// 
+    /// This is mainly a flag used in the output directory, it doesn't dictate the physical type of build.
+    /// Ignored if `--output` is set.
+    #[arg(
+        short = 't',
+        long = "type",
+        value_name = "TYPE",
+        default_value = "release"
+    )]
+    pub output_type: BuildOutputType,
+
+    /// Run the built player.
+    ///
     /// Same as `--build-options auto-run-player`.
     #[arg(short = 'r', long("run"))]
     pub run_player: bool,
 
     /// Build a development version of the player.
-    /// 
+    ///
     /// Same as `--build-options development`.
     #[arg(short = 'd', long("development"))]
     pub development_build: bool,
 
     /// Show the built player.
-    /// 
+    ///
     /// Same as `--build-options show-built-player`.
     #[arg(short = 'S', long("show"))]
     pub show_built_player: bool,
 
     /// Allow script debuggers to attach to the player remotely.
-    /// 
+    ///
     /// Same as `--build-options allow-debugging`.
     #[arg(short = 'D', long("debugging"))]
     pub allow_debugging: bool,
 
     /// Start the player with a connection to the profiler in the editor.
-    /// 
+    ///
     /// Same as `--build-options connect-with-profiler`.
     #[arg(short = 'p', long("profiling"))]
     pub connect_with_profiler: bool,
 
     /// Enables Deep Profiling support in the player.
-    /// 
+    ///
     /// Same as `--build-options enable-deep-profiling-support`.
     #[arg(short = 'P', long("deep-profiling"))]
     pub deep_profiling: bool,
- 
+
     /// Sets the Player to connect to the Editor.
-    /// 
+    ///
     /// Same as `--build-options connect-to-host`.
     #[arg(short = 'H', long("connect-host"))]
     pub connect_to_host: bool,
@@ -378,6 +391,20 @@ pub enum InjectAction {
     Persistent,
     /// Use the existing build script in the project, without any injection.
     Off,
+}
+
+#[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, ValueEnum)]
+pub enum BuildOutputType {
+    /// Build output is written to the `Builds/Release` directory.
+    Release,
+    /// Build output is written to the `Builds/Debug` directory.
+    Debug,
+}
+
+impl Display for BuildOutputType {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{self:?}")
+    }
 }
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, ValueEnum)]
