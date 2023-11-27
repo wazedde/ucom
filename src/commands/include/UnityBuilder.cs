@@ -17,6 +17,7 @@
  * limitations under the License.
  */
 
+#if UNITY_2018_1_OR_NEWER
 using System;
 using System.Collections.Generic;
 using System.Globalization;
@@ -30,6 +31,8 @@ using UnityEditor.Build.Reporting;
 using UnityEngine;
 using Debug = UnityEngine.Debug;
 
+// ReSharper disable SwitchStatementHandlesSomeKnownEnumValuesWithDefault
+// ReSharper disable once ConvertSwitchStatementToSwitchExpression
 // ReSharper disable once CheckNamespace
 namespace Ucom
 {
@@ -59,6 +62,27 @@ namespace Ucom
         /// Custom arguments passed to the build scripts.
         /// </summary>
         private const string PreBuildArgs = "--ucom-pre-build-args";
+
+        /// <summary>
+        /// Scripting Define Symbols to add to the target Player Settings.
+        /// </summary>
+        private const string AddDefinesArg = "--ucom-add-defines";
+
+        [InitializeOnLoadMethod]
+        private static void Initialize()
+        {
+            const string ucomInitializedKey = "Ucom.Initialized";
+            if (SessionState.GetBool(ucomInitializedKey, false))
+                return;
+
+            SessionState.SetBool(ucomInitializedKey, true);
+
+            if (!Environment.GetCommandLineArgs().TryGetArgValue(AddDefinesArg, out var defines))
+                return;
+
+            Debug.Log($"[Builder] Adding symbols: {defines}");
+            ScriptingDefines.AddDefines(defines, EditorUserBuildSettings.selectedBuildTargetGroup);
+        }
 
         /// <summary>
         /// This method is called by ucom to build the project.
@@ -220,7 +244,6 @@ namespace Ucom
         /// <param name="buildTarget">The <see cref="BuildTarget"/>.</param>
         /// <param name="fullOutputPath">The full path of the build location.</param>
         /// <returns>True if the build target is supported; False otherwise.</returns>
-        [PublicAPI]
         public static bool TryGetBuildLocationPath(string outputDirectory,
             string appName,
             BuildTarget buildTarget,
@@ -243,10 +266,10 @@ namespace Ucom
         /// <param name="buildTarget">The <see cref="BuildTarget"/>.</param>
         /// <param name="fileName">The file name.</param>
         /// <returns>True if the build target is supported; False otherwise.</returns>
-        [PublicAPI]
         public static bool TryGetAppFileName(string appName, BuildTarget buildTarget, out string fileName)
         {
             fileName = string.Join("_", appName.Split(Path.GetInvalidFileNameChars()));
+
             switch (buildTarget)
             {
                 case BuildTarget.iOS:
@@ -281,7 +304,7 @@ namespace Ucom
         /// Returns the paths of the active scenes in the build settings.
         /// </summary>
         /// <returns>The paths of the active scenes in the build settings.</returns>
-        [PublicAPI, NotNull]
+        [NotNull]
         public static string[] GetActiveScenes()
         {
             return EditorBuildSettings
@@ -296,22 +319,29 @@ namespace Ucom
         /// The path is in the Builds directory relative to the project root.
         /// </summary>
         /// <param name="outputPath">The output path for the current build target.</param>
+        /// <param name="outputTypeType">The <see cref="OutputType"/> (default: <see cref="OutputType.Release"/>).</param>
         /// <returns>True if current build target is supported; False otherwise.</returns>
-        [PublicAPI]
-        public static bool TryGetDefaultBuildOutputPath(out string outputPath)
+        public static bool TryGetDefaultBuildOutputPath(out string outputPath,
+            OutputType outputTypeType = OutputType.Release)
         {
             outputPath = null;
 
             if (!TryGetBuildTargetDirName(EditorUserBuildSettings.activeBuildTarget, out var target))
                 return false;
 
-            var parent = new DirectoryInfo(Application.dataPath).Parent;
-            if (parent == null)
-                return false;
-
-            outputPath = Path.Combine(parent.FullName, "Builds", target);
+            outputPath = Path.Combine(GetBuildsDirectoryPath(), outputTypeType.ToString(), target);
             return true;
         }
+
+        /// <summary>
+        /// Returns the project root path.
+        /// </summary>
+        public static string GetProjectRootPath() => new DirectoryInfo(Application.dataPath).Parent?.FullName;
+
+        /// <summary>
+        /// Returns the builds directory path.
+        /// </summary>
+        public static string GetBuildsDirectoryPath() => Path.Combine(GetProjectRootPath(), "Builds");
 
         /// <summary>
         /// Logs a message to the Unity console without the stack trace.
@@ -320,7 +350,31 @@ namespace Ucom
         /// <param name="logType">The <see cref="LogType"/>.</param>
         public static void Log(string message, LogType logType = LogType.Log)
         {
+#if UNITY_2019_1_OR_NEWER
             Debug.LogFormat(logType, LogOption.NoStacktrace, null, message);
+#else // UNITY_2019_1_OR_NEWER
+            switch (logType)
+            {
+                case LogType.Error:
+                    Debug.LogError(message);
+                    break;
+                case LogType.Assert:
+                    Debug.LogAssertion(message);
+                    break;
+                case LogType.Warning:
+                    Debug.LogWarning(message);
+                    break;
+                case LogType.Log:
+                    Debug.Log(message);
+                    break;
+                case LogType.Exception:
+                    Debug.LogException(new Exception(message));
+                    break;
+                default:
+                    Debug.Log(message);
+                    break;
+            }
+#endif // UNITY_2019_1_OR_NEWER
         }
 
         /// <summary>
@@ -331,17 +385,34 @@ namespace Ucom
         /// <returns>True if the specified build target is supported; False otherwise.</returns>
         private static bool TryGetBuildTargetDirName(BuildTarget buildTarget, out string dirName)
         {
-            dirName = buildTarget switch
+            switch (buildTarget)
             {
-                BuildTarget.StandaloneWindows => "Win",
-                BuildTarget.StandaloneWindows64 => "Win64",
-                BuildTarget.StandaloneOSX => "OSXUniversal",
-                BuildTarget.StandaloneLinux64 => "Linux64",
-                BuildTarget.Android => "Android",
-                BuildTarget.iOS => "iOS",
-                BuildTarget.WebGL => "WebGL",
-                _ => null, // Unsupported
-            };
+                case BuildTarget.StandaloneWindows:
+                    dirName = "Win";
+                    break;
+                case BuildTarget.StandaloneWindows64:
+                    dirName = "Win64";
+                    break;
+                case BuildTarget.StandaloneOSX:
+                    dirName = "OSXUniversal";
+                    break;
+                case BuildTarget.StandaloneLinux64:
+                    dirName = "Linux64";
+                    break;
+                case BuildTarget.Android:
+                    dirName = "Android";
+                    break;
+                case BuildTarget.iOS:
+                    dirName = "iOS";
+                    break;
+                case BuildTarget.WebGL:
+                    dirName = "WebGL";
+                    break;
+                default:
+                    dirName = null; // Unsupported
+                    break;
+            }
+
             return dirName != null;
         }
 
@@ -389,9 +460,26 @@ namespace Ucom
                 return true;
             }
 
-            Log($"Invalid method signature for UcomPreProcessBuildAttribute: {method.ReflectedType.FullName}.{method.Name}", LogType.Error);
+            Log($"Invalid method signature for UcomPreProcessBuildAttribute: {method.ReflectedType?.FullName}.{method.Name}", LogType.Error);
             return false;
         }
+    }
+
+    /// <summary>
+    /// This is mainly a flag used in the output directory, it doesn't dictate the physical type of build.
+    /// The default value for builds is <see cref="OutputType.Release"/>.
+    /// </summary>
+    public enum OutputType
+    {
+        /// <summary>
+        /// Build will be outputted to the <c>Builds/Release</c> directory.
+        /// </summary>
+        Release,
+
+        /// <summary>
+        /// Build will be outputted to the <c>Builds/Debug</c> directory.
+        /// </summary>
+        Debug,
     }
 
     /// <summary>
@@ -402,49 +490,106 @@ namespace Ucom
     [AttributeUsage(AttributeTargets.Method)]
     public class UcomPreProcessBuildAttribute : Attribute { }
 
-
-    /// <summary>
-    /// The Ucom preferences in the Unity Editor.
-    /// </summary>
-    public static class UcomPreferences
+    public static class ScriptingDefines
     {
-        private const string Symbol = "UCOM_MENU";
-
-        [PreferenceItem("Ucom")]
-        public static void PreferencesGUI()
+        /// <summary>
+        /// Returns true if the given scripting define symbol is defined in the build settings.
+        /// </summary>
+        /// <param name="define">The scripting define symbol to check.</param>
+        /// <param name="buildTargetGroup">The <see cref="BuildTargetGroup"/> to check.</param>
+        /// <returns>True if the scripting define symbol is defined; False otherwise.</returns>
+        public static bool HasDefine(string define, BuildTargetGroup buildTargetGroup)
         {
-            var hasSymbol = HasCompilerSymbol(Symbol);
-            var newHasSymbol = EditorGUILayout.Toggle("Enable Ucom Menu", hasSymbol);
-            EditorGUILayout.LabelField($"Enabling the menu adds the {Symbol} compiler symbol to the current build target ({EditorUserBuildSettings.selectedBuildTargetGroup}).", EditorStyles.wordWrappedLabel);
-
-            if (newHasSymbol != hasSymbol)
-                SetCompilerSymbol(Symbol, newHasSymbol);
+            var symbols = PlayerSettings.GetScriptingDefineSymbolsForGroup(buildTargetGroup);
+            return symbols.Contains(define);
         }
 
-        private static bool HasCompilerSymbol(string symbol)
+        /// <summary>
+        /// Adds the provided scripting define symbols to the build settings for the current build target.
+        /// </summary>
+        /// <param name="defines">The scripting define symbols to add, separated by semicolons.</param>
+        /// <param name="buildTargetGroup">The <see cref="BuildTargetGroup"/> to add the define symbols to.</param>
+        public static void AddDefines(string defines, BuildTargetGroup buildTargetGroup)
         {
-            var symbols = PlayerSettings.GetScriptingDefineSymbolsForGroup(EditorUserBuildSettings.selectedBuildTargetGroup);
-            return symbols.Contains(symbol);
+            var newDefinesList = defines.Split(';').ToList();
+            if (!newDefinesList.Any())
+                return;
+
+            var currentDefines = PlayerSettings.GetScriptingDefineSymbolsForGroup(buildTargetGroup);
+            var currentDefinesList = currentDefines.Split(';').ToList();
+
+            foreach (var newDefine in newDefinesList.Where(newDefine => !currentDefinesList.Contains(newDefine)))
+                currentDefinesList.Add(newDefine);
+
+            var combinedDefines = string.Join(";", currentDefinesList);
+            if (combinedDefines == currentDefines)
+                return;
+
+            PlayerSettings.SetScriptingDefineSymbolsForGroup(buildTargetGroup, combinedDefines);
         }
 
-        private static void SetCompilerSymbol(string symbol, bool enabled)
+        /// <summary>
+        /// Adds or removes the given scripting define symbol from the build settings.
+        /// </summary>
+        /// <param name="define">The scripting define symbol to add or remove.</param>
+        /// <param name="enabled">If true, the scripting define symbol will be added; if false, the symbol will be removed.</param>
+        /// <param name="buildTargetGroup"></param>
+        public static void SetDefine(string define, bool enabled, BuildTargetGroup buildTargetGroup)
         {
-            var symbols = PlayerSettings.GetScriptingDefineSymbolsForGroup(EditorUserBuildSettings.selectedBuildTargetGroup);
+            var symbols = PlayerSettings.GetScriptingDefineSymbolsForGroup(buildTargetGroup);
             var symbolList = symbols.Split(';');
 
             switch (enabled)
             {
-                case true when !symbolList.Contains(symbol):
-                    symbols += ";" + symbol;
+                case true when !symbolList.Contains(define):
+                    symbols += ";" + define;
                     break;
-                case false when symbolList.Contains(symbol):
-                    symbols = string.Join(";", symbolList.Where(s => s != symbol));
+                case false when symbolList.Contains(define):
+                    symbols = string.Join(";", symbolList.Where(s => s != define));
                     break;
                 default:
                     return;
             }
 
-            PlayerSettings.SetScriptingDefineSymbolsForGroup(EditorUserBuildSettings.selectedBuildTargetGroup, symbols);
+            PlayerSettings.SetScriptingDefineSymbolsForGroup(buildTargetGroup, symbols);
+        }
+    }
+
+#if UNITY_2018_3_OR_NEWER
+    namespace Ucom
+    {
+        /// <summary>
+        /// The Ucom settings in the Unity Editor.
+        /// </summary>
+        internal static class UcomSettings
+        {
+            private const string DefineSymbol = "UCOM_MENU";
+
+            [SettingsProvider]
+            public static SettingsProvider CreateUcomSettings()
+            {
+                var provider = new SettingsProvider("Project/Ucom", SettingsScope.Project)
+                {
+                    label = "Ucom",
+                    guiHandler = _ =>
+                    {
+                        var buildTargetGroup = EditorUserBuildSettings.selectedBuildTargetGroup;
+                        var hasSymbol = ScriptingDefines.HasDefine(DefineSymbol, buildTargetGroup);
+                        var newHasSymbol = EditorGUILayout.Toggle("Enable Ucom Menu", hasSymbol);
+
+                        EditorGUILayout.LabelField(
+                            $"Enabling the menu adds the {DefineSymbol} compiler symbol to the current build target ({buildTargetGroup}).",
+                            EditorStyles.wordWrappedLabel);
+
+                        if (newHasSymbol != hasSymbol)
+                            ScriptingDefines.SetDefine(DefineSymbol, newHasSymbol, buildTargetGroup);
+                    },
+
+                    keywords = new HashSet<string>(new[] { "ucom", "menu", "build" }),
+                };
+
+                return provider;
+            }
         }
     }
 
@@ -463,43 +608,109 @@ namespace Ucom
             /// <summary>
             /// Builds the project to the Builds directory in the project root.
             /// </summary>
-            [MenuItem(MenuName + "/Build to Builds Directory")]
+            [MenuItem(MenuName + "/Release/Build", false, 1)]
             public static void Build()
             {
-                if (!GetOutputDirectory(out var outputDirectory) || !ValidateActiveScenes())
+                if (!TryGetOutputDirectory(out var outputDirectory, OutputType.Release) || !ValidateActiveScenes())
                     return;
 
                 if (UnityBuilder.Build(outputDirectory, UnityBuilder.GetActiveScenes()))
                     EditorUtility.OpenWithDefaultApp(outputDirectory);
+
+                Debug.Log("[Builder] Finished Release build");
             }
 
             /// <summary>
             /// Builds the project to the Builds directory in the project root and runs it.
             /// </summary>
-            [MenuItem(MenuName + "/Build to Builds Directory and Run")]
+            [MenuItem(MenuName + "/Release/Build and Run", false, 1)]
             public static void BuildAndRun()
             {
-                if (GetOutputDirectory(out var outputDirectory) && ValidateActiveScenes())
-                    UnityBuilder.Build(outputDirectory, UnityBuilder.GetActiveScenes(), BuildOptions.AutoRunPlayer);
+                if (!TryGetOutputDirectory(out var outputDirectory, OutputType.Release) || !ValidateActiveScenes())
+                    return;
+
+                UnityBuilder.Build(outputDirectory, UnityBuilder.GetActiveScenes(), BuildOptions.AutoRunPlayer);
+
+                Debug.Log("[Builder] Finished Release build");
             }
+
+#if UNITY_2019_1_OR_NEWER
+            /// <summary>
+            /// Builds a development for script debugging.
+            /// </summary>
+            [MenuItem(MenuName + "/Debug/Build and Run", false, 2)]
+            public static void DebugBuild()
+            {
+                if (!TryGetOutputDirectory(out var outputDirectory, OutputType.Debug) || !ValidateActiveScenes())
+                    return;
+
+                UnityBuilder.Build(outputDirectory, UnityBuilder.GetActiveScenes(),
+                    BuildOptions.AutoRunPlayer |
+                    BuildOptions.Development |
+                    BuildOptions.AllowDebugging |
+                    BuildOptions.WaitForPlayerConnection |
+                    BuildOptions.ConnectToHost);
+
+                Debug.Log("[Builder] Finished Debug build");
+            }
+
+            /// <summary>
+            /// Builds a debug build for profiling.
+            /// </summary>
+            [MenuItem(MenuName + "/Debug/Build and Run (Profiling)", false, 2)]
+            public static void ProfilingBuild()
+            {
+                if (!TryGetOutputDirectory(out var outputDirectory, OutputType.Debug) || !ValidateActiveScenes())
+                    return;
+
+                UnityBuilder.Build(outputDirectory, UnityBuilder.GetActiveScenes(),
+                    BuildOptions.AutoRunPlayer |
+                    BuildOptions.Development |
+                    BuildOptions.ConnectWithProfiler |
+                    BuildOptions.WaitForPlayerConnection |
+                    BuildOptions.ConnectToHost);
+
+                Debug.Log("[Builder] Finished Debug (Profiling) build");
+            }
+#endif // UNITY_2019_1_OR_NEWER
+
+#if UNITY_2019_3_OR_NEWER
+            /// <summary>
+            /// Builds a debug build for deep profiling.
+            /// </summary>
+            [MenuItem(MenuName + "/Debug/Build and Run (Deep Profiling)", false, 2)]
+            public static void DeepProfilingBuild()
+            {
+                if (!TryGetOutputDirectory(out var outputDirectory, OutputType.Debug) || !ValidateActiveScenes())
+                    return;
+
+                UnityBuilder.Build(outputDirectory, UnityBuilder.GetActiveScenes(),
+                    BuildOptions.AutoRunPlayer |
+                    BuildOptions.Development |
+                    BuildOptions.ConnectWithProfiler |
+                    BuildOptions.EnableDeepProfilingSupport |
+                    BuildOptions.WaitForPlayerConnection |
+                    BuildOptions.ConnectToHost);
+
+                Debug.Log("[Builder] Finished Debug (Deep Profiling) build");
+            }
+#endif // UNITY_2019_3_OR_NEWER
 
             /// <summary>
             /// Opens the Builds directory in the project root.
             /// </summary>
-            [MenuItem(MenuName + "/Open Build's Directory")]
+            [MenuItem(MenuName + "/Open Builds Directory")]
             public static void OpenBuildDirectory()
             {
-                if (GetOutputDirectory(out var outputDirectory))
-                    EditorUtility.OpenWithDefaultApp(outputDirectory);
+                EditorUtility.OpenWithDefaultApp(UnityBuilder.GetBuildsDirectoryPath());
             }
 
-            [MenuItem(MenuName + "/Open Build's Directory", true)]
-            public static bool ValidateOpenBuildDirectory() =>
-                GetOutputDirectory(out var outputDirectory) && Directory.Exists(outputDirectory);
+            [MenuItem(MenuName + "/Open Builds Directory", true)]
+            public static bool ValidateOpenBuildDirectory() => Directory.Exists(UnityBuilder.GetBuildsDirectoryPath());
 
-            private static bool GetOutputDirectory(out string outputDirectory)
+            private static bool TryGetOutputDirectory(out string outputDirectory, OutputType outputTypeType)
             {
-                if (UnityBuilder.TryGetDefaultBuildOutputPath(out outputDirectory))
+                if (UnityBuilder.TryGetDefaultBuildOutputPath(out outputDirectory, outputTypeType))
                     return true;
 
                 UnityBuilder.Log($"[Builder] Unsupported build target{EditorUserBuildSettings.activeBuildTarget}", LogType.Error);
@@ -516,5 +727,9 @@ namespace Ucom
             }
         }
     }
-#endif
+#endif // UCOM_MENU
+#endif // UNITY_2019_1_OR_NEWER
 }
+#else
+#error "Ucom command line building is not supported for this version of Unity; version 2018.3 or newer is required."
+#endif // UNITY_2018_3_OR_NEWER

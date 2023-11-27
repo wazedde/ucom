@@ -59,6 +59,7 @@ pub fn new_project(arguments: NewArguments) -> anyhow::Result<()> {
 
     if arguments.add_build_script {
         inject_persistent_csharp_build_script(&project_dir)?;
+        cmd.args(["--ucom-add-defines", "UCOM_MENU"]);
     }
 
     if !arguments.no_git {
