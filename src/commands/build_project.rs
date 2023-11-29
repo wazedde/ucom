@@ -1,22 +1,22 @@
-use anyhow::anyhow;
-use colored::Colorize;
-use indexmap::IndexSet;
-use itertools::Itertools;
-use path_absolutize::Absolutize;
 use std::fs;
 use std::fs::File;
 use std::io::{BufRead, BufReader};
 use std::path::{Path, PathBuf};
 use std::process::Command;
+
+use anyhow::anyhow;
+use colored::Colorize;
+use indexmap::IndexSet;
+use itertools::Itertools;
+use path_absolutize::Absolutize;
 use uuid::Uuid;
 
 use crate::cli::{
     BuildArguments, BuildMode, BuildOptions, BuildScriptTarget, IncludedFile, InjectAction,
 };
-use crate::commands::add_template_to_project;
+use crate::commands::{add_template_to_project, PERSISTENT_BUILD_SCRIPT_ROOT};
 use crate::unity::*;
 
-pub const PERSISTENT_BUILD_SCRIPT_ROOT: &str = "Assets/Plugins/Ucom/Editor";
 const AUTO_BUILD_SCRIPT_ROOT: &str = "Assets/Ucom";
 
 /// Runs the build command.
@@ -264,7 +264,7 @@ fn csharp_build_script_injection_hooks(
     project_dir: &Path,
     inject: InjectAction,
 ) -> (ResultFn, ResultFn) {
-    let script_exists = project_dir
+    let persistent_script_exists = project_dir
         .join(PERSISTENT_BUILD_SCRIPT_ROOT)
         .join(IncludedFile::BuildScript.data().filename)
         .exists();
@@ -272,35 +272,42 @@ fn csharp_build_script_injection_hooks(
 
     match inject {
         // Build script already present, no need to inject.
-        InjectAction::Auto if script_exists => do_nothing,
+        InjectAction::Auto if persistent_script_exists => do_nothing,
 
         // Build script not present, inject it in a unique directory to avoid conflicts.
         InjectAction::Auto => {
             let uuid = Uuid::new_v4();
-            let project_dir_cloned = project_dir.to_path_buf();
-            let build_script_dir = PathBuf::from(format!("{AUTO_BUILD_SCRIPT_ROOT}-{uuid}")).join("Editor");
-            let remove_dir = project_dir
-                .join(project_dir.join(PathBuf::from(format!("{AUTO_BUILD_SCRIPT_ROOT}-{uuid}"))));
+            let unique_dir_name = format!("{AUTO_BUILD_SCRIPT_ROOT}-{uuid}");
+
+            let closure_project_dir = project_dir.to_path_buf();
+            let closure_script_dir = PathBuf::from(&unique_dir_name).join("Editor");
+            let closure_remove_dir = project_dir.join(&unique_dir_name);
+
             (
                 Box::new(|| {
-                    add_template_to_project(project_dir_cloned, build_script_dir, IncludedFile::BuildScript)
+                    add_template_to_project(
+                        closure_project_dir,
+                        closure_script_dir,
+                        IncludedFile::BuildScript,
+                    )
                 }),
-                Box::new(|| cleanup_csharp_build_script(remove_dir)),
+                Box::new(|| cleanup_csharp_build_script(closure_remove_dir)),
             )
         }
 
         // Build script already present, no need to inject.
-        InjectAction::Persistent if script_exists => do_nothing,
+        InjectAction::Persistent if persistent_script_exists => do_nothing,
 
         // Build script not present, inject it.
         InjectAction::Persistent => {
-            let project_dir_cloned = project_dir.to_path_buf();
-            let parent_dir = PathBuf::from(PERSISTENT_BUILD_SCRIPT_ROOT);
+            let closure_project_dir = project_dir.to_path_buf();
+            let closure_script_dir = PathBuf::from(PERSISTENT_BUILD_SCRIPT_ROOT);
+
             (
                 Box::new(|| {
                     add_template_to_project(
-                        project_dir_cloned,
-                        parent_dir,
+                        closure_project_dir,
+                        closure_script_dir,
                         IncludedFile::BuildScript,
                     )
                 }),
@@ -321,7 +328,7 @@ fn cleanup_csharp_build_script<P: AsRef<Path>>(parent_dir: P) -> anyhow::Result<
     }
 
     println!(
-        "Removing injected ucom build script: {}",
+        "Removing temporary ucom build script: {}",
         parent_dir.display()
     );
 
