@@ -1,25 +1,22 @@
-use std::fs;
-use std::fs::File;
-use std::io::Write;
-use std::io::{BufRead, BufReader};
-use std::path::{Path, PathBuf};
-use std::process::Command;
-
 use anyhow::anyhow;
 use colored::Colorize;
 use indexmap::IndexSet;
 use itertools::Itertools;
 use path_absolutize::Absolutize;
+use std::fs;
+use std::fs::File;
+use std::io::{BufRead, BufReader};
+use std::path::{Path, PathBuf};
+use std::process::Command;
 use uuid::Uuid;
 
 use crate::cli::{
-    BuildArguments, BuildMode, BuildOptions, BuildScriptTarget, InjectAction, Template,
+    BuildArguments, BuildMode, BuildOptions, BuildScriptTarget, IncludedFile, InjectAction,
 };
+use crate::commands::add_template_to_project;
 use crate::unity::*;
 
-const BUILD_SCRIPT_NAME: &str = "UnityBuilder.cs";
-const PERSISTENT_BUILD_SCRIPT_PATH: &str = "Assets/Plugins/Ucom/Editor/UnityBuilder.cs";
-const PERSISTENT_BUILD_SCRIPT_ROOT: &str = "Assets/Plugins/Ucom";
+pub const PERSISTENT_BUILD_SCRIPT_ROOT: &str = "Assets/Plugins/Ucom/Editor";
 const AUTO_BUILD_SCRIPT_ROOT: &str = "Assets/Ucom";
 
 /// Runs the build command.
@@ -180,12 +177,6 @@ pub fn build_project(arguments: BuildArguments) -> anyhow::Result<()> {
     build_result.map_err(|_| collect_log_errors(&log_file))
 }
 
-/// Injects a persistent C# build script into the project.
-pub fn inject_persistent_csharp_build_script<P: AsRef<Path>>(project_dir: P) -> anyhow::Result<()> {
-    let persistent_root = project_dir.as_ref().join(PERSISTENT_BUILD_SCRIPT_ROOT);
-    return inject_csharp_build_script(persistent_root);
-}
-
 fn clean_output_directory(path: &Path) -> anyhow::Result<()> {
     let delete = fs::read_dir(path)?
         .filter_map(|r| r.ok().map(|e| e.path()))
@@ -273,7 +264,10 @@ fn csharp_build_script_injection_hooks(
     project_dir: &Path,
     inject: InjectAction,
 ) -> (ResultFn, ResultFn) {
-    let script_exists = project_dir.join(PERSISTENT_BUILD_SCRIPT_PATH).exists();
+    let script_exists = project_dir
+        .join(PERSISTENT_BUILD_SCRIPT_ROOT)
+        .join(IncludedFile::BuildScript.data().filename)
+        .exists();
     let do_nothing: (ResultFn, ResultFn) = (Box::new(|| Ok(())), Box::new(|| Ok(())));
 
     match inject {
@@ -283,11 +277,15 @@ fn csharp_build_script_injection_hooks(
         // Build script not present, inject it in a unique directory to avoid conflicts.
         InjectAction::Auto => {
             let uuid = Uuid::new_v4();
-            let pre_root = project_dir.join(format!("{AUTO_BUILD_SCRIPT_ROOT}-{uuid}"));
-            let post_root = pre_root.clone();
+            let project_dir_cloned = project_dir.to_path_buf();
+            let build_script_dir = PathBuf::from(format!("{AUTO_BUILD_SCRIPT_ROOT}-{uuid}")).join("Editor");
+            let remove_dir = project_dir
+                .join(project_dir.join(PathBuf::from(format!("{AUTO_BUILD_SCRIPT_ROOT}-{uuid}"))));
             (
-                Box::new(|| inject_csharp_build_script(pre_root)),
-                Box::new(|| cleanup_csharp_build_script(post_root)),
+                Box::new(|| {
+                    add_template_to_project(project_dir_cloned, build_script_dir, IncludedFile::BuildScript)
+                }),
+                Box::new(|| cleanup_csharp_build_script(remove_dir)),
             )
         }
 
@@ -296,9 +294,16 @@ fn csharp_build_script_injection_hooks(
 
         // Build script not present, inject it.
         InjectAction::Persistent => {
-            let project_dir = project_dir.to_owned();
+            let project_dir_cloned = project_dir.to_path_buf();
+            let parent_dir = PathBuf::from(PERSISTENT_BUILD_SCRIPT_ROOT);
             (
-                Box::new(|| inject_persistent_csharp_build_script(project_dir)),
+                Box::new(|| {
+                    add_template_to_project(
+                        project_dir_cloned,
+                        parent_dir,
+                        IncludedFile::BuildScript,
+                    )
+                }),
                 Box::new(|| Ok(())),
             )
         }
@@ -306,17 +311,6 @@ fn csharp_build_script_injection_hooks(
         // No need to do anything.
         InjectAction::Off => do_nothing,
     }
-}
-/// Injects the build script into the project.
-fn inject_csharp_build_script<P: AsRef<Path>>(parent_dir: P) -> anyhow::Result<()> {
-    let inject_dir = parent_dir.as_ref().join("Editor");
-    fs::create_dir_all(&inject_dir)?;
-
-    let file_path = inject_dir.join(BUILD_SCRIPT_NAME);
-    println!("Injecting ucom build script: {}", file_path.display());
-
-    let mut file = File::create(file_path)?;
-    write!(file, "{}", Template::BuildScript.content()).map_err(Into::into)
 }
 
 /// Removes the injected build script from the project.

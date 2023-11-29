@@ -1,6 +1,5 @@
 /*
- * This file contains the UnityBuilder class which handles build capabilities for Unity projects and is part of the
- * ucom command line tool (https://github.com/jakkovanhunen/ucom).
+ * This file contains is part of the ucom command line tool (https://github.com/jakkovanhunen/ucom).
  *
  * Copyright 2022-2023 Jakko van Hunen
  *
@@ -68,22 +67,6 @@ namespace Ucom
         /// </summary>
         private const string AddDefinesArg = "--ucom-add-defines";
 
-        [InitializeOnLoadMethod]
-        private static void Initialize()
-        {
-            const string ucomInitializedKey = "Ucom.Initialized";
-            if (SessionState.GetBool(ucomInitializedKey, false))
-                return;
-
-            SessionState.SetBool(ucomInitializedKey, true);
-
-            if (!Environment.GetCommandLineArgs().TryGetArgValue(AddDefinesArg, out var defines))
-                return;
-
-            Debug.Log($"[Builder] Adding symbols: {defines}");
-            ScriptingDefines.AddDefines(defines, EditorUserBuildSettings.selectedBuildTargetGroup);
-        }
-
         /// <summary>
         /// This method is called by ucom to build the project.
         /// </summary>
@@ -145,10 +128,14 @@ namespace Ucom
                 }
             }
 
+            string[] extraScriptingDefines = null;
+            if (args.TryGetArgValue(AddDefinesArg, out var defines))
+                extraScriptingDefines = defines.Split(';');
+
             if (!args.TryGetArgValue(PreBuildArgs, out var preBuildArgs))
                 preBuildArgs = "";
 
-            var buildFailed = invalidArgs || !Build(outputDirectory, GetActiveScenes(), options, preBuildArgs);
+            var buildFailed = invalidArgs || !Build(outputDirectory, GetActiveScenes(), options, extraScriptingDefines, preBuildArgs);
 
             if (Array.IndexOf(args, "-quit") != -1)
             {
@@ -163,9 +150,14 @@ namespace Ucom
         /// <param name="outputDirectory">The parent directory where the application will be built.</param>
         /// <param name="scenes">The scenes to include in the build</param>
         /// <param name="options">Building options. Multiple options can be combined together.</param>
+        /// <param name="extraScriptingDefines">User-specified preprocessor defines used while compiling assemblies for the player.</param>
         /// <param name="preBuildArgs">The pre-build arguments that are passed to methods with the <see cref="UcomPreProcessBuildAttribute"/>.</param>
         /// <returns><c>true</c> if the build succeeded; <c>false</c> otherwise.</returns>
-        public static bool Build(string outputDirectory, string[] scenes, BuildOptions options = BuildOptions.None, string preBuildArgs = "")
+        public static bool Build(string outputDirectory,
+            string[] scenes,
+            BuildOptions options = BuildOptions.None,
+            string[] extraScriptingDefines = null,
+            string preBuildArgs = "")
         {
             if (scenes.Length == 0)
             {
@@ -181,16 +173,17 @@ namespace Ucom
                 return false;
             }
 
-            if (!RunPreProcessBuildMethods(preBuildArgs))
-                return false;
-
             var buildPlayerOptions = new BuildPlayerOptions
             {
                 scenes = scenes,
                 locationPathName = applicationPath,
                 target = EditorUserBuildSettings.activeBuildTarget,
+                extraScriptingDefines = extraScriptingDefines,
                 options = options,
             };
+
+            if (!RunPreProcessBuildMethod(preBuildArgs))
+                return false;
 
             BuildReport report;
 
@@ -417,16 +410,16 @@ namespace Ucom
         }
 
         /// <summary>
-        /// Tries to get the value of the specified argument.
+        /// Tries to get the value of the specified argument (the next argument in the array).
         /// </summary>
         /// <param name="source">The command line arguments.</param>
         /// <param name="arg">The argument.</param>
         /// <param name="value">The value of the argument.</param>
         /// <returns>True if the argument was found; False otherwise.</returns>
-        private static bool TryGetArgValue(this string[] source, string arg, out string value)
+        public static bool TryGetArgValue(this string[] source, string arg, out string value)
         {
             var index = Array.IndexOf(source, arg);
-            if (index == -1 || index + 1 >= source.Length)
+            if (index < 0 || index == source.Length - 1)
             {
                 value = null;
                 return false;
@@ -436,13 +429,27 @@ namespace Ucom
             return true;
         }
 
-        private static bool RunPreProcessBuildMethods(string arg)
+        private static bool RunPreProcessBuildMethod(string arg)
         {
-            return AppDomain.CurrentDomain
-                            .GetAssemblies()
-                            .SelectMany(assembly => assembly.GetTypes())
-                            .SelectMany(GetPreProcessBuildMethods)
-                            .All(method => InvokeMethod(method, arg));
+            var methods = AppDomain.CurrentDomain
+                                   .GetAssemblies()
+                                   .SelectMany(assembly => assembly.GetTypes())
+                                   .SelectMany(GetPreProcessBuildMethods)
+                                   .ToList();
+            if (!methods.Any())
+                return true;
+
+            try
+            {
+                var method = methods.Single();
+                return InvokeMethod(method, arg);
+            }
+            catch (Exception)
+            {
+                var m = string.Join(", ", methods.Select(m => $"{m.ReflectedType?.FullName}.{m.Name}"));
+                Log($"[Builder] Multiple UcomPreProcessBuildAttribute methods found, there should only be one: {m}", LogType.Error);
+                return false;
+            }
         }
 
         private static IEnumerable<MethodInfo> GetPreProcessBuildMethods(Type type)
@@ -451,16 +458,16 @@ namespace Ucom
                        .Where(m => m.GetCustomAttributes(typeof(UcomPreProcessBuildAttribute), false).Any());
         }
 
-        private static bool InvokeMethod(MethodBase method, string message)
+        private static bool InvokeMethod(MethodBase method, string args)
         {
             var parameters = method.GetParameters();
             if (parameters.Length == 1 && parameters[0].ParameterType == typeof(string))
             {
-                method.Invoke(null, new object[] { message });
+                method.Invoke(null, new object[] { args });
                 return true;
             }
 
-            Log($"Invalid method signature for UcomPreProcessBuildAttribute: {method.ReflectedType?.FullName}.{method.Name}", LogType.Error);
+            Log($"[Builder] Invalid method signature for UcomPreProcessBuildAttribute: {method.ReflectedType?.FullName}.{method.Name}", LogType.Error);
             return false;
         }
     }
@@ -484,249 +491,24 @@ namespace Ucom
 
     /// <summary>
     /// Add this attribute to a method to get a notification just before building the player.
-    /// The method must be static with a single string parameter.
+    /// <remarks>
+    /// There can only be one method with this attribute in the project and it must be static with a single string parameter.
     /// The string parameter will be the argument passed in from the command line.
+    /// </remarks>
     /// </summary>
+    /// <example>
+    /// <code>
+    /// <![CDATA[
+    /// [UcomPreProcessBuild]
+    /// public static void PreProcessBuild(string args)
+    /// {
+    ///     Debug.Log(args);
+    /// }
+    /// ]]>
+    /// </code>
+    /// </example>
     [AttributeUsage(AttributeTargets.Method)]
     public class UcomPreProcessBuildAttribute : Attribute { }
-
-    public static class ScriptingDefines
-    {
-        /// <summary>
-        /// Returns true if the given scripting define symbol is defined in the build settings.
-        /// </summary>
-        /// <param name="define">The scripting define symbol to check.</param>
-        /// <param name="buildTargetGroup">The <see cref="BuildTargetGroup"/> to check.</param>
-        /// <returns>True if the scripting define symbol is defined; False otherwise.</returns>
-        public static bool HasDefine(string define, BuildTargetGroup buildTargetGroup)
-        {
-            var symbols = PlayerSettings.GetScriptingDefineSymbolsForGroup(buildTargetGroup);
-            return symbols.Contains(define);
-        }
-
-        /// <summary>
-        /// Adds the provided scripting define symbols to the build settings for the current build target.
-        /// </summary>
-        /// <param name="defines">The scripting define symbols to add, separated by semicolons.</param>
-        /// <param name="buildTargetGroup">The <see cref="BuildTargetGroup"/> to add the define symbols to.</param>
-        public static void AddDefines(string defines, BuildTargetGroup buildTargetGroup)
-        {
-            var newDefinesList = defines.Split(';').ToList();
-            if (!newDefinesList.Any())
-                return;
-
-            var currentDefines = PlayerSettings.GetScriptingDefineSymbolsForGroup(buildTargetGroup);
-            var currentDefinesList = currentDefines.Split(';').ToList();
-
-            foreach (var newDefine in newDefinesList.Where(newDefine => !currentDefinesList.Contains(newDefine)))
-                currentDefinesList.Add(newDefine);
-
-            var combinedDefines = string.Join(";", currentDefinesList);
-            if (combinedDefines == currentDefines)
-                return;
-
-            PlayerSettings.SetScriptingDefineSymbolsForGroup(buildTargetGroup, combinedDefines);
-        }
-
-        /// <summary>
-        /// Adds or removes the given scripting define symbol from the build settings.
-        /// </summary>
-        /// <param name="define">The scripting define symbol to add or remove.</param>
-        /// <param name="enabled">If true, the scripting define symbol will be added; if false, the symbol will be removed.</param>
-        /// <param name="buildTargetGroup"></param>
-        public static void SetDefine(string define, bool enabled, BuildTargetGroup buildTargetGroup)
-        {
-            var symbols = PlayerSettings.GetScriptingDefineSymbolsForGroup(buildTargetGroup);
-            var symbolList = symbols.Split(';');
-
-            switch (enabled)
-            {
-                case true when !symbolList.Contains(define):
-                    symbols += ";" + define;
-                    break;
-                case false when symbolList.Contains(define):
-                    symbols = string.Join(";", symbolList.Where(s => s != define));
-                    break;
-                default:
-                    return;
-            }
-
-            PlayerSettings.SetScriptingDefineSymbolsForGroup(buildTargetGroup, symbols);
-        }
-    }
-
-    namespace Ucom
-    {
-        /// <summary>
-        /// The Ucom settings in the Unity Editor.
-        /// </summary>
-        internal static class UcomSettings
-        {
-            private const string DefineSymbol = "UCOM_MENU";
-
-            [SettingsProvider]
-            public static SettingsProvider CreateUcomSettings()
-            {
-                var provider = new SettingsProvider("Project/Ucom", SettingsScope.Project)
-                {
-                    label = "Ucom",
-                    guiHandler = _ =>
-                    {
-                        var buildTargetGroup = EditorUserBuildSettings.selectedBuildTargetGroup;
-                        var hasSymbol = ScriptingDefines.HasDefine(DefineSymbol, buildTargetGroup);
-                        var newHasSymbol = EditorGUILayout.Toggle("Enable Ucom Menu", hasSymbol);
-
-                        EditorGUILayout.LabelField(
-                            $"Enabling the menu adds the {DefineSymbol} compiler symbol to the current build target ({buildTargetGroup}).",
-                            EditorStyles.wordWrappedLabel);
-
-                        if (newHasSymbol != hasSymbol)
-                            ScriptingDefines.SetDefine(DefineSymbol, newHasSymbol, buildTargetGroup);
-                    },
-
-                    keywords = new HashSet<string>(new[] { "ucom", "menu", "build" }),
-                };
-
-                return provider;
-            }
-        }
-    }
-
-#if UCOM_MENU
-    namespace Ucom
-    {
-        /// <summary>
-        /// Menu options for building the project.
-        /// Also serves as example usage of the <see cref="UnityBuilder"/> class for building with your own settings.
-        /// E.g. you can create menu options for building specific scenes only or a debug build.
-        /// </summary>
-        public static class UcomMenu
-        {
-            public const string MenuName = "Ucom";
-
-            /// <summary>
-            /// Builds the project to the Builds directory in the project root.
-            /// </summary>
-            [MenuItem(MenuName + "/Release/Build", false, 1)]
-            public static void Build()
-            {
-                if (!TryGetOutputDirectory(out var outputDirectory, OutputType.Release) || !ValidateActiveScenes())
-                    return;
-
-                if (UnityBuilder.Build(outputDirectory, UnityBuilder.GetActiveScenes()))
-                    EditorUtility.OpenWithDefaultApp(outputDirectory);
-
-                Debug.Log("[Builder] Finished Release build");
-            }
-
-            /// <summary>
-            /// Builds the project to the Builds directory in the project root and runs it.
-            /// </summary>
-            [MenuItem(MenuName + "/Release/Build and Run", false, 1)]
-            public static void BuildAndRun()
-            {
-                if (!TryGetOutputDirectory(out var outputDirectory, OutputType.Release) || !ValidateActiveScenes())
-                    return;
-
-                UnityBuilder.Build(outputDirectory, UnityBuilder.GetActiveScenes(), BuildOptions.AutoRunPlayer);
-
-                Debug.Log("[Builder] Finished Release build");
-            }
-
-#if UNITY_2019_1_OR_NEWER
-            /// <summary>
-            /// Builds a development for script debugging.
-            /// </summary>
-            [MenuItem(MenuName + "/Debug/Build and Run", false, 2)]
-            public static void DebugBuild()
-            {
-                if (!TryGetOutputDirectory(out var outputDirectory, OutputType.Debug) || !ValidateActiveScenes())
-                    return;
-
-                UnityBuilder.Build(outputDirectory, UnityBuilder.GetActiveScenes(),
-                    BuildOptions.AutoRunPlayer |
-                    BuildOptions.Development |
-                    BuildOptions.AllowDebugging |
-                    BuildOptions.WaitForPlayerConnection |
-                    BuildOptions.ConnectToHost);
-
-                Debug.Log("[Builder] Finished Debug build");
-            }
-
-            /// <summary>
-            /// Builds a debug build for profiling.
-            /// </summary>
-            [MenuItem(MenuName + "/Debug/Build and Run (Profiling)", false, 2)]
-            public static void ProfilingBuild()
-            {
-                if (!TryGetOutputDirectory(out var outputDirectory, OutputType.Debug) || !ValidateActiveScenes())
-                    return;
-
-                UnityBuilder.Build(outputDirectory, UnityBuilder.GetActiveScenes(),
-                    BuildOptions.AutoRunPlayer |
-                    BuildOptions.Development |
-                    BuildOptions.ConnectWithProfiler |
-                    BuildOptions.WaitForPlayerConnection |
-                    BuildOptions.ConnectToHost);
-
-                Debug.Log("[Builder] Finished Debug (Profiling) build");
-            }
-#endif // UNITY_2019_1_OR_NEWER
-
-#if UNITY_2019_3_OR_NEWER
-            /// <summary>
-            /// Builds a debug build for deep profiling.
-            /// </summary>
-            [MenuItem(MenuName + "/Debug/Build and Run (Deep Profiling)", false, 2)]
-            public static void DeepProfilingBuild()
-            {
-                if (!TryGetOutputDirectory(out var outputDirectory, OutputType.Debug) || !ValidateActiveScenes())
-                    return;
-
-                UnityBuilder.Build(outputDirectory, UnityBuilder.GetActiveScenes(),
-                    BuildOptions.AutoRunPlayer |
-                    BuildOptions.Development |
-                    BuildOptions.ConnectWithProfiler |
-                    BuildOptions.EnableDeepProfilingSupport |
-                    BuildOptions.WaitForPlayerConnection |
-                    BuildOptions.ConnectToHost);
-
-                Debug.Log("[Builder] Finished Debug (Deep Profiling) build");
-            }
-#endif // UNITY_2019_3_OR_NEWER
-
-            /// <summary>
-            /// Opens the Builds directory in the project root.
-            /// </summary>
-            [MenuItem(MenuName + "/Open Builds Directory")]
-            public static void OpenBuildDirectory()
-            {
-                EditorUtility.OpenWithDefaultApp(UnityBuilder.GetBuildsDirectoryPath());
-            }
-
-            [MenuItem(MenuName + "/Open Builds Directory", true)]
-            public static bool ValidateOpenBuildDirectory() => Directory.Exists(UnityBuilder.GetBuildsDirectoryPath());
-
-            private static bool TryGetOutputDirectory(out string outputDirectory, OutputType outputTypeType)
-            {
-                if (UnityBuilder.TryGetDefaultBuildOutputPath(out outputDirectory, outputTypeType))
-                    return true;
-
-                UnityBuilder.Log($"[Builder] Unsupported build target{EditorUserBuildSettings.activeBuildTarget}", LogType.Error);
-                return false;
-            }
-
-            private static bool ValidateActiveScenes()
-            {
-                if (UnityBuilder.GetActiveScenes().Length > 0)
-                    return true;
-
-                EditorUtility.DisplayDialog("No Active Scenes to Build", "Add at least one active scene to the Build Settings.", "Ok");
-                return false;
-            }
-        }
-    }
-#endif // UCOM_MENU
 }
 #else
 #error "Ucom command line building is not supported for this version of Unity; version 2018.3 or newer is required."

@@ -82,7 +82,7 @@ pub enum Action {
     #[command()]
     Template {
         #[arg(value_enum)]
-        template: Template,
+        template: IncludedFile,
     },
     /// Purges the download cache.
     ///
@@ -143,13 +143,12 @@ pub struct NewArguments {
     #[arg(short = 't', long, value_name = "NAME")]
     pub target: Option<OpenTarget>,
 
-    /// Add the C# build script to the project.
+    /// Adds a build menu script to the project.
     ///
-    /// This script will run each time the project is built from the command line
-    /// and provides menu items to build the project (when enabled in the Editor Preferences).
-    /// If the script is not added, building from the command line will automatically inject it and remove it afterwards.
-    #[arg(short = 'B', long)]
-    pub add_build_script: bool,
+    /// This will add both the `EditorMenu.cs` and `UnityBuilder.cs`
+    /// scripts to the project in the `Assets/Plugins/Ucom/Editor` directory.
+    #[arg(long)]
+    pub add_build_menu: bool,
 
     /// Initializes LFS for the repository and includes a .gitattributes file with Unity-specific LFS settings.
     #[arg(long = "lfs")]
@@ -238,7 +237,7 @@ pub struct BuildArguments {
     pub build_path: Option<PathBuf>,
 
     /// Sets the output type for the build.
-    /// 
+    ///
     /// This is mainly a flag used in the output directory, it doesn't dictate the physical type of build.
     /// Ignored if `--output` is set.
     #[arg(
@@ -601,9 +600,12 @@ pub enum BuildOptions {
 }
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, ValueEnum)]
-pub enum Template {
+pub enum IncludedFile {
     /// The C# script injected into the project when building.
     BuildScript,
+
+    /// A C# helper script for that adds build commands to the editor.
+    BuildMenuScript,
 
     /// The .gitignore file for newly created projects.
     GitIgnore,
@@ -612,12 +614,30 @@ pub enum Template {
     GitAttributes,
 }
 
-impl Template {
-    pub fn content(self) -> &'static str {
+pub struct FileData {
+    pub filename: &'static str,
+    pub content: &'static str,
+}
+
+impl IncludedFile {
+    pub const fn data(self) -> FileData {
         match self {
-            Self::BuildScript => include_str!("commands/include/UnityBuilder.cs"),
-            Self::GitIgnore => include_str!("commands/include/unity-gitignore.txt"),
-            Self::GitAttributes => include_str!("commands/include/unity-gitattributes.txt"),
+            Self::BuildScript => FileData {
+                filename: "UnityBuilder.cs",
+                content: include_str!("commands/include/UnityBuilder.cs"),
+            },
+            Self::BuildMenuScript => FileData {
+                filename: "EditorMenu.cs",
+                content: include_str!("commands/include/EditorMenu.cs"),
+            },
+            Self::GitIgnore => FileData {
+                filename: ".gitignore",
+                content: include_str!("commands/include/unity-gitignore.txt"),
+            },
+            Self::GitAttributes => FileData {
+                filename: ".gitattributes",
+                content: include_str!("commands/include/unity-gitattributes.txt"),
+            },
         }
     }
 }

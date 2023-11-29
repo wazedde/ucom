@@ -65,7 +65,7 @@ fn main() -> anyhow::Result<()> {
         }
 
         Action::Template { template } => {
-            println!("{}", template.content());
+            println!("{}", template.data().content);
             Ok(())
         }
         Action::ClearCache => {

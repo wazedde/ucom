@@ -1,17 +1,13 @@
-use std::env;
-use std::fs::File;
-use std::io::Write;
-use std::path::Path;
-use std::process::Command;
-
+use crate::cli::{IncludedFile, NewArguments};
+use crate::commands::add_template_to_project;
+use crate::commands::terminal_spinner::TerminalSpinner;
+use crate::unity::*;
 use anyhow::{anyhow, Context};
 use colored::Colorize;
 use path_absolutize::Absolutize;
-
-use crate::cli::{NewArguments, Template};
-use crate::commands::build_project::inject_persistent_csharp_build_script;
-use crate::commands::terminal_spinner::TerminalSpinner;
-use crate::unity::*;
+use std::env;
+use std::path::{Path, PathBuf};
+use std::process::Command;
 
 /// Creates a new Unity project and optional Git repository in the given directory.
 pub fn new_project(arguments: NewArguments) -> anyhow::Result<()> {
@@ -57,9 +53,22 @@ pub fn new_project(arguments: NewArguments) -> anyhow::Result<()> {
         );
     }
 
-    if arguments.add_build_script {
-        inject_persistent_csharp_build_script(&project_dir)?;
-        cmd.args(["--ucom-add-defines", "UCOM_MENU"]);
+    if arguments.add_build_menu {
+        let parent_dir =
+            PathBuf::from(crate::commands::build_project::PERSISTENT_BUILD_SCRIPT_ROOT);
+
+        print!("    ");
+        add_template_to_project(
+            project_dir.as_ref().to_path_buf(),
+            parent_dir.clone(),
+            IncludedFile::BuildScript,
+        )?;
+        print!("    ");
+        add_template_to_project(
+            project_dir.as_ref().to_path_buf(),
+            parent_dir,
+            IncludedFile::BuildMenuScript,
+        )?;
     }
 
     if !arguments.no_git {
@@ -80,6 +89,7 @@ pub fn new_project(arguments: NewArguments) -> anyhow::Result<()> {
 
 /// Initializes a new git repository with a default Unity specific .gitignore.
 fn git_init<P: AsRef<Path>>(project_dir: P, include_lfs: bool) -> anyhow::Result<()> {
+    println!("    initializing Git repository...");
     let project_dir = project_dir.as_ref();
 
     let init_context =
@@ -94,12 +104,15 @@ fn git_init<P: AsRef<Path>>(project_dir: P, include_lfs: bool) -> anyhow::Result
         return Err(anyhow!("{}", String::from_utf8_lossy(&output.stderr))).context(init_context);
     }
 
-    let ignore_path = project_dir.join(".gitignore");
-    let mut ignore_file = File::create(&ignore_path)?;
-    write!(ignore_file, "{}", Template::GitIgnore.content())?;
-    println!("    Git repository initialized: {}", ignore_path.display());
+    print!("    ");
+    add_template_to_project(
+        project_dir.to_path_buf(),
+        PathBuf::new(),
+        IncludedFile::GitIgnore,
+    )?;
 
     if include_lfs {
+        println!("    initializing Git LFS...");
         env::set_current_dir(project_dir)?;
 
         let lfs_context =
@@ -115,10 +128,12 @@ fn git_init<P: AsRef<Path>>(project_dir: P, include_lfs: bool) -> anyhow::Result
                 .context(lfs_context);
         }
 
-        let attributes_path = project_dir.join(".gitattributes");
-        let mut attributes_file = File::create(&attributes_path)?;
-        write!(attributes_file, "{}", Template::GitAttributes.content())?;
-        println!("    Git LFS initialized: {}", attributes_path.display());
+        print!("    ");
+        add_template_to_project(
+            project_dir.to_path_buf(),
+            PathBuf::new(),
+            IncludedFile::GitAttributes,
+        )?;
     }
     Ok(())
 }
