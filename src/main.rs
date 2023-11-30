@@ -5,7 +5,7 @@ use clap::CommandFactory;
 use clap::Parser;
 use colored::Colorize;
 
-use crate::cli::{Action, Cli};
+use crate::cli::{Action, CacheAction, Cli};
 use crate::commands::*;
 use crate::unity::http_cache;
 
@@ -68,12 +68,29 @@ fn main() -> anyhow::Result<()> {
             println!("{}", template.data().content);
             Ok(())
         }
-        Action::ClearCache => {
-            http_cache::clear();
-            println!(
-                "Cleared cache at: {}",
-                http_cache::ucom_cache_dir().display()
-            );
+        Action::Cache { action: command } => {
+            match command {
+                CacheAction::Clear => {
+                    http_cache::clear();
+                    println!(
+                        "Cleared cache at: {}",
+                        http_cache::ucom_cache_dir().display()
+                    );
+                }
+                CacheAction::Show => {
+                    let cache_dir = http_cache::ucom_cache_dir();
+
+                    if !cache_dir.exists() {
+                        println!("No cache found at: {}", cache_dir.display());
+                        return Ok(());
+                    }
+
+                    println!("Cached files at: {}", cache_dir.display());
+                    for file in http_cache::ucom_cache_dir().read_dir()? {
+                        println!("    {}", file?.file_name().to_string_lossy());
+                    }
+                }
+            }
             Ok(())
         }
     }

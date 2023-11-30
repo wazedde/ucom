@@ -84,12 +84,21 @@ pub enum Action {
         #[arg(value_enum)]
         template: IncludedFile,
     },
-    /// Purges the download cache.
+
+    /// Handles caching for downloaded Unity release data.
     ///
-    /// Unity release data, once downloaded, is stored for an hour to improve performance.
-    /// Set the `UCOM_ENABLE_CACHE` environment variable to `false` to turn off the download cache.
+    /// By default, cached files have a lifespan of one hour.
+    /// After this time, the system will re-download the required files for updated data.
+    ///
+    /// Use the `UCOM_ENABLE_CACHE` environment variable to control caching.
+    /// Set it to `false` if you want to disable the download cache feature.
+    /// When disabled, the system will download the required Unity release data afresh
+    /// for every command, instead of using cached files.
     #[command()]
-    ClearCache,
+    Cache {
+        #[arg(value_enum)]
+        action: CacheAction,
+    },
 }
 
 #[derive(Args)]
@@ -601,16 +610,16 @@ pub enum BuildOptions {
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, ValueEnum)]
 pub enum IncludedFile {
-    /// The C# script injected into the project when building.
+    /// The C# script injected into the project when building from the command line.
     BuildScript,
 
-    /// A C# helper script for that adds build commands to the editor.
+    /// A C# helper script that adds build commands to Unity's menu.
     BuildMenuScript,
 
-    /// The .gitignore file for newly created projects.
+    /// A Unity specific .gitignore file for newly created projects.
     GitIgnore,
 
-    /// The .gitattributes file for newly created projects.
+    /// A Unity specific .gitattributes file for newly created projects.
     GitAttributes,
 }
 
@@ -640,4 +649,13 @@ impl IncludedFile {
             },
         }
     }
+}
+
+#[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, ValueEnum)]
+pub enum CacheAction {
+    /// Removes all files from the cache.
+    Clear,
+
+    /// Displays a list of all currently cached files.
+    Show,
 }
