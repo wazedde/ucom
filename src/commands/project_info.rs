@@ -5,27 +5,29 @@ use itertools::Itertools;
 
 use crate::cli::PackagesInfoLevel;
 use crate::unity::project::*;
-use crate::unity::release_notes_url;
+use crate::unity::{release_notes_url, validate_existing_dir, ProjectPath};
 
 /// Shows project information.
 pub fn project_info(
-    project_dir: &Path,
+    path: &Path,
     packages_level: PackagesInfoLevel,
     recursive: bool,
 ) -> anyhow::Result<()> {
-    let dir = validate_directory(&project_dir)?;
-
     if !recursive {
-        return print_project_info(packages_level, &dir);
+        return print_project_info(&ProjectPath::from(path)?, packages_level);
     }
 
-    println!("Searching for Unity projects in: {}", dir.display(),);
+    let absolute_path = validate_existing_dir(&path)?;
+    println!(
+        "Searching for Unity projects in: {}",
+        absolute_path.display(),
+    );
 
-    let mut it = recursive_dir_iter(&dir);
+    let mut it = recursive_dir_iter(absolute_path);
     while let Some(Ok(entry)) = it.next() {
-        if is_unity_project_directory(&entry.path()) {
+        if let Ok(path) = ProjectPath::from(entry.path()) {
             println!();
-            if let Err(err) = print_project_info(packages_level, entry.path()) {
+            if let Err(err) = print_project_info(&path, packages_level) {
                 println!("    {}", err.to_string().red());
             }
             it.skip_current_dir();
@@ -34,12 +36,18 @@ pub fn project_info(
     Ok(())
 }
 
-fn print_project_info(packages_level: PackagesInfoLevel, dir: &Path) -> anyhow::Result<()> {
-    let unity_version = determine_unity_version(&dir)?;
+fn print_project_info(
+    project: &ProjectPath,
+    packages_level: PackagesInfoLevel,
+) -> anyhow::Result<()> {
+    let unity_version = project.unity_version()?;
 
-    println!("{}", format!("Project info for: {}", dir.display()).bold());
+    println!(
+        "{}",
+        format!("Project info for: {}", project.as_path().display()).bold()
+    );
 
-    match Settings::from_project_dir(&dir) {
+    match Settings::from_project(project) {
         Ok(settings) => {
             let ps = settings.player_settings;
             println!("    Product Name:  {}", ps.product_name.bold());
@@ -62,14 +70,14 @@ fn print_project_info(packages_level: PackagesInfoLevel, dir: &Path) -> anyhow::
         release_notes_url(unity_version).bright_blue()
     );
 
-    if is_editor_installed(unity_version)? {
+    if unity_version.is_editor_installed()? {
         println!();
     } else {
         println!(" {}", "*not installed".red().bold());
     }
 
     if packages_level != PackagesInfoLevel::None {
-        print_project_packages(dir, packages_level)?;
+        print_project_packages(project, packages_level)?;
     };
 
     Ok(())
@@ -77,10 +85,10 @@ fn print_project_info(packages_level: PackagesInfoLevel, dir: &Path) -> anyhow::
 
 /// Show packages used by the project.
 fn print_project_packages(
-    project_dir: &Path,
+    project: &ProjectPath,
     package_level: PackagesInfoLevel,
 ) -> anyhow::Result<()> {
-    let availability = Packages::from_project(&project_dir)?;
+    let availability = Packages::from_project(project)?;
 
     match availability {
         PackagesAvailability::NoManifest => {

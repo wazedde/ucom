@@ -8,7 +8,7 @@ use path_absolutize::Absolutize;
 
 use crate::cli::{IncludedFile, NewArguments};
 use crate::commands::terminal_spinner::TerminalSpinner;
-use crate::commands::{add_template_to_project, PERSISTENT_BUILD_SCRIPT_ROOT};
+use crate::commands::{add_file_to_project, PERSISTENT_BUILD_SCRIPT_ROOT};
 use crate::unity::*;
 
 /// Creates a new Unity project and optional Git repository in the given directory.
@@ -18,12 +18,12 @@ pub fn new_project(arguments: NewArguments) -> anyhow::Result<()> {
     if project_dir.exists() {
         return Err(anyhow!(
             "Directory already exists: {}",
-            project_dir.absolutize()?.display()
+            project_dir.display()
         ));
     }
 
-    let version = matching_available_version(arguments.version_pattern.as_deref())?;
-    let editor_exe = editor_executable_path(version)?;
+    let version = latest_installed_version(arguments.version_pattern.as_deref())?;
+    let editor_exe = version.editor_executable_path()?;
 
     let mut cmd = Command::new(editor_exe);
     cmd.arg("-createProject")
@@ -59,9 +59,9 @@ pub fn new_project(arguments: NewArguments) -> anyhow::Result<()> {
         let parent_dir = &PathBuf::from(PERSISTENT_BUILD_SCRIPT_ROOT);
 
         print!("  ");
-        add_template_to_project(&project_dir, parent_dir, IncludedFile::BuildScript)?;
+        add_file_to_project(&project_dir, parent_dir, IncludedFile::BuildScript)?;
         print!("  ");
-        add_template_to_project(&project_dir, parent_dir, IncludedFile::BuildMenuScript)?;
+        add_file_to_project(&project_dir, parent_dir, IncludedFile::BuildMenuScript)?;
     }
 
     if !arguments.no_git {
@@ -98,7 +98,7 @@ fn git_init<P: AsRef<Path>>(project_dir: P, include_lfs: bool) -> anyhow::Result
     }
 
     print!("  ");
-    add_template_to_project(project_dir, PathBuf::default(), IncludedFile::GitIgnore)?;
+    add_file_to_project(project_dir, PathBuf::default(), IncludedFile::GitIgnore)?;
 
     if include_lfs {
         println!("Initializing Git LFS:");
@@ -118,7 +118,7 @@ fn git_init<P: AsRef<Path>>(project_dir: P, include_lfs: bool) -> anyhow::Result
         }
 
         print!("  ");
-        add_template_to_project(project_dir, PathBuf::default(), IncludedFile::GitAttributes)?;
+        add_file_to_project(project_dir, PathBuf::default(), IncludedFile::GitAttributes)?;
     }
     Ok(())
 }

@@ -7,25 +7,25 @@ use crate::unity::*;
 
 /// Opens the given Unity project in the Unity Editor.
 pub fn open_project(arguments: OpenArguments) -> anyhow::Result<()> {
-    let project_dir = validate_directory(&arguments.project_dir)?;
-    let project_unity_version = determine_unity_version(&project_dir)?;
+    let project = ProjectPath::from(&arguments.project_dir)?;
+    let project_unity_version = project.unity_version()?;
 
     let open_unity_version = match arguments.upgrade_version {
         // If a specific version is given, use that.
-        Some(Some(pattern)) => matching_available_version(Some(&pattern)),
+        Some(Some(pattern)) => latest_installed_version(Some(&pattern)),
         // Otherwise, use the latest version.
-        Some(None) => matching_available_version(Some(&project_unity_version.minor_partial())),
+        Some(None) => latest_installed_version(Some(&project_unity_version.minor_partial())),
         // Otherwise, use the current version.
         None => Ok(project_unity_version),
     }?;
 
-    let editor_exe = editor_executable_path(open_unity_version)?;
+    let editor_exe = open_unity_version.editor_executable_path()?;
 
-    check_for_assets_directory(&project_dir)?;
+    project.validate_assets_directory()?;
 
     // Build the command to execute.
     let mut cmd = Command::new(editor_exe);
-    cmd.args(["-projectPath", &project_dir.to_string_lossy()]);
+    cmd.args(["-projectPath", &project.as_path().to_string_lossy()]);
 
     if let Some(target) = arguments.target {
         cmd.args(["-buildTarget", &target.to_string()]);
@@ -48,7 +48,7 @@ pub fn open_project(arguments: OpenArguments) -> anyhow::Result<()> {
             format!(
                 "Open Unity {} project in: {}",
                 open_unity_version,
-                project_dir.display()
+                project.as_path().display()
             )
             .bold()
         );

@@ -1,18 +1,17 @@
 use std::borrow::Cow;
 use std::collections::BTreeMap;
 use std::fs::File;
-use std::io::{BufRead, BufReader};
+use std::io::BufReader;
 use std::path::{Path, PathBuf};
 use std::{env, fs};
 
 use anyhow::{anyhow, Context, Result};
 use itertools::Itertools;
-use path_absolutize::Absolutize;
 use serde::Deserialize;
 use walkdir::{DirEntry, IntoIter, WalkDir};
 
 use crate::cli::ENV_EDITOR_DIR;
-use crate::unity::Version;
+use crate::unity::{ProjectPath, Version};
 
 /// Sub path to the executable on macOS.
 #[cfg(target_os = "macos")]
@@ -37,64 +36,6 @@ const UNITY_EDITOR_DIR: &str = r"C:\Program Files\Unity\Hub\Editor";
 /// Other target platforms are not supported.
 #[cfg(not(any(target_os = "macos", target_os = "windows")))]
 const UNITY_EDITOR_DIR: &str = compile_error!("Unsupported platform");
-
-/// Returns the Unity version for the project in the given directory.
-pub fn determine_unity_version<P: AsRef<Path>>(dir: &P) -> Result<Version> {
-    let version_file = dir.as_ref().join("ProjectSettings/ProjectVersion.txt");
-
-    if !version_file.exists() {
-        return Err(anyhow!(
-            "Could not find Unity project in `{}`",
-            dir.as_ref().display()
-        ));
-    }
-
-    let mut reader = BufReader::new(File::open(&version_file)?);
-
-    // ProjectVersion.txt looks like this:
-    // m_EditorVersion: 2021.3.9f1
-    // m_EditorVersionWithRevision: 2021.3.9f1 (ad3870b89536)
-
-    let mut line = String::new();
-    // Read the 1st line.
-    _ = reader.read_line(&mut line)?;
-
-    line.starts_with("m_EditorVersion:")
-        .then_some(line)
-        .and_then(|l| {
-            l.split(':') // Split the line,
-                .nth(1) // and return 2nd element.
-                .map(str::trim)
-                .and_then(|v| v.parse().ok())
-        })
-        .ok_or_else(|| {
-            anyhow!(
-                "Could not get project version from `{}`",
-                version_file.display()
-            )
-        })
-}
-
-/// Checks if the directory contains a Unity project.
-pub fn is_unity_project_directory<P: AsRef<Path>>(dir: &P) -> bool {
-    dir.as_ref()
-        .join("ProjectSettings/ProjectVersion.txt")
-        .exists()
-}
-
-/// Checks if the project directory has an `Assets` directory.
-pub fn check_for_assets_directory<P: AsRef<Path>>(project_dir: &P) -> Result<()> {
-    let assets_path = project_dir.as_ref().join("Assets");
-
-    if !assets_path.exists() {
-        return Err(anyhow!(
-            "Unity project does not have an `Assets` directory: `{}`",
-            project_dir.as_ref().display()
-        ));
-    };
-
-    Ok(())
-}
 
 /// Returns the parent directory of the editor installations.
 pub fn editor_parent_dir<'a>() -> Result<Cow<'a, Path>> {
@@ -127,10 +68,6 @@ pub fn editor_parent_dir<'a>() -> Result<Cow<'a, Path>> {
     )
 }
 
-pub fn is_editor_installed(version: Version) -> Result<bool> {
-    Ok(editor_parent_dir()?.join(version.to_string()).exists())
-}
-
 /// Returns the list with only the versions that match the partial version or Err if there is no matching version.
 pub fn matching_versions(
     versions: Vec<Version>,
@@ -156,31 +93,37 @@ pub fn matching_versions(
 }
 
 /// Returns version of the latest installed version that matches the partial version.
-pub fn matching_available_version(partial_version: Option<&str>) -> Result<Version> {
+pub fn latest_installed_version(partial_version: Option<&str>) -> Result<Version> {
     let parent_dir = editor_parent_dir()?;
-    let version = *matching_versions(available_unity_versions(&parent_dir)?, partial_version)?
+    let version = *matching_versions(available_unity_versions(parent_dir)?, partial_version)?
         .last()
         .expect("There should be at least one entry");
 
     Ok(version)
 }
 
-/// Returns the path to the editor executable.
-pub fn editor_executable_path(version: Version) -> Result<PathBuf> {
-    let exe_path = editor_parent_dir()?
-        .join(version.to_string())
-        .join(UNITY_EDITOR_EXE);
+impl Version {
+    pub fn is_editor_installed(self) -> Result<bool> {
+        Ok(editor_parent_dir()?.join(self.to_string()).exists())
+    }
 
-    if exe_path.exists() {
-        Ok(exe_path)
-    } else {
-        Err(anyhow!("Unity version is not installed: {version}"))
+    /// Returns the path to the editor executable.
+    pub fn editor_executable_path(self) -> Result<PathBuf> {
+        let exe_path = editor_parent_dir()?
+            .join(self.to_string())
+            .join(UNITY_EDITOR_EXE);
+
+        if exe_path.exists() {
+            Ok(exe_path)
+        } else {
+            Err(anyhow!("Unity version is not installed: {self}"))
+        }
     }
 }
 
 /// Returns a list of available Unity versions sorted from the oldest to the newest.
-pub fn available_unity_versions<P: AsRef<Path>>(install_dir: &P) -> Result<Vec<Version>> {
-    let versions = fs::read_dir(install_dir)
+pub fn available_unity_versions<P: AsRef<Path>>(install_dir: P) -> Result<Vec<Version>> {
+    let versions = fs::read_dir(&install_dir)
         .with_context(|| {
             format!(
                 "Cannot read available Unity editors in `{}`",
@@ -208,28 +151,9 @@ pub fn available_unity_versions<P: AsRef<Path>>(install_dir: &P) -> Result<Vec<V
     }
 }
 
-/// Returns validated absolute path to the directory.
-pub fn validate_directory<P: AsRef<Path>>(dir: &P) -> Result<Cow<'_, Path>> {
-    let path = dir.as_ref();
-    if cfg!(target_os = "windows") && path.starts_with("~") {
-        return Err(anyhow!(
-            "On Windows the path cannot start with '~': `{}`",
-            path.display()
-        ));
-    }
-
-    if !path.exists() {
-        return Err(anyhow!("Directory does not exists: `{}`", path.display()));
-    }
-
-    if !path.is_dir() {
-        return Err(anyhow!("Path is not a directory: `{}`", path.display()));
-    }
-
-    Ok(path.absolutize()?)
-}
-
-pub fn recursive_dir_iter(root: &Path) -> walkdir::FilterEntry<IntoIter, fn(&DirEntry) -> bool> {
+pub fn recursive_dir_iter<P: AsRef<Path>>(
+    root: P,
+) -> walkdir::FilterEntry<IntoIter, fn(&DirEntry) -> bool> {
     WalkDir::new(root)
         .max_depth(5)
         .into_iter()
@@ -315,11 +239,11 @@ pub enum PackagesAvailability {
 }
 
 impl Packages {
-    pub fn from_project<P: AsRef<Path>>(project_dir: &P) -> Result<PackagesAvailability> {
+    pub fn from_project(project: &ProjectPath) -> Result<PackagesAvailability> {
         const MANIFEST_FILE: &str = "Packages/manifest.json";
         const PACKAGES_LOCK_FILE: &str = "Packages/packages-lock.json";
 
-        let project_dir = project_dir.as_ref();
+        let project_dir = project.as_path();
         let manifest_path = project_dir.join(MANIFEST_FILE);
 
         if !manifest_path.exists() {
@@ -369,8 +293,8 @@ pub struct PlayerSettings {
 }
 
 impl Settings {
-    pub fn from_project_dir<P: AsRef<Path>>(dir: &P) -> Result<Self> {
-        let project_dir = dir.as_ref();
+    pub fn from_project(project: &ProjectPath) -> Result<Self> {
+        let project_dir = project.as_path();
         let file = File::open(project_dir.join("ProjectSettings/ProjectSettings.asset"))?;
         serde_yaml::from_reader(BufReader::new(file))
             .context("Error reading `ProjectSettings/ProjectSettings.asset`")

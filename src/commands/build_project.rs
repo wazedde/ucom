@@ -14,47 +14,47 @@ use uuid::Uuid;
 use crate::cli::{
     BuildArguments, BuildMode, BuildOptions, BuildScriptTarget, IncludedFile, InjectAction,
 };
-use crate::commands::{add_template_to_project, PERSISTENT_BUILD_SCRIPT_ROOT};
+use crate::commands::{add_file_to_project, PERSISTENT_BUILD_SCRIPT_ROOT};
 use crate::unity::*;
 
 const AUTO_BUILD_SCRIPT_ROOT: &str = "Assets/Ucom";
 
 /// Runs the build command.
 pub fn build_project(arguments: BuildArguments) -> anyhow::Result<()> {
-    let project_dir = validate_directory(&arguments.project_dir)?;
-
-    let unity_version = determine_unity_version(&project_dir)?;
-    let editor_exe = editor_executable_path(unity_version)?;
+    let project = ProjectPath::from(&arguments.project_dir)?;
+    let unity_version = project.unity_version()?;
+    let editor_exe = unity_version.editor_executable_path()?;
 
     let output_dir = match arguments.build_path {
         Some(path) => path.absolutize()?.into(),
         None => {
             // If no build path is given, use <project>/Builds/<target>
-            project_dir
+            project
+                .as_path()
                 .join("Builds")
                 .join(arguments.output_type.to_string())
                 .join(arguments.target.to_string())
         }
     };
 
-    if project_dir == output_dir {
+    if project.as_path() == output_dir {
         return Err(anyhow!(
             "Output directory cannot be the same as the project directory: {}",
-            project_dir.display()
+            project.as_path().display()
         ));
     }
 
     let log_file = arguments
         .log_file
         .unwrap_or_else(|| format!("Build-{}.log", arguments.target).into());
-    let log_file = get_full_log_path(&log_file, &project_dir)?;
+    let log_file = get_full_log_path(&log_file, project.as_path())?;
     if log_file.exists() {
         fs::remove_file(&log_file)?;
     }
 
     // Build the command to execute.
     let mut cmd = Command::new(editor_exe);
-    cmd.args(["-projectPath", &project_dir.to_string_lossy()])
+    cmd.args(["-projectPath", &project.as_path().to_string_lossy()])
         .args(["-buildTarget", &arguments.target.to_string()])
         .args(["-logFile", &log_file.to_string_lossy()])
         .args(["-executeMethod", &arguments.build_function])
@@ -132,13 +132,13 @@ pub fn build_project(arguments: BuildArguments) -> anyhow::Result<()> {
         format!(
             "Building Unity {unity_version} {} project in: {}",
             arguments.target,
-            project_dir.display()
+            project.as_path().display()
         )
         .bold()
     );
 
     let (inject_build_script_hook, cleanup_build_script_hook) =
-        csharp_build_script_injection_hooks(&project_dir, arguments.inject);
+        csharp_build_script_injection_hooks(&project, arguments.inject);
 
     inject_build_script_hook()?;
 
@@ -261,10 +261,12 @@ type ResultFn = Box<dyn FnOnce() -> anyhow::Result<()>>;
 
 /// Creates actions that inject a script into the project before and after the build.
 fn csharp_build_script_injection_hooks(
-    project_dir: &Path,
+    project: &ProjectPath,
     inject: InjectAction,
 ) -> (ResultFn, ResultFn) {
-    let persistent_script_exists = project_dir
+    let project_path = project.as_path();
+
+    let persistent_script_exists = project_path
         .join(PERSISTENT_BUILD_SCRIPT_ROOT)
         .join(IncludedFile::BuildScript.data().filename)
         .exists();
@@ -279,13 +281,13 @@ fn csharp_build_script_injection_hooks(
             let uuid = Uuid::new_v4();
             let unique_dir_name = format!("{AUTO_BUILD_SCRIPT_ROOT}-{uuid}");
 
-            let closure_project_dir = project_dir.to_path_buf();
+            let closure_project_dir = project_path.to_path_buf();
             let closure_script_dir = PathBuf::from(&unique_dir_name).join("Editor");
-            let closure_remove_dir = project_dir.join(&unique_dir_name);
+            let closure_remove_dir = project_path.join(&unique_dir_name);
 
             (
                 Box::new(|| {
-                    add_template_to_project(
+                    add_file_to_project(
                         closure_project_dir,
                         closure_script_dir,
                         IncludedFile::BuildScript,
@@ -300,12 +302,12 @@ fn csharp_build_script_injection_hooks(
 
         // Build script not present, inject it.
         InjectAction::Persistent => {
-            let closure_project_dir = project_dir.to_path_buf();
+            let closure_project_dir = project_path.to_path_buf();
             let closure_script_dir = PathBuf::from(PERSISTENT_BUILD_SCRIPT_ROOT);
 
             (
                 Box::new(|| {
-                    add_template_to_project(
+                    add_file_to_project(
                         closure_project_dir,
                         closure_script_dir,
                         IncludedFile::BuildScript,

@@ -8,8 +8,8 @@ use crate::unity::*;
 
 /// Checks on the Unity website for updates to the version used by the project.
 pub fn check_updates(project_dir: &Path, create_report: bool) -> anyhow::Result<()> {
-    let project_dir = validate_directory(&project_dir)?;
-    let unity_version = determine_unity_version(&project_dir)?;
+    let project = ProjectPath::from(project_dir)?;
+    let unity_version = project.unity_version()?;
 
     let spinner = TerminalSpinner::new(format!(
         "Project uses {unity_version}; checking for updates..."
@@ -24,7 +24,7 @@ pub fn check_updates(project_dir: &Path, create_report: bool) -> anyhow::Result<
 
     let mut buf = Vec::new();
 
-    write_project_header(&project_dir, create_report, &mut buf)?;
+    write_project_header(&project, create_report, &mut buf)?;
 
     writeln!(buf)?;
 
@@ -60,7 +60,7 @@ pub fn check_updates(project_dir: &Path, create_report: bool) -> anyhow::Result<
 }
 
 fn write_project_header(
-    project_dir: &Path,
+    project: &ProjectPath,
     create_report: bool,
     buf: &mut Vec<u8>,
 ) -> anyhow::Result<()> {
@@ -68,7 +68,7 @@ fn write_project_header(
         write!(buf, "# ")?;
     }
 
-    let product_name = Settings::from_project_dir(&project_dir).map_or_else(
+    let product_name = Settings::from_project(project).map_or_else(
         |_| "<UNKNOWN>".to_string(),
         |s| s.player_settings.product_name,
     );
@@ -80,7 +80,11 @@ fn write_project_header(
         writeln!(buf)?;
     }
 
-    writeln!(buf, "- Directory: {}", project_dir.to_string_lossy().bold())?;
+    writeln!(
+        buf,
+        "- Directory: {}",
+        project.as_path().to_string_lossy().bold()
+    )?;
     Ok(())
 }
 
@@ -91,7 +95,7 @@ fn write_project_version(
     create_report: bool,
     buf: &mut Vec<u8>,
 ) -> anyhow::Result<()> {
-    let is_installed = is_editor_installed(project_version)?;
+    let is_installed = project_version.is_editor_installed()?;
     write!(buf, "{}", "The version the project uses is ".bold())?;
 
     let version = match (is_installed, updates.is_empty()) {
@@ -162,7 +166,7 @@ fn write_available_updates(updates: &[ReleaseInfo], buf: &mut Vec<u8>) -> anyhow
     let max_len = updates.iter().map(|ri| ri.version.len()).max().unwrap();
 
     for release in updates {
-        let status = if is_editor_installed(release.version)? {
+        let status = if release.version.is_editor_installed()? {
             "installed".bold()
         } else {
             release.installation_url.bright_blue().bold()

@@ -42,19 +42,19 @@ impl ColoredStringIf for str {
 }
 
 /// Adds the given file to the project.
-pub fn add_template_to_project<P1: AsRef<Path>, P2: AsRef<Path>>(
-    project_path: P1,
-    file_dir: P2,
+pub fn add_file_to_project<P: AsRef<Path>, Q: AsRef<Path>>(
+    project_dir: P,
+    file_dir: Q,
     template: IncludedFile,
 ) -> anyhow::Result<()> {
     let data = template.data();
     let file_path = file_dir.as_ref().join(data.filename);
 
     println!("Added to project: {}", file_path.display());
-    add_file_to_project(project_path.as_ref().join(file_path), data.content)
+    create_file(project_dir.as_ref().join(file_path), data.content)
 }
 
-fn add_file_to_project<P: AsRef<Path>>(file_path: P, content: &str) -> anyhow::Result<()> {
+fn create_file<P: AsRef<Path>>(file_path: P, content: &str) -> anyhow::Result<()> {
     let file_path = file_path.as_ref();
     let parent_dir = file_path
         .parent()
