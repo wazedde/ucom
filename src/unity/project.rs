@@ -134,9 +134,9 @@ pub fn available_unity_versions<P: AsRef<Path>>(install_dir: P) -> Result<Vec<Ve
         .flat_map(|r| r.map(|e| e.path()))
         // Filter out the directories that do not contain the editor executable.
         .filter(|p| p.is_dir() && p.join(UNITY_EDITOR_EXE).exists())
-        // Get the file name of the directory.
+        // Get the name of the directory.
         .filter_map(|p| p.file_name().map(ToOwned::to_owned))
-        // Parse the version from the file name.
+        // Parse the version from the directory name (the directory name is the version).
         .filter_map(|version| version.to_string_lossy().parse::<Version>().ok())
         .sorted_unstable()
         .collect_vec();

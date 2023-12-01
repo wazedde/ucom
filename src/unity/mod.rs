@@ -18,6 +18,8 @@ pub mod releases;
 pub mod spawn_cmd;
 pub mod version;
 
+const VERSION_SUB_PATH: &str = "ProjectSettings/ProjectVersion.txt";
+
 /// Represents a valid path to a Unity project.
 pub struct ProjectPath {
     path: PathBuf,
@@ -46,7 +48,7 @@ impl ProjectPath {
 
     /// Returns the Unity version for the project in the given directory.
     pub fn unity_version(&self) -> anyhow::Result<Version> {
-        let version_file = self.version_file_path();
+        let version_file = self.as_path().join(VERSION_SUB_PATH);
         let mut reader = BufReader::new(File::open(&version_file)?);
 
         // ProjectVersion.txt looks like this:
@@ -89,13 +91,7 @@ impl ProjectPath {
 
     /// Checks if the directory contains a Unity project.
     fn is_unity_project_directory<P: AsRef<Path>>(dir: P) -> bool {
-        dir.as_ref()
-            .join("ProjectSettings/ProjectVersion.txt")
-            .exists()
-    }
-
-    fn version_file_path(&self) -> PathBuf {
-        self.as_path().join("ProjectSettings/ProjectVersion.txt")
+        dir.as_ref().join(VERSION_SUB_PATH).exists()
     }
 }
 
