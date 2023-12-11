@@ -69,7 +69,6 @@ pub fn fetch_patch_updates(
     );
 
     let current = releases.iter().find(|ri| ri.version == version).cloned();
-
     let updates = releases
         .into_iter()
         .filter(|ri| ri.version > version) // Only newer versions.

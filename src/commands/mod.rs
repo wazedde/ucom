@@ -49,9 +49,9 @@ pub fn add_file_to_project<P: AsRef<Path>, Q: AsRef<Path>>(
 ) -> anyhow::Result<()> {
     let data = template.data();
     let file_path = file_dir.as_ref().join(data.filename);
-
+    let content = data.fetch_content()?;
     println!("Added to project: {}", file_path.display());
-    create_file(project_dir.as_ref().join(file_path), data.content)
+    create_file(project_dir.as_ref().join(file_path), &content)
 }
 
 fn create_file<P: AsRef<Path>>(file_path: P, content: &str) -> anyhow::Result<()> {

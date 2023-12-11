@@ -1,7 +1,11 @@
+use std::borrow::Cow;
 use std::fmt::{Display, Formatter};
 use std::path::PathBuf;
 
 use clap::{Args, ValueEnum};
+
+use crate::commands::terminal_spinner::TerminalSpinner;
+use crate::unity::http_cache;
 
 pub const ENV_EDITOR_DIR: &str = "UCOM_EDITOR_DIR";
 pub const ENV_DEFAULT_VERSION: &str = "UCOM_DEFAULT_VERSION";
@@ -625,7 +629,26 @@ pub enum IncludedFile {
 
 pub struct FileData {
     pub filename: &'static str,
-    pub content: &'static str,
+    content: ContentType,
+}
+
+#[allow(dead_code)]
+pub enum ContentType {
+    Included(&'static str),
+    Url(&'static str),
+}
+
+impl FileData {
+    pub fn fetch_content<'a>(&self) -> anyhow::Result<Cow<'a, str>> {
+        return match self.content {
+            ContentType::Included(content) => Ok(Cow::Borrowed(content)),
+            ContentType::Url(url) => {
+                let _spinner =
+                    TerminalSpinner::new(format!("Downloading {} from {}...", self.filename, url));
+                Ok(Cow::Owned(http_cache::fetch_content(url)?))
+            }
+        };
+    }
 }
 
 impl IncludedFile {
@@ -633,19 +656,27 @@ impl IncludedFile {
         match self {
             Self::BuildScript => FileData {
                 filename: "UnityBuilder.cs",
-                content: include_str!("commands/include/UnityBuilder.cs"),
+                content: ContentType::Url(
+                    "https://gist.github.com/jakkovanhunen/b56a70509616b6ff3492a17ae670a5e7/raw",
+                ),
             },
             Self::BuildMenuScript => FileData {
                 filename: "EditorMenu.cs",
-                content: include_str!("commands/include/EditorMenu.cs"),
+                content: ContentType::Url(
+                    "https://gist.github.com/jakkovanhunen/a610aa5f675e3826de3b389ddba21319/raw",
+                ),
             },
             Self::GitIgnore => FileData {
                 filename: ".gitignore",
-                content: include_str!("commands/include/unity-gitignore.txt"),
+                content: ContentType::Url(
+                    "https://gist.github.com/jakkovanhunen/5748353142783045c9bc353ed3a341e7/raw",
+                ),
             },
             Self::GitAttributes => FileData {
                 filename: ".gitattributes",
-                content: include_str!("commands/include/unity-gitattributes.txt"),
+                content: ContentType::Url(
+                    "https://gist.github.com/jakkovanhunen/68d2c0e0da4ebfdf9e094b5505c3f337/raw",
+                ),
             },
         }
     }

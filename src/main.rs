@@ -65,7 +65,7 @@ fn main() -> anyhow::Result<()> {
         }
 
         Action::Template { template } => {
-            println!("{}", template.data().content);
+            println!("{}", template.data().fetch_content()?);
             Ok(())
         }
         Action::Cache { action: command } => {

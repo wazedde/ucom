@@ -178,8 +178,9 @@ pub fn build_project(arguments: BuildArguments) -> anyhow::Result<()> {
 }
 
 fn clean_output_directory(path: &Path) -> anyhow::Result<()> {
-    let delete = fs::read_dir(path)?
-        .filter_map(|r| r.ok().map(|e| e.path()))
+    let to_delete = fs::read_dir(path)?
+        .flatten()
+        .map(|de| de.path())
         .filter(|p| p.is_dir()) // Only directories.
         .filter(|p| {
             let dir_str = p.to_string_lossy();
@@ -187,7 +188,7 @@ fn clean_output_directory(path: &Path) -> anyhow::Result<()> {
                 || dir_str.ends_with("_BackUpThisFolder_ButDontShipItWithYourGame")
         });
 
-    for dir in delete {
+    for dir in to_delete {
         println!("Removing directory: {}", dir.display());
         fs::remove_dir_all(&dir)
             .map_err(|_| anyhow!("Could not remove directory: {}", dir.display()))?;

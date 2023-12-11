@@ -111,7 +111,7 @@ fn print_installed_versions(installed: &[Version]) -> anyhow::Result<()> {
 /// ── 2023.1.0b12  - No Beta update info available
 /// ── 2023.2.0a10  - No Alpha update info available
 /// ```
-fn print_updates(installed: &[Version], available: &Vec<ReleaseInfo>) -> anyhow::Result<()> {
+fn print_updates(installed: &[Version], available: &[ReleaseInfo]) -> anyhow::Result<()> {
     if available.is_empty() {
         return Err(anyhow!("No update information available."));
     }
@@ -307,12 +307,12 @@ fn print_available_versions(
     available: &[ReleaseInfo],
     partial_version: Option<&str>,
 ) {
-    let releases: Vec<_> = available
+    let releases = available
         .iter()
         .filter(|r| partial_version.map_or(true, |p| r.version.to_string().starts_with(p)))
         .sorted_unstable()
         .dedup()
-        .collect();
+        .collect_vec();
 
     if releases.is_empty() {
         println!(
@@ -322,7 +322,7 @@ fn print_available_versions(
         return;
     }
 
-    let versions: Vec<_> = releases.iter().map(|r| r.version).collect();
+    let versions = releases.iter().map(|r| r.version).collect_vec();
     let version_groups = group_minor_versions(&versions);
     let max_len = max_version_string_length(&version_groups);
 
@@ -374,7 +374,7 @@ fn print_installs_line(latest: &ReleaseInfo, installed_in_range: &[Version], max
     let joined_versions = installed_in_range
         .iter()
         .map(ToString::to_string)
-        .collect::<Vec<_>>()
+        .collect_vec()
         .join(", ");
 
     let line = if is_up_to_date {

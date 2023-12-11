@@ -21,18 +21,14 @@ pub mod version;
 const VERSION_SUB_PATH: &str = "ProjectSettings/ProjectVersion.txt";
 
 /// Represents a valid path to a Unity project.
-pub struct ProjectPath {
-    path: PathBuf,
-}
+pub struct ProjectPath(PathBuf);
 
 impl ProjectPath {
     /// Creates a new `ProjectPath` from the given directory.
     pub fn from<P: AsRef<Path>>(path: P) -> anyhow::Result<Self> {
         let path = validate_existing_dir(&path)?;
         if ProjectPath::is_unity_project_directory(&path) {
-            Ok(Self {
-                path: path.as_ref().to_path_buf(),
-            })
+            Ok(Self(path.as_ref().to_path_buf()))
         } else {
             Err(anyhow!(
                 "Path does not contain a Unity project: {}",
@@ -43,7 +39,7 @@ impl ProjectPath {
 
     /// Returns the absolute path to the project directory.
     pub fn as_path(&self) -> &Path {
-        self.path.as_path()
+        self.0.as_path()
     }
 
     /// Returns the Unity version for the project in the given directory.

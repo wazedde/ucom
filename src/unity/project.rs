@@ -123,21 +123,19 @@ impl Version {
 
 /// Returns a list of available Unity versions sorted from the oldest to the newest.
 pub fn available_unity_versions<P: AsRef<Path>>(install_dir: P) -> Result<Vec<Version>> {
+    let err_ctx = || {
+        format!(
+            "Cannot read available Unity editors in `{}`",
+            install_dir.as_ref().display()
+        )
+    };
+
     let versions = fs::read_dir(&install_dir)
-        .with_context(|| {
-            format!(
-                "Cannot read available Unity editors in `{}`",
-                install_dir.as_ref().display()
-            )
-        })?
-        // Get the paths of the files and directories.
-        .flat_map(|r| r.map(|e| e.path()))
-        // Filter out the directories that do not contain the editor executable.
+        .with_context(err_ctx)?
+        .flatten()
+        .map(|de| de.path()) //
         .filter(|p| p.is_dir() && p.join(UNITY_EDITOR_EXE).exists())
-        // Get the name of the directory.
-        .filter_map(|p| p.file_name().map(ToOwned::to_owned))
-        // Parse the version from the directory name (the directory name is the version).
-        .filter_map(|version| version.to_string_lossy().parse::<Version>().ok())
+        .filter_map(|p| p.file_name()?.to_string_lossy().parse::<Version>().ok())
         .sorted_unstable()
         .collect_vec();
 

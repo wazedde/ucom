@@ -43,8 +43,10 @@ For manual building:
 
 ## Build Script
 
-The `ucom build` command injects a [build script](src/commands/include/UnityBuilder.cs) into the project to initiate the
-build for a specific platform. This is due to Unity's lack of CLI argument support for building all target platforms.
+The `ucom build` command injects
+a [build script](https://gist.github.com/jakkovanhunen/b56a70509616b6ff3492a17ae670a5e7) into the project to initiate
+the build for a specific platform.
+This is due to Unity's lack of CLI argument support for building all target platforms.
 
 By default, the script is removed after the build is completed. To retain the script, add the `--inject persistent`
 option to the `ucom build` command.
