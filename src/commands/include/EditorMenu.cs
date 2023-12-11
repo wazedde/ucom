@@ -104,7 +104,30 @@ namespace Ucom
             PlayerSettings.SetScriptingDefineSymbolsForGroup(buildTargetGroup, symbols);
         }
     }
+
+    /// <summary>
+    /// Constants for the menu.
+    /// </summary>
+    public static class MenuConstants
+    {
+        public const string MenuName = "Builder";
+
+#if UNITY_IOS
+        public const string PlatformName = "iOS";
+#elif UNITY_ANDROID
+        public const string PlatformName = "Android";
+#elif UNITY_STANDALONE_OSX
+        public const string PlatformName = "macOS";
+#elif UNITY_STANDALONE_WIN
+        public const string PlatformName = "Windows";
+#elif UNITY_STANDALONE_LINUX
+        public const string PlatformName = "Linux";
+#elif UNITY_WEBGL
+        public const string PlatformName = "WebGL";
+#endif
+    }
 }
+
 
 #if !DISABLE_UCOM_MENU
 namespace Ucom
@@ -118,12 +141,24 @@ namespace Ucom
     /// </summary>
     public static class EditorMenu
     {
-        public const string MenuName = "Builder";
+        private const string PlatformMenu = MenuConstants.MenuName + "/Platform: " + MenuConstants.PlatformName;
+
+        [MenuItem(PlatformMenu + "/Build Settings...", false, 0)]
+        public static void BuildSettings()
+        {
+            EditorWindow.GetWindow(System.Type.GetType("UnityEditor.BuildPlayerWindow,UnityEditor"));
+        }
+
+        [MenuItem(PlatformMenu + "/Player Settings...", false, 0)]
+        public static void PlatformSettings()
+        {
+            SettingsService.OpenProjectSettings("Project/Player");
+        }
 
         /// <summary>
         /// Builds the project to the Builds directory in the project root.
         /// </summary>
-        [MenuItem(MenuName + "/Release/Build", false, 1)]
+        [MenuItem(MenuConstants.MenuName + "/Release/Build", false, 1)]
         public static void Build()
         {
             if (!TryGetOutputDirectory(out var outputDirectory, OutputType.Release) || !ValidateActiveScenes())
@@ -138,7 +173,7 @@ namespace Ucom
         /// <summary>
         /// Builds the project to the Builds directory in the project root and runs it.
         /// </summary>
-        [MenuItem(MenuName + "/Release/Build and Run", false, 1)]
+        [MenuItem(MenuConstants.MenuName + "/Release/Build and Run", false, 1)]
         public static void BuildAndRun()
         {
             if (!TryGetOutputDirectory(out var outputDirectory, OutputType.Release) || !ValidateActiveScenes())
@@ -149,51 +184,11 @@ namespace Ucom
             Debug.Log("[Builder] Finished Release build");
         }
 
-#if UNITY_2019_1_OR_NEWER
-        /// <summary>
-        /// Builds a development for script debugging.
-        /// </summary>
-        [MenuItem(MenuName + "/Debug/Build and Run", false, 2)]
-        public static void DebugBuild()
-        {
-            if (!TryGetOutputDirectory(out var outputDirectory, OutputType.Debug) || !ValidateActiveScenes())
-                return;
-
-            UnityBuilder.Build(outputDirectory, UnityBuilder.GetActiveScenes(),
-                BuildOptions.AutoRunPlayer |
-                BuildOptions.Development |
-                BuildOptions.AllowDebugging |
-                BuildOptions.WaitForPlayerConnection |
-                BuildOptions.ConnectToHost);
-
-            Debug.Log("[Builder] Finished Debug build");
-        }
-
-        /// <summary>
-        /// Builds a debug build for profiling.
-        /// </summary>
-        [MenuItem(MenuName + "/Debug/Build and Run (Profiling)", false, 2)]
-        public static void ProfilingBuild()
-        {
-            if (!TryGetOutputDirectory(out var outputDirectory, OutputType.Debug) || !ValidateActiveScenes())
-                return;
-
-            UnityBuilder.Build(outputDirectory, UnityBuilder.GetActiveScenes(),
-                BuildOptions.AutoRunPlayer |
-                BuildOptions.Development |
-                BuildOptions.ConnectWithProfiler |
-                BuildOptions.WaitForPlayerConnection |
-                BuildOptions.ConnectToHost);
-
-            Debug.Log("[Builder] Finished Debug (Profiling) build");
-        }
-#endif // UNITY_2019_1_OR_NEWER
-
 #if UNITY_2019_3_OR_NEWER
         /// <summary>
         /// Builds a debug build for deep profiling.
         /// </summary>
-        [MenuItem(MenuName + "/Debug/Build and Run (Deep Profiling)", false, 2)]
+        [MenuItem(MenuConstants.MenuName + "/Debug/Build and Run (Deep Profiling)", false, 2)]
         public static void DeepProfilingBuild()
         {
             if (!TryGetOutputDirectory(out var outputDirectory, OutputType.Debug) || !ValidateActiveScenes())
@@ -214,13 +209,13 @@ namespace Ucom
         /// <summary>
         /// Opens the Builds directory in the project root.
         /// </summary>
-        [MenuItem(MenuName + "/Open Builds Directory")]
+        [MenuItem(MenuConstants.MenuName + "/Open Builds Directory")]
         public static void OpenBuildDirectory()
         {
             EditorUtility.OpenWithDefaultApp(UnityBuilder.GetBuildsDirectoryPath());
         }
 
-        [MenuItem(MenuName + "/Open Builds Directory", true)]
+        [MenuItem(MenuConstants.MenuName + "/Open Builds Directory", true)]
         public static bool ValidateOpenBuildDirectory() => Directory.Exists(UnityBuilder.GetBuildsDirectoryPath());
 
         private static bool TryGetOutputDirectory(out string outputDirectory, OutputType outputTypeType)
@@ -240,6 +235,46 @@ namespace Ucom
             EditorUtility.DisplayDialog("No Active Scenes to Build", "Add at least one active scene to the Build Settings.", "Ok");
             return false;
         }
+
+#if UNITY_2019_1_OR_NEWER
+        /// <summary>
+        /// Builds a development for script debugging.
+        /// </summary>
+        [MenuItem(MenuConstants.MenuName + "/Debug/Build and Run", false, 2)]
+        public static void DebugBuild()
+        {
+            if (!TryGetOutputDirectory(out var outputDirectory, OutputType.Debug) || !ValidateActiveScenes())
+                return;
+
+            UnityBuilder.Build(outputDirectory, UnityBuilder.GetActiveScenes(),
+                BuildOptions.AutoRunPlayer |
+                BuildOptions.Development |
+                BuildOptions.AllowDebugging |
+                BuildOptions.WaitForPlayerConnection |
+                BuildOptions.ConnectToHost);
+
+            Debug.Log("[Builder] Finished Debug build");
+        }
+
+        /// <summary>
+        /// Builds a debug build for profiling.
+        /// </summary>
+        [MenuItem(MenuConstants.MenuName + "/Debug/Build and Run (Profiling)", false, 2)]
+        public static void ProfilingBuild()
+        {
+            if (!TryGetOutputDirectory(out var outputDirectory, OutputType.Debug) || !ValidateActiveScenes())
+                return;
+
+            UnityBuilder.Build(outputDirectory, UnityBuilder.GetActiveScenes(),
+                BuildOptions.AutoRunPlayer |
+                BuildOptions.Development |
+                BuildOptions.ConnectWithProfiler |
+                BuildOptions.WaitForPlayerConnection |
+                BuildOptions.ConnectToHost);
+
+            Debug.Log("[Builder] Finished Debug (Profiling) build");
+        }
+#endif // UNITY_2019_1_OR_NEWER
     }
 }
 #endif // !DISABLE_UCOM_MENU
