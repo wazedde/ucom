@@ -269,7 +269,7 @@ fn csharp_build_script_injection_hooks(
 
     let persistent_script_exists = project_path
         .join(PERSISTENT_BUILD_SCRIPT_ROOT)
-        .join(IncludedFile::BuildScript.data().filename)
+        .join(IncludedFile::Builder.data().filename)
         .exists();
     let do_nothing: (ResultFn, ResultFn) = (Box::new(|| Ok(())), Box::new(|| Ok(())));
 
@@ -291,7 +291,7 @@ fn csharp_build_script_injection_hooks(
                     add_file_to_project(
                         closure_project_dir,
                         closure_script_dir,
-                        IncludedFile::BuildScript,
+                        IncludedFile::Builder,
                     )
                 }),
                 Box::new(|| cleanup_csharp_build_script(closure_remove_dir)),
@@ -311,7 +311,7 @@ fn csharp_build_script_injection_hooks(
                     add_file_to_project(
                         closure_project_dir,
                         closure_script_dir,
-                        IncludedFile::BuildScript,
+                        IncludedFile::Builder,
                     )
                 }),
                 Box::new(|| Ok(())),

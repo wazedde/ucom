@@ -64,10 +64,10 @@ fn main() -> anyhow::Result<()> {
             build_project(settings).context("Cannot build project".red().bold())
         }
 
-        Action::Template { template } => {
-            println!("{}", template.data().fetch_content()?);
-            Ok(())
+        Action::Add(arguments) => {
+            add_to_project(&arguments).context("Cannot add file to project".red().bold())
         }
+
         Action::Cache { action: command } => {
             match command {
                 CacheAction::Clear => {

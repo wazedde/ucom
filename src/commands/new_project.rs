@@ -55,13 +55,13 @@ pub fn new_project(arguments: NewArguments) -> anyhow::Result<()> {
         );
     }
 
-    if arguments.add_build_menu {
+    if arguments.add_builder_menu {
         let parent_dir = &PathBuf::from(PERSISTENT_BUILD_SCRIPT_ROOT);
 
         print!("  ");
-        add_file_to_project(&project_dir, parent_dir, IncludedFile::BuildScript)?;
+        add_file_to_project(&project_dir, parent_dir, IncludedFile::Builder)?;
         print!("  ");
-        add_file_to_project(&project_dir, parent_dir, IncludedFile::BuildMenuScript)?;
+        add_file_to_project(&project_dir, parent_dir, IncludedFile::BuilderMenu)?;
     }
 
     if !arguments.no_git {

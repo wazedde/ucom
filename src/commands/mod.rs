@@ -7,6 +7,7 @@ use anyhow::anyhow;
 use colored::{ColoredString, Colorize};
 
 use crate::cli::IncludedFile;
+pub use crate::commands::add::add_to_project;
 pub use crate::commands::build_project::build_project;
 pub use crate::commands::check_updates::check_updates;
 pub use crate::commands::list_versions::list_versions;
@@ -15,6 +16,7 @@ pub use crate::commands::open_project::open_project;
 pub use crate::commands::project_info::project_info;
 pub use crate::commands::run_unity::run_unity;
 
+mod add;
 pub mod build_project;
 pub mod check_updates;
 pub mod list_versions;

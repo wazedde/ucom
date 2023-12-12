@@ -82,12 +82,8 @@ pub enum Action {
     #[command(visible_alias = "r")]
     Run(RunArguments),
 
-    /// Prints the specified template to standard output.
-    #[command()]
-    Template {
-        #[arg(value_enum)]
-        template: IncludedFile,
-    },
+    /// Adds a helper script or configuration file to the project.
+    Add(AddArguments),
 
     /// Handles caching for downloaded Unity release data.
     ///
@@ -161,7 +157,7 @@ pub struct NewArguments {
     /// This will add both the `EditorMenu.cs` and `UnityBuilder.cs`
     /// scripts to the project in the `Assets/Plugins/Ucom/Editor` directory.
     #[arg(long)]
-    pub add_build_menu: bool,
+    pub add_builder_menu: bool,
 
     /// Initializes LFS for the repository and includes a .gitattributes file with Unity-specific LFS settings.
     #[arg(long = "lfs")]
@@ -351,6 +347,44 @@ pub struct BuildArguments {
     /// A list of arguments to be passed directly to Unity.
     #[arg(last = true, value_name = "UNITY_ARGS")]
     pub args: Option<Vec<String>>,
+}
+
+#[derive(Args)]
+pub struct AddArguments {
+    /// The file to be added to the project.
+    #[arg(value_enum)]
+    pub file: IncludedFile,
+
+    /// Defines the project's directory.
+    #[arg(value_name = "DIRECTORY", value_hint = clap::ValueHint::DirPath, default_value = ".",conflicts_with = "display_content")]
+    pub project_dir: PathBuf,
+
+    /// Overwrites existing files.
+    #[arg(
+        short = 'f',
+        long,
+        conflicts_with = "display_content",
+        conflicts_with = "display_url"
+    )]
+    pub force: bool,
+
+    /// Displays the file's content to stdout instead of adding it.
+    #[arg(
+        short = 'c',
+        long,
+        conflicts_with = "force",
+        conflicts_with = "display_url"
+    )]
+    pub display_content: bool,
+
+    /// Displays the file's source URL.
+    #[arg(
+        short = 'u',
+        long,
+        conflicts_with = "force",
+        conflicts_with = "display_content"
+    )]
+    pub display_url: bool,
 }
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, ValueEnum)]
@@ -614,11 +648,11 @@ pub enum BuildOptions {
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, ValueEnum)]
 pub enum IncludedFile {
-    /// The C# script injected into the project when building from the command line.
-    BuildScript,
+    /// A C# helper script that handles project building.
+    Builder,
 
-    /// A C# helper script that adds build commands to Unity's menu.
-    BuildMenuScript,
+    /// A C# helper script that adds build commands to Unity's menu (also adds 'builder').
+    BuilderMenu,
 
     /// A Unity specific .gitignore file for newly created projects.
     GitIgnore,
@@ -629,7 +663,7 @@ pub enum IncludedFile {
 
 pub struct FileData {
     pub filename: &'static str,
-    content: ContentType,
+    pub content: ContentType,
 }
 
 #[allow(dead_code)]
@@ -654,13 +688,13 @@ impl FileData {
 impl IncludedFile {
     pub const fn data(self) -> FileData {
         match self {
-            Self::BuildScript => FileData {
+            Self::Builder => FileData {
                 filename: "UnityBuilder.cs",
                 content: ContentType::Url(
                     "https://gist.github.com/jakkovanhunen/b56a70509616b6ff3492a17ae670a5e7/raw",
                 ),
             },
-            Self::BuildMenuScript => FileData {
+            Self::BuilderMenu => FileData {
                 filename: "EditorMenu.cs",
                 content: ContentType::Url(
                     "https://gist.github.com/jakkovanhunen/a610aa5f675e3826de3b389ddba21319/raw",
