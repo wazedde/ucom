@@ -2,15 +2,13 @@ use std::env;
 use std::fs;
 use std::fs::{create_dir_all, metadata};
 use std::path::{Path, PathBuf};
-use std::sync::Mutex;
+use std::sync::OnceLock;
 
+use anyhow::anyhow;
 use chrono::{DateTime, Duration, Utc};
 use dirs::cache_dir;
-use lazy_static::lazy_static;
 
-lazy_static! {
-    static ref CACHE_ENABLED: Mutex<bool> = Mutex::new(true);
-}
+static CACHE_ENABLED: OnceLock<bool> = OnceLock::new();
 
 /// Gets the content of the given URL. Gets the content from the cache if it exists and is not too old.
 pub fn fetch_content(url: &str) -> anyhow::Result<String> {
@@ -44,24 +42,25 @@ pub fn clear() {
 }
 
 /// Sets whether the cache is enabled or not.
-#[allow(dead_code)]
-pub fn set_cache_enabled(enabled: bool) {
-    let mut cache_enabled = CACHE_ENABLED.lock().unwrap();
-    *cache_enabled = enabled;
+/// This value can only be set once.
+pub fn set_cache_enabled(enabled: bool) -> anyhow::Result<()> {
+    CACHE_ENABLED
+        .set(enabled)
+        .map_err(|_| anyhow!("Failed to set CACHE_ENABLED"))
 }
 
 /// Sets whether the cache is enabled or not based on environment variable `UCOM_ENABLE_CACHE`.
-pub fn set_cache_from_env() {
+pub fn set_cache_from_env() -> anyhow::Result<()> {
     if let Ok(val) = env::var("UCOM_ENABLE_CACHE") {
-        let mut cache_enabled = CACHE_ENABLED.lock().unwrap();
-        *cache_enabled = val == "true" || val == "1";
-    };
+        set_cache_enabled(val == "true" || val == "1")
+    } else {
+        Ok(())
+    }
 }
 
 /// Returns whether the cache is enabled or not.
 pub fn is_cache_enabled() -> bool {
-    let cache_enabled = CACHE_ENABLED.lock().unwrap();
-    *cache_enabled
+    *CACHE_ENABLED.get().unwrap_or(&true)
 }
 
 pub fn ucom_cache_dir() -> PathBuf {

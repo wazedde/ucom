@@ -155,14 +155,14 @@ pub fn recursive_dir_iter<P: AsRef<Path>>(
     WalkDir::new(root)
         .max_depth(5)
         .into_iter()
-        .filter_entry(|e| e.file_type().is_dir() && !is_hidden(e))
+        .filter_entry(|e| e.file_type().is_dir() && !is_hidden_file(e))
 }
 
-fn is_hidden(entry: &DirEntry) -> bool {
-    entry
-        .file_name()
-        .to_str()
-        .is_some_and(|s| s.starts_with('.'))
+fn is_hidden_file(entry: &DirEntry) -> bool {
+    match entry.file_name().to_str() {
+        Some(s) => s.starts_with('.'),
+        None => false,
+    }
 }
 
 #[derive(Deserialize, Debug)]

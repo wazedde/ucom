@@ -7,7 +7,7 @@ use crate::unity::*;
 
 /// Opens the given Unity project in the Unity Editor.
 pub fn open_project(arguments: OpenArguments) -> anyhow::Result<()> {
-    let project = ProjectPath::from(&arguments.project_dir)?;
+    let project = ProjectPath::try_from(&arguments.project_dir)?;
     let project_unity_version = project.unity_version()?;
 
     let open_unity_version = match arguments.upgrade_version {
@@ -21,7 +21,7 @@ pub fn open_project(arguments: OpenArguments) -> anyhow::Result<()> {
 
     let editor_exe = open_unity_version.editor_executable_path()?;
 
-    project.validate_assets_directory()?;
+    project.check_assets_directory_exists()?;
 
     // Build the command to execute.
     let mut cmd = Command::new(editor_exe);

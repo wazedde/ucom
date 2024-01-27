@@ -73,11 +73,11 @@ pub struct Version {
 impl Version {
     /// Returns the length of the string representation of this version.
     pub fn len(self) -> usize {
-        Self::calculate_the_number_of_digits(self.major.into())
-            + Self::calculate_the_number_of_digits(self.minor.into())
-            + Self::calculate_the_number_of_digits(self.patch.into())
+        Self::count_digits(self.major.into())
+            + Self::count_digits(self.minor.into())
+            + Self::count_digits(self.patch.into())
             + self.build_type.as_short_str().len()
-            + Self::calculate_the_number_of_digits(self.build.into())
+            + Self::count_digits(self.build.into())
             + 2 // The 2 dots
     }
 
@@ -86,7 +86,7 @@ impl Version {
         format!("{}.{}", self.major, self.minor)
     }
 
-    fn calculate_the_number_of_digits(number: usize) -> usize {
+    fn count_digits(number: usize) -> usize {
         // The maximum number of digits for a version number is 5.
         match number {
             0..=9 => 1,

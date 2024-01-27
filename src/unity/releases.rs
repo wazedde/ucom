@@ -55,8 +55,8 @@ pub fn fetch_unity_editor_releases() -> anyhow::Result<Vec<ReleaseInfo>> {
     Ok(releases)
 }
 
-/// Gets patch updates for the given version from the Unity website.
-pub fn fetch_patch_updates(
+/// Gets the current and update releases for the given version from the Unity website.
+pub fn fetch_update_info(
     version: Version,
 ) -> anyhow::Result<(Option<ReleaseInfo>, Vec<ReleaseInfo>)> {
     let body = http_cache::fetch_content(RELEASES_ARCHIVE_URL)?;
@@ -116,11 +116,9 @@ fn extract_releases_from_html(html: &str, filter: &ReleaseFilter) -> Vec<Release
                 .attr("href")?;
 
             let version = version_from_url(install_url)?;
-            filter.eval(version).then_some(ReleaseInfo::new(
-                version,
-                release_date,
-                install_url.to_owned(),
-            ))
+            filter
+                .eval(version)
+                .then(|| ReleaseInfo::new(version, release_date, install_url.to_owned()))
         })
         .sorted_unstable()
         .collect()
@@ -314,36 +312,45 @@ mod releases_tests {
 #[cfg(test)]
 mod releases_tests_online {
     use std::str::FromStr;
+    use std::sync::Once;
 
     use crate::unity::{
-        extract_release_notes, fetch_patch_updates, fetch_release_notes, http_cache, Version,
+        extract_release_notes, fetch_release_notes, fetch_update_info, http_cache, Version,
     };
 
+    static INIT: Once = Once::new();
+
+    pub fn initialize() {
+        INIT.call_once(|| {
+            http_cache::set_cache_enabled(false).unwrap();
+        });
+    }
+
     /// Scraping <https://unity.com/releases/editor/archive> for updates to 2019.1.0f1.
-    /// At the time of writing there were 15.
+    /// At the time of writing, there were 15.
     #[test]
     fn test_request_updates_2019_1_0() {
-        http_cache::set_cache_from_env();
+        initialize();
         let v = Version::from_str("2019.1.0f1").unwrap();
-        let (_, updates) = fetch_patch_updates(v).unwrap();
+        let (_, updates) = fetch_update_info(v).unwrap();
 
         assert!(updates.len() >= 15);
     }
 
     /// Scraping <https://unity.com/releases/editor/archive> for updates to 5.0.0f1.
-    /// At the time of writing there were 5 and it is assumed that this will not change.
+    /// At the time of writing, there were 5, and it is assumed that this will not change.
     #[test]
     fn test_request_updates_5_0_0() {
-        http_cache::set_cache_from_env();
+        initialize();
         let v = Version::from_str("5.0.0f1").unwrap();
-        let (_, updates) = fetch_patch_updates(v).unwrap();
+        let (_, updates) = fetch_update_info(v).unwrap();
 
         assert_eq!(updates.len(), 5);
     }
 
     #[test]
     fn test_release_notes_5_0_0() {
-        http_cache::set_cache_from_env();
+        initialize();
         let v = Version::from_str("5.0.0f1").unwrap();
         let (url, html) = &fetch_release_notes(v).unwrap();
 
@@ -354,7 +361,7 @@ mod releases_tests_online {
 
     #[test]
     fn test_release_notes_2017_1_0() {
-        http_cache::set_cache_from_env();
+        initialize();
         let v = Version::from_str("2017.1.0f3").unwrap();
         let (url, html) = &fetch_release_notes(v).unwrap();
 
@@ -365,7 +372,7 @@ mod releases_tests_online {
 
     #[test]
     fn test_release_notes_2017_2_5() {
-        http_cache::set_cache_from_env();
+        initialize();
         let v = Version::from_str("2017.2.5f1").unwrap();
         let (url, html) = &fetch_release_notes(v).unwrap();
 
@@ -376,7 +383,7 @@ mod releases_tests_online {
 
     #[test]
     fn test_release_notes_2021_3_17() {
-        http_cache::set_cache_from_env();
+        initialize();
         let v = Version::from_str("2021.3.17f1").unwrap();
         let (url, html) = &fetch_release_notes(v).unwrap();
 
@@ -387,7 +394,7 @@ mod releases_tests_online {
 
     #[test]
     fn test_release_notes_2022_2_0() {
-        http_cache::set_cache_from_env();
+        initialize();
         let v = Version::from_str("2022.2.0f1").unwrap();
         let (url, html) = &fetch_release_notes(v).unwrap();
 
@@ -398,7 +405,7 @@ mod releases_tests_online {
 
     #[test]
     fn test_release_notes_2023_1_0b11() {
-        http_cache::set_cache_from_env();
+        initialize();
         let v = Version::from_str("2023.1.0b11").unwrap();
         let (url, html) = &fetch_release_notes(v).unwrap();
 
@@ -409,7 +416,7 @@ mod releases_tests_online {
 
     #[test]
     fn test_release_notes_2023_2_0a9() {
-        http_cache::set_cache_from_env();
+        initialize();
         let v = Version::from_str("2023.2.0a9").unwrap();
         let (url, html) = &fetch_release_notes(v).unwrap();
 

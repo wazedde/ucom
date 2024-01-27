@@ -8,14 +8,13 @@ use crate::unity::*;
 
 /// Checks on the Unity website for updates to the version used by the project.
 pub fn check_updates(project_dir: &Path, create_report: bool) -> anyhow::Result<()> {
-    let project = ProjectPath::from(project_dir)?;
+    let project = ProjectPath::try_from(project_dir)?;
     let unity_version = project.unity_version()?;
-
     let spinner = TerminalSpinner::new(format!(
         "Project uses {unity_version}; checking for updates..."
     ));
 
-    let (project_version_info, updates) = fetch_patch_updates(unity_version)?;
+    let (project_version_info, updates) = fetch_update_info(unity_version)?;
     drop(spinner);
 
     if create_report {
@@ -23,9 +22,7 @@ pub fn check_updates(project_dir: &Path, create_report: bool) -> anyhow::Result<
     }
 
     let mut buf = Vec::new();
-
     write_project_header(&project, create_report, &mut buf)?;
-
     writeln!(buf)?;
 
     write_project_version(

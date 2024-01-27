@@ -21,7 +21,7 @@ const AUTO_BUILD_SCRIPT_ROOT: &str = "Assets/Ucom";
 
 /// Runs the build command.
 pub fn build_project(arguments: BuildArguments) -> anyhow::Result<()> {
-    let project = ProjectPath::from(&arguments.project_dir)?;
+    let project = ProjectPath::try_from(&arguments.project_dir)?;
     let unity_version = project.unity_version()?;
     let editor_exe = unity_version.editor_executable_path()?;
 
@@ -208,10 +208,9 @@ fn get_full_log_path(log_file: &Path, project_dir: &Path) -> anyhow::Result<Path
         project_dir.join("Logs").join(file_name)
     } else {
         log_file.into()
-    }
-    .absolutize()?
-    .to_path_buf();
+    };
 
+    let path = path.absolutize()?.to_path_buf();
     Ok(path)
 }
 

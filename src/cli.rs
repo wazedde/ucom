@@ -164,7 +164,7 @@ pub struct NewArguments {
     pub include_lfs: bool,
 
     /// Skips initialization of a new Git repository.
-    #[arg(long)]
+    #[arg(long, conflicts_with = "include_lfs")]
     pub no_git: bool,
 
     /// Waits for the command to complete before proceeding.
@@ -356,7 +356,12 @@ pub struct AddArguments {
     pub file: IncludedFile,
 
     /// Defines the project's directory.
-    #[arg(value_name = "DIRECTORY", value_hint = clap::ValueHint::DirPath, default_value = ".",conflicts_with = "display_content")]
+    #[arg(
+        value_name = "DIRECTORY",
+        value_hint = clap::ValueHint::DirPath,
+        default_value = ".",
+        conflicts_with = "display_content"
+    )]
     pub project_dir: PathBuf,
 
     /// Overwrites existing files.
@@ -650,13 +655,10 @@ pub enum BuildOptions {
 pub enum IncludedFile {
     /// A C# helper script that handles project building.
     Builder,
-
     /// A C# helper script that adds build commands to Unity's menu (also adds 'builder').
     BuilderMenu,
-
     /// A Unity specific .gitignore file for newly created projects.
     GitIgnore,
-
     /// A Unity specific .gitattributes file for newly created projects.
     GitAttributes,
 }
@@ -720,7 +722,6 @@ impl IncludedFile {
 pub enum CacheAction {
     /// Removes all files from the cache.
     Clear,
-
     /// Displays a list of all currently cached files.
     Show,
 }

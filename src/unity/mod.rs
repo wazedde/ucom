@@ -25,8 +25,8 @@ pub struct ProjectPath(PathBuf);
 
 impl ProjectPath {
     /// Creates a new `ProjectPath` from the given directory.
-    pub fn from<P: AsRef<Path>>(path: P) -> anyhow::Result<Self> {
-        let path = validate_existing_dir(&path)?;
+    pub fn try_from<P: AsRef<Path>>(path: P) -> anyhow::Result<Self> {
+        let path = to_absolute_dir_path(&path)?;
         if ProjectPath::is_unity_project_directory(&path) {
             Ok(Self(path.as_ref().to_path_buf()))
         } else {
@@ -72,17 +72,17 @@ impl ProjectPath {
     }
 
     /// Checks if the project directory has an `Assets` directory.
-    pub fn validate_assets_directory(&self) -> anyhow::Result<()> {
+    pub fn check_assets_directory_exists(&self) -> anyhow::Result<()> {
         let assets_path = self.as_path().join("Assets");
 
         if !assets_path.exists() {
-            return Err(anyhow!(
+            Err(anyhow!(
                 "Unity project does not have an `Assets` directory: `{}`",
                 self.as_path().display()
-            ));
-        };
-
-        Ok(())
+            ))
+        } else {
+            Ok(())
+        }
     }
 
     /// Checks if the directory contains a Unity project.
@@ -91,23 +91,23 @@ impl ProjectPath {
     }
 }
 
-/// Returns validated absolute path to an existing directory.
-pub fn validate_existing_dir<P: AsRef<Path>>(dir: &P) -> anyhow::Result<Cow<'_, Path>> {
-    let dir = dir.as_ref();
-    if cfg!(target_os = "windows") && dir.starts_with("~") {
+/// Returns the absolute path to an existing directory.
+pub fn to_absolute_dir_path<P: AsRef<Path>>(path: &P) -> anyhow::Result<Cow<'_, Path>> {
+    let path = path.as_ref();
+    if cfg!(target_os = "windows") && path.starts_with("~") {
         return Err(anyhow!(
             "On Windows the path cannot start with '~': `{}`",
-            dir.display()
+            path.display()
         ));
     }
 
-    if !dir.is_dir() {
+    if !path.is_dir() {
         return Err(anyhow!(
             "Path does not exist or is not a directory: `{}`",
-            dir.display()
+            path.display()
         ));
     }
 
-    let dir = dir.absolutize().context("Failed to absolutize the path")?;
-    Ok(dir)
+    let path = path.absolutize().context("Failed to absolutize the path")?;
+    Ok(path)
 }

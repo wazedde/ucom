@@ -28,7 +28,7 @@ fn main() -> anyhow::Result<()> {
         exit(0)
     };
 
-    http_cache::set_cache_from_env();
+    http_cache::set_cache_from_env().context("Cannot set cache from environment")?;
 
     match command {
         Action::List {
@@ -79,7 +79,6 @@ fn main() -> anyhow::Result<()> {
                 }
                 CacheAction::Show => {
                     let cache_dir = http_cache::ucom_cache_dir();
-
                     if !cache_dir.exists() {
                         println!("No cache found at: {}", cache_dir.display());
                         return Ok(());

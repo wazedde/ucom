@@ -5,7 +5,9 @@ use itertools::Itertools;
 
 use crate::cli::PackagesInfoLevel;
 use crate::unity::project::*;
-use crate::unity::{release_notes_url, validate_existing_dir, ProjectPath};
+use crate::unity::{release_notes_url, to_absolute_dir_path, ProjectPath};
+
+const INDENT: &str = "    ";
 
 /// Shows project information.
 pub fn project_info(
@@ -14,21 +16,18 @@ pub fn project_info(
     recursive: bool,
 ) -> anyhow::Result<()> {
     if !recursive {
-        return print_project_info(&ProjectPath::from(path)?, packages_level);
+        return print_project_info(&ProjectPath::try_from(path)?, packages_level);
     }
 
-    let absolute_path = validate_existing_dir(&path)?;
-    println!(
-        "Searching for Unity projects in: {}",
-        absolute_path.display(),
-    );
+    let path = to_absolute_dir_path(&path)?;
+    println!("Searching for Unity projects in: {}", path.display(),);
 
-    let mut it = recursive_dir_iter(absolute_path);
+    let mut it = recursive_dir_iter(path);
     while let Some(Ok(entry)) = it.next() {
-        if let Ok(path) = ProjectPath::from(entry.path()) {
+        if let Ok(path) = ProjectPath::try_from(entry.path()) {
             println!();
             if let Err(err) = print_project_info(&path, packages_level) {
-                println!("    {}", err.to_string().red());
+                println!("{INDENT}{}", err.to_string().red());
             }
             it.skip_current_dir();
         }
@@ -50,14 +49,14 @@ fn print_project_info(
     match Settings::from_project(project) {
         Ok(settings) => {
             let ps = settings.player_settings;
-            println!("    Product Name:  {}", ps.product_name.bold());
-            println!("    Company Name:  {}", ps.company_name.bold());
-            println!("    Version:       {}", ps.bundle_version.bold());
+            println!("{INDENT}Product Name:  {}", ps.product_name.bold());
+            println!("{INDENT}Company Name:  {}", ps.company_name.bold());
+            println!("{INDENT}Version:       {}", ps.bundle_version.bold());
         }
 
         Err(e) => {
             println!(
-                "    {}: {}",
+                "{INDENT}{}: {}",
                 "No project settings found".yellow(),
                 e.to_string().yellow()
             );
@@ -65,7 +64,7 @@ fn print_project_info(
     }
 
     print!(
-        "    Unity Version: {} - {}",
+        "{INDENT}Unity Version: {} - {}",
         unity_version.to_string().bold(),
         release_notes_url(unity_version).bright_blue()
     );
@@ -93,14 +92,14 @@ fn print_project_packages(
     match availability {
         PackagesAvailability::NoManifest => {
             println!(
-                "    {}",
+                "{INDENT}{}",
                 "No `manifest.json` file found, no packages info available.".yellow()
             );
             Ok(())
         }
         PackagesAvailability::LockFileDisabled => {
             println!(
-                "    {}",
+                "{INDENT}{}",
                 "Packages lock file is disabled in `manifest.json`, no packages info available."
                     .yellow()
             );
@@ -108,7 +107,7 @@ fn print_project_packages(
         }
         PackagesAvailability::NoLockFile => {
             println!(
-                "    {}",
+                "{INDENT}{}",
                 "No `packages-lock.json` file found, no packages info available.".yellow()
             );
             Ok(())
@@ -128,7 +127,7 @@ fn print_project_packages(
 
             println!();
             println!(
-                "    {} {} {}",
+                "{INDENT}{} {} {}",
                 "Packages:".bold(),
                 package_level.to_string().bold(),
                 "(L=local, E=embedded, G=git, T=tarball, R=registry, B=builtin)".bold()
@@ -136,7 +135,7 @@ fn print_project_packages(
 
             for (name, package) in packages {
                 println!(
-                    "    {} {} ({})",
+                    "{INDENT}{} {} ({})",
                     package.source.as_ref().map_or("?", |s| s.to_short_str()),
                     name,
                     package.version,

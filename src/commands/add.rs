@@ -19,7 +19,7 @@ pub fn add_to_project(args: &AddArguments) -> anyhow::Result<()> {
         };
     }
 
-    let project = ProjectPath::from(&args.project_dir)?;
+    let project = ProjectPath::try_from(&args.project_dir)?;
 
     let file_dir = match args.file {
         IncludedFile::Builder | IncludedFile::BuilderMenu => {
