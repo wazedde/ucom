@@ -12,7 +12,7 @@ use anyhow::{anyhow, Context, Result};
 pub fn build_command_line(cmd: &Command) -> String {
     let mut line = cmd.get_program().to_string_lossy().to_string();
 
-    // Handle spaces in path.
+    // Handle spaces in the path.
     if line.contains(char::is_whitespace) {
         if cfg!(target_os = "macos") {
             line = format!("\"{line}\"");
@@ -102,10 +102,10 @@ pub fn wait_with_stdout(mut cmd: Command) -> Result<()> {
 
 /// Continuously reads the log file and prints it to the console.
 fn monitor_log_file(log_file: &Path, update_interval: Duration, stop_logging: &Arc<AtomicBool>) {
-    // Wait until file exists.
+    // Wait until the file exists.
     while !log_file.exists() {
         if stop_logging.load(Ordering::SeqCst) {
-            // If the file writer thread has finished without creating the file we can stop waiting.
+            // If the file writer thread has finished without creating the file, we can stop waiting.
             return;
         }
         thread::sleep(update_interval);

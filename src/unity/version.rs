@@ -81,7 +81,7 @@ impl Version {
             + 2 // The 2 dots
     }
 
-    /// Returns the major.minor part of this version.
+    /// Returns the `major.minor` part of this version.
     pub fn minor_partial(self) -> String {
         format!("{}.{}", self.major, self.minor)
     }

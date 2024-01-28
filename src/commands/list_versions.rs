@@ -170,7 +170,7 @@ fn print_updates(installed: &[Version], available: &[ReleaseInfo]) -> anyhow::Re
     Ok(())
 }
 
-/// Groups installed versions by major.minor version
+/// Groups installed versions by `major.minor` version
 /// and collects update information for each installed version.
 fn collect_update_info(installed: &[Version], available: &[ReleaseInfo]) -> Vec<Vec<VersionInfo>> {
     let mut version_groups = group_minor_versions(installed);
@@ -366,7 +366,7 @@ fn print_installs_line(latest: &ReleaseInfo, installed_in_range: &[Version], max
         .last()
         .filter(|&v| v == &latest.version)
         .is_some()
-        || installed_in_range // Special case for when installed version is newer than latest.
+        || installed_in_range // Special case for when installed version is newer than the latest.
             .last()
             .map_or(false, |&v| v > latest.version);
 

@@ -66,7 +66,7 @@ pub enum Action {
         report: bool,
     },
 
-    /// Creates a new Unity project and Git repository, defaulting to the latest installed Unity version.
+    /// Creates a new Unity project and Git repository, defaulting to the latest-installed Unity version.
     #[command(visible_alias = "n")]
     New(NewArguments),
 
@@ -78,7 +78,7 @@ pub enum Action {
     #[command(visible_alias = "b")]
     Build(BuildArguments),
 
-    /// Runs Unity with specified arguments, defaulting to the latest installed Unity version.
+    /// Runs Unity with specified arguments, defaulting to the latest-installed Unity version.
     #[command(visible_alias = "r")]
     Run(RunArguments),
 
@@ -103,7 +103,7 @@ pub enum Action {
 
 #[derive(Args)]
 pub struct RunArguments {
-    /// Specifies the Unity version to run. For example, '2021' runs the latest installed 2021.x.y version.
+    /// Specifies the Unity version to run. For example, '2021' runs the latest-installed 2021.x.y version.
     #[arg(
         short = 'u',
         long = "unity",
@@ -131,7 +131,8 @@ pub struct RunArguments {
 
 #[derive(Args)]
 pub struct NewArguments {
-    /// Specifies the Unity version for the new project. For example, '2021' uses the latest installed 2021.x.y version.
+    /// Specifies the Unity version for the new project.
+    /// For example, '2021' uses the latest-installed 2021.x.y version.
     #[arg(
         short = 'u',
         long = "unity",
@@ -195,8 +196,8 @@ pub struct OpenArguments {
     pub project_dir: PathBuf,
 
     /// Upgrades the project's Unity version.
-    /// A partial version like '2021' selects the latest installed version within the 2021.x.y range.
-    /// If no version is specified, it defaults to the latest available version within the project's major.minor range.
+    /// A partial version like '2021' selects the latest-installed version within the 2021.x.y range.
+    /// If no version is specified, it defaults to the latest available version within the project's `major.minor` range.
     #[arg(short = 'U', long = "upgrade", value_name = "VERSION")]
     pub upgrade_version: Option<Option<String>>,
 
@@ -247,7 +248,7 @@ pub struct BuildArguments {
 
     /// Sets the output type for the build.
     ///
-    /// This is mainly a flag used in the output directory, it doesn't dictate the physical type of build.
+    /// This is mainly a flag used in the output directory; it doesn't dictate the physical type of build.
     /// Ignored if `--output` is set.
     #[arg(
         short = 't',
@@ -305,8 +306,8 @@ pub struct BuildArguments {
 
     /// A string to be passed directly to functions tagged with the UcomPreProcessBuild attribute.
     ///
-    /// Use it pass custom arguments to your own C# build scripts before the project is built,
-    /// like e.g. a release, debug or test build tag or a version number.
+    /// Use it to pass custom arguments to your own C# build scripts before the project is built,
+    /// like e.g., a release, debug or test build tag or a version number.
     /// This requires the use of ucom's injected build script as it passes the arguments through.
     #[arg(short = 'a', long, value_name = "STRING")]
     pub build_args: Option<String>,
@@ -567,7 +568,7 @@ impl From<BuildOpenTarget> for BuildScriptTarget {
     }
 }
 
-/// Building options. Multiple options can be combined together.
+/// Building options. Multiple options can be combined.
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, ValueEnum)]
 pub enum BuildOptions {
     /// Perform the specified build without any special settings or extra tasks.

@@ -92,7 +92,7 @@ pub fn matching_versions(
     }
 }
 
-/// Returns version of the latest installed version that matches the partial version.
+/// Returns the version of the latest-installed version that matches the partial version.
 pub fn latest_installed_version(partial_version: Option<&str>) -> Result<Version> {
     let parent_dir = editor_parent_dir()?;
     let version = *matching_versions(available_unity_versions(parent_dir)?, partial_version)?

@@ -41,7 +41,7 @@ pub fn add_to_project(args: &AddArguments) -> anyhow::Result<()> {
     }
 
     if args.file == IncludedFile::BuilderMenu {
-        // Build menu requires the builder script to be added as well.
+        // The build menu requires the builder script to be added as well.
         let temp_args = AddArguments {
             project_dir: args.project_dir.clone(),
             file: IncludedFile::Builder,

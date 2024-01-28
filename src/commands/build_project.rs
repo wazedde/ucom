@@ -197,14 +197,16 @@ fn clean_output_directory(path: &Path) -> anyhow::Result<()> {
     Ok(())
 }
 
-/// Returns full path to the log file. By default the project's `Logs` directory is used as destination.
+/// Returns the full path to the log file.
+/// By default, the project's `Logs` directory is used as destination.
 fn get_full_log_path(log_file: &Path, project_dir: &Path) -> anyhow::Result<PathBuf> {
     let file_name = log_file
         .file_name()
         .ok_or_else(|| anyhow!("Invalid log file name: {}", log_file.display()))?;
 
     let path = if log_file == file_name {
-        // Log filename without path was given, use the project's `Logs` directory as destination.
+        // Log filename without the path was given,
+        // use the project's `Logs` directory as destination.
         project_dir.join("Logs").join(file_name)
     } else {
         log_file.into()
@@ -273,10 +275,10 @@ fn csharp_build_script_injection_hooks(
     let do_nothing: (ResultFn, ResultFn) = (Box::new(|| Ok(())), Box::new(|| Ok(())));
 
     match inject {
-        // Build script already present, no need to inject.
+        // Build script is already present, no need to inject.
         InjectAction::Auto if persistent_script_exists => do_nothing,
 
-        // Build script not present, inject it in a unique directory to avoid conflicts.
+        // Build script is not present, inject it in a unique directory to avoid conflicts.
         InjectAction::Auto => {
             let uuid = Uuid::new_v4();
             let unique_dir_name = format!("{AUTO_BUILD_SCRIPT_ROOT}-{uuid}");
@@ -297,10 +299,10 @@ fn csharp_build_script_injection_hooks(
             )
         }
 
-        // Build script already present, no need to inject.
+        // Build script is already present, no need to inject.
         InjectAction::Persistent if persistent_script_exists => do_nothing,
 
-        // Build script not present, inject it.
+        // Build script is not present, inject it.
         InjectAction::Persistent => {
             let closure_project_dir = project_path.to_path_buf();
             let closure_script_dir = PathBuf::from(PERSISTENT_BUILD_SCRIPT_ROOT);

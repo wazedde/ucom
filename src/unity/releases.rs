@@ -31,9 +31,9 @@ impl ReleaseInfo {
 pub enum ReleaseFilter {
     /// Match all releases.
     All,
-    /// Match releases on major version.
+    /// Match releases on the major version.
     Major { major: Major },
-    /// Match releases on major and minor version.
+    /// Match releases on the major and minor version.
     Minor { major: Major, minor: Minor },
 }
 
@@ -91,7 +91,7 @@ fn extract_releases_from_html(html: &str, filter: &ReleaseFilter) -> Vec<Release
     let major_release_class: Cow<'_, str> = match filter {
         // Look for release-tab-content class
         ReleaseFilter::All => "release-tab-content".into(),
-        // Look for class with major version only
+        // Look for class with the major version only
         ReleaseFilter::Major { major } | ReleaseFilter::Minor { major, .. } => {
             major.to_string().into()
         }
