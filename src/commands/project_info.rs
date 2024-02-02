@@ -4,10 +4,9 @@ use colored::Colorize;
 use itertools::Itertools;
 
 use crate::cli::PackagesInfoLevel;
+use crate::commands::INDENT;
 use crate::unity::project::*;
 use crate::unity::{release_notes_url, to_absolute_dir_path, ProjectPath};
-
-const INDENT: &str = "    ";
 
 /// Shows project information.
 pub fn project_info(
@@ -27,7 +26,7 @@ pub fn project_info(
         if let Ok(path) = ProjectPath::try_from(entry.path()) {
             println!();
             if let Err(err) = print_project_info(&path, packages_level) {
-                println!("{INDENT}{}", err.to_string().red());
+                println!("{}{}", INDENT, err.to_string().red());
             }
             it.skip_current_dir();
         }
@@ -49,8 +48,8 @@ fn print_project_info(
     match Settings::from_project(project) {
         Ok(settings) => {
             let ps = settings.player_settings;
-            println!("{INDENT}Product Name:  {}", ps.product_name.bold());
-            println!("{INDENT}Company Name:  {}", ps.company_name.bold());
+            println!("{INDENT}Product name:  {}", ps.product_name.bold());
+            println!("{INDENT}Company name:  {}", ps.company_name.bold());
             println!("{INDENT}Version:       {}", ps.bundle_version.bold());
         }
 
@@ -64,7 +63,7 @@ fn print_project_info(
     }
 
     print!(
-        "{INDENT}Unity Version: {} - {}",
+        "{INDENT}Unity version: {} - {}",
         unity_version.to_string().bold(),
         release_notes_url(unity_version).bright_blue()
     );
@@ -127,7 +126,7 @@ fn print_project_packages(
 
             println!();
             println!(
-                "{INDENT}{} {} {}",
+                "{} {} {}",
                 "Packages:".bold(),
                 package_level.to_string().bold(),
                 "(L=local, E=embedded, G=git, T=tarball, R=registry, B=builtin)".bold()

@@ -8,7 +8,7 @@ use path_absolutize::Absolutize;
 
 use crate::cli::{IncludedFile, NewArguments};
 use crate::commands::terminal_spinner::TerminalSpinner;
-use crate::commands::{add_file_to_project, PERSISTENT_BUILD_SCRIPT_ROOT};
+use crate::commands::{add_file_to_project, INDENT, PERSISTENT_BUILD_SCRIPT_ROOT};
 use crate::unity::*;
 
 /// Creates a new Unity project and optional Git repository in the given directory.
@@ -58,9 +58,9 @@ pub fn new_project(arguments: NewArguments) -> anyhow::Result<()> {
     if arguments.add_builder_menu {
         let parent_dir = &PathBuf::from(PERSISTENT_BUILD_SCRIPT_ROOT);
 
-        print!("  ");
+        print!("{}", INDENT);
         add_file_to_project(&project_dir, parent_dir, IncludedFile::Builder)?;
-        print!("  ");
+        print!("{}", INDENT);
         add_file_to_project(&project_dir, parent_dir, IncludedFile::BuilderMenu)?;
     }
 
@@ -97,7 +97,7 @@ fn git_init<P: AsRef<Path>>(project_dir: P, include_lfs: bool) -> anyhow::Result
         return Err(anyhow!("{}", String::from_utf8_lossy(&output.stderr))).context(init_context);
     }
 
-    print!("  ");
+    print!("{}", INDENT);
     add_file_to_project(project_dir, PathBuf::default(), IncludedFile::GitIgnore)?;
 
     if include_lfs {
@@ -117,7 +117,7 @@ fn git_init<P: AsRef<Path>>(project_dir: P, include_lfs: bool) -> anyhow::Result
                 .context(lfs_context);
         }
 
-        print!("  ");
+        print!("{}", INDENT);
         add_file_to_project(project_dir, PathBuf::default(), IncludedFile::GitAttributes)?;
     }
     Ok(())

@@ -27,6 +27,7 @@ pub mod run_unity;
 pub mod terminal_spinner;
 
 pub const PERSISTENT_BUILD_SCRIPT_ROOT: &str = "Assets/Plugins/Ucom/Editor";
+pub const INDENT: &str = "  ";
 
 pub trait ColoredStringIf {
     /// Returns bold string if `is_bold` is true.

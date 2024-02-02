@@ -4,6 +4,7 @@ use std::path::Path;
 use colored::Colorize;
 
 use crate::commands::terminal_spinner::TerminalSpinner;
+use crate::commands::INDENT;
 use crate::unity::*;
 
 /// Checks on the Unity website for updates to the version used by the project.
@@ -65,23 +66,34 @@ fn write_project_header(
         write!(buf, "# ")?;
     }
 
-    let product_name = Settings::from_project(project).map_or_else(
-        |_| "<UNKNOWN>".to_string(),
-        |s| s.player_settings.product_name,
-    );
-
-    let s = format!("Unity updates for project: {product_name}").bold();
+    let s = format!(
+        "Unity updates for: {}",
+        project.as_path().to_string_lossy().bold()
+    )
+    .bold();
     writeln!(buf, "{s}")?;
 
     if create_report {
         writeln!(buf)?;
     }
 
-    writeln!(
-        buf,
-        "- Directory: {}",
-        project.as_path().to_string_lossy().bold()
-    )?;
+    match Settings::from_project(project) {
+        Ok(settings) => {
+            let ps = settings.player_settings;
+            writeln!(buf, "{}Product name:  {}", INDENT, ps.product_name.bold())?;
+            writeln!(buf, "{}Company name:  {}", INDENT, ps.company_name.bold())?;
+            writeln!(buf, "{}Version:       {}", INDENT, ps.bundle_version.bold())?;
+        }
+
+        Err(e) => {
+            writeln!(
+                buf,
+                "{INDENT}{}: {}",
+                "No project settings found".yellow(),
+                e.to_string().yellow()
+            )?;
+        }
+    }
     Ok(())
 }
 
@@ -93,23 +105,23 @@ fn write_project_version(
     buf: &mut Vec<u8>,
 ) -> anyhow::Result<()> {
     let is_installed = project_version.is_editor_installed()?;
-    write!(buf, "{}", "The version the project uses is ".bold())?;
+    write!(buf, "{}", "Unity editor: ".bold())?;
 
     let version = match (is_installed, updates.is_empty()) {
         (true, true) => {
-            writeln!(buf, "{}", "installed and up to date:".bold())?;
+            writeln!(buf, "{}", "installed and up to date".green().bold())?;
             project_version.to_string().green()
         }
         (true, false) => {
-            writeln!(buf, "{}", "installed and out of date:".bold())?;
+            writeln!(buf, "{}", "installed and out of date".yellow().bold())?;
             project_version.to_string().yellow()
         }
         (false, true) => {
-            writeln!(buf, "{}", "not installed and up to date:".red().bold())?;
+            writeln!(buf, "{}", "not installed and up to date".red().bold())?;
             project_version.to_string().red()
         }
         (false, false) => {
-            writeln!(buf, "{}", "not installed and out of date:".red().bold())?;
+            writeln!(buf, "{}", "not installed and out of date".red().bold())?;
             project_version.to_string().red()
         }
     };
@@ -120,7 +132,8 @@ fn write_project_version(
 
     write!(
         buf,
-        "- {} - {}",
+        "{}{} - {}",
+        INDENT,
         version,
         release_notes_url(project_version).bright_blue()
     )?;

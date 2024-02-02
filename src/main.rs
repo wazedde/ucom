@@ -86,7 +86,7 @@ fn main() -> anyhow::Result<()> {
 
                     println!("Cached files at: {}", cache_dir.display());
                     for file in http_cache::ucom_cache_dir().read_dir()? {
-                        println!("    {}", file?.file_name().to_string_lossy());
+                        println!("{}{}", INDENT, file?.file_name().to_string_lossy());
                     }
                 }
             }
