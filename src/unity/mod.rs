@@ -75,13 +75,13 @@ impl ProjectPath {
     pub fn check_assets_directory_exists(&self) -> anyhow::Result<()> {
         let assets_path = self.as_path().join("Assets");
 
-        if !assets_path.exists() {
+        if assets_path.exists() {
+            Ok(())
+        } else {
             Err(anyhow!(
                 "Unity project does not have an `Assets` directory: `{}`",
                 self.as_path().display()
             ))
-        } else {
-            Ok(())
         }
     }
 

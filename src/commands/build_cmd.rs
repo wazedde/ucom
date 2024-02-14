@@ -25,7 +25,7 @@ pub fn build_project(arguments: BuildArguments) -> anyhow::Result<()> {
     let unity_version = project.unity_version()?;
     let editor_exe = unity_version.editor_executable_path()?;
 
-    let output_dir = match arguments.build_path {
+    let output_dir = match &arguments.build_path {
         Some(path) => path.absolutize()?.into(),
         None => {
             // If no build path is given, use <project>/Builds/<target>
@@ -44,9 +44,11 @@ pub fn build_project(arguments: BuildArguments) -> anyhow::Result<()> {
         ));
     }
 
-    let log_file = arguments
-        .log_file
-        .unwrap_or_else(|| format!("Build-{}.log", arguments.target).into());
+    let log_file = match &arguments.log_file {
+        Some(path) => path.to_owned(),
+        None => format!("Build-{}.log", arguments.target).into(),
+    };
+
     let log_file = get_full_log_path(&log_file, project.as_path())?;
     if log_file.exists() {
         fs::remove_file(&log_file)?;
@@ -64,39 +66,7 @@ pub fn build_project(arguments: BuildArguments) -> anyhow::Result<()> {
             &BuildScriptTarget::from(arguments.target).to_string(),
         ]);
 
-    let mut bo = arguments.build_options;
-
-    if arguments.run_player {
-        bo.push(BuildOptions::AutoRunPlayer);
-    }
-
-    if arguments.development_build {
-        bo.push(BuildOptions::Development);
-    }
-
-    if arguments.show_built_player {
-        bo.push(BuildOptions::ShowBuiltPlayer);
-    }
-
-    if arguments.allow_debugging {
-        bo.push(BuildOptions::AllowDebugging);
-    }
-
-    if arguments.connect_with_profiler {
-        bo.push(BuildOptions::ConnectWithProfiler);
-    }
-
-    if arguments.deep_profiling {
-        bo.push(BuildOptions::EnableDeepProfilingSupport);
-    }
-
-    if arguments.connect_to_host {
-        bo.push(BuildOptions::ConnectToHost);
-    }
-
-    // Combine the build option flags into an int.
-    let build_options = bo.iter().fold(0, |options, &o| options | (o as i32));
-
+    let build_options = arguments.get_build_option_flags();
     if build_options != (BuildOptions::None as i32) {
         cmd.args(["--ucom-build-options", &build_options.to_string()]);
     }
@@ -167,7 +137,7 @@ pub fn build_project(arguments: BuildArguments) -> anyhow::Result<()> {
         // Iterate over lines from the build report in the log file.
         BufReader::new(log_file)
             .lines()
-            .flatten()
+            .map_while(Result::ok)
             .skip_while(|l| !l.starts_with("[Builder] Build Report")) // Find marker.
             .skip(1) // Skip the marker.
             .take_while(|l| !l.is_empty()) // Read until empty line.
@@ -177,9 +147,49 @@ pub fn build_project(arguments: BuildArguments) -> anyhow::Result<()> {
     build_result.map_err(|_| collect_log_errors(&log_file))
 }
 
+impl BuildArguments {
+    fn get_build_option_flags(&self) -> i32 {
+        let mut option_flags = 0;
+        if self.run_player {
+            option_flags |= BuildOptions::AutoRunPlayer as i32;
+        }
+
+        if self.development_build {
+            option_flags |= BuildOptions::Development as i32;
+        }
+
+        if self.show_built_player {
+            option_flags |= BuildOptions::ShowBuiltPlayer as i32;
+        }
+
+        if self.allow_debugging {
+            option_flags |= BuildOptions::AllowDebugging as i32;
+        }
+
+        if self.connect_with_profiler {
+            option_flags |= BuildOptions::ConnectWithProfiler as i32;
+        }
+
+        if self.deep_profiling {
+            option_flags |= BuildOptions::EnableDeepProfilingSupport as i32;
+        }
+
+        if self.connect_to_host {
+            option_flags |= BuildOptions::ConnectToHost as i32;
+        }
+
+        let option_list = self
+            .build_options
+            .iter()
+            .fold(0, |options, &o| options | (o as i32));
+
+        option_flags | option_list
+    }
+}
+
 fn clean_output_directory(path: &Path) -> anyhow::Result<()> {
     let to_delete = fs::read_dir(path)?
-        .flatten()
+        .map_while(Result::ok)
         .map(|de| de.path())
         .filter(|p| p.is_dir()) // Only directories.
         .filter(|p| {
@@ -224,7 +234,7 @@ fn collect_log_errors(log_file: &Path) -> anyhow::Error {
 
     let errors: IndexSet<_> = BufReader::new(log_file)
         .lines()
-        .flatten()
+        .map_while(Result::ok)
         .filter(|l| line_contains_error(l))
         .unique()
         .collect();

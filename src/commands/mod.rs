@@ -7,24 +7,26 @@ use anyhow::anyhow;
 use colored::{ColoredString, Colorize};
 
 use crate::cli::IncludedFile;
-pub use crate::commands::add::add_to_project;
-pub use crate::commands::build_project::build_project;
-pub use crate::commands::check_updates::check_updates;
-pub use crate::commands::list_versions::list_versions;
-pub use crate::commands::new_project::new_project;
-pub use crate::commands::open_project::open_project;
-pub use crate::commands::project_info::project_info;
-pub use crate::commands::run_unity::run_unity;
+pub use crate::commands::add_cmd::add_to_project;
+pub use crate::commands::build_cmd::build_project;
+pub use crate::commands::check_cmd::check_updates;
+pub use crate::commands::info_cmd::project_info;
+pub use crate::commands::list_cmd::list_versions;
+pub use crate::commands::new_cmd::new_project;
+pub use crate::commands::open_cmd::open_project;
+pub use crate::commands::run_cmd::run_unity;
 
-mod add;
-pub mod build_project;
-pub mod check_updates;
-pub mod list_versions;
-pub mod new_project;
-pub mod open_project;
-pub mod project_info;
-pub mod run_unity;
+mod add_cmd;
+mod build_cmd;
+mod check_cmd;
+mod info_cmd;
+mod list_cmd;
+mod new_cmd;
+mod open_cmd;
+mod run_cmd;
+
 pub mod terminal_spinner;
+pub mod test_cmd;
 
 pub const PERSISTENT_BUILD_SCRIPT_ROOT: &str = "Assets/Plugins/Ucom/Editor";
 pub const INDENT: &str = "  ";

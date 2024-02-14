@@ -6,6 +6,7 @@ use clap::Parser;
 use colored::Colorize;
 
 use crate::cli::{Action, CacheAction, Cli};
+use crate::commands::test_cmd::run_tests;
 use crate::commands::*;
 use crate::unity::http_cache;
 
@@ -63,6 +64,8 @@ fn main() -> anyhow::Result<()> {
         Action::Build(settings) => {
             build_project(settings).context("Cannot build project".red().bold())
         }
+
+        Action::Test(settings) => run_tests(settings).context("Cannot run tests".red().bold()),
 
         Action::Add(arguments) => {
             add_to_project(&arguments).context("Cannot add file to project".red().bold())

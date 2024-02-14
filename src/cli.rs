@@ -50,7 +50,7 @@ pub enum Action {
         recursive: bool,
 
         /// Determines the level of package information to display.
-        #[arg(short='p', long, default_value = "no-unity", env = ENV_PACKAGE_LEVEL)]
+        #[arg(short = 'p', long, default_value = "no-unity", env = ENV_PACKAGE_LEVEL)]
         packages: PackagesInfoLevel,
     },
 
@@ -77,6 +77,10 @@ pub enum Action {
     /// Builds a specified Unity project.
     #[command(visible_alias = "b")]
     Build(BuildArguments),
+
+    /// Runs tests in the Project.
+    #[command(visible_alias = "t")]
+    Test(TestArguments),
 
     /// Runs Unity with specified arguments, defaulting to the latest-installed Unity version.
     #[command(visible_alias = "r")]
@@ -105,10 +109,10 @@ pub enum Action {
 pub struct RunArguments {
     /// Specifies the Unity version to run. For example, '2021' runs the latest-installed 2021.x.y version.
     #[arg(
-        short = 'u',
-        long = "unity",
-        value_name = "VERSION",
-        env = ENV_DEFAULT_VERSION,
+    short = 'u',
+    long = "unity",
+    value_name = "VERSION",
+    env = ENV_DEFAULT_VERSION,
     )]
     pub version_pattern: Option<String>,
 
@@ -134,18 +138,18 @@ pub struct NewArguments {
     /// Specifies the Unity version for the new project.
     /// For example, '2021' uses the latest-installed 2021.x.y version.
     #[arg(
-        short = 'u',
-        long = "unity",
-        value_name = "VERSION",
-        env = ENV_DEFAULT_VERSION
+    short = 'u',
+    long = "unity",
+    value_name = "VERSION",
+    env = ENV_DEFAULT_VERSION
     )]
     pub version_pattern: Option<String>,
 
     /// Defines the directory for creating the project. This directory should not pre-exist.
     #[arg(
-        required = true,
-        value_name = "DIRECTORY",
-        value_hint = clap::ValueHint::DirPath
+    required = true,
+    value_name = "DIRECTORY",
+    value_hint = clap::ValueHint::DirPath
     )]
     pub project_dir: PathBuf,
 
@@ -239,10 +243,10 @@ pub struct BuildArguments {
     /// Sets the output directory for the build.
     /// If omitted, the build is placed in <PROJECT_DIR>/Builds/<TYPE>/<TARGET>.
     #[arg(
-        short = 'o',
-        long = "output",
-        value_name = "DIRECTORY",
-        value_hint = clap::ValueHint::FilePath
+    short = 'o',
+    long = "output",
+    value_name = "DIRECTORY",
+    value_hint = clap::ValueHint::FilePath
     )]
     pub build_path: Option<PathBuf>,
 
@@ -301,7 +305,7 @@ pub struct BuildArguments {
     pub connect_to_host: bool,
 
     /// Sets the build options. Multiple options can be combined by separating them with spaces.
-    #[arg(num_args(0..), short = 'O', long, value_name = "OPTION", default_value="none")]
+    #[arg(num_args(0..), short = 'O', long, value_name = "OPTION", default_value = "none")]
     pub build_options: Vec<BuildOptions>,
 
     /// A string to be passed directly to functions tagged with the UcomPreProcessBuild attribute.
@@ -351,6 +355,69 @@ pub struct BuildArguments {
 }
 
 #[derive(Args)]
+pub struct TestArguments {
+    /// The platform to run tests on.
+    #[arg(value_enum)]
+    pub platform: TestTarget,
+
+    /// Specifies the project's directory.
+    #[arg(value_name = "DIRECTORY", value_hint = clap::ValueHint::DirPath, default_value = ".")]
+    pub project_dir: PathBuf,
+
+    /// Run Unity in batch mode.
+    ///
+    /// Running tests in batch mode removes the need for manual user inputs
+    #[arg(short = 'b', long("batchmode"))]
+    pub batch_mode: bool,
+
+    /// Don't save your current Project into the Unity launcher/hub history.
+    #[arg(long)]
+    pub forget_project_path: bool,
+
+    /// A semicolon-separated list of test categories to include in the run.
+    ///
+    /// A semi-colon separated list should be formatted as a string enclosed in quotation marks,
+    /// e.g. `categories "firstCategory;secondCategory"`.
+    /// If using both `categories` and `tests`, then only test that matches both are run.
+    /// This argument supports negation using '!'.
+    /// If using '!MyCategory' then no tests with the 'MyCategory' category will be included in the run.
+    #[arg(long, value_name = "LIST")]
+    pub categories: Option<String>,
+
+    /// A semicolon-separated list of test names to run,
+    /// or a regular expression pattern to match tests by their full name.
+    ///
+    /// A semi-colon separated list should be formatted as a string enclosed in quotation marks,
+    /// e.g. `tests "Low;Medium"`.
+    /// This argument supports negation using '!'.
+    /// If using the test filter '!MyNamespace.Something.MyTest',
+    /// then all tests except that test will be run.
+    /// It is also possible to run a specific variation of a parameterized test like so:
+    /// `"ClassName\.MethodName\(Param1,Param2\)"`
+    #[arg(long, value_name = "LIST")]
+    pub tests: Option<String>,
+
+    /// A semicolon-separated list of test assemblies to include in the run.
+    ///
+    /// A semi-colon separated list should be formatted as a string enclosed in quotation marks,
+    /// e.g. `assemblyNames "firstAssembly;secondAssembly"`.
+    #[arg(long, value_name = "LIST")]
+    pub assemblies: Option<String>,
+
+    /// Suppresses ucom messages.
+    #[arg(short = 'q', long)]
+    pub quiet: bool,
+
+    /// Shows the command to be run without actually executing it.
+    #[arg(short = 'n', long)]
+    pub dry_run: bool,
+
+    /// A list of arguments to be passed directly to Unity.
+    #[arg(last = true, value_name = "UNITY_ARGS")]
+    pub args: Option<Vec<String>>,
+}
+
+#[derive(Args)]
 pub struct AddArguments {
     /// The file to be added to the project.
     #[arg(value_enum)]
@@ -358,10 +425,10 @@ pub struct AddArguments {
 
     /// Defines the project's directory.
     #[arg(
-        value_name = "DIRECTORY",
-        value_hint = clap::ValueHint::DirPath,
-        default_value = ".",
-        conflicts_with = "display_content"
+    value_name = "DIRECTORY",
+    value_hint = clap::ValueHint::DirPath,
+    default_value = ".",
+    conflicts_with = "display_content"
     )]
     pub project_dir: PathBuf,
 
@@ -650,6 +717,36 @@ pub enum BuildOptions {
 
     /// Enable Shader Livelink support.
     ShaderLivelinkSupport = 1073741824, // 0x40000000
+}
+
+/// The build target to open the project with.
+#[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, ValueEnum)]
+#[allow(non_camel_case_types)]
+pub enum TestTarget {
+    #[value(name = "editmode")]
+    EditMode,
+    #[value(name = "playmode")]
+    PlayMode,
+    #[value(name = "macos")]
+    StandaloneOSX,
+    #[value(name = "win32")]
+    StandaloneWindows,
+    #[value(name = "win64")]
+    StandaloneWindows64,
+    #[value(name = "linux64")]
+    StandaloneLinux64,
+    #[value(name = "ios")]
+    iOS,
+    #[value(name = "android")]
+    Android,
+    #[value(name = "webgl")]
+    WebGL,
+}
+
+impl Display for TestTarget {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{self:?}")
+    }
 }
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, ValueEnum)]
