@@ -1,13 +1,14 @@
 use std::process::Command;
 
 use chrono::prelude::*;
-use colored::Colorize;
 
 use crate::cli::TestArguments;
-use crate::commands::terminal_spinner::TerminalSpinner;
+use crate::commands::term_stat::TermStat;
+use crate::commands::time_delta_to_seconds;
 use crate::unity::{build_command_line, wait_with_stdout, ProjectPath};
 
 pub fn run_tests(arguments: TestArguments) -> anyhow::Result<()> {
+    let start_time = Utc::now();
     let project = ProjectPath::try_from(&arguments.project_dir)?;
     let project_unity_version = project.unity_version()?;
     let editor_exe = project_unity_version.editor_executable_path()?;
@@ -51,23 +52,31 @@ pub fn run_tests(arguments: TestArguments) -> anyhow::Result<()> {
         return Ok(());
     }
 
-    let spinner = TerminalSpinner::new(format!(
-        "Running tests for project in: {}",
-        project.as_path().display()
-    ));
+    let ts = TermStat::new_quiet(
+        arguments.quiet,
+        "Running",
+        format!("tests for project in {}", project.as_path().display()),
+    );
+
     wait_with_stdout(cmd)?;
-    drop(spinner);
+
+    drop(ts);
 
     if !arguments.quiet {
-        println!(
-            "{}",
-            format!(
-                "Finished running tests for project in: {}",
-                project.as_path().display()
-            )
-            .bold()
+        TermStat::print_stat_ok(
+            "Running",
+            format!("tests for project in {}", project.as_path().display()),
         );
-        println!("Test results: {}", output_path.display());
+
+        TermStat::print_stat_ok(
+            "Finished",
+            format!(
+                "in {:.2}s",
+                time_delta_to_seconds(Utc::now().signed_duration_since(start_time))
+            ),
+        );
+
+        TermStat::print_stat_ok("Results", output_path.to_string_lossy());
     }
 
     Ok(())

@@ -5,7 +5,7 @@ use colored::Colorize;
 use itertools::Itertools;
 
 use crate::cli::{ListType, ENV_DEFAULT_VERSION};
-use crate::commands::terminal_spinner::TerminalSpinner;
+use crate::commands::term_stat::TermStat;
 use crate::commands::ColoredStringIf;
 use crate::unity::*;
 
@@ -32,9 +32,9 @@ pub fn list_versions(list_type: ListType, partial_version: Option<&str>) -> anyh
                 dir.display(),
             );
             println!("{}", line.bold());
-            let spinner = TerminalSpinner::new("Downloading release data...");
+            let ts = TermStat::new("Downloading", "release data...");
             let releases = fetch_unity_editor_releases()?;
-            drop(spinner);
+            drop(ts);
             print_updates(&matching_versions, &releases)?;
             Ok(())
         }
@@ -42,9 +42,9 @@ pub fn list_versions(list_type: ListType, partial_version: Option<&str>) -> anyh
             let matching_versions =
                 matching_versions(versions, partial_version).unwrap_or_default();
             println!("{}", "Latest available minor releases".bold());
-            let spinner = TerminalSpinner::new("Downloading release data...");
+            let ts = TermStat::new("Downloading", "release data...");
             let releases = fetch_unity_editor_releases()?;
-            drop(spinner);
+            drop(ts);
             print_latest_versions(&matching_versions, &releases, partial_version);
             Ok(())
         }
@@ -53,9 +53,9 @@ pub fn list_versions(list_type: ListType, partial_version: Option<&str>) -> anyh
                 matching_versions(versions, partial_version).unwrap_or_default();
 
             println!("{}", "Available releases".bold());
-            let spinner = TerminalSpinner::new("Downloading release data...");
+            let ts = TermStat::new("Downloading", "release data...");
             let releases = fetch_unity_editor_releases()?;
-            drop(spinner);
+            drop(ts);
             print_available_versions(&matching_versions, &releases, partial_version);
             Ok(())
         }

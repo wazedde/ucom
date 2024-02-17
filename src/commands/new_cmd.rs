@@ -7,7 +7,7 @@ use colored::Colorize;
 use path_absolutize::Absolutize;
 
 use crate::cli::{IncludedFile, NewArguments};
-use crate::commands::terminal_spinner::TerminalSpinner;
+use crate::commands::term_stat::TermStat;
 use crate::commands::{add_file_to_project, INDENT, PERSISTENT_BUILD_SCRIPT_ROOT};
 use crate::unity::*;
 
@@ -70,7 +70,7 @@ pub fn new_project(arguments: NewArguments) -> anyhow::Result<()> {
 
     match (arguments.wait, arguments.quit && !arguments.quiet) {
         (true, true) => {
-            _ = TerminalSpinner::new("Creating project...");
+            _ = TermStat::new("Creating", "project...");
             wait_with_stdout(cmd)?;
         }
         (true, false) => wait_with_stdout(cmd)?,

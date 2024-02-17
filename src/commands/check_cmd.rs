@@ -3,7 +3,7 @@ use std::path::Path;
 
 use colored::Colorize;
 
-use crate::commands::terminal_spinner::TerminalSpinner;
+use crate::commands::term_stat::TermStat;
 use crate::commands::INDENT;
 use crate::unity::*;
 
@@ -11,12 +11,10 @@ use crate::unity::*;
 pub fn check_updates(project_dir: &Path, create_report: bool) -> anyhow::Result<()> {
     let project = ProjectPath::try_from(project_dir)?;
     let unity_version = project.unity_version()?;
-    let spinner = TerminalSpinner::new(format!(
-        "Project uses {unity_version}; checking for updates..."
-    ));
+    let ts = TermStat::new("Checking", format!("for updates to {unity_version}"));
 
     let (project_version_info, updates) = fetch_update_info(unity_version)?;
-    drop(spinner);
+    drop(ts);
 
     if create_report {
         colored::control::set_override(false);
@@ -35,16 +33,16 @@ pub fn check_updates(project_dir: &Path, create_report: bool) -> anyhow::Result<
     )?;
 
     if create_report {
-        let mut spinner = TerminalSpinner::new("Downloading Unity release notes...");
+        let ts = TermStat::new("Downloading", "Unity release notes...");
         for release in updates {
-            spinner.update_text(format!(
-                "Downloading Unity {} release notes...",
-                release.version
-            ));
+            ts.update_text(
+                "Downloading",
+                format!("Unity {} release notes...", release.version),
+            );
 
             write_release_notes(&mut buf, &release)?;
         }
-        drop(spinner);
+        drop(ts);
         print!("{}", String::from_utf8(buf)?);
     } else {
         if !updates.is_empty() {
@@ -150,7 +148,7 @@ fn write_project_version(
                 .map(|r| r.installation_url)
                 .map_or_else(
                     || "No release info available".into(),
-                    |s| format!("[install in Unity HUB]({s})")
+                    |s| format!("[install in Unity HUB]({s})"),
                 )
         )?;
     } else {
@@ -161,7 +159,7 @@ fn write_project_version(
             project_version_info
                 .map_or_else(
                     || "No release info available".to_string(),
-                    |r| r.installation_url.bright_blue().to_string()
+                    |r| r.installation_url.bright_blue().to_string(),
                 )
                 .bold()
         )?;

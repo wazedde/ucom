@@ -4,7 +4,7 @@ use std::path::PathBuf;
 
 use clap::{Args, ValueEnum};
 
-use crate::commands::terminal_spinner::TerminalSpinner;
+use crate::commands::term_stat::TermStat;
 use crate::unity::http_cache;
 
 pub const ENV_EDITOR_DIR: &str = "UCOM_EDITOR_DIR";
@@ -777,8 +777,7 @@ impl FileData {
         return match self.content {
             ContentType::Included(content) => Ok(Cow::Borrowed(content)),
             ContentType::Url(url) => {
-                let _spinner =
-                    TerminalSpinner::new(format!("Downloading {} from {}...", self.filename, url));
+                _ = TermStat::new("Downloading", format!("{} from {}...", self.filename, url));
                 Ok(Cow::Owned(http_cache::fetch_content(url)?))
             }
         };

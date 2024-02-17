@@ -13,27 +13,20 @@ static CACHE_ENABLED: OnceLock<bool> = OnceLock::new();
 /// Gets the content of the given URL. Gets the content from the cache if it exists and is not too old.
 pub fn fetch_content(url: &str) -> anyhow::Result<String> {
     if !is_cache_enabled() {
-        let content = ureq::get(url).call()?.into_string()?;
-        return Ok(content);
+        return Ok(ureq::get(url).call()?.into_string()?);
     }
 
     let cache_dir = ucom_cache_dir();
     let filename = cache_dir.join(sanitize_filename(url));
-    let path = Path::new(&filename);
 
-    if path.exists() {
-        let local_last_modified = metadata(&filename)?.modified()?;
-        let local_last_modified = DateTime::<Utc>::from(local_last_modified);
-
-        if Utc::now() - local_last_modified > Duration::hours(1) {
-            fetch_and_save(url, &filename, &cache_dir)
-        } else {
-            let content = fs::read_to_string(&filename)?;
-            Ok(content)
+    if Path::new(&filename).exists() {
+        let modified_time = metadata(&filename)?.modified()?;
+        let delta_time = Utc::now() - DateTime::<Utc>::from(modified_time);
+        if delta_time <= Duration::hours(1) {
+            return Ok(fs::read_to_string(&filename)?);
         }
-    } else {
-        fetch_and_save(url, &filename, &cache_dir)
     }
+    fetch_and_save(url, &filename, &cache_dir)
 }
 
 /// Clears the cache.

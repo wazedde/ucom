@@ -5,6 +5,7 @@ use std::path::{Path, PathBuf};
 use std::process::Command;
 
 use anyhow::anyhow;
+use chrono::Utc;
 use colored::Colorize;
 use indexmap::IndexSet;
 use itertools::Itertools;
@@ -14,13 +15,14 @@ use uuid::Uuid;
 use crate::cli::{
     BuildArguments, BuildMode, BuildOptions, BuildScriptTarget, IncludedFile, InjectAction,
 };
-use crate::commands::{add_file_to_project, PERSISTENT_BUILD_SCRIPT_ROOT};
+use crate::commands::{add_file_to_project, PERSISTENT_BUILD_SCRIPT_ROOT, time_delta_to_seconds};
 use crate::unity::*;
 
 const AUTO_BUILD_SCRIPT_ROOT: &str = "Assets/Ucom";
 
 /// Runs the build command.
 pub fn build_project(arguments: BuildArguments) -> anyhow::Result<()> {
+    let start_time = Utc::now();
     let project = ProjectPath::try_from(&arguments.project_dir)?;
     let unity_version = project.unity_version()?;
     let editor_exe = unity_version.editor_executable_path()?;
@@ -104,7 +106,7 @@ pub fn build_project(arguments: BuildArguments) -> anyhow::Result<()> {
             arguments.target,
             project.as_path().display()
         )
-        .bold()
+            .bold()
     );
 
     let (inject_build_script_hook, cleanup_build_script_hook) =
@@ -128,9 +130,17 @@ pub fn build_project(arguments: BuildArguments) -> anyhow::Result<()> {
             clean_output_directory(&output_dir)?;
         }
 
-        println!("{}", "Build succeeded".green().bold());
+        println!(
+            "{} in {:.2}s",
+            "Build succeeded".green().bold(),
+            time_delta_to_seconds(Utc::now().signed_duration_since(start_time))
+        );
     } else {
-        println!("{}", "Build failed".red().bold());
+        println!(
+            "{} after {:.2}s",
+            "Build failed".red().bold(),
+            time_delta_to_seconds(Utc::now().signed_duration_since(start_time))
+        );
     }
 
     if let Ok(log_file) = File::open(&log_file) {

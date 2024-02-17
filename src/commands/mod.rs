@@ -4,6 +4,7 @@ use std::io::Write;
 use std::path::Path;
 
 use anyhow::anyhow;
+use chrono::TimeDelta;
 use colored::{ColoredString, Colorize};
 
 use crate::cli::IncludedFile;
@@ -25,7 +26,7 @@ mod new_cmd;
 mod open_cmd;
 mod run_cmd;
 
-pub mod terminal_spinner;
+pub mod term_stat;
 pub mod test_cmd;
 
 pub const PERSISTENT_BUILD_SCRIPT_ROOT: &str = "Assets/Plugins/Ucom/Editor";
@@ -44,6 +45,10 @@ impl ColoredStringIf for str {
             self.into()
         }
     }
+}
+
+pub fn time_delta_to_seconds(duration: TimeDelta) -> f64 {
+    duration.num_seconds() as f64 + duration.subsec_nanos() as f64 * 1e-9
 }
 
 /// Adds the given file to the project.
