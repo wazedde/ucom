@@ -743,6 +743,21 @@ pub enum TestTarget {
     WebGL,
 }
 
+impl TestTarget {
+    pub fn as_build_target(self) -> OpenTarget {
+        match self {
+            TestTarget::EditMode | TestTarget::PlayMode => OpenTarget::Standalone,
+            TestTarget::StandaloneOSX => OpenTarget::OSXUniversal,
+            TestTarget::StandaloneWindows => OpenTarget::Win,
+            TestTarget::StandaloneWindows64 => OpenTarget::Win64,
+            TestTarget::StandaloneLinux64 => OpenTarget::Linux64,
+            TestTarget::iOS => OpenTarget::iOS,
+            TestTarget::Android => OpenTarget::Android,
+            TestTarget::WebGL => OpenTarget::WebGL,
+        }
+    }
+}
+
 impl Display for TestTarget {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         write!(f, "{self:?}")

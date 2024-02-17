@@ -20,6 +20,11 @@ pub fn run_tests(arguments: TestArguments) -> anyhow::Result<()> {
     cmd.arg("-runTests");
     cmd.args(["-testPlatform", &arguments.platform.to_string()]);
 
+    cmd.args([
+        "-buildTarget",
+        &arguments.platform.as_build_target().to_string(),
+    ]);
+
     if arguments.batch_mode {
         cmd.arg("-batchmode");
     }
