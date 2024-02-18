@@ -1,7 +1,7 @@
-use std::fmt::Display;
 use std::io::{stdout, IsTerminal, Write};
 
-use colored::Colorize;
+use colored::Color::Blue;
+use colored::{ColoredString, Colorize};
 use crossterm::cursor::MoveToColumn;
 use crossterm::execute;
 use crossterm::terminal::{Clear, ClearType};
@@ -28,25 +28,16 @@ impl TermStat {
         S2: AsRef<str>,
     {
         if stdout().is_terminal() {
-            let ts = Self { is_active: true };
-            ts.print_status(tag, msg);
-            ts
+            Self::print_stat(tag, msg, Status::Info);
+            Self { is_active: true }
         } else {
             Self { is_active: false }
         }
     }
 
-    /// Creates a new `TermStat` that is only active if `quiet` is `false`.
-    pub fn new_quiet<S1, S2>(quiet: bool, tag: S1, msg: S2) -> Self
-    where
-        S1: AsRef<str>,
-        S2: AsRef<str>,
-    {
-        if quiet {
-            Self { is_active: false }
-        } else {
-            Self::new(tag, msg)
-        }
+    /// Creates a new `TermStat` that is inactive.
+    pub fn new_inactive() -> Self {
+        Self { is_active: false }
     }
 
     /// Updates the status line with the given message.
@@ -57,40 +48,61 @@ impl TermStat {
     {
         if self.is_active {
             self.clear_current_line();
-            self.print_status(tag, msg);
+            Self::print_stat(tag, msg, Status::Info);
         }
-    }
-
-    fn print_status<S1, S2>(&self, tag: S1, msg: S2)
-    where
-        S1: AsRef<str>,
-        S2: AsRef<str>,
-    {
-        print!("{:>12} {}", tag.as_ref().blue().bold(), msg.as_ref());
-        stdout().flush().unwrap();
     }
 
     fn clear_current_line(&self) {
-        _ = execute!(stdout(), Clear(ClearType::CurrentLine));
-        _ = execute!(stdout(), MoveToColumn(0));
+        _ = execute!(stdout(), Clear(ClearType::CurrentLine), MoveToColumn(0));
     }
 
-    /// Prints a status line with the given tag and message when stdout is a terminal.
-    pub fn print_stat_ok<S1, S2>(tag: S1, msg: S2)
+    /// Prints a status line with the given tag and message.
+    pub fn println_stat<S1, S2>(tag: S1, msg: S2, status: Status)
     where
         S1: AsRef<str>,
         S2: AsRef<str>,
     {
-        if stdout().is_terminal() {
-            Self::print_stat(tag.as_ref().green().bold(), msg.as_ref());
-        }
+        println!(
+            "{:>12} {}",
+            Self::get_colored_tag(tag, status),
+            msg.as_ref()
+        );
     }
 
-    fn print_stat<S1, S2>(tag: S1, msg: S2)
+    /// Prints a status line with the given tag and message.
+    pub fn print_stat<S1, S2>(tag: S1, msg: S2, status: Status)
     where
-        S1: Display,
-        S2: Display,
+        S1: AsRef<str>,
+        S2: AsRef<str>,
     {
-        println!("{:>12} {}", tag, msg);
+        print!(
+            "{:>12} {}",
+            Self::get_colored_tag(tag, status),
+            msg.as_ref()
+        );
+        stdout().flush().unwrap();
     }
+
+    fn get_colored_tag<S1>(tag: S1, status: Status) -> ColoredString
+    where
+        S1: AsRef<str>,
+    {
+        match status {
+            Status::None => tag.as_ref().bold(),
+            Status::Ok => tag.as_ref().green().bold(),
+            Status::Error => tag.as_ref().red().bold(),
+            Status::Warning => tag.as_ref().yellow().bold(),
+            Status::Info => tag.as_ref().color(Blue).bold(),
+        }
+    }
+}
+
+#[allow(dead_code)]
+#[derive(Debug, Clone, Copy)]
+pub enum Status {
+    None,
+    Ok,
+    Error,
+    Warning,
+    Info,
 }

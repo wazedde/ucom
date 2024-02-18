@@ -3,7 +3,7 @@ use std::process::Command;
 use chrono::prelude::*;
 
 use crate::cli::TestArguments;
-use crate::commands::term_stat::TermStat;
+use crate::commands::term_stat::{Status, TermStat};
 use crate::commands::time_delta_to_seconds;
 use crate::unity::{build_command_line, wait_with_stdout, ProjectPath};
 
@@ -57,31 +57,36 @@ pub fn run_tests(arguments: TestArguments) -> anyhow::Result<()> {
         return Ok(());
     }
 
-    let ts = TermStat::new_quiet(
-        arguments.quiet,
-        "Running",
-        format!("tests for project in {}", project.as_path().display()),
-    );
+    let ts = if arguments.quiet {
+        TermStat::new_inactive()
+    } else {
+        TermStat::new(
+            "Running",
+            format!("tests for project in {}", project.as_path().display()),
+        )
+    };
 
     wait_with_stdout(cmd)?;
 
     drop(ts);
 
     if !arguments.quiet {
-        TermStat::print_stat_ok(
+        TermStat::println_stat(
             "Running",
             format!("tests for project in {}", project.as_path().display()),
+            Status::Ok,
         );
 
-        TermStat::print_stat_ok(
+        TermStat::println_stat(
             "Finished",
             format!(
                 "in {:.2}s",
                 time_delta_to_seconds(Utc::now().signed_duration_since(start_time))
             ),
+            Status::Ok,
         );
 
-        TermStat::print_stat_ok("Results", output_path.to_string_lossy());
+        TermStat::println_stat("Results", output_path.to_string_lossy(), Status::Ok);
     }
 
     Ok(())

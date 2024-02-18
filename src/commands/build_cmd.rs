@@ -6,7 +6,6 @@ use std::process::Command;
 
 use anyhow::anyhow;
 use chrono::Utc;
-use colored::Colorize;
 use indexmap::IndexSet;
 use itertools::Itertools;
 use path_absolutize::Absolutize;
@@ -15,7 +14,8 @@ use uuid::Uuid;
 use crate::cli::{
     BuildArguments, BuildMode, BuildOptions, BuildScriptTarget, IncludedFile, InjectAction,
 };
-use crate::commands::{add_file_to_project, PERSISTENT_BUILD_SCRIPT_ROOT, time_delta_to_seconds};
+use crate::commands::term_stat::{Status, TermStat};
+use crate::commands::{add_file_to_project, time_delta_to_seconds, PERSISTENT_BUILD_SCRIPT_ROOT};
 use crate::unity::*;
 
 const AUTO_BUILD_SCRIPT_ROOT: &str = "Assets/Ucom";
@@ -99,15 +99,18 @@ pub fn build_project(arguments: BuildArguments) -> anyhow::Result<()> {
         return Ok(());
     }
 
-    println!(
-        "{}",
-        format!(
-            "Building Unity {unity_version} {} project in: {}",
-            arguments.target,
-            project.as_path().display()
-        )
-            .bold()
+    let build_text = format!(
+        "Unity {unity_version} {} project in {}",
+        arguments.target,
+        project.as_path().display()
     );
+
+    let term_stat = if arguments.quiet {
+        TermStat::new("Building", build_text)
+    } else {
+        TermStat::println_stat("Building", build_text, Status::Info);
+        TermStat::new_inactive()
+    };
 
     let (inject_build_script_hook, cleanup_build_script_hook) =
         csharp_build_script_injection_hooks(&project, arguments.inject);
@@ -124,24 +127,35 @@ pub fn build_project(arguments: BuildArguments) -> anyhow::Result<()> {
     };
 
     cleanup_build_script_hook()?;
+    drop(term_stat);
 
-    if build_result.is_ok() {
+    let (status, tag) = if build_result.is_ok() {
         if arguments.clean {
             clean_output_directory(&output_dir)?;
         }
-
-        println!(
-            "{} in {:.2}s",
-            "Build succeeded".green().bold(),
-            time_delta_to_seconds(Utc::now().signed_duration_since(start_time))
-        );
+        (Status::Ok, "Succeeded")
     } else {
-        println!(
-            "{} after {:.2}s",
-            "Build failed".red().bold(),
+        (Status::Error, "Failed")
+    };
+
+    TermStat::println_stat(
+        tag,
+        format!(
+            "building Unity {unity_version} {} project in {}",
+            arguments.target,
+            project.as_path().display()
+        ),
+        status,
+    );
+
+    TermStat::println_stat(
+        "Total time",
+        format!(
+            "{:.2}s",
             time_delta_to_seconds(Utc::now().signed_duration_since(start_time))
-        );
-    }
+        ),
+        status,
+    );
 
     if let Ok(log_file) = File::open(&log_file) {
         // Iterate over lines from the build report in the log file.
@@ -151,9 +165,14 @@ pub fn build_project(arguments: BuildArguments) -> anyhow::Result<()> {
             .skip_while(|l| !l.starts_with("[Builder] Build Report")) // Find marker.
             .skip(1) // Skip the marker.
             .take_while(|l| !l.is_empty()) // Read until empty line.
-            .for_each(|l| println!("{l}"));
+            .for_each(|l| {
+                if let Some((key, value)) = l.split_once(':') {
+                    TermStat::println_stat(key.trim(), value.trim(), status);
+                } else {
+                    println!("{l}");
+                }
+            });
     }
-
     build_result.map_err(|_| collect_log_errors(&log_file))
 }
 
