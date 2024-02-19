@@ -2,9 +2,9 @@ use std::io::{stdout, IsTerminal, Write};
 
 use colored::Color::Blue;
 use colored::{ColoredString, Colorize};
-use crossterm::cursor::MoveToColumn;
-use crossterm::execute;
+use crossterm::cursor::{RestorePosition, SavePosition};
 use crossterm::terminal::{Clear, ClearType};
+use crossterm::ExecutableCommand;
 
 /// A status line that is only active if stdout is a terminal.
 /// Clears the status line when dropped.
@@ -15,7 +15,7 @@ pub struct TermStat {
 impl Drop for TermStat {
     fn drop(&mut self) {
         if self.is_active {
-            self.clear_current_line();
+            _ = Self::clear_last_line();
         }
     }
 }
@@ -28,7 +28,7 @@ impl TermStat {
         S2: AsRef<str>,
     {
         if stdout().is_terminal() {
-            Self::print_stat(tag, msg, Status::Info);
+            _ = Self::print_stat(tag, msg, Status::Info);
             Self { is_active: true }
         } else {
             Self { is_active: false }
@@ -41,19 +41,21 @@ impl TermStat {
     }
 
     /// Updates the status line with the given message.
-    pub fn update_text<S1, S2>(&self, tag: S1, msg: S2)
+    pub fn update_text<S1, S2>(&self, tag: S1, msg: S2) -> anyhow::Result<()>
     where
         S1: AsRef<str>,
         S2: AsRef<str>,
     {
         if self.is_active {
-            self.clear_current_line();
-            Self::print_stat(tag, msg, Status::Info);
-        }
+            Self::clear_last_line()?;
+            Self::print_stat(tag, msg, Status::Info)?;
+        };
+        Ok(())
     }
 
-    fn clear_current_line(&self) {
-        _ = execute!(stdout(), Clear(ClearType::CurrentLine), MoveToColumn(0));
+    pub fn clear_last_line() -> anyhow::Result<()> {
+        stdout().execute(Clear(ClearType::FromCursorDown))?;
+        Ok(())
     }
 
     /// Prints a status line with the given tag and message.
@@ -69,18 +71,23 @@ impl TermStat {
         );
     }
 
-    /// Prints a status line with the given tag and message.
-    pub fn print_stat<S1, S2>(tag: S1, msg: S2, status: Status)
+    /// Prints a status line with the given tag and message
+    /// and moves the cursor back to the start of the line.
+    pub fn print_stat<S1, S2>(tag: S1, msg: S2, status: Status) -> anyhow::Result<()>
     where
         S1: AsRef<str>,
         S2: AsRef<str>,
     {
+        stdout().execute(SavePosition)?;
+
         print!(
             "{:>12} {}",
             Self::get_colored_tag(tag, status),
             msg.as_ref()
         );
-        stdout().flush().unwrap();
+
+        stdout().execute(RestorePosition)?.flush()?;
+        Ok(())
     }
 
     fn get_colored_tag<S1>(tag: S1, status: Status) -> ColoredString

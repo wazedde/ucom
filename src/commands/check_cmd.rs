@@ -35,7 +35,7 @@ pub fn check_updates(project_dir: &Path, create_report: bool) -> anyhow::Result<
     if create_report {
         let ts = TermStat::new("Downloading", "Unity release notes...");
         for release in updates {
-            ts.update_text(
+            _ = ts.update_text(
                 "Downloading",
                 format!("Unity {} release notes...", release.version),
             );

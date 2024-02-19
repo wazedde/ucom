@@ -47,6 +47,7 @@ impl ColoredStringIf for str {
     }
 }
 
+/// Returns the given time delta as seconds.
 pub fn time_delta_to_seconds(duration: TimeDelta) -> f64 {
     duration.num_seconds() as f64 + duration.subsec_nanos() as f64 * 1e-9
 }
