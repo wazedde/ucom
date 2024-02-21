@@ -1,0 +1,646 @@
+<?xml version="1.0" encoding="utf-8"?>
+<test-run id="2" testcasecount="72" result="Passed" total="72" passed="72" failed="0" inconclusive="0" skipped="0" asserts="0" engine-version="3.5.0.0" clr-version="4.0.30319.42000" start-time="2024-02-18 08:52:54Z" end-time="2024-02-18 08:52:54Z" duration="0.3065935">
+    <test-suite type="TestSuite" id="1000" name="DialogTest" fullname="DialogTest" runstate="Runnable" testcasecount="72" result="Passed" start-time="2024-02-18 08:52:54Z" end-time="2024-02-18 08:52:54Z" duration="0.306594" total="72" passed="72" failed="0" inconclusive="0" skipped="0" asserts="0">
+        <properties>
+            <property name="platform" value="EditMode" />
+        </properties>
+        <test-suite type="Assembly" id="1083" name="MyDomain.Monadic.Tests.dll" fullname="/Users/yourname/Development/Work/dialogsystem/Library/ScriptAssemblies/MyDomain.Monadic.Tests.dll" runstate="Runnable" testcasecount="72" result="Passed" start-time="2024-02-18 08:52:54Z" end-time="2024-02-18 08:52:54Z" duration="0.304079" total="72" passed="72" failed="0" inconclusive="0" skipped="0" asserts="0">
+            <properties>
+                <property name="_PID" value="7538" />
+                <property name="_APPDOMAIN" value="Unity Child Domain" />
+                <property name="platform" value="EditMode" />
+            </properties>
+            <test-suite type="TestSuite" id="1084" name="MyDomain" fullname="MyDomain" runstate="Runnable" testcasecount="72" result="Passed" start-time="2024-02-18 08:52:54Z" end-time="2024-02-18 08:52:54Z" duration="0.300753" total="72" passed="72" failed="0" inconclusive="0" skipped="0" asserts="0">
+                <properties>
+                    <property name="platform" value="EditMode" />
+                </properties>
+                <test-suite type="TestSuite" id="1085" name="Monadic" fullname="MyDomain.Monadic" runstate="Runnable" testcasecount="72" result="Passed" start-time="2024-02-18 08:52:54Z" end-time="2024-02-18 08:52:54Z" duration="0.297239" total="72" passed="72" failed="0" inconclusive="0" skipped="0" asserts="0">
+                    <properties>
+                        <property name="platform" value="EditMode" />
+                    </properties>
+                    <test-suite type="TestSuite" id="1086" name="Tests" fullname="MyDomain.Monadic.Tests" runstate="Runnable" testcasecount="72" result="Passed" start-time="2024-02-18 08:52:54Z" end-time="2024-02-18 08:52:54Z" duration="0.293544" total="72" passed="72" failed="0" inconclusive="0" skipped="0" asserts="0">
+                        <properties>
+                            <property name="platform" value="EditMode" />
+                        </properties>
+                        <test-suite type="TestFixture" id="1001" name="DataJoinerTests" fullname="MyDomain.Monadic.Tests.DataJoinerTests" classname="MyDomain.Monadic.Tests.DataJoinerTests" runstate="Runnable" testcasecount="6" result="Passed" start-time="2024-02-18 08:52:54Z" end-time="2024-02-18 08:52:54Z" duration="0.020236" total="6" passed="6" failed="0" inconclusive="0" skipped="0" asserts="0">
+                            <properties>
+                                <property name="platform" value="EditMode" />
+                            </properties>
+                            <test-case id="1002" name="CreationTests" fullname="MyDomain.Monadic.Tests.DataJoinerTests.CreationTests" methodname="CreationTests" classname="MyDomain.Monadic.Tests.DataJoinerTests" runstate="Runnable" seed="216708510" result="Passed" start-time="2024-02-18 08:52:54Z" end-time="2024-02-18 08:52:54Z" duration="0.007404" asserts="0">
+                                <properties>
+                                    <property name="platform" value="EditMode" />
+                                    <property name="retryIteration" value="0" />
+                                    <property name="repeatIteration" value="0" />
+                                </properties>
+                            </test-case>
+                            <test-case id="1003" name="JoinTests1" fullname="MyDomain.Monadic.Tests.DataJoinerTests.JoinTests1" methodname="JoinTests1" classname="MyDomain.Monadic.Tests.DataJoinerTests" runstate="Runnable" seed="1604715882" result="Passed" start-time="2024-02-18 08:52:54Z" end-time="2024-02-18 08:52:54Z" duration="0.000615" asserts="0">
+                                <properties>
+                                    <property name="platform" value="EditMode" />
+                                    <property name="retryIteration" value="0" />
+                                    <property name="repeatIteration" value="0" />
+                                </properties>
+                            </test-case>
+                            <test-case id="1004" name="JoinTests1Fail" fullname="MyDomain.Monadic.Tests.DataJoinerTests.JoinTests1Fail" methodname="JoinTests1Fail" classname="MyDomain.Monadic.Tests.DataJoinerTests" runstate="Runnable" seed="735774335" result="Passed" start-time="2024-02-18 08:52:54Z" end-time="2024-02-18 08:52:54Z" duration="0.000189" asserts="0">
+                                <properties>
+                                    <property name="platform" value="EditMode" />
+                                    <property name="retryIteration" value="0" />
+                                    <property name="repeatIteration" value="0" />
+                                </properties>
+                            </test-case>
+                            <test-case id="1005" name="JoinTests2" fullname="MyDomain.Monadic.Tests.DataJoinerTests.JoinTests2" methodname="JoinTests2" classname="MyDomain.Monadic.Tests.DataJoinerTests" runstate="Runnable" seed="611784679" result="Passed" start-time="2024-02-18 08:52:54Z" end-time="2024-02-18 08:52:54Z" duration="0.000077" asserts="0">
+                                <properties>
+                                    <property name="platform" value="EditMode" />
+                                    <property name="retryIteration" value="0" />
+                                    <property name="repeatIteration" value="0" />
+                                </properties>
+                            </test-case>
+                            <test-case id="1006" name="JoinTests2Fail" fullname="MyDomain.Monadic.Tests.DataJoinerTests.JoinTests2Fail" methodname="JoinTests2Fail" classname="MyDomain.Monadic.Tests.DataJoinerTests" runstate="Runnable" seed="103388606" result="Passed" start-time="2024-02-18 08:52:54Z" end-time="2024-02-18 08:52:54Z" duration="0.000076" asserts="0">
+                                <properties>
+                                    <property name="platform" value="EditMode" />
+                                    <property name="retryIteration" value="0" />
+                                    <property name="repeatIteration" value="0" />
+                                </properties>
+                            </test-case>
+                            <test-case id="1007" name="SplitAndJoinTests" fullname="MyDomain.Monadic.Tests.DataJoinerTests.SplitAndJoinTests" methodname="SplitAndJoinTests" classname="MyDomain.Monadic.Tests.DataJoinerTests" runstate="Runnable" seed="1982071021" result="Passed" start-time="2024-02-18 08:52:54Z" end-time="2024-02-18 08:52:54Z" duration="0.003033" asserts="0">
+                                <properties>
+                                    <property name="platform" value="EditMode" />
+                                    <property name="retryIteration" value="0" />
+                                    <property name="repeatIteration" value="0" />
+                                </properties>
+                            </test-case>
+                        </test-suite>
+                        <test-suite type="TestFixture" id="1008" name="DataSplitterTests" fullname="MyDomain.Monadic.Tests.DataSplitterTests" classname="MyDomain.Monadic.Tests.DataSplitterTests" runstate="Runnable" testcasecount="4" result="Passed" start-time="2024-02-18 08:52:54Z" end-time="2024-02-18 08:52:54Z" duration="0.002429" total="4" passed="4" failed="0" inconclusive="0" skipped="0" asserts="0">
+                            <properties>
+                                <property name="platform" value="EditMode" />
+                            </properties>
+                            <test-case id="1009" name="CreationTests" fullname="MyDomain.Monadic.Tests.DataSplitterTests.CreationTests" methodname="CreationTests" classname="MyDomain.Monadic.Tests.DataSplitterTests" runstate="Runnable" seed="89836426" result="Passed" start-time="2024-02-18 08:52:54Z" end-time="2024-02-18 08:52:54Z" duration="0.000291" asserts="0">
+                                <properties>
+                                    <property name="platform" value="EditMode" />
+                                    <property name="retryIteration" value="0" />
+                                    <property name="repeatIteration" value="0" />
+                                </properties>
+                            </test-case>
+                            <test-case id="1011" name="DisposeTest" fullname="MyDomain.Monadic.Tests.DataSplitterTests.DisposeTest" methodname="DisposeTest" classname="MyDomain.Monadic.Tests.DataSplitterTests" runstate="Runnable" seed="268507095" result="Passed" start-time="2024-02-18 08:52:54Z" end-time="2024-02-18 08:52:54Z" duration="0.000116" asserts="0">
+                                <properties>
+                                    <property name="platform" value="EditMode" />
+                                    <property name="retryIteration" value="0" />
+                                    <property name="repeatIteration" value="0" />
+                                </properties>
+                            </test-case>
+                            <test-case id="1012" name="IteratorTests" fullname="MyDomain.Monadic.Tests.DataSplitterTests.IteratorTests" methodname="IteratorTests" classname="MyDomain.Monadic.Tests.DataSplitterTests" runstate="Runnable" seed="1617675194" result="Passed" start-time="2024-02-18 08:52:54Z" end-time="2024-02-18 08:52:54Z" duration="0.000678" asserts="0">
+                                <properties>
+                                    <property name="platform" value="EditMode" />
+                                    <property name="retryIteration" value="0" />
+                                    <property name="repeatIteration" value="0" />
+                                </properties>
+                            </test-case>
+                            <test-case id="1010" name="SplitTests" fullname="MyDomain.Monadic.Tests.DataSplitterTests.SplitTests" methodname="SplitTests" classname="MyDomain.Monadic.Tests.DataSplitterTests" runstate="Runnable" seed="1626301728" result="Passed" start-time="2024-02-18 08:52:54Z" end-time="2024-02-18 08:52:54Z" duration="0.000530" asserts="0">
+                                <properties>
+                                    <property name="platform" value="EditMode" />
+                                    <property name="retryIteration" value="0" />
+                                    <property name="repeatIteration" value="0" />
+                                </properties>
+                            </test-case>
+                        </test-suite>
+                        <test-suite type="TestFixture" id="1013" name="IteratorTests" fullname="MyDomain.Monadic.Tests.IteratorTests" classname="MyDomain.Monadic.Tests.IteratorTests" runstate="Runnable" testcasecount="8" result="Passed" start-time="2024-02-18 08:52:54Z" end-time="2024-02-18 08:52:54Z" duration="0.004202" total="8" passed="8" failed="0" inconclusive="0" skipped="0" asserts="0">
+                            <properties>
+                                <property name="platform" value="EditMode" />
+                            </properties>
+                            <test-case id="1021" name="CountCharIterator" fullname="MyDomain.Monadic.Tests.IteratorTests.CountCharIterator" methodname="CountCharIterator" classname="MyDomain.Monadic.Tests.IteratorTests" runstate="Runnable" seed="1072699924" result="Passed" start-time="2024-02-18 08:52:54Z" end-time="2024-02-18 08:52:54Z" duration="0.000751" asserts="0">
+                                <properties>
+                                    <property name="platform" value="EditMode" />
+                                    <property name="retryIteration" value="0" />
+                                    <property name="repeatIteration" value="0" />
+                                </properties>
+                            </test-case>
+                            <test-case id="1017" name="ForEachNoValues" fullname="MyDomain.Monadic.Tests.IteratorTests.ForEachNoValues" methodname="ForEachNoValues" classname="MyDomain.Monadic.Tests.IteratorTests" runstate="Runnable" seed="1431735176" result="Passed" start-time="2024-02-18 08:52:54Z" end-time="2024-02-18 08:52:54Z" duration="0.000293" asserts="0">
+                                <properties>
+                                    <property name="platform" value="EditMode" />
+                                    <property name="retryIteration" value="0" />
+                                    <property name="repeatIteration" value="0" />
+                                </properties>
+                            </test-case>
+                            <test-case id="1016" name="ForEachValues" fullname="MyDomain.Monadic.Tests.IteratorTests.ForEachValues" methodname="ForEachValues" classname="MyDomain.Monadic.Tests.IteratorTests" runstate="Runnable" seed="1588858963" result="Passed" start-time="2024-02-18 08:52:54Z" end-time="2024-02-18 08:52:54Z" duration="0.000145" asserts="0">
+                                <properties>
+                                    <property name="platform" value="EditMode" />
+                                    <property name="retryIteration" value="0" />
+                                    <property name="repeatIteration" value="0" />
+                                </properties>
+                            </test-case>
+                            <test-case id="1020" name="NextCharValues" fullname="MyDomain.Monadic.Tests.IteratorTests.NextCharValues" methodname="NextCharValues" classname="MyDomain.Monadic.Tests.IteratorTests" runstate="Runnable" seed="1868066987" result="Passed" start-time="2024-02-18 08:52:54Z" end-time="2024-02-18 08:52:54Z" duration="0.000360" asserts="0">
+                                <properties>
+                                    <property name="platform" value="EditMode" />
+                                    <property name="retryIteration" value="0" />
+                                    <property name="repeatIteration" value="0" />
+                                </properties>
+                            </test-case>
+                            <test-case id="1015" name="NextNoValues" fullname="MyDomain.Monadic.Tests.IteratorTests.NextNoValues" methodname="NextNoValues" classname="MyDomain.Monadic.Tests.IteratorTests" runstate="Runnable" seed="1129281706" result="Passed" start-time="2024-02-18 08:52:54Z" end-time="2024-02-18 08:52:54Z" duration="0.000117" asserts="0">
+                                <properties>
+                                    <property name="platform" value="EditMode" />
+                                    <property name="retryIteration" value="0" />
+                                    <property name="repeatIteration" value="0" />
+                                </properties>
+                            </test-case>
+                            <test-case id="1014" name="NextValues" fullname="MyDomain.Monadic.Tests.IteratorTests.NextValues" methodname="NextValues" classname="MyDomain.Monadic.Tests.IteratorTests" runstate="Runnable" seed="175157244" result="Passed" start-time="2024-02-18 08:52:54Z" end-time="2024-02-18 08:52:54Z" duration="0.000165" asserts="0">
+                                <properties>
+                                    <property name="platform" value="EditMode" />
+                                    <property name="retryIteration" value="0" />
+                                    <property name="repeatIteration" value="0" />
+                                </properties>
+                            </test-case>
+                            <test-case id="1019" name="NullIterator" fullname="MyDomain.Monadic.Tests.IteratorTests.NullIterator" methodname="NullIterator" classname="MyDomain.Monadic.Tests.IteratorTests" runstate="Runnable" seed="2003560419" result="Passed" start-time="2024-02-18 08:52:54Z" end-time="2024-02-18 08:52:54Z" duration="0.000306" asserts="0">
+                                <properties>
+                                    <property name="platform" value="EditMode" />
+                                    <property name="retryIteration" value="0" />
+                                    <property name="repeatIteration" value="0" />
+                                </properties>
+                            </test-case>
+                            <test-case id="1018" name="SumIterator" fullname="MyDomain.Monadic.Tests.IteratorTests.SumIterator" methodname="SumIterator" classname="MyDomain.Monadic.Tests.IteratorTests" runstate="Runnable" seed="752793091" result="Passed" start-time="2024-02-18 08:52:54Z" end-time="2024-02-18 08:52:54Z" duration="0.000107" asserts="0">
+                                <properties>
+                                    <property name="platform" value="EditMode" />
+                                    <property name="retryIteration" value="0" />
+                                    <property name="repeatIteration" value="0" />
+                                </properties>
+                            </test-case>
+                        </test-suite>
+                        <test-suite type="TestFixture" id="1022" name="MemoizeTests" fullname="MyDomain.Monadic.Tests.MemoizeTests" classname="MyDomain.Monadic.Tests.MemoizeTests" runstate="Runnable" testcasecount="4" result="Passed" start-time="2024-02-18 08:52:54Z" end-time="2024-02-18 08:52:54Z" duration="0.006112" total="4" passed="4" failed="0" inconclusive="0" skipped="0" asserts="0">
+                            <properties>
+                                <property name="platform" value="EditMode" />
+                            </properties>
+                            <test-case id="1025" name="CachingReferenceType" fullname="MyDomain.Monadic.Tests.MemoizeTests.CachingReferenceType" methodname="CachingReferenceType" classname="MyDomain.Monadic.Tests.MemoizeTests" runstate="Runnable" seed="770560964" result="Passed" start-time="2024-02-18 08:52:54Z" end-time="2024-02-18 08:52:54Z" duration="0.002227" asserts="0">
+                                <properties>
+                                    <property name="platform" value="EditMode" />
+                                    <property name="retryIteration" value="0" />
+                                    <property name="repeatIteration" value="0" />
+                                </properties>
+                            </test-case>
+                            <test-case id="1024" name="CachingValueType" fullname="MyDomain.Monadic.Tests.MemoizeTests.CachingValueType" methodname="CachingValueType" classname="MyDomain.Monadic.Tests.MemoizeTests" runstate="Runnable" seed="786505828" result="Passed" start-time="2024-02-18 08:52:54Z" end-time="2024-02-18 08:52:54Z" duration="0.000788" asserts="0">
+                                <properties>
+                                    <property name="platform" value="EditMode" />
+                                    <property name="retryIteration" value="0" />
+                                    <property name="repeatIteration" value="0" />
+                                </properties>
+                            </test-case>
+                            <test-case id="1023" name="Calculate" fullname="MyDomain.Monadic.Tests.MemoizeTests.Calculate" methodname="Calculate" classname="MyDomain.Monadic.Tests.MemoizeTests" runstate="Runnable" seed="1390840390" result="Passed" start-time="2024-02-18 08:52:54Z" end-time="2024-02-18 08:52:54Z" duration="0.000149" asserts="0">
+                                <properties>
+                                    <property name="platform" value="EditMode" />
+                                    <property name="retryIteration" value="0" />
+                                    <property name="repeatIteration" value="0" />
+                                </properties>
+                            </test-case>
+                            <test-case id="1026" name="TupleInput" fullname="MyDomain.Monadic.Tests.MemoizeTests.TupleInput" methodname="TupleInput" classname="MyDomain.Monadic.Tests.MemoizeTests" runstate="Runnable" seed="1052417066" result="Passed" start-time="2024-02-18 08:52:54Z" end-time="2024-02-18 08:52:54Z" duration="0.001232" asserts="0">
+                                <properties>
+                                    <property name="platform" value="EditMode" />
+                                    <property name="retryIteration" value="0" />
+                                    <property name="repeatIteration" value="0" />
+                                </properties>
+                            </test-case>
+                        </test-suite>
+                        <test-suite type="TestFixture" id="1027" name="OptionTests" fullname="MyDomain.Monadic.Tests.OptionTests" classname="MyDomain.Monadic.Tests.OptionTests" runstate="Runnable" testcasecount="12" result="Passed" start-time="2024-02-18 08:52:54Z" end-time="2024-02-18 08:52:54Z" duration="0.011735" total="12" passed="12" failed="0" inconclusive="0" skipped="0" asserts="0">
+                            <properties>
+                                <property name="platform" value="EditMode" />
+                            </properties>
+                            <test-case id="1036" name="BoolTest" fullname="MyDomain.Monadic.Tests.OptionTests.BoolTest" methodname="BoolTest" classname="MyDomain.Monadic.Tests.OptionTests" runstate="Runnable" seed="194427749" result="Passed" start-time="2024-02-18 08:52:54Z" end-time="2024-02-18 08:52:54Z" duration="0.000375" asserts="0">
+                                <properties>
+                                    <property name="platform" value="EditMode" />
+                                    <property name="retryIteration" value="0" />
+                                    <property name="repeatIteration" value="0" />
+                                </properties>
+                            </test-case>
+                            <test-case id="1038" name="EnumerationTests" fullname="MyDomain.Monadic.Tests.OptionTests.EnumerationTests" methodname="EnumerationTests" classname="MyDomain.Monadic.Tests.OptionTests" runstate="Runnable" seed="787754137" result="Passed" start-time="2024-02-18 08:52:54Z" end-time="2024-02-18 08:52:54Z" duration="0.002894" asserts="0">
+                                <properties>
+                                    <property name="platform" value="EditMode" />
+                                    <property name="retryIteration" value="0" />
+                                    <property name="repeatIteration" value="0" />
+                                </properties>
+                            </test-case>
+                            <test-case id="1035" name="FlattenTest" fullname="MyDomain.Monadic.Tests.OptionTests.FlattenTest" methodname="FlattenTest" classname="MyDomain.Monadic.Tests.OptionTests" runstate="Runnable" seed="236445385" result="Passed" start-time="2024-02-18 08:52:54Z" end-time="2024-02-18 08:52:54Z" duration="0.000332" asserts="0">
+                                <properties>
+                                    <property name="platform" value="EditMode" />
+                                    <property name="retryIteration" value="0" />
+                                    <property name="repeatIteration" value="0" />
+                                </properties>
+                            </test-case>
+                            <test-case id="1033" name="FunctionalityTest" fullname="MyDomain.Monadic.Tests.OptionTests.FunctionalityTest" methodname="FunctionalityTest" classname="MyDomain.Monadic.Tests.OptionTests" runstate="Runnable" seed="1403621261" result="Passed" start-time="2024-02-18 08:52:54Z" end-time="2024-02-18 08:52:54Z" duration="0.002546" asserts="0">
+                                <properties>
+                                    <property name="platform" value="EditMode" />
+                                    <property name="retryIteration" value="0" />
+                                    <property name="repeatIteration" value="0" />
+                                </properties>
+                            </test-case>
+                            <test-case id="1032" name="NoneReferenceTypeTests" fullname="MyDomain.Monadic.Tests.OptionTests.NoneReferenceTypeTests" methodname="NoneReferenceTypeTests" classname="MyDomain.Monadic.Tests.OptionTests" runstate="Runnable" seed="639124977" result="Passed" start-time="2024-02-18 08:52:54Z" end-time="2024-02-18 08:52:54Z" duration="0.001562" asserts="0">
+                                <properties>
+                                    <property name="platform" value="EditMode" />
+                                    <property name="retryIteration" value="0" />
+                                    <property name="repeatIteration" value="0" />
+                                </properties>
+                            </test-case>
+                            <test-case id="1030" name="NoneValueTypeTests" fullname="MyDomain.Monadic.Tests.OptionTests.NoneValueTypeTests" methodname="NoneValueTypeTests" classname="MyDomain.Monadic.Tests.OptionTests" runstate="Runnable" seed="1130067599" result="Passed" start-time="2024-02-18 08:52:54Z" end-time="2024-02-18 08:52:54Z" duration="0.000376" asserts="0">
+                                <properties>
+                                    <property name="platform" value="EditMode" />
+                                    <property name="retryIteration" value="0" />
+                                    <property name="repeatIteration" value="0" />
+                                </properties>
+                            </test-case>
+                            <test-case id="1029" name="NullableTests" fullname="MyDomain.Monadic.Tests.OptionTests.NullableTests" methodname="NullableTests" classname="MyDomain.Monadic.Tests.OptionTests" runstate="Runnable" seed="727976076" result="Passed" start-time="2024-02-18 08:52:54Z" end-time="2024-02-18 08:52:54Z" duration="0.000438" asserts="0">
+                                <properties>
+                                    <property name="platform" value="EditMode" />
+                                    <property name="retryIteration" value="0" />
+                                    <property name="repeatIteration" value="0" />
+                                </properties>
+                            </test-case>
+                            <test-case id="1037" name="SomeAndTests" fullname="MyDomain.Monadic.Tests.OptionTests.SomeAndTests" methodname="SomeAndTests" classname="MyDomain.Monadic.Tests.OptionTests" runstate="Runnable" seed="2064402256" result="Passed" start-time="2024-02-18 08:52:54Z" end-time="2024-02-18 08:52:54Z" duration="0.000268" asserts="0">
+                                <properties>
+                                    <property name="platform" value="EditMode" />
+                                    <property name="retryIteration" value="0" />
+                                    <property name="repeatIteration" value="0" />
+                                </properties>
+                            </test-case>
+                            <test-case id="1031" name="SomeReferenceTypeTests" fullname="MyDomain.Monadic.Tests.OptionTests.SomeReferenceTypeTests" methodname="SomeReferenceTypeTests" classname="MyDomain.Monadic.Tests.OptionTests" runstate="Runnable" seed="1727582940" result="Passed" start-time="2024-02-18 08:52:54Z" end-time="2024-02-18 08:52:54Z" duration="0.000429" asserts="0">
+                                <properties>
+                                    <property name="platform" value="EditMode" />
+                                    <property name="retryIteration" value="0" />
+                                    <property name="repeatIteration" value="0" />
+                                </properties>
+                            </test-case>
+                            <test-case id="1028" name="SomeValueTypeTests" fullname="MyDomain.Monadic.Tests.OptionTests.SomeValueTypeTests" methodname="SomeValueTypeTests" classname="MyDomain.Monadic.Tests.OptionTests" runstate="Runnable" seed="2054629524" result="Passed" start-time="2024-02-18 08:52:54Z" end-time="2024-02-18 08:52:54Z" duration="0.000495" asserts="0">
+                                <properties>
+                                    <property name="platform" value="EditMode" />
+                                    <property name="retryIteration" value="0" />
+                                    <property name="repeatIteration" value="0" />
+                                </properties>
+                            </test-case>
+                            <test-case id="1039" name="StringTests" fullname="MyDomain.Monadic.Tests.OptionTests.StringTests" methodname="StringTests" classname="MyDomain.Monadic.Tests.OptionTests" runstate="Runnable" seed="1196968027" result="Passed" start-time="2024-02-18 08:52:54Z" end-time="2024-02-18 08:52:54Z" duration="0.000218" asserts="0">
+                                <properties>
+                                    <property name="platform" value="EditMode" />
+                                    <property name="retryIteration" value="0" />
+                                    <property name="repeatIteration" value="0" />
+                                </properties>
+                            </test-case>
+                            <test-case id="1034" name="ZipTest" fullname="MyDomain.Monadic.Tests.OptionTests.ZipTest" methodname="ZipTest" classname="MyDomain.Monadic.Tests.OptionTests" runstate="Runnable" seed="190209601" result="Passed" start-time="2024-02-18 08:52:54Z" end-time="2024-02-18 08:52:54Z" duration="0.000724" asserts="0">
+                                <properties>
+                                    <property name="platform" value="EditMode" />
+                                    <property name="retryIteration" value="0" />
+                                    <property name="repeatIteration" value="0" />
+                                </properties>
+                            </test-case>
+                        </test-suite>
+                        <test-suite type="TestFixture" id="1040" name="PreludeTests" fullname="MyDomain.Monadic.Tests.PreludeTests" classname="MyDomain.Monadic.Tests.PreludeTests" runstate="Runnable" testcasecount="3" result="Passed" start-time="2024-02-18 08:52:54Z" end-time="2024-02-18 08:52:54Z" duration="0.002203" total="3" passed="3" failed="0" inconclusive="0" skipped="0" asserts="0">
+                            <properties>
+                                <property name="platform" value="EditMode" />
+                            </properties>
+                            <test-case id="1043" name="AndThenTest" fullname="MyDomain.Monadic.Tests.PreludeTests.AndThenTest" methodname="AndThenTest" classname="MyDomain.Monadic.Tests.PreludeTests" runstate="Runnable" seed="1414014873" result="Passed" start-time="2024-02-18 08:52:54Z" end-time="2024-02-18 08:52:54Z" duration="0.000903" asserts="0">
+                                <properties>
+                                    <property name="platform" value="EditMode" />
+                                    <property name="retryIteration" value="0" />
+                                    <property name="repeatIteration" value="0" />
+                                </properties>
+                            </test-case>
+                            <test-case id="1042" name="MapTest" fullname="MyDomain.Monadic.Tests.PreludeTests.MapTest" methodname="MapTest" classname="MyDomain.Monadic.Tests.PreludeTests" runstate="Runnable" seed="538886168" result="Passed" start-time="2024-02-18 08:52:54Z" end-time="2024-02-18 08:52:54Z" duration="0.000428" asserts="0">
+                                <properties>
+                                    <property name="platform" value="EditMode" />
+                                    <property name="retryIteration" value="0" />
+                                    <property name="repeatIteration" value="0" />
+                                </properties>
+                            </test-case>
+                            <test-case id="1041" name="TryTest" fullname="MyDomain.Monadic.Tests.PreludeTests.TryTest" methodname="TryTest" classname="MyDomain.Monadic.Tests.PreludeTests" runstate="Runnable" seed="1332873122" result="Passed" start-time="2024-02-18 08:52:54Z" end-time="2024-02-18 08:52:54Z" duration="0.000447" asserts="0">
+                                <properties>
+                                    <property name="platform" value="EditMode" />
+                                    <property name="retryIteration" value="0" />
+                                    <property name="repeatIteration" value="0" />
+                                </properties>
+                            </test-case>
+                        </test-suite>
+                        <test-suite type="TestFixture" id="1044" name="ResultTests" fullname="MyDomain.Monadic.Tests.ResultTests" classname="MyDomain.Monadic.Tests.ResultTests" runstate="Runnable" testcasecount="12" result="Passed" start-time="2024-02-18 08:52:54Z" end-time="2024-02-18 08:52:54Z" duration="0.011661" total="12" passed="12" failed="0" inconclusive="0" skipped="0" asserts="0">
+                            <properties>
+                                <property name="platform" value="EditMode" />
+                            </properties>
+                            <test-case id="1055" name="EnumerationTests" fullname="MyDomain.Monadic.Tests.ResultTests.EnumerationTests" methodname="EnumerationTests" classname="MyDomain.Monadic.Tests.ResultTests" runstate="Runnable" seed="519017084" result="Passed" start-time="2024-02-18 08:52:54Z" end-time="2024-02-18 08:52:54Z" duration="0.001917" asserts="0">
+                                <properties>
+                                    <property name="platform" value="EditMode" />
+                                    <property name="retryIteration" value="0" />
+                                    <property name="repeatIteration" value="0" />
+                                </properties>
+                            </test-case>
+                            <test-case id="1049" name="ErrReferenceTypeTests" fullname="MyDomain.Monadic.Tests.ResultTests.ErrReferenceTypeTests" methodname="ErrReferenceTypeTests" classname="MyDomain.Monadic.Tests.ResultTests" runstate="Runnable" seed="1168622342" result="Passed" start-time="2024-02-18 08:52:54Z" end-time="2024-02-18 08:52:54Z" duration="0.000589" asserts="0">
+                                <properties>
+                                    <property name="platform" value="EditMode" />
+                                    <property name="retryIteration" value="0" />
+                                    <property name="repeatIteration" value="0" />
+                                </properties>
+                            </test-case>
+                            <test-case id="1047" name="ErrValueTypeTests" fullname="MyDomain.Monadic.Tests.ResultTests.ErrValueTypeTests" methodname="ErrValueTypeTests" classname="MyDomain.Monadic.Tests.ResultTests" runstate="Runnable" seed="1277487060" result="Passed" start-time="2024-02-18 08:52:54Z" end-time="2024-02-18 08:52:54Z" duration="0.000503" asserts="0">
+                                <properties>
+                                    <property name="platform" value="EditMode" />
+                                    <property name="retryIteration" value="0" />
+                                    <property name="repeatIteration" value="0" />
+                                </properties>
+                            </test-case>
+                            <test-case id="1053" name="FlattenTest" fullname="MyDomain.Monadic.Tests.ResultTests.FlattenTest" methodname="FlattenTest" classname="MyDomain.Monadic.Tests.ResultTests" runstate="Runnable" seed="58273249" result="Passed" start-time="2024-02-18 08:52:54Z" end-time="2024-02-18 08:52:54Z" duration="0.000454" asserts="0">
+                                <properties>
+                                    <property name="platform" value="EditMode" />
+                                    <property name="retryIteration" value="0" />
+                                    <property name="repeatIteration" value="0" />
+                                </properties>
+                            </test-case>
+                            <test-case id="1051" name="FunctionalityTest" fullname="MyDomain.Monadic.Tests.ResultTests.FunctionalityTest" methodname="FunctionalityTest" classname="MyDomain.Monadic.Tests.ResultTests" runstate="Runnable" seed="509103507" result="Passed" start-time="2024-02-18 08:52:54Z" end-time="2024-02-18 08:52:54Z" duration="0.002247" asserts="0">
+                                <properties>
+                                    <property name="platform" value="EditMode" />
+                                    <property name="retryIteration" value="0" />
+                                    <property name="repeatIteration" value="0" />
+                                </properties>
+                            </test-case>
+                            <test-case id="1046" name="NullableTests" fullname="MyDomain.Monadic.Tests.ResultTests.NullableTests" methodname="NullableTests" classname="MyDomain.Monadic.Tests.ResultTests" runstate="Runnable" seed="2108494854" result="Passed" start-time="2024-02-18 08:52:54Z" end-time="2024-02-18 08:52:54Z" duration="0.000402" asserts="0">
+                                <properties>
+                                    <property name="platform" value="EditMode" />
+                                    <property name="retryIteration" value="0" />
+                                    <property name="repeatIteration" value="0" />
+                                </properties>
+                            </test-case>
+                            <test-case id="1054" name="OkAndTests" fullname="MyDomain.Monadic.Tests.ResultTests.OkAndTests" methodname="OkAndTests" classname="MyDomain.Monadic.Tests.ResultTests" runstate="Runnable" seed="1706963158" result="Passed" start-time="2024-02-18 08:52:54Z" end-time="2024-02-18 08:52:54Z" duration="0.000221" asserts="0">
+                                <properties>
+                                    <property name="platform" value="EditMode" />
+                                    <property name="retryIteration" value="0" />
+                                    <property name="repeatIteration" value="0" />
+                                </properties>
+                            </test-case>
+                            <test-case id="1048" name="OkReferenceTypeTests" fullname="MyDomain.Monadic.Tests.ResultTests.OkReferenceTypeTests" methodname="OkReferenceTypeTests" classname="MyDomain.Monadic.Tests.ResultTests" runstate="Runnable" seed="205364009" result="Passed" start-time="2024-02-18 08:52:54Z" end-time="2024-02-18 08:52:54Z" duration="0.000326" asserts="0">
+                                <properties>
+                                    <property name="platform" value="EditMode" />
+                                    <property name="retryIteration" value="0" />
+                                    <property name="repeatIteration" value="0" />
+                                </properties>
+                            </test-case>
+                            <test-case id="1045" name="OkValueTypeTests" fullname="MyDomain.Monadic.Tests.ResultTests.OkValueTypeTests" methodname="OkValueTypeTests" classname="MyDomain.Monadic.Tests.ResultTests" runstate="Runnable" seed="91338652" result="Passed" start-time="2024-02-18 08:52:54Z" end-time="2024-02-18 08:52:54Z" duration="0.000501" asserts="0">
+                                <properties>
+                                    <property name="platform" value="EditMode" />
+                                    <property name="retryIteration" value="0" />
+                                    <property name="repeatIteration" value="0" />
+                                </properties>
+                            </test-case>
+                            <test-case id="1056" name="StringTests" fullname="MyDomain.Monadic.Tests.ResultTests.StringTests" methodname="StringTests" classname="MyDomain.Monadic.Tests.ResultTests" runstate="Runnable" seed="653683373" result="Passed" start-time="2024-02-18 08:52:54Z" end-time="2024-02-18 08:52:54Z" duration="0.000268" asserts="0">
+                                <properties>
+                                    <property name="platform" value="EditMode" />
+                                    <property name="retryIteration" value="0" />
+                                    <property name="repeatIteration" value="0" />
+                                </properties>
+                            </test-case>
+                            <test-case id="1050" name="UnitResultTests" fullname="MyDomain.Monadic.Tests.ResultTests.UnitResultTests" methodname="UnitResultTests" classname="MyDomain.Monadic.Tests.ResultTests" runstate="Runnable" seed="725931971" result="Passed" start-time="2024-02-18 08:52:54Z" end-time="2024-02-18 08:52:54Z" duration="0.001273" asserts="0">
+                                <properties>
+                                    <property name="platform" value="EditMode" />
+                                    <property name="retryIteration" value="0" />
+                                    <property name="repeatIteration" value="0" />
+                                </properties>
+                            </test-case>
+                            <test-case id="1052" name="ZipTest" fullname="MyDomain.Monadic.Tests.ResultTests.ZipTest" methodname="ZipTest" classname="MyDomain.Monadic.Tests.ResultTests" runstate="Runnable" seed="1284995580" result="Passed" start-time="2024-02-18 08:52:54Z" end-time="2024-02-18 08:52:54Z" duration="0.000642" asserts="0">
+                                <properties>
+                                    <property name="platform" value="EditMode" />
+                                    <property name="retryIteration" value="0" />
+                                    <property name="repeatIteration" value="0" />
+                                </properties>
+                            </test-case>
+                        </test-suite>
+                        <test-suite type="TestFixture" id="1057" name="SerializerTests" fullname="MyDomain.Monadic.Tests.SerializerTests" classname="MyDomain.Monadic.Tests.SerializerTests" runstate="Runnable" testcasecount="6" result="Passed" start-time="2024-02-18 08:52:54Z" end-time="2024-02-18 08:52:54Z" duration="0.193599" total="6" passed="6" failed="0" inconclusive="0" skipped="0" asserts="0">
+                            <properties>
+                                <property name="platform" value="EditMode" />
+                            </properties>
+                            <test-case id="1063" name="BinarySerializerTest" fullname="MyDomain.Monadic.Tests.SerializerTests.BinarySerializerTest" methodname="BinarySerializerTest" classname="MyDomain.Monadic.Tests.SerializerTests" runstate="Runnable" seed="948028516" result="Passed" start-time="2024-02-18 08:52:54Z" end-time="2024-02-18 08:52:54Z" duration="0.014482" asserts="0">
+                                <properties>
+                                    <property name="platform" value="EditMode" />
+                                    <property name="retryIteration" value="0" />
+                                    <property name="repeatIteration" value="0" />
+                                </properties>
+                            </test-case>
+                            <test-case id="1058" name="JsonUtilitySerializerTest" fullname="MyDomain.Monadic.Tests.SerializerTests.JsonUtilitySerializerTest" methodname="JsonUtilitySerializerTest" classname="MyDomain.Monadic.Tests.SerializerTests" runstate="Runnable" seed="419247939" result="Passed" start-time="2024-02-18 08:52:54Z" end-time="2024-02-18 08:52:54Z" duration="0.000991" asserts="0">
+                                <properties>
+                                    <property name="platform" value="EditMode" />
+                                    <property name="retryIteration" value="0" />
+                                    <property name="repeatIteration" value="0" />
+                                </properties>
+                            </test-case>
+                            <test-case id="1060" name="NewtonsoftFloatIssuesTest" fullname="MyDomain.Monadic.Tests.SerializerTests.NewtonsoftFloatIssuesTest" methodname="NewtonsoftFloatIssuesTest" classname="MyDomain.Monadic.Tests.SerializerTests" runstate="Runnable" seed="799513111" result="Passed" start-time="2024-02-18 08:52:54Z" end-time="2024-02-18 08:52:54Z" duration="0.046311" asserts="0">
+                                <properties>
+                                    <property name="platform" value="EditMode" />
+                                    <property name="retryIteration" value="0" />
+                                    <property name="repeatIteration" value="0" />
+                                </properties>
+                                <output><![CDATA[[Equal] System.Single: -3.402823E+38 -> '-3.40282347E+38' -> -3.402823E+38
+[Equal] System.Single: 3.402823E+38 -> '3.40282347E+38' -> 3.402823E+38
+[Equal] System.Single: NaN -> '"NaN"' -> NaN
+[Equal] System.Single: 1.401298E-45 -> '1.401298E-45' -> 1.401298E-45
+[Equal] System.Single: 12345 -> '12345.0' -> 12345
+[Equal] System.Single: 123456 -> '123456.0' -> 123456
+[Equal] System.Single: 1234567 -> '1234567.0' -> 1234567
+[Equal] System.Single: 1.234568E+07 -> '12345678.0' -> 1.234568E+07
+[Equal] System.Single: 12345.67 -> '12345.67' -> 12345.67
+[Equal] System.Single: 12345.68 -> '12345.6777' -> 12345.68
+[Equal] System.Single: 12345.68 -> '12345.6787' -> 12345.68
+[Equal] System.Double: -1.79769313486232E+308 -> '-1.7976931348623157E+308' -> -1.79769313486232E+308
+[Equal] System.Double: 1.79769313486232E+308 -> '1.7976931348623157E+308' -> 1.79769313486232E+308
+[Equal] System.Double: NaN -> '"NaN"' -> NaN
+[Equal] System.Double: 4.94065645841247E-324 -> '4.94065645841247E-324' -> 4.94065645841247E-324
+[Equal] System.Int32: 12345 -> '12345' -> 12345
+[Equal] System.Int32: 123456 -> '123456' -> 123456
+[Equal] System.Int32: 1234567 -> '1234567' -> 1234567
+[Equal] System.Int32: 12345678 -> '12345678' -> 12345678
+[Equal] System.Int32: 123456789 -> '123456789' -> 123456789
+[Equal] System.Double: 12345.67 -> '12345.67' -> 12345.67
+[Equal] System.Double: 12345.678 -> '12345.678' -> 12345.678
+[Equal] System.Double: 12345.6789 -> '12345.6789' -> 12345.6789
+]]></output>
+                            </test-case>
+                            <test-case id="1059" name="NewtonsoftJsonSerializerTest" fullname="MyDomain.Monadic.Tests.SerializerTests.NewtonsoftJsonSerializerTest" methodname="NewtonsoftJsonSerializerTest" classname="MyDomain.Monadic.Tests.SerializerTests" runstate="Runnable" seed="916239025" result="Passed" start-time="2024-02-18 08:52:54Z" end-time="2024-02-18 08:52:54Z" duration="0.033806" asserts="0">
+                                <properties>
+                                    <property name="platform" value="EditMode" />
+                                    <property name="retryIteration" value="0" />
+                                    <property name="repeatIteration" value="0" />
+                                </properties>
+                            </test-case>
+                            <test-case id="1062" name="UnityJsonSerializerFloatIssuesTest" fullname="MyDomain.Monadic.Tests.SerializerTests.UnityJsonSerializerFloatIssuesTest" methodname="UnityJsonSerializerFloatIssuesTest" classname="MyDomain.Monadic.Tests.SerializerTests" runstate="Runnable" seed="576252683" result="Passed" start-time="2024-02-18 08:52:54Z" end-time="2024-02-18 08:52:54Z" duration="0.069365" asserts="0">
+                                <properties>
+                                    <property name="platform" value="EditMode" />
+                                    <property name="retryIteration" value="0" />
+                                    <property name="repeatIteration" value="0" />
+                                </properties>
+                                <output><![CDATA[[Not Equal] System.Single: -3.402823E+38 -> '-3.402823E+38' -> -3.402823E+38
+[Not Equal] System.Single: 3.402823E+38 -> '3.402823E+38' -> 3.402823E+38
+[Equal] System.Single: NaN -> 'NaN' -> NaN
+[Exception] System.Single: 1.401298E-45 -> '5.877472E-39' -> Unity.Serialization.ParseErrorException: Failed to parse Value=[5.877472E-39] as Type=[System.Single] ParseError=[Underflow]
+  at Unity.Serialization.Json.DeserializationResult.Throw () [0x0005f] in ./Library/PackageCache/com.unity.serialization@3.1.1/Runtime/Unity.Serialization/Json/JsonSerialization+FromJson.cs:123 
+  at Unity.Serialization.Json.JsonSerialization.FromJson[T] (System.String json, Unity.Serialization.Json.JsonSerializationParameters parameters) [0x0000d] in ./Library/PackageCache/com.unity.serialization@3.1.1/Runtime/Unity.Serialization/Json/JsonSerialization+FromJson.cs:204 
+  at MyDomain.Monadic.Tests.SerializerTests.<UnityJsonSerializerFloatIssuesTest>g__IsDeserializedEqual|4_4[T] (T value) [0x00010] in ./Packages/package-monadic/Tests/SerializerTests.cs:225 
+[Equal] System.Single: 12345 -> '12345' -> 12345
+[Equal] System.Single: 123456 -> '123456' -> 123456
+[Equal] System.Single: 1234567 -> '1234567' -> 1234567
+[Not Equal] System.Single: 1.234568E+07 -> '12345680' -> 1.234568E+07
+[Equal] System.Single: 12345.67 -> '12345.67' -> 12345.67
+[Not Equal] System.Single: 12345.68 -> '12345.68' -> 12345.68
+[Not Equal] System.Single: 12345.68 -> '12345.68' -> 12345.68
+[Exception] System.Double: -1.79769313486232E+308 -> '-1.79769313486232E+308' -> Unity.Serialization.ParseErrorException: Failed to parse Value=[-1.79769313486232E+308] as Type=[System.Single] ParseError=[Overflow]
+  at Unity.Serialization.Json.DeserializationResult.Throw () [0x0005f] in ./Library/PackageCache/com.unity.serialization@3.1.1/Runtime/Unity.Serialization/Json/JsonSerialization+FromJson.cs:123 
+  at Unity.Serialization.Json.JsonSerialization.FromJson[T] (System.String json, Unity.Serialization.Json.JsonSerializationParameters parameters) [0x0000d] in ./Library/PackageCache/com.unity.serialization@3.1.1/Runtime/Unity.Serialization/Json/JsonSerialization+FromJson.cs:204 
+  at MyDomain.Monadic.Tests.SerializerTests.<UnityJsonSerializerFloatIssuesTest>g__IsDeserializedEqual|4_4[T] (T value) [0x00010] in ./Packages/package-monadic/Tests/SerializerTests.cs:225 
+[Exception] System.Double: 1.79769313486232E+308 -> '1.79769313486232E+308' -> Unity.Serialization.ParseErrorException: Failed to parse Value=[1.79769313486232E+308] as Type=[System.Single] ParseError=[Overflow]
+  at Unity.Serialization.Json.DeserializationResult.Throw () [0x0005f] in ./Library/PackageCache/com.unity.serialization@3.1.1/Runtime/Unity.Serialization/Json/JsonSerialization+FromJson.cs:123 
+  at Unity.Serialization.Json.JsonSerialization.FromJson[T] (System.String json, Unity.Serialization.Json.JsonSerializationParameters parameters) [0x0000d] in ./Library/PackageCache/com.unity.serialization@3.1.1/Runtime/Unity.Serialization/Json/JsonSerialization+FromJson.cs:204 
+  at MyDomain.Monadic.Tests.SerializerTests.<UnityJsonSerializerFloatIssuesTest>g__IsDeserializedEqual|4_4[T] (T value) [0x00010] in ./Packages/package-monadic/Tests/SerializerTests.cs:225 
+[Equal] System.Double: NaN -> 'NaN' -> NaN
+[Exception] System.Double: 4.94065645841247E-324 -> '4.94065645841247E-324' -> Unity.Serialization.ParseErrorException: Failed to parse Value=[4.94065645841247E-324] as Type=[System.Single] ParseError=[Underflow]
+  at Unity.Serialization.Json.DeserializationResult.Throw () [0x0005f] in ./Library/PackageCache/com.unity.serialization@3.1.1/Runtime/Unity.Serialization/Json/JsonSerialization+FromJson.cs:123 
+  at Unity.Serialization.Json.JsonSerialization.FromJson[T] (System.String json, Unity.Serialization.Json.JsonSerializationParameters parameters) [0x0000d] in ./Library/PackageCache/com.unity.serialization@3.1.1/Runtime/Unity.Serialization/Json/JsonSerialization+FromJson.cs:204 
+  at MyDomain.Monadic.Tests.SerializerTests.<UnityJsonSerializerFloatIssuesTest>g__IsDeserializedEqual|4_4[T] (T value) [0x00010] in ./Packages/package-monadic/Tests/SerializerTests.cs:225 
+[Equal] System.Int32: 12345 -> '12345' -> 12345
+[Equal] System.Int32: 123456 -> '123456' -> 123456
+[Equal] System.Int32: 1234567 -> '1234567' -> 1234567
+[Equal] System.Int32: 12345678 -> '12345678' -> 12345678
+[Equal] System.Int32: 123456789 -> '123456789' -> 123456789
+[Not Equal] System.Double: 12345.67 -> '12345.67' -> 12345.669921875
+[Not Equal] System.Double: 12345.678 -> '12345.678' -> 12345.677734375
+[Not Equal] System.Double: 12345.6789 -> '12345.6789' -> 12345.6787109375
+]]></output>
+                            </test-case>
+                            <test-case id="1061" name="UnityJsonSerializerTest" fullname="MyDomain.Monadic.Tests.SerializerTests.UnityJsonSerializerTest" methodname="UnityJsonSerializerTest" classname="MyDomain.Monadic.Tests.SerializerTests" runstate="Runnable" seed="1547346308" result="Passed" start-time="2024-02-18 08:52:54Z" end-time="2024-02-18 08:52:54Z" duration="0.027833" asserts="0">
+                                <properties>
+                                    <property name="platform" value="EditMode" />
+                                    <property name="retryIteration" value="0" />
+                                    <property name="repeatIteration" value="0" />
+                                </properties>
+                            </test-case>
+                        </test-suite>
+                        <test-suite type="TestFixture" id="1064" name="StringParsing" fullname="MyDomain.Monadic.Tests.StringParsing" classname="MyDomain.Monadic.Tests.StringParsing" runstate="Runnable" testcasecount="13" result="Passed" start-time="2024-02-18 08:52:54Z" end-time="2024-02-18 08:52:54Z" duration="0.035476" total="13" passed="13" failed="0" inconclusive="0" skipped="0" asserts="0">
+                            <properties>
+                                <property name="platform" value="EditMode" />
+                            </properties>
+                            <test-case id="1074" name="Bool" fullname="MyDomain.Monadic.Tests.StringParsing.Bool" methodname="Bool" classname="MyDomain.Monadic.Tests.StringParsing" runstate="Runnable" seed="2084262553" result="Passed" start-time="2024-02-18 08:52:54Z" end-time="2024-02-18 08:52:54Z" duration="0.000947" asserts="0">
+                                <properties>
+                                    <property name="platform" value="EditMode" />
+                                    <property name="retryIteration" value="0" />
+                                    <property name="repeatIteration" value="0" />
+                                </properties>
+                            </test-case>
+                            <test-case id="1067" name="Byte" fullname="MyDomain.Monadic.Tests.StringParsing.Byte" methodname="Byte" classname="MyDomain.Monadic.Tests.StringParsing" runstate="Runnable" seed="887644651" result="Passed" start-time="2024-02-18 08:52:54Z" end-time="2024-02-18 08:52:54Z" duration="0.000708" asserts="0">
+                                <properties>
+                                    <property name="platform" value="EditMode" />
+                                    <property name="retryIteration" value="0" />
+                                    <property name="repeatIteration" value="0" />
+                                </properties>
+                            </test-case>
+                            <test-case id="1075" name="Char" fullname="MyDomain.Monadic.Tests.StringParsing.Char" methodname="Char" classname="MyDomain.Monadic.Tests.StringParsing" runstate="Runnable" seed="1003643185" result="Passed" start-time="2024-02-18 08:52:54Z" end-time="2024-02-18 08:52:54Z" duration="0.000262" asserts="0">
+                                <properties>
+                                    <property name="platform" value="EditMode" />
+                                    <property name="retryIteration" value="0" />
+                                    <property name="repeatIteration" value="0" />
+                                </properties>
+                            </test-case>
+                            <test-case id="1073" name="Double" fullname="MyDomain.Monadic.Tests.StringParsing.Double" methodname="Double" classname="MyDomain.Monadic.Tests.StringParsing" runstate="Runnable" seed="362805973" result="Passed" start-time="2024-02-18 08:52:54Z" end-time="2024-02-18 08:52:54Z" duration="0.000566" asserts="0">
+                                <properties>
+                                    <property name="platform" value="EditMode" />
+                                    <property name="retryIteration" value="0" />
+                                    <property name="repeatIteration" value="0" />
+                                </properties>
+                            </test-case>
+                            <test-case id="1076" name="Enum" fullname="MyDomain.Monadic.Tests.StringParsing.Enum" methodname="Enum" classname="MyDomain.Monadic.Tests.StringParsing" runstate="Runnable" seed="786131795" result="Passed" start-time="2024-02-18 08:52:54Z" end-time="2024-02-18 08:52:54Z" duration="0.000666" asserts="0">
+                                <properties>
+                                    <property name="platform" value="EditMode" />
+                                    <property name="retryIteration" value="0" />
+                                    <property name="repeatIteration" value="0" />
+                                </properties>
+                            </test-case>
+                            <test-case id="1077" name="EnumFlags" fullname="MyDomain.Monadic.Tests.StringParsing.EnumFlags" methodname="EnumFlags" classname="MyDomain.Monadic.Tests.StringParsing" runstate="Runnable" seed="793030247" result="Passed" start-time="2024-02-18 08:52:54Z" end-time="2024-02-18 08:52:54Z" duration="0.000580" asserts="0">
+                                <properties>
+                                    <property name="platform" value="EditMode" />
+                                    <property name="retryIteration" value="0" />
+                                    <property name="repeatIteration" value="0" />
+                                </properties>
+                            </test-case>
+                            <test-case id="1072" name="Float" fullname="MyDomain.Monadic.Tests.StringParsing.Float" methodname="Float" classname="MyDomain.Monadic.Tests.StringParsing" runstate="Runnable" seed="1527441708" result="Passed" start-time="2024-02-18 08:52:54Z" end-time="2024-02-18 08:52:54Z" duration="0.001008" asserts="0">
+                                <properties>
+                                    <property name="platform" value="EditMode" />
+                                    <property name="retryIteration" value="0" />
+                                    <property name="repeatIteration" value="0" />
+                                </properties>
+                            </test-case>
+                            <test-case id="1065" name="Int" fullname="MyDomain.Monadic.Tests.StringParsing.Int" methodname="Int" classname="MyDomain.Monadic.Tests.StringParsing" runstate="Runnable" seed="619077184" result="Passed" start-time="2024-02-18 08:52:54Z" end-time="2024-02-18 08:52:54Z" duration="0.000605" asserts="0">
+                                <properties>
+                                    <property name="platform" value="EditMode" />
+                                    <property name="retryIteration" value="0" />
+                                    <property name="repeatIteration" value="0" />
+                                </properties>
+                            </test-case>
+                            <test-case id="1070" name="Long" fullname="MyDomain.Monadic.Tests.StringParsing.Long" methodname="Long" classname="MyDomain.Monadic.Tests.StringParsing" runstate="Runnable" seed="372185653" result="Passed" start-time="2024-02-18 08:52:54Z" end-time="2024-02-18 08:52:54Z" duration="0.001470" asserts="0">
+                                <properties>
+                                    <property name="platform" value="EditMode" />
+                                    <property name="retryIteration" value="0" />
+                                    <property name="repeatIteration" value="0" />
+                                </properties>
+                            </test-case>
+                            <test-case id="1068" name="Short" fullname="MyDomain.Monadic.Tests.StringParsing.Short" methodname="Short" classname="MyDomain.Monadic.Tests.StringParsing" runstate="Runnable" seed="426713953" result="Passed" start-time="2024-02-18 08:52:54Z" end-time="2024-02-18 08:52:54Z" duration="0.000619" asserts="0">
+                                <properties>
+                                    <property name="platform" value="EditMode" />
+                                    <property name="retryIteration" value="0" />
+                                    <property name="repeatIteration" value="0" />
+                                </properties>
+                            </test-case>
+                            <test-case id="1066" name="Uint" fullname="MyDomain.Monadic.Tests.StringParsing.Uint" methodname="Uint" classname="MyDomain.Monadic.Tests.StringParsing" runstate="Runnable" seed="1554119613" result="Passed" start-time="2024-02-18 08:52:54Z" end-time="2024-02-18 08:52:54Z" duration="0.001114" asserts="0">
+                                <properties>
+                                    <property name="platform" value="EditMode" />
+                                    <property name="retryIteration" value="0" />
+                                    <property name="repeatIteration" value="0" />
+                                </properties>
+                            </test-case>
+                            <test-case id="1071" name="Ulong" fullname="MyDomain.Monadic.Tests.StringParsing.Ulong" methodname="Ulong" classname="MyDomain.Monadic.Tests.StringParsing" runstate="Runnable" seed="1172144850" result="Passed" start-time="2024-02-18 08:52:54Z" end-time="2024-02-18 08:52:54Z" duration="0.001141" asserts="0">
+                                <properties>
+                                    <property name="platform" value="EditMode" />
+                                    <property name="retryIteration" value="0" />
+                                    <property name="repeatIteration" value="0" />
+                                </properties>
+                            </test-case>
+                            <test-case id="1069" name="Ushort" fullname="MyDomain.Monadic.Tests.StringParsing.Ushort" methodname="Ushort" classname="MyDomain.Monadic.Tests.StringParsing" runstate="Runnable" seed="1594551942" result="Passed" start-time="2024-02-18 08:52:54Z" end-time="2024-02-18 08:52:54Z" duration="0.000605" asserts="0">
+                                <properties>
+                                    <property name="platform" value="EditMode" />
+                                    <property name="retryIteration" value="0" />
+                                    <property name="repeatIteration" value="0" />
+                                </properties>
+                            </test-case>
+                        </test-suite>
+                        <test-suite type="TestFixture" id="1078" name="ValueInfoTests" fullname="MyDomain.Monadic.Tests.ValueInfoTests" classname="MyDomain.Monadic.Tests.ValueInfoTests" runstate="Runnable" testcasecount="4" result="Passed" start-time="2024-02-18 08:52:54Z" end-time="2024-02-18 08:52:54Z" duration="0.001006" total="4" passed="4" failed="0" inconclusive="0" skipped="0" asserts="0">
+                            <properties>
+                                <property name="platform" value="EditMode" />
+                            </properties>
+                            <test-case id="1082" name="GameObjectTypeTests" fullname="MyDomain.Monadic.Tests.ValueInfoTests.GameObjectTypeTests" methodname="GameObjectTypeTests" classname="MyDomain.Monadic.Tests.ValueInfoTests" runstate="Runnable" seed="1901060039" result="Passed" start-time="2024-02-18 08:52:54Z" end-time="2024-02-18 08:52:54Z" duration="0.000181" asserts="0">
+                                <properties>
+                                    <property name="platform" value="EditMode" />
+                                    <property name="retryIteration" value="0" />
+                                    <property name="repeatIteration" value="0" />
+                                </properties>
+                            </test-case>
+                            <test-case id="1080" name="NullableTypeTests" fullname="MyDomain.Monadic.Tests.ValueInfoTests.NullableTypeTests" methodname="NullableTypeTests" classname="MyDomain.Monadic.Tests.ValueInfoTests" runstate="Runnable" seed="1052030422" result="Passed" start-time="2024-02-18 08:52:54Z" end-time="2024-02-18 08:52:54Z" duration="0.000137" asserts="0">
+                                <properties>
+                                    <property name="platform" value="EditMode" />
+                                    <property name="retryIteration" value="0" />
+                                    <property name="repeatIteration" value="0" />
+                                </properties>
+                            </test-case>
+                            <test-case id="1081" name="ReferenceTypeTests" fullname="MyDomain.Monadic.Tests.ValueInfoTests.ReferenceTypeTests" methodname="ReferenceTypeTests" classname="MyDomain.Monadic.Tests.ValueInfoTests" runstate="Runnable" seed="1089345062" result="Passed" start-time="2024-02-18 08:52:54Z" end-time="2024-02-18 08:52:54Z" duration="0.000094" asserts="0">
+                                <properties>
+                                    <property name="platform" value="EditMode" />
+                                    <property name="retryIteration" value="0" />
+                                    <property name="repeatIteration" value="0" />
+                                </properties>
+                            </test-case>
+                            <test-case id="1079" name="ValueTypeTests" fullname="MyDomain.Monadic.Tests.ValueInfoTests.ValueTypeTests" methodname="ValueTypeTests" classname="MyDomain.Monadic.Tests.ValueInfoTests" runstate="Runnable" seed="1078174719" result="Passed" start-time="2024-02-18 08:52:54Z" end-time="2024-02-18 08:52:54Z" duration="0.000107" asserts="0">
+                                <properties>
+                                    <property name="platform" value="EditMode" />
+                                    <property name="retryIteration" value="0" />
+                                    <property name="repeatIteration" value="0" />
+                                </properties>
+                                <output><![CDATA[Saving results to: /Users/yourname/Library/Application Support/media_monks/DialogTest/TestResults.xml
+]]></output>
+                            </test-case>
+                        </test-suite>
+                    </test-suite>
+                </test-suite>
+            </test-suite>
+        </test-suite>
+    </test-suite>
+</test-run>
