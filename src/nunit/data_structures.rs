@@ -1,9 +1,14 @@
+use std::str::FromStr;
+
 use chrono::{DateTime, Utc};
+use quick_xml::DeError;
 use serde::Deserialize;
+
+use crate::nunit::{Stats, TestResult};
 
 #[derive(Debug, Deserialize, PartialEq)]
 #[serde(rename = "test-run")]
-struct TestRun {
+pub struct TestRun {
     #[serde(rename = "@id")]
     id: i32,
 
@@ -50,14 +55,44 @@ struct TestRun {
     elements: Vec<TestRunElement>,
 }
 
+impl TestRun {
+    pub fn test_result(&self) -> TestResult {
+        self.result.as_str().into()
+    }
+
+    pub fn stats(&self) -> Stats {
+        Stats {
+            id: self.id,
+            test_case_count: self.test_case_count,
+            result: self.test_result(),
+            total: self.total,
+            passed: self.passed,
+            failed: self.failed,
+            inconclusive: self.inconclusive,
+            skipped: self.skipped,
+            asserts: self.asserts,
+            start_time: self.start_time,
+            end_time: self.end_time,
+            duration: self.duration,
+        }
+    }
+}
+
+impl FromStr for TestRun {
+    type Err = DeError;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        quick_xml::de::from_str::<TestRun>(s)
+    }
+}
+
 #[derive(Debug, Deserialize, PartialEq)]
-#[serde(rename_all = "kebab-case")]
 enum TestRunElement {
+    #[serde(rename = "test-suite")]
     TestSuite(TestSuite),
 }
 
 #[derive(Debug, Deserialize, PartialEq)]
-#[serde(rename = "test-suite")]
 struct TestSuite {
     #[serde(rename = "@type")]
     r#type: String,
@@ -71,7 +106,7 @@ struct TestSuite {
     #[serde(rename = "@fullname")]
     full_name: String,
 
-    #[serde(rename = "@classname", default = "String::new")]
+    #[serde(rename = "@classname", default)]
     class_name: String,
 
     #[serde(rename = "@testcasecount")]
@@ -83,10 +118,10 @@ struct TestSuite {
     #[serde(rename = "@result")]
     result: String,
 
-    #[serde(rename = "@label", default = "String::new")]
+    #[serde(rename = "@label", default)]
     label: String,
 
-    #[serde(rename = "@site", default = "String::new")]
+    #[serde(rename = "@site", default)]
     site: String,
 
     #[serde(rename = "@start-time")]
@@ -132,7 +167,10 @@ enum TestSuiteElement {
     TestCase(Box<TestCase>),
 
     #[serde(rename = "output")]
-    Output(Output),
+    Output(TextElement),
+
+    #[serde(rename = "failure")]
+    Failure(Failure),
 
     #[serde(rename = "$text")]
     Text(String),
@@ -145,7 +183,6 @@ struct Properties {
 }
 
 #[derive(Debug, Deserialize, PartialEq)]
-#[serde(rename = "property")]
 struct Property {
     #[serde(rename = "@name")]
     name: String,
@@ -155,8 +192,7 @@ struct Property {
 }
 
 #[derive(Debug, Deserialize, PartialEq)]
-#[serde(rename = "output")]
-struct Output {
+struct TextElement {
     #[serde(rename = "$value")]
     text: String,
 }
@@ -188,10 +224,10 @@ struct TestCase {
     #[serde(rename = "@result")]
     result: String,
 
-    #[serde(rename = "@label", default = "String::new")]
+    #[serde(rename = "@label", default)]
     label: String,
 
-    #[serde(rename = "@site", default = "String::new")]
+    #[serde(rename = "@site", default)]
     site: String,
 
     #[serde(rename = "@start-time")]
@@ -213,27 +249,29 @@ enum TestCaseElements {
     Properties(Properties),
 
     #[serde(rename = "output")]
-    Output(Output),
+    Output(TextElement),
+
+    #[serde(rename = "failure")]
+    Failure(Failure),
 
     #[serde(rename = "$text")]
     Text(String),
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
+#[derive(Debug, Deserialize, PartialEq)]
+struct Failure {
+    #[serde(rename = "$value")]
+    elements: Vec<FailureElement>,
+}
 
-    #[test]
-    fn test_deserialize_standalone() {
-        let data = include_str!("test_data/standalone.xml");
-        let test_run = quick_xml::de::from_str::<TestRun>(data).unwrap();
-        dbg!(test_run.elements);
-    }
+#[derive(Debug, Deserialize, PartialEq)]
+enum FailureElement {
+    #[serde(rename = "message")]
+    Message(TextElement),
 
-    #[test]
-    fn test_deserialize_editmode() {
-        let data = include_str!("test_data/editmode.xml");
-        let test_run = quick_xml::de::from_str::<TestRun>(data).unwrap();
-        dbg!(test_run.elements);
-    }
+    #[serde(rename = "stack-trace")]
+    StackTrace(TextElement),
+
+    #[serde(rename = "$text")]
+    Text(String),
 }

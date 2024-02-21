@@ -1,0 +1,662 @@
+<?xml version="1.0" encoding="utf-8"?>
+<test-run id="2" testcasecount="31" result="Failed(Child)" total="31" passed="30" failed="1" inconclusive="0" skipped="0" asserts="0" engine-version="3.5.0.0" clr-version="4.0.30319.42000" start-time="2024-02-21 15:22:24Z" end-time="2024-02-21 15:23:15Z" duration="51.5658976">
+  <test-suite type="TestSuite" id="1000" name="DialogTest" fullname="DialogTest" runstate="Runnable" testcasecount="31" result="Failed" site="Child" start-time="2024-02-21 15:22:24Z" end-time="2024-02-21 15:23:15Z" duration="51.565898" total="31" passed="30" failed="1" inconclusive="0" skipped="0" asserts="0">
+    <properties>
+      <property name="platform" value="PlayMode" />
+    </properties>
+    <failure>
+      <message><![CDATA[One or more child tests had errors]]></message>
+    </failure>
+    <test-suite type="Assembly" id="1039" name="MyDomain.Monadic.PlayModeTests.dll" fullname="/Users/yourname/Development/Work/dialogsystem/Library/ScriptAssemblies/MyDomain.Monadic.PlayModeTests.dll" runstate="Runnable" testcasecount="31" result="Failed" site="Child" start-time="2024-02-21 15:22:24Z" end-time="2024-02-21 15:23:15Z" duration="51.562861" total="31" passed="30" failed="1" inconclusive="0" skipped="0" asserts="0">
+      <properties>
+        <property name="_PID" value="15917" />
+        <property name="_APPDOMAIN" value="Unity Child Domain" />
+        <property name="platform" value="PlayMode" />
+      </properties>
+      <failure>
+        <message><![CDATA[One or more child tests had errors]]></message>
+      </failure>
+      <test-suite type="TestSuite" id="1040" name="MyDomain" fullname="MyDomain" runstate="Runnable" testcasecount="31" result="Failed" site="Child" start-time="2024-02-21 15:22:24Z" end-time="2024-02-21 15:23:15Z" duration="51.562458" total="31" passed="30" failed="1" inconclusive="0" skipped="0" asserts="0">
+        <properties>
+          <property name="platform" value="PlayMode" />
+        </properties>
+        <failure>
+          <message><![CDATA[One or more child tests had errors]]></message>
+        </failure>
+        <test-suite type="TestSuite" id="1041" name="Monadic" fullname="MyDomain.Monadic" runstate="Runnable" testcasecount="31" result="Failed" site="Child" start-time="2024-02-21 15:22:24Z" end-time="2024-02-21 15:23:15Z" duration="51.562250" total="31" passed="30" failed="1" inconclusive="0" skipped="0" asserts="0">
+          <properties>
+            <property name="platform" value="PlayMode" />
+          </properties>
+          <failure>
+            <message><![CDATA[One or more child tests had errors]]></message>
+          </failure>
+          <test-suite type="TestSuite" id="1042" name="PlayModeTests" fullname="MyDomain.Monadic.PlayModeTests" runstate="Runnable" testcasecount="31" result="Failed" site="Child" start-time="2024-02-21 15:22:24Z" end-time="2024-02-21 15:23:15Z" duration="51.561964" total="31" passed="30" failed="1" inconclusive="0" skipped="0" asserts="0">
+            <properties>
+              <property name="platform" value="PlayMode" />
+            </properties>
+            <failure>
+              <message><![CDATA[One or more child tests had errors]]></message>
+            </failure>
+            <test-suite type="TestSuite" id="1043" name="Performance" fullname="MyDomain.Monadic.PlayModeTests.Performance" runstate="Runnable" testcasecount="5" result="Passed" start-time="2024-02-21 15:22:24Z" end-time="2024-02-21 15:23:05Z" duration="40.895111" total="5" passed="5" failed="0" inconclusive="0" skipped="0" asserts="0">
+              <properties>
+                <property name="platform" value="PlayMode" />
+              </properties>
+              <test-suite type="TestFixture" id="1032" name="OptionCreation" fullname="MyDomain.Monadic.PlayModeTests.Performance.OptionCreation" classname="MyDomain.Monadic.PlayModeTests.Performance.OptionCreation" runstate="Runnable" testcasecount="2" result="Passed" start-time="2024-02-21 15:22:24Z" end-time="2024-02-21 15:22:38Z" duration="14.181385" total="2" passed="2" failed="0" inconclusive="0" skipped="0" asserts="0">
+                <properties>
+                  <property name="platform" value="PlayMode" />
+                </properties>
+                <test-case id="1034" name="None" fullname="MyDomain.Monadic.PlayModeTests.Performance.OptionCreation.None" methodname="None" classname="MyDomain.Monadic.PlayModeTests.Performance.OptionCreation" runstate="Runnable" seed="935929600" result="Passed" start-time="2024-02-21 15:22:24Z" end-time="2024-02-21 15:22:28Z" duration="4.276706" asserts="0">
+                  <properties>
+                    <property name="Category" value="Performance" />
+                    <property name="platform" value="PlayMode" />
+                    <property name="retryIteration" value="0" />
+                    <property name="repeatIteration" value="0" />
+                  </properties>
+                  <output><![CDATA[Int32.GC() in Undefineds
+Min:		0.00 
+Median:		0.00 
+Max:		0.00 
+Avg:		0.00 
+StdDev:		0.00 
+SampleCount:	20
+Sum:		0.00 
+First samples:	▁███████████████████
+Histogram:	▁▁▁▁█
+
+Int32 in Milliseconds
+Min:		1.27 ms
+Median:		1.29 ms
+Max:		1.30 ms
+Avg:		1.29 ms
+StdDev:		0.01 ms
+SampleCount:	10
+Sum:		12.92 ms
+First samples:	█▇▁▆▆▅▅▇▆█
+(not enough samples for histogram)
+
+Vector4.GC() in Undefineds
+Min:		0.00 
+Median:		0.00 
+Max:		0.00 
+Avg:		0.00 
+StdDev:		0.00 
+SampleCount:	20
+Sum:		0.00 
+First samples:	▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁
+Histogram:	█▁▁▁▇
+
+Vector4 in Milliseconds
+Min:		1.30 ms
+Median:		1.31 ms
+Max:		1.34 ms
+Avg:		1.31 ms
+StdDev:		0.01 ms
+SampleCount:	10
+Sum:		13.12 ms
+First samples:	▃▂▃▁▂▂▄▂█▅
+(not enough samples for histogram)
+
+String in Milliseconds
+Min:		1.30 ms
+Median:		1.30 ms
+Max:		1.33 ms
+Avg:		1.31 ms
+StdDev:		0.01 ms
+SampleCount:	10
+Sum:		13.07 ms
+First samples:	▇▂▁▄▂▁▂▆█▄
+(not enough samples for histogram)
+
+Object in Milliseconds
+Min:		1.29 ms
+Median:		1.30 ms
+Max:		1.31 ms
+Avg:		1.30 ms
+StdDev:		0.01 ms
+SampleCount:	10
+Sum:		13.01 ms
+First samples:	▆█▃▂▄▄▆▄▁▄
+(not enough samples for histogram)
+
+
+##performancetestresult2:{"Name":"MyDomain.Monadic.PlayModeTests.Performance.OptionCreation.None","ClassName":"MyDomain.Monadic.PlayModeTests.Performance.OptionCreation","MethodName":"None","Version":"1","Categories":["Performance"],"SampleGroups":[{"Name":"Int32.GC()","Unit":8,"IncreaseIsBetter":false,"Samples":[0.000002,0.000005,0.000005,0.000005,0.000005,0.000005,0.000005,0.000005,0.000005,0.000005,0.000005,0.000005,0.000005,0.000005,0.000005,0.000005,0.000005,0.000005,0.000005,0.000005],"Min":0.000002,"Max":0.000005,"Median":0.000005,"Average":0.00000485,"StandardDeviation":6.538348415311016e-7,"Sum":0.000097},{"Name":"Int32","Unit":2,"IncreaseIsBetter":false,"Samples":[1.3003999999998542,1.297800000000052,1.2690000000000055,1.2907999999999902,1.2942000000000463,1.2894000000001143,1.289700000000039,1.2953999999999724,1.2934000000000197,1.3014000000000579],"Min":1.2690000000000055,"Max":1.3014000000000579,"Median":1.293800000000033,"Average":1.292150000000015,"StandardDeviation":0.00867862316268119,"Sum":12.921500000000151},{"Name":"Vector4.GC()","Unit":8,"IncreaseIsBetter":false,"Samples":[0.000005,0.000005,0.000005,0.000005,0.000005,0.000005,0.000005,0.000005,0.000005,0.000005,0.000005,0.000005,0.000005,0.000005,0.000005,0.000005,0.000005,0.000005,0.000005,0.000005],"Min":0.000005,"Max":0.000005,"Median":0.000005,"Average":0.000005,"StandardDeviation":0.0,"Sum":0.0001},{"Name":"Vector4","Unit":2,"IncreaseIsBetter":false,"Samples":[1.3111999999998716,1.3049999999998364,1.309400000000096,1.3001000000001569,1.3057000000001154,1.306100000000015,1.315499999999929,1.3034999999999855,1.3396000000000186,1.324699999999666],"Min":1.3001000000001569,"Max":1.3396000000000186,"Median":1.3077500000000555,"Average":1.312079999999969,"StandardDeviation":0.011313690821252713,"Sum":13.12079999999969},{"Name":"String","Unit":2,"IncreaseIsBetter":false,"Samples":[1.3208000000000003,1.3011999999999998,1.2965999999999998,1.307100000000002,1.2994999999999984,1.2954000000000008,1.299900000000001,1.3165000000000014,1.3254999999999982,1.307500000000001],"Min":1.2954000000000008,"Max":1.3254999999999982,"Median":1.3041500000000009,"Average":1.3070000000000002,"StandardDeviation":0.010031051789318832,"Sum":13.070000000000002},{"Name":"Object","Unit":2,"IncreaseIsBetter":false,"Samples":[1.3087,1.3140999999999999,1.2969000000000009,1.2929999999999993,1.3007999999999989,1.3023999999999987,1.3066999999999994,1.2994999999999984,1.2912000000000035,1.2998000000000012],"Min":1.2912000000000035,"Max":1.3140999999999999,"Median":1.3003,"Average":1.30131,"StandardDeviation":0.006670599673192236,"Sum":13.0131}]}
+##performancetestruninfo2:{"TestSuite":"Playmode","Date":1708528943188,"Player":{"Development":true,"ScreenWidth":3024,"ScreenHeight":1890,"ScreenRefreshRate":120,"Fullscreen":false,"Vsync":1,"AntiAliasing":0,"Batchmode":true,"RenderThreadingMode":"MultiThreaded","GpuSkinning":false,"Platform":"OSXEditor","ColorSpace":"Gamma","AnisotropicFiltering":"Disable","BlendWeights":"TwoBones","GraphicsApi":"Metal","ScriptingBackend":"IL2CPP","AndroidTargetSdkVersion":"AndroidApiLevelAuto","AndroidBuildSystem":"Gradle","BuildTarget":"StandaloneOSX","StereoRenderingPath":"MultiPass"},"Hardware":{"OperatingSystem":"Mac OS X 14.4.0","DeviceModel":"MacBookPro18,3","DeviceName":"MacBook van yourname 🍏","ProcessorType":"Apple M1 Pro","ProcessorCount":10,"GraphicsDeviceName":"Apple M1 Pro","SystemMemorySizeMB":16384},"Editor":{"Version":"2022.3.19f1","Branch":"2022.3/staging","Changeset":"244b723c30a6","Date":1706196510},"Dependencies":["com.cysharp.unitask@2.5.0","com.MyDomain.packagetools@0.1.9","com.unity.2d.sprite@1.0.0","com.unity.ai.navigation@1.1.5","com.unity.ide.rider@3.0.27","com.unity.ide.visualstudio@2.0.22","com.unity.ide.vscode@1.2.5","com.unity.nuget.newtonsoft-json@3.2.1","com.unity.serialization@3.1.1","com.unity.test-framework@1.3.7","com.unity.test-framework.performance@3.0.3","com.unity.textmeshpro@3.0.6","com.unity.timeline@1.7.6","com.unity.ugui@1.0.0","com.yasirkula.ingamedebugconsole@1.6.6","com.unity.modules.ai@1.0.0","com.unity.modules.androidjni@1.0.0","com.unity.modules.animation@1.0.0","com.unity.modules.assetbundle@1.0.0","com.unity.modules.audio@1.0.0","com.unity.modules.cloth@1.0.0","com.unity.modules.director@1.0.0","com.unity.modules.imageconversion@1.0.0","com.unity.modules.imgui@1.0.0","com.unity.modules.jsonserialize@1.0.0","com.unity.modules.particlesystem@1.0.0","com.unity.modules.physics@1.0.0","com.unity.modules.physics2d@1.0.0","com.unity.modules.screencapture@1.0.0","com.unity.modules.terrain@1.0.0","com.unity.modules.terrainphysics@1.0.0","com.unity.modules.tilemap@1.0.0","com.unity.modules.ui@1.0.0","com.unity.modules.uielements@1.0.0","com.unity.modules.umbra@1.0.0","com.unity.modules.unityanalytics@1.0.0","com.unity.modules.unitywebrequest@1.0.0","com.unity.modules.unitywebrequestassetbundle@1.0.0","com.unity.modules.unitywebrequestaudio@1.0.0","com.unity.modules.unitywebrequesttexture@1.0.0","com.unity.modules.unitywebrequestwww@1.0.0","com.unity.modules.vehicles@1.0.0","com.unity.modules.video@1.0.0","com.unity.modules.vr@1.0.0","com.unity.modules.wind@1.0.0","com.unity.modules.xr@1.0.0","com.MyDomain.devicepermissions@1.0.2","com.MyDomain.dialogsystem@0.6.0","com.MyDomain.editortools@0.1.0-preview","com.MyDomain.injection@1.0.1","com.MyDomain.offscreenindicator@1.0.1","com.MyDomain.references@1.0.2","com.MyDomain.toggleanimation@1.0.0","com.MyDomain.monadic@1.0.11","com.unity.modules.subsystems@1.0.0","com.unity.ext.nunit@2.0.3","com.unity.collections@2.1.4","com.unity.burst@1.8.12","com.unity.mathematics@1.2.6","com.unity.nuget.mono-cecil@1.11.4"],"Results":[]}
+]]></output>
+                </test-case>
+                <test-case id="1033" name="Some" fullname="MyDomain.Monadic.PlayModeTests.Performance.OptionCreation.Some" methodname="Some" classname="MyDomain.Monadic.PlayModeTests.Performance.OptionCreation" runstate="Runnable" seed="1360624202" result="Passed" start-time="2024-02-21 15:22:28Z" end-time="2024-02-21 15:22:38Z" duration="9.898081" asserts="0">
+                  <properties>
+                    <property name="Category" value="Performance" />
+                    <property name="platform" value="PlayMode" />
+                    <property name="retryIteration" value="0" />
+                    <property name="repeatIteration" value="0" />
+                  </properties>
+                  <output><![CDATA[Int32.GC() in Undefineds
+Min:		1.00 
+Median:		1.00 
+Max:		1.01 
+Avg:		1.00 
+StdDev:		0.00 
+SampleCount:	20
+Sum:		20.01 
+First samples:	█▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁
+Histogram:	█▁▁▁▅
+
+Int32 in Milliseconds
+Min:		70.32 ms
+Median:		72.07 ms
+Max:		74.10 ms
+Avg:		72.15 ms
+StdDev:		1.33 ms
+SampleCount:	10
+Sum:		721.54 ms
+First samples:	▂▁▁▄██▇▄▅▅
+(not enough samples for histogram)
+
+Vector4.GC() in Undefineds
+Min:		1.00 
+Median:		1.00 
+Max:		1.00 
+Avg:		1.00 
+StdDev:		0.00 
+SampleCount:	20
+Sum:		20.00 
+First samples:	█▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁
+Histogram:	█▁▁▁▃
+
+Vector4 in Milliseconds
+Min:		72.80 ms
+Median:		72.86 ms
+Max:		72.93 ms
+Avg:		72.86 ms
+StdDev:		0.04 ms
+SampleCount:	10
+Sum:		728.62 ms
+First samples:	▃▁▆▅▁▆▂▄█▆
+(not enough samples for histogram)
+
+String in Milliseconds
+Min:		68.57 ms
+Median:		68.64 ms
+Max:		68.73 ms
+Avg:		68.64 ms
+StdDev:		0.04 ms
+SampleCount:	10
+Sum:		686.37 ms
+First samples:	█▃▁▅▂▂▅▄▃▅
+(not enough samples for histogram)
+
+Object in Milliseconds
+Min:		68.57 ms
+Median:		68.64 ms
+Max:		68.73 ms
+Avg:		68.64 ms
+StdDev:		0.05 ms
+SampleCount:	10
+Sum:		686.44 ms
+First samples:	▆▆▄▁▂▄█▅▅▂
+(not enough samples for histogram)
+
+
+##performancetestresult2:{"Name":"MyDomain.Monadic.PlayModeTests.Performance.OptionCreation.Some","ClassName":"MyDomain.Monadic.PlayModeTests.Performance.OptionCreation","MethodName":"Some","Version":"1","Categories":["Performance"],"SampleGroups":[{"Name":"Int32.GC()","Unit":8,"IncreaseIsBetter":false,"Samples":[1.005327,1.000005,1.000005,1.000005,1.000005,1.000005,1.000005,1.000005,1.000005,1.000005,1.000005,1.000005,1.000005,1.000005,1.000005,1.000005,1.000005,1.000005,1.000005,1.000005],"Min":1.000005,"Max":1.005327,"Median":1.000005,"Average":1.0002711000000005,"StandardDeviation":0.0011599030088761845,"Sum":20.005422000000008},{"Name":"Int32","Unit":2,"IncreaseIsBetter":false,"Samples":[70.70220000000018,70.31520000000023,70.35919999999988,71.91800000000012,74.0976999999998,73.98450000000003,73.33989999999995,71.9092999999998,72.69419999999991,72.22080000000006],"Min":70.31520000000023,"Max":74.0976999999998,"Median":72.06940000000009,"Average":72.1541,"StandardDeviation":1.3288012168867938,"Sum":721.5409999999999},{"Name":"Vector4.GC()","Unit":8,"IncreaseIsBetter":false,"Samples":[1.000006,1.000005,1.000005,1.000005,1.000005,1.000005,1.000005,1.000005,1.000005,1.000005,1.000005,1.000005,1.000005,1.000005,1.000005,1.000005,1.000005,1.000005,1.000005,1.000005],"Min":1.000005,"Max":1.000006,"Median":1.000005,"Average":1.0000050500000002,"StandardDeviation":2.1794494715910398e-7,"Sum":20.000101000000006},{"Name":"Vector4","Unit":2,"IncreaseIsBetter":false,"Samples":[72.83559999999989,72.80340000000001,72.88880000000018,72.8724000000002,72.80819999999994,72.89480000000003,72.82760000000008,72.85259999999971,72.93359999999984,72.9037000000003],"Min":72.80340000000001,"Max":72.93359999999984,"Median":72.86249999999996,"Average":72.86207000000002,"StandardDeviation":0.04130946743789987,"Sum":728.6207000000002},{"Name":"String","Unit":2,"IncreaseIsBetter":false,"Samples":[68.73169999999993,68.61270000000002,68.57259999999997,68.66769999999997,68.60629999999992,68.59339999999998,68.65550000000008,68.65039999999999,68.6246000000001,68.6594],"Min":68.57259999999997,"Max":68.73169999999993,"Median":68.63750000000005,"Average":68.63743,"StandardDeviation":0.04320574151660435,"Sum":686.3743},{"Name":"Object","Unit":2,"IncreaseIsBetter":false,"Samples":[68.68740000000003,68.6794000000001,68.62869999999998,68.57150000000002,68.59900000000005,68.63100000000009,68.72550000000001,68.65480000000003,68.66709999999989,68.5947000000001],"Min":68.57150000000002,"Max":68.72550000000001,"Median":68.64290000000006,"Average":68.64391000000004,"StandardDeviation":0.045325455320369998,"Sum":686.4391000000003}]}
+]]></output>
+                </test-case>
+              </test-suite>
+              <test-suite type="TestFixture" id="1035" name="ResultCreation" fullname="MyDomain.Monadic.PlayModeTests.Performance.ResultCreation" classname="MyDomain.Monadic.PlayModeTests.Performance.ResultCreation" runstate="Runnable" testcasecount="3" result="Passed" start-time="2024-02-21 15:22:38Z" end-time="2024-02-21 15:23:05Z" duration="26.712911" total="3" passed="3" failed="0" inconclusive="0" skipped="0" asserts="0">
+                <properties>
+                  <property name="platform" value="PlayMode" />
+                </properties>
+                <test-case id="1037" name="ErrDefault" fullname="MyDomain.Monadic.PlayModeTests.Performance.ResultCreation.ErrDefault" methodname="ErrDefault" classname="MyDomain.Monadic.PlayModeTests.Performance.ResultCreation" runstate="Runnable" seed="42663745" result="Passed" start-time="2024-02-21 15:22:38Z" end-time="2024-02-21 15:22:42Z" duration="4.269029" asserts="0">
+                  <properties>
+                    <property name="Category" value="Performance" />
+                    <property name="platform" value="PlayMode" />
+                    <property name="retryIteration" value="0" />
+                    <property name="repeatIteration" value="0" />
+                  </properties>
+                  <output><![CDATA[Int32.GC() in Undefineds
+Min:		0.00 
+Median:		0.00 
+Max:		0.00 
+Avg:		0.00 
+StdDev:		0.00 
+SampleCount:	20
+Sum:		0.00 
+First samples:	█▅▅▆▆▆▁▁▁▁▁▁▁▁▁▁▁▁▁▁
+Histogram:	█▁▁▁▃
+
+Int32 in Milliseconds
+Min:		1.29 ms
+Median:		1.30 ms
+Max:		1.31 ms
+Avg:		1.30 ms
+StdDev:		0.01 ms
+SampleCount:	20
+Sum:		26.01 ms
+First samples:	▅▁▆▁▂▅▄▂▂▁▂▂▅▇▆█▇▅▆▆
+Histogram:	█▁▂▂▃
+
+Vector4.GC() in Undefineds
+Min:		0.00 
+Median:		0.00 
+Max:		0.00 
+Avg:		0.00 
+StdDev:		0.00 
+SampleCount:	20
+Sum:		0.00 
+First samples:	▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁
+Histogram:	█▁▁▂▃
+
+Vector4 in Milliseconds
+Min:		1.30 ms
+Median:		1.31 ms
+Max:		1.32 ms
+Avg:		1.31 ms
+StdDev:		0.01 ms
+SampleCount:	10
+Sum:		13.09 ms
+First samples:	▃▆█▆▄▄▃▃▇▁
+(not enough samples for histogram)
+
+Object in Milliseconds
+Min:		1.30 ms
+Median:		1.31 ms
+Max:		1.34 ms
+Avg:		1.32 ms
+StdDev:		0.01 ms
+SampleCount:	10
+Sum:		13.16 ms
+First samples:	▆█▃▂▄▆▄▁▂▂
+(not enough samples for histogram)
+
+
+##performancetestresult2:{"Name":"MyDomain.Monadic.PlayModeTests.Performance.ResultCreation.ErrDefault","ClassName":"MyDomain.Monadic.PlayModeTests.Performance.ResultCreation","MethodName":"ErrDefault","Version":"1","Categories":["Performance"],"SampleGroups":[{"Name":"Int32.GC()","Unit":8,"IncreaseIsBetter":false,"Samples":[0.000156,0.000101,0.000093,0.000111,0.000123,0.000105,0.000005,0.000005,0.000005,0.000005,0.000005,0.000005,0.000005,0.000005,0.000005,0.000005,0.000005,0.000005,0.000005,0.000005],"Min":0.000005,"Max":0.000156,"Median":0.000005,"Average":0.00003795000000000001,"StandardDeviation":0.000051578556590893464,"Sum":0.0007590000000000001},{"Name":"Int32","Unit":2,"IncreaseIsBetter":false,"Samples":[1.302199999999857,1.290599999999813,1.306100000000015,1.2889999999999873,1.292299999999841,1.302500000000009,1.3016000000000077,1.2925000000000183,1.293100000000095,1.2899999999999637,1.2928999999999996,1.2934999999999999,1.3045000000000009,1.3122000000000008,1.3062000000000005,1.3145999999999987,1.3101999999999983,1.3028000000000014,1.3089000000000013,1.3063000000000003],"Min":1.2889999999999873,"Max":1.3145999999999987,"Median":1.302349999999933,"Average":1.3005999999999805,"StandardDeviation":0.007938198788155535,"Sum":26.01199999999961},{"Name":"Vector4.GC()","Unit":8,"IncreaseIsBetter":false,"Samples":[0.000005,0.000005,0.000005,0.000005,0.000005,0.000005,0.000005,0.000005,0.000005,0.000005,0.000005,0.000005,0.000005,0.000005,0.000005,0.000005,0.000005,0.000005,0.000005,0.000005],"Min":0.000005,"Max":0.000005,"Median":0.000005,"Average":0.000005,"StandardDeviation":0.0,"Sum":0.0001},{"Name":"Vector4","Unit":2,"IncreaseIsBetter":false,"Samples":[1.3061999999999899,1.312599999999975,1.3179000000000088,1.3128999999998997,1.3086000000000695,1.3068000000000666,1.3046999999999117,1.304700000000139,1.315499999999929,1.3001999999999044],"Min":1.3001999999999044,"Max":1.3179000000000088,"Median":1.307700000000068,"Average":1.3090099999999894,"StandardDeviation":0.005262024325288025,"Sum":13.090099999999893},{"Name":"Object","Unit":2,"IncreaseIsBetter":false,"Samples":[1.3290000000000007,1.342900000000002,1.311,1.3049,1.318800000000003,1.3298000000000024,1.3186,1.2960999999999992,1.305299999999999,1.3054000000000024],"Min":1.2960999999999992,"Max":1.342900000000002,"Median":1.3148,"Average":1.3161800000000009,"StandardDeviation":0.013668928268156975,"Sum":13.161800000000009}]}
+]]></output>
+                </test-case>
+                <test-case id="1038" name="ErrNullValueErr" fullname="MyDomain.Monadic.PlayModeTests.Performance.ResultCreation.ErrNullValueErr" methodname="ErrNullValueErr" classname="MyDomain.Monadic.PlayModeTests.Performance.ResultCreation" runstate="Runnable" seed="971016966" result="Passed" start-time="2024-02-21 15:22:42Z" end-time="2024-02-21 15:22:52Z" duration="9.518094" asserts="0">
+                  <properties>
+                    <property name="Category" value="Performance" />
+                    <property name="platform" value="PlayMode" />
+                    <property name="retryIteration" value="0" />
+                    <property name="repeatIteration" value="0" />
+                  </properties>
+                  <output><![CDATA[Int32.GC() in Undefineds
+Min:		0.00 
+Median:		0.00 
+Max:		0.00 
+Avg:		0.00 
+StdDev:		0.00 
+SampleCount:	20
+Sum:		0.00 
+First samples:	█▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁
+Histogram:	█▁▁▂▃
+
+Int32 in Milliseconds
+Min:		16.40 ms
+Median:		16.42 ms
+Max:		16.48 ms
+Avg:		16.43 ms
+StdDev:		0.02 ms
+SampleCount:	10
+Sum:		164.31 ms
+First samples:	▁▅▃█▃▅▃▃▄▃
+(not enough samples for histogram)
+
+Vector4.GC() in Undefineds
+Min:		0.00 
+Median:		0.00 
+Max:		0.00 
+Avg:		0.00 
+StdDev:		0.00 
+SampleCount:	20
+Sum:		0.00 
+First samples:	█▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁
+Histogram:	█▁▁▁▂
+
+Vector4 in Milliseconds
+Min:		39.41 ms
+Median:		40.75 ms
+Max:		41.22 ms
+Avg:		40.67 ms
+StdDev:		0.49 ms
+SampleCount:	10
+Sum:		406.75 ms
+First samples:	▁█▆▇█▇▅▅▆▅
+(not enough samples for histogram)
+
+String in Milliseconds
+Min:		102.45 ms
+Median:		107.11 ms
+Max:		108.59 ms
+Avg:		106.96 ms
+StdDev:		1.71 ms
+SampleCount:	10
+Sum:		1069.65 ms
+First samples:	▁▅███▇▆▆▆▆
+(not enough samples for histogram)
+
+Object in Milliseconds
+Min:		102.60 ms
+Median:		105.14 ms
+Max:		106.62 ms
+Avg:		104.55 ms
+StdDev:		1.41 ms
+SampleCount:	10
+Sum:		1045.51 ms
+First samples:	▆▆▆▅█▇▃▁▁▁
+(not enough samples for histogram)
+
+
+##performancetestresult2:{"Name":"MyDomain.Monadic.PlayModeTests.Performance.ResultCreation.ErrNullValueErr","ClassName":"MyDomain.Monadic.PlayModeTests.Performance.ResultCreation","MethodName":"ErrNullValueErr","Version":"1","Categories":["Performance"],"SampleGroups":[{"Name":"Int32.GC()","Unit":8,"IncreaseIsBetter":false,"Samples":[0.000045,0.000005,0.000005,0.000005,0.000005,0.000005,0.000005,0.000005,0.000005,0.000005,0.000005,0.000005,0.000005,0.000005,0.000005,0.000005,0.000005,0.000005,0.000005,0.000005],"Min":0.000005,"Max":0.000045,"Median":0.000005,"Average":0.0000070000000000000028,"StandardDeviation":0.000008717797887081348,"Sum":0.00014000000000000004},{"Name":"Int32","Unit":2,"IncreaseIsBetter":false,"Samples":[16.39839999999981,16.441299999999957,16.417500000000019,16.4833000000001,16.421499999999925,16.441800000000059,16.425500000000058,16.422199999999977,16.437400000000254,16.423699999999827],"Min":16.39839999999981,"Max":16.4833000000001,"Median":16.42459999999994,"Average":16.431259999999999,"StandardDeviation":0.02120033961999107,"Sum":164.31259999999998},{"Name":"Vector4.GC()","Unit":8,"IncreaseIsBetter":false,"Samples":[0.000008,0.000005,0.000005,0.000005,0.000005,0.000005,0.000005,0.000005,0.000005,0.000005,0.000005,0.000005,0.000005,0.000005,0.000005,0.000005,0.000005,0.000005,0.000005,0.000005],"Min":0.000005,"Max":0.000008,"Median":0.000005,"Average":0.00000515,"StandardDeviation":6.538348415311004e-7,"Sum":0.000103},{"Name":"Vector4","Unit":2,"IncreaseIsBetter":false,"Samples":[39.40779999999995,41.17139999999995,40.72849999999994,40.9070999999999,41.2166000000002,41.016399999999979,40.49589999999989,40.55740000000014,40.77719999999999,40.46939999999995],"Min":39.40779999999995,"Max":41.2166000000002,"Median":40.75284999999997,"Average":40.67476999999999,"StandardDeviation":0.4916755252196555,"Sum":406.7476999999999},{"Name":"String","Unit":2,"IncreaseIsBetter":false,"Samples":[102.44960000000015,106.10860000000003,108.5916000000002,108.47090000000003,108.43399999999997,107.85239999999999,106.81590000000006,106.69849999999997,107.24569999999994,106.98209999999995],"Min":102.44960000000015,"Max":108.5916000000002,"Median":107.11389999999995,"Average":106.96493000000003,"StandardDeviation":1.7074424781233256,"Sum":1069.6493000000003},{"Name":"Object","Unit":2,"IncreaseIsBetter":false,"Samples":[105.57730000000015,105.35349999999994,105.2315000000001,105.04040000000009,106.61879999999997,105.91269999999986,103.87300000000005,102.65240000000017,102.65530000000013,102.59790000000021],"Min":102.59790000000021,"Max":106.61879999999997,"Median":105.1359500000001,"Average":104.55128000000006,"StandardDeviation":1.414303982741967,"Sum":1045.5128000000007}]}
+]]></output>
+                </test-case>
+                <test-case id="1036" name="Ok" fullname="MyDomain.Monadic.PlayModeTests.Performance.ResultCreation.Ok" methodname="Ok" classname="MyDomain.Monadic.PlayModeTests.Performance.ResultCreation" runstate="Runnable" seed="274524931" result="Passed" start-time="2024-02-21 15:22:52Z" end-time="2024-02-21 15:23:05Z" duration="12.923992" asserts="0">
+                  <properties>
+                    <property name="Category" value="Performance" />
+                    <property name="platform" value="PlayMode" />
+                    <property name="retryIteration" value="0" />
+                    <property name="repeatIteration" value="0" />
+                  </properties>
+                  <output><![CDATA[Int32.GC() in Undefineds
+Min:		1.00 
+Median:		1.00 
+Max:		1.00 
+Avg:		1.00 
+StdDev:		0.00 
+SampleCount:	20
+Sum:		20.00 
+First samples:	▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁
+Histogram:	█▁▁▁▂
+
+Int32 in Milliseconds
+Min:		97.77 ms
+Median:		99.96 ms
+Max:		100.51 ms
+Avg:		99.54 ms
+StdDev:		0.98 ms
+SampleCount:	10
+Sum:		995.42 ms
+First samples:	█▆▂▇▇▆▇█▃▁
+(not enough samples for histogram)
+
+Vector4.GC() in Undefineds
+Min:		1.00 
+Median:		1.00 
+Max:		1.00 
+Avg:		1.00 
+StdDev:		0.00 
+SampleCount:	20
+Sum:		20.00 
+First samples:	▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁
+Histogram:	█▁▁▁▂
+
+Vector4 in Milliseconds
+Min:		105.00 ms
+Median:		106.13 ms
+Max:		106.42 ms
+Avg:		106.02 ms
+StdDev:		0.38 ms
+SampleCount:	10
+Sum:		1060.19 ms
+First samples:	▇▇▇█▇▇▇▇▁▅
+(not enough samples for histogram)
+
+String in Milliseconds
+Min:		115.54 ms
+Median:		115.70 ms
+Max:		116.64 ms
+Avg:		115.80 ms
+StdDev:		0.30 ms
+SampleCount:	10
+Sum:		1158.04 ms
+First samples:	▂▂▂▂▂▃▂▃▁█
+(not enough samples for histogram)
+
+Object in Milliseconds
+Min:		115.41 ms
+Median:		115.69 ms
+Max:		116.09 ms
+Avg:		115.72 ms
+StdDev:		0.20 ms
+SampleCount:	10
+Sum:		1157.16 ms
+First samples:	▃▄▅█▇▄▄▃▂▁
+(not enough samples for histogram)
+
+
+##performancetestresult2:{"Name":"MyDomain.Monadic.PlayModeTests.Performance.ResultCreation.Ok","ClassName":"MyDomain.Monadic.PlayModeTests.Performance.ResultCreation","MethodName":"Ok","Version":"1","Categories":["Performance"],"SampleGroups":[{"Name":"Int32.GC()","Unit":8,"IncreaseIsBetter":false,"Samples":[1.000005,1.000005,1.000005,1.000005,1.000005,1.000005,1.000005,1.000005,1.000005,1.000005,1.000005,1.000005,1.000005,1.000005,1.000005,1.000005,1.000005,1.000005,1.000005,1.000005],"Min":1.000005,"Max":1.000005,"Median":1.000005,"Average":1.0000050000000003,"StandardDeviation":2.220446049250313e-16,"Sum":20.000100000000008},{"Name":"Int32","Unit":2,"IncreaseIsBetter":false,"Samples":[100.48099999999977,99.73640000000023,98.01090000000022,100.06629999999996,100.30420000000004,99.8444999999997,100.1229000000003,100.51389999999992,98.57400000000007,97.76890000000003],"Min":97.76890000000003,"Max":100.51389999999992,"Median":99.95539999999983,"Average":99.54230000000003,"StandardDeviation":0.9784715775125388,"Sum":995.4230000000002},{"Name":"Vector4.GC()","Unit":8,"IncreaseIsBetter":false,"Samples":[1.000005,1.000005,1.000005,1.000005,1.000005,1.000005,1.000005,1.000005,1.000005,1.000005,1.000005,1.000005,1.000005,1.000005,1.000005,1.000005,1.000005,1.000005,1.000005,1.000005],"Min":1.000005,"Max":1.000005,"Median":1.000005,"Average":1.0000050000000003,"StandardDeviation":2.220446049250313e-16,"Sum":20.000100000000008},{"Name":"Vector4","Unit":2,"IncreaseIsBetter":false,"Samples":[106.15700000000015,106.1241,106.125,106.41539999999987,106.13900000000013,106.1256000000003,106.2144000000003,106.16379999999981,104.99659999999995,105.73299999999972],"Min":104.99659999999995,"Max":106.41539999999987,"Median":106.13230000000022,"Average":106.01939000000002,"StandardDeviation":0.37556184164533587,"Sum":1060.1939000000002},{"Name":"String","Unit":2,"IncreaseIsBetter":false,"Samples":[115.70590000000016,115.6923999999999,115.7536,115.64580000000001,115.66689999999994,115.84770000000003,115.64609999999994,115.89889999999991,115.53839999999991,116.64220000000023],"Min":115.53839999999991,"Max":116.64220000000023,"Median":115.69915000000003,"Average":115.80379,"StandardDeviation":0.29621145301970405,"Sum":1158.0379},{"Name":"Object","Unit":2,"IncreaseIsBetter":false,"Samples":[115.64070000000015,115.70830000000001,115.7940000000001,116.09230000000003,116.01099999999997,115.72759999999994,115.67370000000006,115.61530000000016,115.48510000000033,115.41289999999981],"Min":115.41289999999981,"Max":116.09230000000003,"Median":115.69100000000003,"Average":115.71609000000005,"StandardDeviation":0.19942135016088809,"Sum":1157.1609000000005}]}
+]]></output>
+                </test-case>
+              </test-suite>
+            </test-suite>
+            <test-suite type="TestFixture" id="1001" name="TaskTests" fullname="MyDomain.Monadic.PlayModeTests.TaskTests" classname="MyDomain.Monadic.PlayModeTests.TaskTests" runstate="Runnable" testcasecount="4" result="Passed" start-time="2024-02-21 15:23:05Z" end-time="2024-02-21 15:23:08Z" duration="3.221254" total="4" passed="4" failed="0" inconclusive="0" skipped="0" asserts="0">
+              <properties>
+                <property name="platform" value="PlayMode" />
+              </properties>
+              <test-case id="1003" name="AndThen" fullname="MyDomain.Monadic.PlayModeTests.TaskTests.AndThen" methodname="AndThen" classname="MyDomain.Monadic.PlayModeTests.TaskTests" runstate="Runnable" seed="963733280" result="Passed" start-time="2024-02-21 15:23:05Z" end-time="2024-02-21 15:23:05Z" duration="0.109808" asserts="0">
+                <properties>
+                  <property name="platform" value="PlayMode" />
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+              <test-case id="1002" name="Map" fullname="MyDomain.Monadic.PlayModeTests.TaskTests.Map" methodname="Map" classname="MyDomain.Monadic.PlayModeTests.TaskTests" runstate="Runnable" seed="400730258" result="Passed" start-time="2024-02-21 15:23:05Z" end-time="2024-02-21 15:23:05Z" duration="0.102884" asserts="0">
+                <properties>
+                  <property name="platform" value="PlayMode" />
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+              <test-case id="1004" name="MemoizeAsync" fullname="MyDomain.Monadic.PlayModeTests.TaskTests.MemoizeAsync" methodname="MemoizeAsync" classname="MyDomain.Monadic.PlayModeTests.TaskTests" runstate="Runnable" seed="1577166224" result="Passed" start-time="2024-02-21 15:23:05Z" end-time="2024-02-21 15:23:07Z" duration="2.005462" asserts="0">
+                <properties>
+                  <property name="platform" value="PlayMode" />
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+              <test-case id="1005" name="MemoizeParallelAsync" fullname="MyDomain.Monadic.PlayModeTests.TaskTests.MemoizeParallelAsync" methodname="MemoizeParallelAsync" classname="MyDomain.Monadic.PlayModeTests.TaskTests" runstate="Runnable" seed="1969420522" result="Passed" start-time="2024-02-21 15:23:07Z" end-time="2024-02-21 15:23:08Z" duration="1.001990" asserts="0">
+                <properties>
+                  <property name="platform" value="PlayMode" />
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+            </test-suite>
+            <test-suite type="TestFixture" id="1006" name="UniTaskTests" fullname="MyDomain.Monadic.PlayModeTests.UniTaskTests" classname="MyDomain.Monadic.PlayModeTests.UniTaskTests" runstate="Runnable" testcasecount="8" result="Passed" start-time="2024-02-21 15:23:08Z" end-time="2024-02-21 15:23:12Z" duration="4.213398" total="8" passed="8" failed="0" inconclusive="0" skipped="0" asserts="0">
+              <properties>
+                <property name="platform" value="PlayMode" />
+              </properties>
+              <test-case id="1008" name="AndThen" fullname="MyDomain.Monadic.PlayModeTests.UniTaskTests.AndThen" methodname="AndThen" classname="MyDomain.Monadic.PlayModeTests.UniTaskTests" runstate="Runnable" seed="14677911" result="Passed" start-time="2024-02-21 15:23:08Z" end-time="2024-02-21 15:23:08Z" duration="0.104015" asserts="0">
+                <properties>
+                  <property name="platform" value="PlayMode" />
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+              <test-case id="1007" name="Map" fullname="MyDomain.Monadic.PlayModeTests.UniTaskTests.Map" methodname="Map" classname="MyDomain.Monadic.PlayModeTests.UniTaskTests" runstate="Runnable" seed="1952311412" result="Passed" start-time="2024-02-21 15:23:08Z" end-time="2024-02-21 15:23:08Z" duration="0.101493" asserts="0">
+                <properties>
+                  <property name="platform" value="PlayMode" />
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+              <test-case id="1013" name="MemoizeAsync" fullname="MyDomain.Monadic.PlayModeTests.UniTaskTests.MemoizeAsync" methodname="MemoizeAsync" classname="MyDomain.Monadic.PlayModeTests.UniTaskTests" runstate="Runnable" seed="1418611513" result="Passed" start-time="2024-02-21 15:23:08Z" end-time="2024-02-21 15:23:10Z" duration="2.000633" asserts="0">
+                <properties>
+                  <property name="platform" value="PlayMode" />
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+              <test-case id="1014" name="MemoizeParallelAsync" fullname="MyDomain.Monadic.PlayModeTests.UniTaskTests.MemoizeParallelAsync" methodname="MemoizeParallelAsync" classname="MyDomain.Monadic.PlayModeTests.UniTaskTests" runstate="Runnable" seed="1424192987" result="Passed" start-time="2024-02-21 15:23:10Z" end-time="2024-02-21 15:23:11Z" duration="1.001473" asserts="0">
+                <properties>
+                  <property name="platform" value="PlayMode" />
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+              <test-case id="1012" name="NoTimeoutCancellation" fullname="MyDomain.Monadic.PlayModeTests.UniTaskTests.NoTimeoutCancellation" methodname="NoTimeoutCancellation" classname="MyDomain.Monadic.PlayModeTests.UniTaskTests" runstate="Runnable" seed="802602510" result="Passed" start-time="2024-02-21 15:23:11Z" end-time="2024-02-21 15:23:11Z" duration="0.251783" asserts="0">
+                <properties>
+                  <property name="platform" value="PlayMode" />
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+              <test-case id="1010" name="NoTimeoutCancellationException" fullname="MyDomain.Monadic.PlayModeTests.UniTaskTests.NoTimeoutCancellationException" methodname="NoTimeoutCancellationException" classname="MyDomain.Monadic.PlayModeTests.UniTaskTests" runstate="Runnable" seed="1805190139" result="Passed" start-time="2024-02-21 15:23:11Z" end-time="2024-02-21 15:23:12Z" duration="0.250757" asserts="0">
+                <properties>
+                  <property name="platform" value="PlayMode" />
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+              <test-case id="1011" name="TimeoutCancellation" fullname="MyDomain.Monadic.PlayModeTests.UniTaskTests.TimeoutCancellation" methodname="TimeoutCancellation" classname="MyDomain.Monadic.PlayModeTests.UniTaskTests" runstate="Runnable" seed="2092377459" result="Passed" start-time="2024-02-21 15:23:12Z" end-time="2024-02-21 15:23:12Z" duration="0.251121" asserts="0">
+                <properties>
+                  <property name="platform" value="PlayMode" />
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+              <test-case id="1009" name="TimeoutCancellationException" fullname="MyDomain.Monadic.PlayModeTests.UniTaskTests.TimeoutCancellationException" methodname="TimeoutCancellationException" classname="MyDomain.Monadic.PlayModeTests.UniTaskTests" runstate="Runnable" seed="564544554" result="Passed" start-time="2024-02-21 15:23:12Z" end-time="2024-02-21 15:23:12Z" duration="0.250545" asserts="0">
+                <properties>
+                  <property name="platform" value="PlayMode" />
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+            </test-suite>
+            <test-suite type="TestFixture" id="1015" name="UnityMemoizedTests" fullname="MyDomain.Monadic.PlayModeTests.UnityMemoizedTests" classname="MyDomain.Monadic.PlayModeTests.UnityMemoizedTests" runstate="Runnable" testcasecount="4" result="Passed" start-time="2024-02-21 15:23:12Z" end-time="2024-02-21 15:23:12Z" duration="0.008919" total="4" passed="4" failed="0" inconclusive="0" skipped="0" asserts="0">
+              <properties>
+                <property name="platform" value="PlayMode" />
+              </properties>
+              <test-case id="1016" name="Creation" fullname="MyDomain.Monadic.PlayModeTests.UnityMemoizedTests.Creation" methodname="Creation" classname="MyDomain.Monadic.PlayModeTests.UnityMemoizedTests" runstate="Runnable" seed="1952400963" result="Passed" start-time="2024-02-21 15:23:12Z" end-time="2024-02-21 15:23:12Z" duration="0.002334" asserts="0">
+                <properties>
+                  <property name="platform" value="PlayMode" />
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+              <test-case id="1018" name="DestroyGameObject" fullname="MyDomain.Monadic.PlayModeTests.UnityMemoizedTests.DestroyGameObject" methodname="DestroyGameObject" classname="MyDomain.Monadic.PlayModeTests.UnityMemoizedTests" runstate="Runnable" seed="331695700" result="Passed" start-time="2024-02-21 15:23:12Z" end-time="2024-02-21 15:23:12Z" duration="0.003821" asserts="0">
+                <properties>
+                  <property name="_JOINTYPE" value="UnityCombinatorial" />
+                  <property name="platform" value="PlayMode" />
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+              <test-case id="1019" name="DestroyGameObjectNonMono" fullname="MyDomain.Monadic.PlayModeTests.UnityMemoizedTests.DestroyGameObjectNonMono" methodname="DestroyGameObjectNonMono" classname="MyDomain.Monadic.PlayModeTests.UnityMemoizedTests" runstate="Runnable" seed="1984738593" result="Passed" start-time="2024-02-21 15:23:12Z" end-time="2024-02-21 15:23:12Z" duration="0.001479" asserts="0">
+                <properties>
+                  <property name="_JOINTYPE" value="UnityCombinatorial" />
+                  <property name="platform" value="PlayMode" />
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+              <test-case id="1017" name="InstanceEquality" fullname="MyDomain.Monadic.PlayModeTests.UnityMemoizedTests.InstanceEquality" methodname="InstanceEquality" classname="MyDomain.Monadic.PlayModeTests.UnityMemoizedTests" runstate="Runnable" seed="433307982" result="Passed" start-time="2024-02-21 15:23:12Z" end-time="2024-02-21 15:23:12Z" duration="0.000256" asserts="0">
+                <properties>
+                  <property name="platform" value="PlayMode" />
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+            </test-suite>
+            <test-suite type="TestFixture" id="1020" name="UnityObjectTests" fullname="MyDomain.Monadic.PlayModeTests.UnityObjectTests" classname="MyDomain.Monadic.PlayModeTests.UnityObjectTests" runstate="Runnable" testcasecount="6" result="Failed" site="Child" start-time="2024-02-21 15:23:12Z" end-time="2024-02-21 15:23:12Z" duration="0.011083" total="6" passed="5" failed="1" inconclusive="0" skipped="0" asserts="0">
+              <properties>
+                <property name="platform" value="PlayMode" />
+              </properties>
+              <failure>
+                <message><![CDATA[One or more child tests had errors]]></message>
+              </failure>
+              <test-case id="1021" name="DestroyGameObject" fullname="MyDomain.Monadic.PlayModeTests.UnityObjectTests.DestroyGameObject" methodname="DestroyGameObject" classname="MyDomain.Monadic.PlayModeTests.UnityObjectTests" runstate="Runnable" seed="186675613" result="Passed" start-time="2024-02-21 15:23:12Z" end-time="2024-02-21 15:23:12Z" duration="0.001180" asserts="0">
+                <properties>
+                  <property name="_JOINTYPE" value="UnityCombinatorial" />
+                  <property name="platform" value="PlayMode" />
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+              <test-case id="1022" name="OptionDestroyGameObject1" fullname="MyDomain.Monadic.PlayModeTests.UnityObjectTests.OptionDestroyGameObject1" methodname="OptionDestroyGameObject1" classname="MyDomain.Monadic.PlayModeTests.UnityObjectTests" runstate="Runnable" seed="892806793" result="Passed" start-time="2024-02-21 15:23:12Z" end-time="2024-02-21 15:23:12Z" duration="0.001106" asserts="0">
+                <properties>
+                  <property name="_JOINTYPE" value="UnityCombinatorial" />
+                  <property name="platform" value="PlayMode" />
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+              <test-case id="1023" name="OptionDestroyGameObject2" fullname="MyDomain.Monadic.PlayModeTests.UnityObjectTests.OptionDestroyGameObject2" methodname="OptionDestroyGameObject2" classname="MyDomain.Monadic.PlayModeTests.UnityObjectTests" runstate="Runnable" seed="1888364494" result="Failed" start-time="2024-02-21 15:23:12Z" end-time="2024-02-21 15:23:12Z" duration="0.004600" asserts="0">
+                <properties>
+                  <property name="_JOINTYPE" value="UnityCombinatorial" />
+                  <property name="platform" value="PlayMode" />
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+                <failure>
+                  <message><![CDATA[  GO is destroyed.
+  Expected: True
+  But was:  False
+]]></message>
+                  <stack-trace><![CDATA[at MyDomain.Monadic.PlayModeTests.UnityObjectTests+<OptionDestroyGameObject2>d__2.MoveNext () [0x000d4] in ./Packages/package-monadic/PlayModeTests/UnityObjectTests.cs:82
+at UnityEngine.TestTools.TestEnumerator+<Execute>d__7.MoveNext () [0x0003a] in ./Library/PackageCache/com.unity.test-framework@1.3.7/UnityEngine.TestRunner/NUnitExtensions/Attributes/TestEnumerator.cs:44
+]]></stack-trace>
+                </failure>
+              </test-case>
+              <test-case id="1025" name="ResultDestroyGameObject1" fullname="MyDomain.Monadic.PlayModeTests.UnityObjectTests.ResultDestroyGameObject1" methodname="ResultDestroyGameObject1" classname="MyDomain.Monadic.PlayModeTests.UnityObjectTests" runstate="Runnable" seed="1579926106" result="Passed" start-time="2024-02-21 15:23:12Z" end-time="2024-02-21 15:23:12Z" duration="0.001635" asserts="0">
+                <properties>
+                  <property name="_JOINTYPE" value="UnityCombinatorial" />
+                  <property name="platform" value="PlayMode" />
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+              <test-case id="1026" name="ResultDestroyGameObject2" fullname="MyDomain.Monadic.PlayModeTests.UnityObjectTests.ResultDestroyGameObject2" methodname="ResultDestroyGameObject2" classname="MyDomain.Monadic.PlayModeTests.UnityObjectTests" runstate="Runnable" seed="1758204618" result="Passed" start-time="2024-02-21 15:23:12Z" end-time="2024-02-21 15:23:12Z" duration="0.000945" asserts="0">
+                <properties>
+                  <property name="_JOINTYPE" value="UnityCombinatorial" />
+                  <property name="platform" value="PlayMode" />
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+              <test-case id="1024" name="ResultTestErrNullValue" fullname="MyDomain.Monadic.PlayModeTests.UnityObjectTests.ResultTestErrNullValue" methodname="ResultTestErrNullValue" classname="MyDomain.Monadic.PlayModeTests.UnityObjectTests" runstate="Runnable" seed="965737616" result="Passed" start-time="2024-02-21 15:23:12Z" end-time="2024-02-21 15:23:12Z" duration="0.000622" asserts="0">
+                <properties>
+                  <property name="_JOINTYPE" value="UnityCombinatorial" />
+                  <property name="platform" value="PlayMode" />
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+            </test-suite>
+            <test-suite type="TestFixture" id="1027" name="ValueTaskTests" fullname="MyDomain.Monadic.PlayModeTests.ValueTaskTests" classname="MyDomain.Monadic.PlayModeTests.ValueTaskTests" runstate="Runnable" testcasecount="4" result="Passed" start-time="2024-02-21 15:23:12Z" end-time="2024-02-21 15:23:15Z" duration="3.211372" total="4" passed="4" failed="0" inconclusive="0" skipped="0" asserts="0">
+              <properties>
+                <property name="platform" value="PlayMode" />
+              </properties>
+              <test-case id="1029" name="AndThen" fullname="MyDomain.Monadic.PlayModeTests.ValueTaskTests.AndThen" methodname="AndThen" classname="MyDomain.Monadic.PlayModeTests.ValueTaskTests" runstate="Runnable" seed="474076264" result="Passed" start-time="2024-02-21 15:23:12Z" end-time="2024-02-21 15:23:12Z" duration="0.102646" asserts="0">
+                <properties>
+                  <property name="platform" value="PlayMode" />
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+              <test-case id="1028" name="MapTest" fullname="MyDomain.Monadic.PlayModeTests.ValueTaskTests.MapTest" methodname="MapTest" classname="MyDomain.Monadic.PlayModeTests.ValueTaskTests" runstate="Runnable" seed="1587408615" result="Passed" start-time="2024-02-21 15:23:12Z" end-time="2024-02-21 15:23:12Z" duration="0.102836" asserts="0">
+                <properties>
+                  <property name="platform" value="PlayMode" />
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+              <test-case id="1030" name="MemoizeAsync" fullname="MyDomain.Monadic.PlayModeTests.ValueTaskTests.MemoizeAsync" methodname="MemoizeAsync" classname="MyDomain.Monadic.PlayModeTests.ValueTaskTests" runstate="Runnable" seed="1256099036" result="Passed" start-time="2024-02-21 15:23:12Z" end-time="2024-02-21 15:23:14Z" duration="2.003376" asserts="0">
+                <properties>
+                  <property name="platform" value="PlayMode" />
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+              <test-case id="1031" name="MemoizeParallelAsync" fullname="MyDomain.Monadic.PlayModeTests.ValueTaskTests.MemoizeParallelAsync" methodname="MemoizeParallelAsync" classname="MyDomain.Monadic.PlayModeTests.ValueTaskTests" runstate="Runnable" seed="1017035050" result="Passed" start-time="2024-02-21 15:23:14Z" end-time="2024-02-21 15:23:15Z" duration="1.001594" asserts="0">
+                <properties>
+                  <property name="platform" value="PlayMode" />
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+            </test-suite>
+          </test-suite>
+        </test-suite>
+      </test-suite>
+    </test-suite>
+  </test-suite>
+</test-run>
