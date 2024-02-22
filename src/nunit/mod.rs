@@ -1,4 +1,9 @@
+use std::fmt::Display;
+use std::path::Path;
+
 use chrono::{DateTime, Utc};
+
+use crate::nunit::data_structures::TestRun;
 
 mod data_structures;
 
@@ -11,6 +16,19 @@ pub enum TestResult {
 
     /// The result could not be parsed.
     Invalid,
+}
+
+impl Display for TestResult {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let str = match self {
+            TestResult::Passed => "Passed".to_string(),
+            TestResult::Failed => "Failed".to_string(),
+            TestResult::Inconclusive => "Inconclusive".to_string(),
+            TestResult::Skipped => "Skipped".to_string(),
+            TestResult::Invalid => "Invalid".to_string(),
+        };
+        write!(f, "{}", str)
+    }
 }
 
 impl From<&str> for TestResult {
@@ -26,8 +44,19 @@ impl From<&str> for TestResult {
     }
 }
 
+pub fn read_stats_from_file(path: &Path) -> anyhow::Result<TestStats> {
+    let test_run = read_test_run_from_file(path)?;
+    Ok(test_run.stats())
+}
+
+fn read_test_run_from_file(path: &Path) -> anyhow::Result<TestRun> {
+    let xml = std::fs::read_to_string(path)?;
+    let test_run = xml.parse::<TestRun>()?;
+    Ok(test_run)
+}
+
 #[derive(Debug, PartialEq)]
-pub struct Stats {
+pub struct TestStats {
     pub id: i32,
     pub test_case_count: i32,
     pub result: TestResult,
@@ -129,5 +158,12 @@ mod tests {
         assert_eq!(stats.inconclusive, 0);
         assert_eq!(stats.skipped, 0);
         assert_eq!(stats.asserts, 0);
+    }
+
+    #[test]
+    fn test_deserialize_empty_properties() {
+        _ = include_str!("test_data/empty-properties.xml")
+            .parse::<TestRun>()
+            .unwrap();
     }
 }

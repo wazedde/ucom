@@ -1,3 +1,5 @@
+use std::error::Error;
+use std::fmt::{Display, Formatter};
 use std::io::Read;
 use std::path::Path;
 use std::process::{Command, Stdio};
@@ -6,7 +8,36 @@ use std::sync::Arc;
 use std::time::Duration;
 use std::{fs, io, thread};
 
-use anyhow::{anyhow, Context, Result};
+#[derive(Debug)]
+pub struct CommandError {
+    pub exit_code: i32,
+    pub stderr: String,
+}
+
+impl Error for CommandError {
+    fn source(&self) -> Option<&(dyn Error + 'static)> {
+        Some(self)
+    }
+}
+
+impl Display for CommandError {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "Command failed with exit code: {} {}",
+            self.exit_code, self.stderr
+        )
+    }
+}
+
+impl CommandError {
+    pub fn from_output(output: std::process::Output) -> Self {
+        Self {
+            exit_code: output.status.code().unwrap_or(-1),
+            stderr: String::from_utf8(output.stderr).unwrap_or_default(),
+        }
+    }
+}
 
 /// Returns the full command line string.
 pub fn build_command_line(cmd: &Command) -> String {
@@ -37,12 +68,12 @@ pub fn build_command_line(cmd: &Command) -> String {
 }
 
 /// Spawns command and outputs Unity's log to the console. Blocks until the command has finished.
-pub fn wait_with_log_output(mut cmd: Command, log_file: &Path) -> Result<()> {
+pub fn wait_with_log_output(mut cmd: Command, log_file: &Path) -> Result<(), CommandError> {
     let child = cmd
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
         .spawn()
-        .context("Failed to run child process.")?;
+        .expect("Failed to run child process.");
 
     let build_finished = Arc::new(AtomicBool::new(false));
 
@@ -52,52 +83,46 @@ pub fn wait_with_log_output(mut cmd: Command, log_file: &Path) -> Result<()> {
         move || monitor_log_file(&log_file, Duration::from_millis(100), &build_finished)
     });
 
-    let output = child
-        .wait_with_output()
-        .context("Failed to wait for child process.");
-
+    let output = child.wait_with_output();
     build_finished.store(true, Ordering::SeqCst);
 
     // Wait for echo to finish.
     echo_runner.join().expect("Log echo thread panicked.");
 
-    let output = output?;
-    output.status.success().then_some(()).ok_or_else(|| {
-        anyhow!(
-            "Command failed with exit code {}: {}",
-            output.status.code().unwrap_or(-1),
-            String::from_utf8(output.stderr).unwrap_or_default()
-        )
-    })
+    let output = output.expect("Failed to wait for child process.");
+    output
+        .status
+        .success()
+        .then_some(())
+        .ok_or_else(|| CommandError::from_output(output))
 }
 
 /// Spawns command and immediately returns without any output.
-pub fn spawn_and_forget(mut cmd: Command) -> Result<()> {
+pub fn spawn_and_forget(mut cmd: Command) {
     cmd.stdout(Stdio::piped())
         .stderr(Stdio::piped())
         .spawn()
         .map(|_| ())
-        .context("Failed to run child process.")
+        .expect("Failed to run child process.")
 }
 
 /// Spawns command and outputs to the console. Blocks until the command has finished.
-pub fn wait_with_stdout(mut cmd: Command) -> Result<()> {
+pub fn wait_with_stdout(mut cmd: Command) -> Result<(), CommandError> {
     let child = cmd
         .stdout(Stdio::inherit())
         .stderr(Stdio::inherit())
         .spawn()
-        .context("Failed to run child process.")?;
+        .expect("Failed to run child process.");
 
     let output = child
         .wait_with_output()
-        .context("Failed to wait for child process.")?;
+        .expect("Failed to wait for child process.");
 
-    output.status.success().then_some(()).ok_or_else(|| {
-        anyhow!(
-            "Command failed with exit code {}",
-            output.status.code().unwrap_or(-1)
-        )
-    })
+    output
+        .status
+        .success()
+        .then_some(())
+        .ok_or_else(|| CommandError::from_output(output))
 }
 
 /// Continuously reads the log file and prints it to the console.

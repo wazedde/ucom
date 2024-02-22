@@ -1,10 +1,14 @@
-use std::process::Command;
+use std::process::{exit, Command};
 
+use anyhow::anyhow;
 use chrono::prelude::*;
+
+use nunit::TestResult;
 
 use crate::cli::TestArguments;
 use crate::commands::term_stat::{Status, TermStat};
 use crate::commands::time_delta_to_seconds;
+use crate::nunit;
 use crate::unity::{build_command_line, wait_with_stdout, ProjectPath};
 
 pub fn run_tests(arguments: TestArguments) -> anyhow::Result<()> {
@@ -66,16 +70,45 @@ pub fn run_tests(arguments: TestArguments) -> anyhow::Result<()> {
         )
     };
 
-    wait_with_stdout(cmd)?;
+    let result = wait_with_stdout(cmd);
 
     drop(ts);
+
+    if let Err(e) = &result {
+        // If the error was not caused by the command exiting with code 2 (tests failed), return it.
+        if e.exit_code != 2 {
+            return Err(anyhow!("{e}"));
+        }
+    }
+
+    if !output_path.exists() {
+        // Stupid workaround for Unity not returning an error when project is already open.
+        return Err(anyhow!(
+            "Unable to run tests, is another Unity instance running with this same project open?"
+        ));
+    }
+
+    let status = match result {
+        Ok(_) => Status::Ok,
+        Err(_) => Status::Error,
+    };
 
     if !arguments.quiet {
         TermStat::println_stat(
             "Running",
             format!("tests for project in {}", project.as_path().display()),
-            Status::Ok,
+            status,
         );
+
+        let stats = nunit::read_stats_from_file(&output_path)?;
+
+        let status1 = if stats.result == TestResult::Passed {
+            Status::Ok
+        } else {
+            Status::Error
+        };
+
+        TermStat::println_stat("Result", stats.result.to_string(), status1);
 
         TermStat::println_stat(
             "Finished",
@@ -83,10 +116,26 @@ pub fn run_tests(arguments: TestArguments) -> anyhow::Result<()> {
                 "in {:.2}s",
                 time_delta_to_seconds(Utc::now().signed_duration_since(start_time))
             ),
-            Status::Ok,
+            status,
         );
 
-        TermStat::println_stat("Results", output_path.to_string_lossy(), Status::Ok);
+        let results = format!(
+            "Total: {}, Passed: {}, Failed: {}, Inconclusive: {}, Skipped: {}, Asserts: {}",
+            stats.total,
+            stats.passed,
+            stats.failed,
+            stats.inconclusive,
+            stats.skipped,
+            stats.asserts
+        );
+
+        TermStat::println_stat("Totals", results, status1);
+
+        TermStat::println_stat("Report", output_path.to_string_lossy(), status);
+    }
+
+    if result.is_err() {
+        exit(2);
     }
 
     Ok(())

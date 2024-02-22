@@ -74,7 +74,7 @@ pub fn new_project(arguments: NewArguments) -> anyhow::Result<()> {
             wait_with_stdout(cmd)?;
         }
         (true, false) => wait_with_stdout(cmd)?,
-        (false, _) => spawn_and_forget(cmd)?,
+        (false, _) => spawn_and_forget(cmd),
     }
 
     Ok(())

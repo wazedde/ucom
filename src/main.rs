@@ -12,8 +12,8 @@ use crate::unity::http_cache;
 
 mod cli;
 mod commands;
-mod unity;
 mod nunit;
+mod unity;
 
 fn main() -> anyhow::Result<()> {
     let cli = Cli::parse();

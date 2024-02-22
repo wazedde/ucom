@@ -4,7 +4,7 @@ use chrono::{DateTime, Utc};
 use quick_xml::DeError;
 use serde::Deserialize;
 
-use crate::nunit::{Stats, TestResult};
+use crate::nunit::{TestResult, TestStats};
 
 #[derive(Debug, Deserialize, PartialEq)]
 #[serde(rename = "test-run")]
@@ -60,8 +60,8 @@ impl TestRun {
         self.result.as_str().into()
     }
 
-    pub fn stats(&self) -> Stats {
-        Stats {
+    pub fn stats(&self) -> TestStats {
+        TestStats {
             id: self.id,
             test_case_count: self.test_case_count,
             result: self.test_result(),
@@ -179,7 +179,7 @@ enum TestSuiteElement {
 #[derive(Debug, Deserialize, PartialEq)]
 struct Properties {
     #[serde(rename = "property")]
-    property: Vec<Property>,
+    property: Option<Vec<Property>>,
 }
 
 #[derive(Debug, Deserialize, PartialEq)]
