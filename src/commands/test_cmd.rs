@@ -3,8 +3,6 @@ use std::process::{exit, Command};
 use anyhow::anyhow;
 use chrono::prelude::*;
 
-use nunit::TestResult;
-
 use crate::cli::TestArguments;
 use crate::commands::term_stat::{Status, TermStat};
 use crate::commands::time_delta_to_seconds;
@@ -24,10 +22,14 @@ pub fn run_tests(arguments: TestArguments) -> anyhow::Result<()> {
     cmd.arg("-runTests");
     cmd.args(["-testPlatform", &arguments.platform.to_string()]);
 
-    cmd.args([
-        "-buildTarget",
-        &arguments.platform.as_build_target().to_string(),
-    ]);
+    if let Some(target) = arguments.target {
+        cmd.args(["-buildTarget", &target.to_string()]);
+    } else {
+        cmd.args([
+            "-buildTarget",
+            &arguments.platform.as_build_target().to_string(),
+        ]);
+    }
 
     if !arguments.no_batch_mode {
         cmd.arg("-batchmode");
@@ -53,7 +55,6 @@ pub fn run_tests(arguments: TestArguments) -> anyhow::Result<()> {
     let filename = format!("tests-{}-{}.xml", arguments.platform, timestamp);
     let output_path = project.as_path().join(filename);
     cmd.args(["-testResults", &output_path.to_string_lossy()]);
-
     cmd.args(arguments.args.unwrap_or_default());
 
     if arguments.dry_run {
@@ -66,12 +67,15 @@ pub fn run_tests(arguments: TestArguments) -> anyhow::Result<()> {
     } else {
         TermStat::new(
             "Running",
-            format!("tests for project in {}", project.as_path().display()),
+            format!(
+                "{} tests for project in {}",
+                &arguments.platform,
+                project.as_path().display()
+            ),
         )
     };
 
     let result = wait_with_stdout(cmd);
-
     drop(ts);
 
     if let Err(e) = &result {
@@ -96,20 +100,17 @@ pub fn run_tests(arguments: TestArguments) -> anyhow::Result<()> {
     if !arguments.quiet {
         TermStat::println_stat(
             "Running",
-            format!("tests for project in {}", project.as_path().display()),
+            format!(
+                "{} tests for project in {}",
+                &arguments.platform,
+                project.as_path().display()
+            ),
             status,
         );
 
-        let stats = nunit::read_stats_from_file(&output_path)?;
+        let test_stats = nunit::read_stats_from_file(&output_path)?;
 
-        let status1 = if stats.result == TestResult::Passed {
-            Status::Ok
-        } else {
-            Status::Error
-        };
-
-        TermStat::println_stat("Result", stats.result.to_string(), status1);
-
+        TermStat::println_stat("Result", test_stats.result.to_string(), status);
         TermStat::println_stat(
             "Finished",
             format!(
@@ -121,22 +122,22 @@ pub fn run_tests(arguments: TestArguments) -> anyhow::Result<()> {
 
         let results = format!(
             "Total: {}, Passed: {}, Failed: {}, Inconclusive: {}, Skipped: {}, Asserts: {}",
-            stats.total,
-            stats.passed,
-            stats.failed,
-            stats.inconclusive,
-            stats.skipped,
-            stats.asserts
+            test_stats.total,
+            test_stats.passed,
+            test_stats.failed,
+            test_stats.inconclusive,
+            test_stats.skipped,
+            test_stats.asserts
         );
 
-        TermStat::println_stat("Totals", results, status1);
-
+        TermStat::println_stat("Totals", results, status);
         TermStat::println_stat("Report", output_path.to_string_lossy(), status);
     }
 
     if result.is_err() {
+        // Unity returns exit code 2 when tests fail.
         exit(2);
+    } else {
+        Ok(())
     }
-
-    Ok(())
 }

@@ -357,12 +357,25 @@ pub struct BuildArguments {
 #[derive(Args)]
 pub struct TestArguments {
     /// The platform to run tests on.
+    ///
+    /// The build target to open the project with is automatically determined by the platform.
+    /// E.g., `editmode` and `playmode' will open the project with the `standalone` build target
+    /// and `macos' will open the project with the `macos` build target.
+    /// If you want to override this, you can use the `--target` option.
     #[arg(value_enum)]
     pub platform: TestTarget,
 
     /// Specifies the project's directory.
     #[arg(value_name = "DIRECTORY", value_hint = clap::ValueHint::DirPath, default_value = ".")]
     pub project_dir: PathBuf,
+
+    /// Determines the active build target to open the project with.
+    ///
+    /// By default, the build target matches the specified test platform.
+    /// However, you can override this by specifying a different build target. For example to run
+    /// `editmode` tests using the `ios` build target.
+    #[arg(short = 't', long, value_name = "NAME")]
+    pub target: Option<OpenTarget>,
 
     /// Suppresses running Unity in batch mode.
     ///
