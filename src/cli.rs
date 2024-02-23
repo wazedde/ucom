@@ -364,11 +364,12 @@ pub struct TestArguments {
     #[arg(value_name = "DIRECTORY", value_hint = clap::ValueHint::DirPath, default_value = ".")]
     pub project_dir: PathBuf,
 
-    /// Run Unity in batch mode.
+    /// Suppresses running Unity in batch mode.
     ///
-    /// Running tests in batch mode removes the need for manual user inputs
-    #[arg(short = 'b', long("batchmode"))]
-    pub batch_mode: bool,
+    /// Running tests in batch mode removes the need for manual user inputs, but it also disables
+    /// the graphics device and may cause some tests to fail.
+    #[arg(long)]
+    pub no_batch_mode: bool,
 
     /// Don't save your current Project into the Unity launcher/hub history.
     #[arg(long)]

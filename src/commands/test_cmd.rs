@@ -29,7 +29,7 @@ pub fn run_tests(arguments: TestArguments) -> anyhow::Result<()> {
         &arguments.platform.as_build_target().to_string(),
     ]);
 
-    if arguments.batch_mode {
+    if !arguments.no_batch_mode {
         cmd.arg("-batchmode");
     }
 
