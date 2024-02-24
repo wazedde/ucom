@@ -2,7 +2,7 @@ use std::process::Command;
 
 use colored::Colorize;
 
-use crate::cli::RunArguments;
+use crate::cli_run::RunArguments;
 use crate::unity::*;
 
 /// Runs the Unity Editor with the given arguments.

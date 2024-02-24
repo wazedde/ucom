@@ -1,3 +1,4 @@
+use std::fmt::{Display, Formatter};
 use std::io::{stdout, IsTerminal, Write};
 
 use colored::Color::Blue;
@@ -64,11 +65,7 @@ impl TermStat {
         S1: AsRef<str>,
         S2: AsRef<str>,
     {
-        println!(
-            "{:>12} {}",
-            Self::get_colored_tag(tag, status),
-            msg.as_ref()
-        );
+        println!("{:>12} {}", Self::get_colored(tag, status), msg.as_ref());
     }
 
     /// Prints a status line with the given tag and message
@@ -80,17 +77,13 @@ impl TermStat {
     {
         stdout().execute(SavePosition)?;
 
-        print!(
-            "{:>12} {}",
-            Self::get_colored_tag(tag, status),
-            msg.as_ref()
-        );
+        print!("{:>12} {}", Self::get_colored(tag, status), msg.as_ref());
 
         stdout().execute(RestorePosition)?.flush()?;
         Ok(())
     }
 
-    fn get_colored_tag<S1>(tag: S1, status: Status) -> ColoredString
+    pub fn get_colored<S1>(tag: S1, status: Status) -> ColoredString
     where
         S1: AsRef<str>,
     {
@@ -105,11 +98,24 @@ impl TermStat {
 }
 
 #[allow(dead_code)]
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub enum Status {
     None,
     Ok,
     Error,
     Warning,
     Info,
+}
+
+impl Display for Status {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        let str = match self {
+            Status::None => "None",
+            Status::Ok => "Ok",
+            Status::Error => "Error",
+            Status::Warning => "Warning",
+            Status::Info => "Info",
+        };
+        write!(f, "{}", str)
+    }
 }

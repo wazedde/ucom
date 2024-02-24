@@ -2,11 +2,12 @@ use std::env;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
+use crate::cli_add::IncludedFile;
 use anyhow::{anyhow, Context};
 use colored::Colorize;
 use path_absolutize::Absolutize;
 
-use crate::cli::{IncludedFile, NewArguments};
+use crate::cli_new::NewArguments;
 use crate::commands::term_stat::TermStat;
 use crate::commands::{add_file_to_project, INDENT, PERSISTENT_BUILD_SCRIPT_ROOT};
 use crate::unity::*;

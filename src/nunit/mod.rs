@@ -3,9 +3,25 @@ use std::path::Path;
 
 use chrono::{DateTime, Utc};
 
-use crate::nunit::data_structures::TestRun;
+mod elements;
+mod tests;
 
-mod data_structures;
+#[derive(Debug, PartialEq)]
+pub struct TestRun {
+    pub stats: TestStats,
+    pub test_cases: Vec<TestCase>,
+}
+
+impl TestRun {
+    /// Parses the given XML string into a `TestRun`.
+    pub fn from_file<P: AsRef<Path>>(path: P) -> anyhow::Result<TestRun> {
+        let xml = std::fs::read_to_string(path)?;
+        let test_run = xml.parse::<elements::TestRun>()?;
+        let test_cases = test_run.collect_test_cases();
+        let stats = test_run.stats();
+        Ok(TestRun { stats, test_cases })
+    }
+}
 
 #[derive(Copy, Clone, Debug, PartialEq)]
 pub enum TestResult {
@@ -35,8 +51,7 @@ impl From<&str> for TestResult {
     fn from(s: &str) -> Self {
         match s {
             "Passed" => TestResult::Passed,
-            "Failed" => TestResult::Failed,
-            "Failed(Child)" => TestResult::Failed,
+            "Failed" | "Failed(Child)" => TestResult::Failed,
             "Inconclusive" => TestResult::Inconclusive,
             "Skipped" => TestResult::Skipped,
             _ => TestResult::Invalid,
@@ -44,18 +59,7 @@ impl From<&str> for TestResult {
     }
 }
 
-pub fn read_stats_from_file(path: &Path) -> anyhow::Result<TestStats> {
-    let test_run = read_test_run_from_file(path)?;
-    Ok(test_run.stats())
-}
-
-fn read_test_run_from_file(path: &Path) -> anyhow::Result<TestRun> {
-    let xml = std::fs::read_to_string(path)?;
-    let test_run = xml.parse::<TestRun>()?;
-    Ok(test_run)
-}
-
-#[derive(Debug, PartialEq)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct TestStats {
     pub id: i32,
     pub test_case_count: i32,
@@ -71,99 +75,18 @@ pub struct TestStats {
     pub duration: f64,
 }
 
-#[cfg(test)]
-mod tests {
-    use crate::nunit::data_structures::TestRun;
-    use crate::nunit::TestResult;
-
-    #[test]
-    fn test_deserialize_standalone() {
-        let tr = include_str!("test_data/standalone.xml")
-            .parse::<TestRun>()
-            .unwrap();
-
-        assert_eq!(tr.test_result(), TestResult::Passed);
-
-        let stats = tr.stats();
-        assert_eq!(stats.total, 31);
-        assert_eq!(stats.passed, 31);
-        assert_eq!(stats.failed, 0);
-        assert_eq!(stats.inconclusive, 0);
-        assert_eq!(stats.skipped, 0);
-        assert_eq!(stats.asserts, 0);
-    }
-
-    #[test]
-    fn test_deserialize_editmode() {
-        let tr = include_str!("test_data/editmode.xml")
-            .parse::<TestRun>()
-            .unwrap();
-
-        assert_eq!(tr.test_result(), TestResult::Passed);
-
-        let stats = tr.stats();
-        assert_eq!(stats.total, 72);
-        assert_eq!(stats.passed, 72);
-        assert_eq!(stats.failed, 0);
-        assert_eq!(stats.inconclusive, 0);
-        assert_eq!(stats.skipped, 0);
-        assert_eq!(stats.asserts, 0);
-    }
-
-    #[test]
-    fn test_deserialize_standalone_fail() {
-        let tr = include_str!("test_data/standalone-fail.xml")
-            .parse::<TestRun>()
-            .unwrap();
-
-        assert_eq!(tr.test_result(), TestResult::Failed);
-        let stats = tr.stats();
-        assert_eq!(stats.total, 31);
-        assert_eq!(stats.passed, 30);
-        assert_eq!(stats.failed, 1);
-        assert_eq!(stats.inconclusive, 0);
-        assert_eq!(stats.skipped, 0);
-        assert_eq!(stats.asserts, 0);
-    }
-
-    #[test]
-    fn test_deserialize_playmode_fail() {
-        let tr = include_str!("test_data/playmode-fail.xml")
-            .parse::<TestRun>()
-            .unwrap();
-
-        assert_eq!(tr.test_result(), TestResult::Failed);
-
-        let stats = tr.stats();
-        assert_eq!(stats.total, 31);
-        assert_eq!(stats.passed, 30);
-        assert_eq!(stats.failed, 1);
-        assert_eq!(stats.inconclusive, 0);
-        assert_eq!(stats.skipped, 0);
-        assert_eq!(stats.asserts, 0);
-    }
-
-    #[test]
-    fn test_deserialize_editmode_fail() {
-        let tr = include_str!("test_data/editmode-fail.xml")
-            .parse::<TestRun>()
-            .unwrap();
-
-        assert_eq!(tr.test_result(), TestResult::Failed);
-
-        let stats = tr.stats();
-        assert_eq!(stats.total, 72);
-        assert_eq!(stats.passed, 70);
-        assert_eq!(stats.failed, 2);
-        assert_eq!(stats.inconclusive, 0);
-        assert_eq!(stats.skipped, 0);
-        assert_eq!(stats.asserts, 0);
-    }
-
-    #[test]
-    fn test_deserialize_empty_properties() {
-        _ = include_str!("test_data/empty-properties.xml")
-            .parse::<TestRun>()
-            .unwrap();
-    }
+#[derive(Debug, Clone, PartialEq)]
+pub struct TestCase {
+    pub id: i32,
+    pub name: String,
+    pub full_name: String,
+    pub run_state: String,
+    pub result: TestResult,
+    pub duration: f64,
+    pub start_time: DateTime<Utc>,
+    pub end_time: DateTime<Utc>,
+    pub text: String,
+    pub failure_message: String,
+    pub failure_stack_trace: String,
+    pub failure_text: String,
 }

@@ -11,9 +11,8 @@ use itertools::Itertools;
 use path_absolutize::Absolutize;
 use uuid::Uuid;
 
-use crate::cli::{
-    BuildArguments, BuildMode, BuildOptions, BuildScriptTarget, IncludedFile, InjectAction,
-};
+use crate::cli_add::IncludedFile;
+use crate::cli_build::{BuildArguments, BuildMode, BuildOptions, BuildScriptTarget, InjectAction};
 use crate::commands::term_stat::{Status, TermStat};
 use crate::commands::{add_file_to_project, time_delta_to_seconds, PERSISTENT_BUILD_SCRIPT_ROOT};
 use crate::unity::*;

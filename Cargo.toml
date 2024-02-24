@@ -17,19 +17,19 @@ trivially_copy_pass_by_ref = "warn"
 
 [dependencies]
 anyhow = "1.0"
+chrono = { version = "0.4", features = ["serde"] }
 clap = { version = "4.5", features = ["derive", "env", "wrap_help"] }
 colored = "2.1"
+crossterm = "0.27"
+dirs = "5.0"
 indexmap = "2.1"
+itertools = "0.12"
 path-absolutize = "3.1"
+quick-xml = { version = "0.31", features = ["serialize"] }
 select = "0.6"
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 serde_yaml = "0.9"
-uuid = { version = "1.7", features = ["v4"] }
 ureq = "2.9"
-itertools = "0.12"
-dirs = "5.0"
-chrono = { version = "0.4", features = ["serde"] }
+uuid = { version = "1.7", features = ["v4"] }
 walkdir = "2.4"
-crossterm = "0.27.0"
-quick-xml = { version = "0.31.0", features = ["serialize"] }

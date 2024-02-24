@@ -1,14 +1,16 @@
+use std::fmt::{Display, Formatter};
 use std::str::FromStr;
 
 use chrono::{DateTime, Utc};
 use quick_xml::DeError;
 use serde::Deserialize;
 
+use crate::nunit;
 use crate::nunit::{TestResult, TestStats};
 
 #[derive(Debug, Deserialize, PartialEq)]
 #[serde(rename = "test-run")]
-pub struct TestRun {
+pub(crate) struct TestRun {
     #[serde(rename = "@id")]
     id: i32,
 
@@ -75,6 +77,18 @@ impl TestRun {
             end_time: self.end_time,
             duration: self.duration,
         }
+    }
+
+    pub(crate) fn collect_test_cases(&self) -> Vec<nunit::TestCase> {
+        let mut test_cases = Vec::new();
+        for element in &self.elements {
+            match element {
+                TestRunElement::TestSuite(ts) => {
+                    ts.collect_test_cases(&mut test_cases);
+                }
+            }
+        }
+        test_cases
     }
 }
 
@@ -176,13 +190,13 @@ enum TestSuiteElement {
     Text(String),
 }
 
-#[derive(Debug, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Deserialize, PartialEq)]
 struct Properties {
     #[serde(rename = "property")]
     property: Option<Vec<Property>>,
 }
 
-#[derive(Debug, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Deserialize, PartialEq)]
 struct Property {
     #[serde(rename = "@name")]
     name: String,
@@ -191,13 +205,19 @@ struct Property {
     value: String,
 }
 
-#[derive(Debug, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Deserialize, PartialEq)]
 struct TextElement {
     #[serde(rename = "$value")]
     text: String,
 }
 
-#[derive(Debug, Deserialize, PartialEq)]
+impl Display for TextElement {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.text)
+    }
+}
+
+#[derive(Debug, Clone, Deserialize, PartialEq)]
 #[serde(rename = "test-case")]
 struct TestCase {
     #[serde(rename = "@id")]
@@ -240,11 +260,65 @@ struct TestCase {
     duration: f64,
 
     #[serde(rename = "$value")]
-    elements: Vec<TestCaseElements>,
+    elements: Vec<TestCaseElement>,
 }
 
-#[derive(Debug, Deserialize, PartialEq)]
-enum TestCaseElements {
+impl TestCase {
+    fn get_text(&self) -> Option<String> {
+        self.elements.iter().find_map(|e| match e {
+            TestCaseElement::Text(s) => Some(s.to_string()),
+            _ => None,
+        })
+    }
+    fn get_failure(&self) -> Option<&Failure> {
+        self.elements.iter().find_map(|e| match e {
+            TestCaseElement::Failure(f) => Some(f),
+            _ => None,
+        })
+    }
+}
+
+impl TestSuite {
+    fn collect_test_cases(&self, test_cases: &mut Vec<nunit::TestCase>) {
+        for element in &self.elements {
+            match element {
+                TestSuiteElement::TestCase(tc) => {
+                    let tc = tc.as_ref().into();
+                    test_cases.push(tc);
+                }
+                TestSuiteElement::TestSuite(ts) => {
+                    ts.collect_test_cases(test_cases);
+                }
+                _ => continue,
+            }
+        }
+    }
+}
+
+impl From<&TestCase> for nunit::TestCase {
+    fn from(value: &TestCase) -> Self {
+        let failure = value.get_failure();
+        nunit::TestCase {
+            id: value.id,
+            name: value.name.clone(),
+            full_name: value.full_name.clone(),
+            run_state: value.run_state.clone(),
+            result: value.result.as_str().into(),
+            duration: value.duration,
+            start_time: value.start_time,
+            end_time: value.end_time,
+            text: value.get_text().unwrap_or_default(),
+            failure_message: failure.and_then(Failure::get_message).unwrap_or_default(),
+            failure_stack_trace: failure
+                .and_then(Failure::get_stack_trace)
+                .unwrap_or_default(),
+            failure_text: failure.and_then(Failure::get_text).unwrap_or_default(),
+        }
+    }
+}
+
+#[derive(Debug, Clone, Deserialize, PartialEq)]
+enum TestCaseElement {
     #[serde(rename = "properties")]
     Properties(Properties),
 
@@ -258,13 +332,35 @@ enum TestCaseElements {
     Text(String),
 }
 
-#[derive(Debug, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Deserialize, PartialEq)]
 struct Failure {
     #[serde(rename = "$value")]
     elements: Vec<FailureElement>,
 }
 
-#[derive(Debug, Deserialize, PartialEq)]
+impl Failure {
+    fn get_message(&self) -> Option<String> {
+        self.elements.iter().find_map(|e| match e {
+            FailureElement::Message(m) => Some(m.text.clone()),
+            _ => None,
+        })
+    }
+    fn get_stack_trace(&self) -> Option<String> {
+        self.elements.iter().find_map(|e| match e {
+            FailureElement::StackTrace(st) => Some(st.text.clone()),
+            _ => None,
+        })
+    }
+
+    fn get_text(&self) -> Option<String> {
+        self.elements.iter().find_map(|e| match e {
+            FailureElement::Text(s) => Some(s.to_string()),
+            _ => None,
+        })
+    }
+}
+
+#[derive(Debug, Clone, Deserialize, PartialEq)]
 enum FailureElement {
     #[serde(rename = "message")]
     Message(TextElement),

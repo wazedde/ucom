@@ -2,11 +2,12 @@ use std::process::{exit, Command};
 
 use anyhow::anyhow;
 use chrono::prelude::*;
+use colored::Colorize;
 
-use crate::cli::TestArguments;
+use crate::cli_test::{ShowResults, TestArguments};
 use crate::commands::term_stat::{Status, TermStat};
 use crate::commands::time_delta_to_seconds;
-use crate::nunit;
+use crate::nunit::{TestCase, TestResult, TestRun};
 use crate::unity::{build_command_line, wait_with_stdout, ProjectPath};
 
 pub fn run_tests(arguments: TestArguments) -> anyhow::Result<()> {
@@ -93,45 +94,57 @@ pub fn run_tests(arguments: TestArguments) -> anyhow::Result<()> {
     }
 
     let status = match result {
-        Ok(_) => Status::Ok,
+        Ok(()) => Status::Ok,
         Err(_) => Status::Error,
     };
 
     if !arguments.quiet {
         TermStat::println_stat(
-            "Running",
-            format!(
-                "{} tests for project in {}",
-                &arguments.platform,
-                project.as_path().display()
-            ),
-            status,
-        );
-
-        let test_stats = nunit::read_stats_from_file(&output_path)?;
-
-        TermStat::println_stat("Result", test_stats.result.to_string(), status);
-        TermStat::println_stat(
             "Finished",
             format!(
-                "in {:.2}s",
+                "{} tests for project in {}; total time {:.2}s",
+                &arguments.platform,
+                project.as_path().display(),
                 time_delta_to_seconds(Utc::now().signed_duration_since(start_time))
             ),
             status,
         );
 
+        let test_run = TestRun::from_file(&output_path)?;
+        TermStat::println_stat("Report", output_path.to_string_lossy(), status);
+
+        match arguments.show_results {
+            ShowResults::Errors => {
+                let r = test_run
+                    .test_cases
+                    .iter()
+                    .filter(|tc| tc.result != TestResult::Passed);
+                print_results(r);
+            }
+
+            ShowResults::All => {
+                print_results(test_run.test_cases.iter());
+            }
+            _ => {}
+        };
+
+        println!();
         let results = format!(
-            "Total: {}, Passed: {}, Failed: {}, Inconclusive: {}, Skipped: {}, Asserts: {}",
-            test_stats.total,
-            test_stats.passed,
-            test_stats.failed,
-            test_stats.inconclusive,
-            test_stats.skipped,
-            test_stats.asserts
+            "{} total; {} passed; {} failed; {} inconclusive; {} skipped; {} asserts; finished in {:.2}s",
+            test_run.stats.total,
+            test_run.stats.passed,
+            test_run.stats.failed,
+            test_run.stats.inconclusive,
+            test_run.stats.skipped,
+            test_run.stats.asserts,
+            test_run.stats.duration,
         );
 
-        TermStat::println_stat("Totals", results, status);
-        TermStat::println_stat("Report", output_path.to_string_lossy(), status);
+        println!(
+            "Result: {}. {}",
+            TermStat::get_colored(status.to_string(), status),
+            results,
+        );
     }
 
     if result.is_err() {
@@ -139,5 +152,30 @@ pub fn run_tests(arguments: TestArguments) -> anyhow::Result<()> {
         exit(2);
     } else {
         Ok(())
+    }
+}
+
+fn print_results<'a>(filtered: impl Iterator<Item = &'a TestCase>) {
+    let mut filtered = filtered.peekable();
+    if filtered.peek().is_some() {
+        println!();
+    }
+
+    for tc in filtered {
+        if tc.result == TestResult::Passed {
+            println!(
+                "{}: {}; finished in {:.2}s",
+                TermStat::get_colored(tc.result.to_string(), Status::Ok),
+                tc.full_name,
+                tc.duration,
+            );
+        } else {
+            println!(
+                "{}: {}; finished in {:.2}s",
+                TermStat::get_colored(tc.result.to_string(), Status::Error),
+                tc.full_name.red(),
+                tc.duration,
+            );
+        };
     }
 }

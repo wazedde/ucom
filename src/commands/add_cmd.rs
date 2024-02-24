@@ -2,7 +2,7 @@ use std::path::PathBuf;
 
 use anyhow::anyhow;
 
-use crate::cli::{AddArguments, ContentType, IncludedFile};
+use crate::cli_add::{AddArguments, ContentType, IncludedFile};
 use crate::commands::{add_file_to_project, PERSISTENT_BUILD_SCRIPT_ROOT};
 use crate::unity::ProjectPath;
 

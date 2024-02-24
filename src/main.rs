@@ -11,6 +11,11 @@ use crate::commands::*;
 use crate::unity::http_cache;
 
 mod cli;
+mod cli_add;
+mod cli_build;
+mod cli_new;
+mod cli_run;
+mod cli_test;
 mod commands;
 mod nunit;
 mod unity;
