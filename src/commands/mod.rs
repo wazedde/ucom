@@ -3,11 +3,11 @@ use std::fs::File;
 use std::io::Write;
 use std::path::Path;
 
-use crate::cli_add::IncludedFile;
 use anyhow::anyhow;
 use chrono::TimeDelta;
-use colored::{ColoredString, Colorize};
+use yansi::{Paint, Painted};
 
+use crate::cli_add::IncludedFile;
 pub use crate::commands::add_cmd::add_to_project;
 pub use crate::commands::build_cmd::build_project;
 pub use crate::commands::check_cmd::check_updates;
@@ -34,15 +34,15 @@ pub const INDENT: &str = "  ";
 
 pub trait ColoredStringIf {
     /// Returns bold string if `is_bold` is true.
-    fn bold_if(&self, is_bold: bool) -> ColoredString;
+    fn bold_if(&self, is_bold: bool) -> Painted<&str>;
 }
 
 impl ColoredStringIf for str {
-    fn bold_if(&self, is_bold: bool) -> ColoredString {
+    fn bold_if(&self, is_bold: bool) -> Painted<&str> {
         if is_bold {
             self.bold()
         } else {
-            self.into()
+            Paint::new(self)
         }
     }
 }

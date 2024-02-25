@@ -2,13 +2,15 @@ use std::process::{exit, Command};
 
 use anyhow::anyhow;
 use chrono::prelude::*;
-use colored::Colorize;
+use yansi::Paint;
 
 use crate::cli_test::{ShowResults, TestArguments};
 use crate::commands::term_stat::{Status, TermStat};
 use crate::commands::time_delta_to_seconds;
 use crate::nunit::{TestCase, TestResult, TestRun};
 use crate::unity::{build_command_line, wait_with_stdout, ProjectPath};
+
+// use colored::Colorize;
 
 pub fn run_tests(arguments: TestArguments) -> anyhow::Result<()> {
     let start_time = Utc::now();
@@ -68,7 +70,7 @@ pub fn run_tests(arguments: TestArguments) -> anyhow::Result<()> {
     } else {
         TermStat::new(
             "Running",
-            format!(
+            &format!(
                 "{} tests for project in {}",
                 &arguments.platform,
                 project.as_path().display()
@@ -101,7 +103,7 @@ pub fn run_tests(arguments: TestArguments) -> anyhow::Result<()> {
     if !arguments.quiet {
         TermStat::println_stat(
             "Finished",
-            format!(
+            &format!(
                 "{} tests for project in {}; total time {:.2}s",
                 &arguments.platform,
                 project.as_path().display(),
@@ -111,7 +113,7 @@ pub fn run_tests(arguments: TestArguments) -> anyhow::Result<()> {
         );
 
         let test_run = TestRun::from_file(&output_path)?;
-        TermStat::println_stat("Report", output_path.to_string_lossy(), status);
+        TermStat::println_stat("Report", &output_path.to_string_lossy(), status);
 
         match arguments.show_results {
             ShowResults::Errors => {
@@ -119,11 +121,11 @@ pub fn run_tests(arguments: TestArguments) -> anyhow::Result<()> {
                     .test_cases
                     .iter()
                     .filter(|tc| tc.result != TestResult::Passed);
-                print_results(r);
+                print_test_cases(r);
             }
 
             ShowResults::All => {
-                print_results(test_run.test_cases.iter());
+                print_test_cases(test_run.test_cases.iter());
             }
             _ => {}
         };
@@ -142,7 +144,7 @@ pub fn run_tests(arguments: TestArguments) -> anyhow::Result<()> {
 
         println!(
             "Result: {}. {}",
-            TermStat::get_colored(status.to_string(), status),
+            TermStat::colorize(&status.to_string(), status),
             results,
         );
     }
@@ -155,25 +157,25 @@ pub fn run_tests(arguments: TestArguments) -> anyhow::Result<()> {
     }
 }
 
-fn print_results<'a>(filtered: impl Iterator<Item = &'a TestCase>) {
-    let mut filtered = filtered.peekable();
-    if filtered.peek().is_some() {
+fn print_test_cases<'a>(test_cases: impl Iterator<Item = &'a TestCase>) {
+    let mut test_cases = test_cases.peekable();
+    if test_cases.peek().is_some() {
         println!();
     }
 
-    for tc in filtered {
+    for tc in test_cases {
         if tc.result == TestResult::Passed {
             println!(
                 "{}: {}; finished in {:.2}s",
-                TermStat::get_colored(tc.result.to_string(), Status::Ok),
+                TermStat::colorize(&tc.result.to_string(), Status::Ok),
                 tc.full_name,
                 tc.duration,
             );
         } else {
             println!(
                 "{}: {}; finished in {:.2}s",
-                TermStat::get_colored(tc.result.to_string(), Status::Error),
-                tc.full_name.red(),
+                TermStat::colorize(&tc.result.to_string(), Status::Error),
+                &tc.full_name.red(),
                 tc.duration,
             );
         };

@@ -1,6 +1,6 @@
 use std::process::Command;
 
-use colored::Colorize;
+use yansi::Paint;
 
 use crate::cli::*;
 use crate::unity::*;
@@ -43,15 +43,12 @@ pub fn open_project(arguments: OpenArguments) -> anyhow::Result<()> {
     }
 
     if !arguments.quiet {
-        println!(
-            "{}",
-            format!(
-                "Open Unity {} project in: {}",
-                open_unity_version,
-                project.as_path().display()
-            )
-            .bold()
+        let s = format!(
+            "Open Unity {} project in: {}",
+            open_unity_version,
+            project.as_path().display()
         );
+        println!("{}", s.bold());
     }
 
     if arguments.wait {

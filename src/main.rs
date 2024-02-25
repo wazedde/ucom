@@ -3,7 +3,7 @@ use std::process::exit;
 use anyhow::Context;
 use clap::CommandFactory;
 use clap::Parser;
-use colored::Colorize;
+use yansi::Paint;
 
 use crate::cli::{Action, CacheAction, Cli};
 use crate::commands::test_cmd::run_tests;
@@ -24,10 +24,7 @@ fn main() -> anyhow::Result<()> {
     let cli = Cli::parse();
 
     if cli.disable_color {
-        colored::control::set_override(false);
-    } else {
-        #[cfg(windows)]
-        colored::control::set_virtual_terminal(true).expect("Always returns Ok()");
+        yansi::disable();
     }
 
     let Some(command) = cli.command else {

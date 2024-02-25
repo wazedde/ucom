@@ -2,11 +2,11 @@ use std::env;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
-use crate::cli_add::IncludedFile;
 use anyhow::{anyhow, Context};
-use colored::Colorize;
 use path_absolutize::Absolutize;
+use yansi::Paint;
 
+use crate::cli_add::IncludedFile;
 use crate::cli_new::NewArguments;
 use crate::commands::term_stat::TermStat;
 use crate::commands::{add_file_to_project, INDENT, PERSISTENT_BUILD_SCRIPT_ROOT};
@@ -45,15 +45,12 @@ pub fn new_project(arguments: NewArguments) -> anyhow::Result<()> {
     }
 
     if !arguments.quiet {
-        println!(
-            "{}",
-            format!(
-                "Create new Unity {} project in: {}",
-                version,
-                project_dir.display()
-            )
-            .bold()
+        let s = format!(
+            "Create new Unity {} project in: {}",
+            version,
+            project_dir.display()
         );
+        println!("{}", Paint::new(s).bold());
     }
 
     if arguments.add_builder_menu {

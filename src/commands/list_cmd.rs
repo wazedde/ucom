@@ -1,8 +1,8 @@
 use std::env;
 
 use anyhow::anyhow;
-use colored::Colorize;
 use itertools::Itertools;
+use yansi::Paint;
 
 use crate::cli::{ListType, ENV_DEFAULT_VERSION};
 use crate::commands::term_stat::TermStat;
@@ -339,7 +339,7 @@ fn print_available_versions(
             if is_installed {
                 let line = format!(
                     "{:<max_len$} - {} > installed",
-                    version_str.green(),
+                    version_str.to_string().green(),
                     release_notes_url(entry.version).bright_blue()
                 );
                 println!("{}", line.bold());
@@ -383,7 +383,6 @@ fn print_installs_line(latest: &ReleaseInfo, installed_in_range: &[Version], max
             latest.version.to_string().green(),
             joined_versions
         )
-        .bold()
     } else {
         format!(
             "{:<max_len$} - Installed: {} - update > {}",
@@ -391,9 +390,8 @@ fn print_installs_line(latest: &ReleaseInfo, installed_in_range: &[Version], max
             joined_versions,
             latest.installation_url.bright_blue()
         )
-        .bold()
     };
-    println!("{line}");
+    println!("{}", line.bold());
 }
 
 struct VersionInfo {

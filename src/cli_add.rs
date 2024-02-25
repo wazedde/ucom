@@ -77,7 +77,7 @@ impl FileData {
         return match self.content {
             ContentType::Included(content) => Ok(Cow::Borrowed(content)),
             ContentType::Url(url) => {
-                _ = TermStat::new("Downloading", format!("{} from {}...", self.filename, url));
+                _ = TermStat::new("Downloading", &format!("{} from {}...", self.filename, url));
                 Ok(Cow::Owned(http_cache::fetch_content(url)?))
             }
         };

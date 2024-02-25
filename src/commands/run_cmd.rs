@@ -1,6 +1,6 @@
 use std::process::Command;
 
-use colored::Colorize;
+use yansi::Paint;
 
 use crate::cli_run::RunArguments;
 use crate::unity::*;

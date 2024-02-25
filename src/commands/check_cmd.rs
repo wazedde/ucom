@@ -1,7 +1,7 @@
 use std::io::Write;
 use std::path::Path;
 
-use colored::Colorize;
+use yansi::Paint;
 
 use crate::commands::term_stat::TermStat;
 use crate::commands::INDENT;
@@ -11,13 +11,13 @@ use crate::unity::*;
 pub fn check_updates(project_dir: &Path, create_report: bool) -> anyhow::Result<()> {
     let project = ProjectPath::try_from(project_dir)?;
     let unity_version = project.unity_version()?;
-    let ts = TermStat::new("Checking", format!("for updates to {unity_version}"));
+    let ts = TermStat::new("Checking", &format!("for updates to {unity_version}"));
 
     let (project_version_info, updates) = fetch_update_info(unity_version)?;
     drop(ts);
 
     if create_report {
-        colored::control::set_override(false);
+        yansi::disable();
     }
 
     let mut buf = Vec::new();
@@ -37,7 +37,7 @@ pub fn check_updates(project_dir: &Path, create_report: bool) -> anyhow::Result<
         for release in updates {
             _ = ts.update_text(
                 "Downloading",
-                format!("Unity {} release notes...", release.version),
+                &format!("Unity {} release notes...", release.version),
             );
 
             write_release_notes(&mut buf, &release)?;
@@ -67,9 +67,8 @@ fn write_project_header(
     let s = format!(
         "Unity updates for: {}",
         project.as_path().to_string_lossy().bold()
-    )
-    .bold();
-    writeln!(buf, "{s}")?;
+    );
+    writeln!(buf, "{}", s.bold())?;
 
     if create_report {
         writeln!(buf)?;
@@ -88,7 +87,7 @@ fn write_project_header(
                 buf,
                 "{INDENT}{}: {}",
                 "No project settings found".yellow(),
-                e.to_string().yellow()
+                e.yellow()
             )?;
         }
     }
@@ -108,19 +107,19 @@ fn write_project_version(
     let version = match (is_installed, updates.is_empty()) {
         (true, true) => {
             writeln!(buf, "{}", "installed and up to date".green().bold())?;
-            project_version.to_string().green()
+            project_version.green()
         }
         (true, false) => {
             writeln!(buf, "{}", "installed and out of date".yellow().bold())?;
-            project_version.to_string().yellow()
+            project_version.yellow()
         }
         (false, true) => {
             writeln!(buf, "{}", "not installed and up to date".red().bold())?;
-            project_version.to_string().red()
+            project_version.red()
         }
         (false, false) => {
             writeln!(buf, "{}", "not installed and out of date".red().bold())?;
-            project_version.to_string().red()
+            project_version.red()
         }
     };
 
@@ -177,13 +176,13 @@ fn write_available_updates(updates: &[ReleaseInfo], buf: &mut Vec<u8>) -> anyhow
         let status = if release.version.is_editor_installed()? {
             "installed".bold()
         } else {
-            release.installation_url.bright_blue().bold()
+            release.installation_url.as_str().bright_blue().bold()
         };
 
         writeln!(
             buf,
             "- {:<max_len$} - {} > {}",
-            release.version.to_string().blue().bold(),
+            release.version.blue().bold(),
             release_notes_url(release.version).bright_blue(),
             status
         )?;

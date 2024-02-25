@@ -105,9 +105,9 @@ pub fn build_project(arguments: BuildArguments) -> anyhow::Result<()> {
     );
 
     let term_stat = if arguments.quiet {
-        TermStat::new("Building", build_text)
+        TermStat::new("Building", &build_text)
     } else {
-        TermStat::println_stat("Building", build_text, Status::Info);
+        TermStat::println_stat("Building", &build_text, Status::Info);
         TermStat::new_inactive()
     };
 
@@ -139,7 +139,7 @@ pub fn build_project(arguments: BuildArguments) -> anyhow::Result<()> {
 
     TermStat::println_stat(
         tag,
-        format!(
+        &format!(
             "building Unity {unity_version} {} project in {}",
             arguments.target,
             project.as_path().display()
@@ -149,7 +149,7 @@ pub fn build_project(arguments: BuildArguments) -> anyhow::Result<()> {
 
     TermStat::println_stat(
         "Total time",
-        format!(
+        &format!(
             "{:.2}s",
             time_delta_to_seconds(Utc::now().signed_duration_since(start_time))
         ),

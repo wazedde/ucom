@@ -1,7 +1,7 @@
 use std::path::Path;
 
-use colored::Colorize;
 use itertools::Itertools;
+use yansi::Paint;
 
 use crate::cli::PackagesInfoLevel;
 use crate::commands::INDENT;
@@ -26,7 +26,7 @@ pub fn project_info(
         if let Ok(path) = ProjectPath::try_from(entry.path()) {
             println!();
             if let Err(err) = print_project_info(&path, packages_level) {
-                println!("{}{}", INDENT, err.to_string().red());
+                println!("{}{}", INDENT, err.red());
             }
             it.skip_current_dir();
         }
@@ -57,14 +57,14 @@ fn print_project_info(
             println!(
                 "{INDENT}{}: {}",
                 "No project settings found".yellow(),
-                e.to_string().yellow()
+                e.yellow()
             );
         }
     }
 
     print!(
         "{INDENT}Unity version: {} - {}",
-        unity_version.to_string().bold(),
+        unity_version.bold(),
         release_notes_url(unity_version).bright_blue()
     );
 
@@ -128,7 +128,7 @@ fn print_project_packages(
             println!(
                 "{} {} {}",
                 "Packages:".bold(),
-                package_level.to_string().bold(),
+                package_level.bold(),
                 "(L=local, E=embedded, G=git, T=tarball, R=registry, B=builtin)".bold()
             );
 
