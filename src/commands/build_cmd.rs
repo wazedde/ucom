@@ -33,8 +33,8 @@ pub fn build_project(arguments: BuildArguments) -> anyhow::Result<()> {
             project
                 .as_path()
                 .join("Builds")
-                .join(arguments.output_type.to_string())
-                .join(arguments.target.to_string())
+                .join(arguments.output_type.as_ref())
+                .join(arguments.target.as_ref())
         }
     };
 
@@ -58,13 +58,13 @@ pub fn build_project(arguments: BuildArguments) -> anyhow::Result<()> {
     // Build the command to execute.
     let mut cmd = Command::new(editor_exe);
     cmd.args(["-projectPath", &project.as_path().to_string_lossy()])
-        .args(["-buildTarget", &arguments.target.to_string()])
+        .args(["-buildTarget", arguments.target.as_ref()])
         .args(["-logFile", &log_file.to_string_lossy()])
         .args(["-executeMethod", &arguments.build_function])
         .args(["--ucom-build-output", &output_dir.to_string_lossy()])
         .args([
             "--ucom-build-target",
-            &BuildScriptTarget::from(arguments.target).to_string(),
+            BuildScriptTarget::from(arguments.target).as_ref(),
         ]);
 
     let build_options = arguments.get_build_option_flags();

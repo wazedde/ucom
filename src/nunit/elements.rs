@@ -266,7 +266,7 @@ struct TestCase {
 impl TestCase {
     fn get_text(&self) -> Option<String> {
         self.elements.iter().find_map(|e| match e {
-            TestCaseElement::Text(s) => Some(s.to_string()),
+            TestCaseElement::Text(s) => Some(s.clone()),
             _ => None,
         })
     }
@@ -354,7 +354,7 @@ impl Failure {
 
     fn get_text(&self) -> Option<String> {
         self.elements.iter().find_map(|e| match e {
-            FailureElement::Text(s) => Some(s.to_string()),
+            FailureElement::Text(s) => Some(s.clone()),
             _ => None,
         })
     }

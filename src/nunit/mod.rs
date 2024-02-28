@@ -1,7 +1,7 @@
-use std::fmt::Display;
 use std::path::Path;
 
 use chrono::{DateTime, Utc};
+use strum::{AsRefStr, Display};
 
 mod elements;
 mod tests;
@@ -23,7 +23,7 @@ impl TestRun {
     }
 }
 
-#[derive(Copy, Clone, Debug, PartialEq)]
+#[derive(Display, AsRefStr, Copy, Clone, Debug, PartialEq)]
 pub enum TestResult {
     Passed,
     Failed,
@@ -32,19 +32,6 @@ pub enum TestResult {
 
     /// The result could not be parsed.
     Invalid,
-}
-
-impl Display for TestResult {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let str = match self {
-            TestResult::Passed => "Passed".to_string(),
-            TestResult::Failed => "Failed".to_string(),
-            TestResult::Inconclusive => "Inconclusive".to_string(),
-            TestResult::Skipped => "Skipped".to_string(),
-            TestResult::Invalid => "Invalid".to_string(),
-        };
-        write!(f, "{}", str)
-    }
 }
 
 impl From<&str> for TestResult {

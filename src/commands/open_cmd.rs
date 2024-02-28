@@ -28,7 +28,7 @@ pub fn open_project(arguments: OpenArguments) -> anyhow::Result<()> {
     cmd.args(["-projectPath", &project.as_path().to_string_lossy()]);
 
     if let Some(target) = arguments.target {
-        cmd.args(["-buildTarget", &target.to_string()]);
+        cmd.args(["-buildTarget", target.as_ref()]);
     }
 
     if arguments.quit {

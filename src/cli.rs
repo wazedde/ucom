@@ -1,7 +1,7 @@
-use std::fmt::{Display, Formatter};
 use std::path::PathBuf;
 
 use clap::{Args, ValueEnum};
+use strum::Display;
 
 use crate::cli_add::AddArguments;
 use crate::cli_build::{BuildArguments, OpenTarget};
@@ -156,34 +156,27 @@ pub enum ListType {
     All,
 }
 
-#[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, ValueEnum)]
+#[derive(Display, Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, ValueEnum)]
 pub enum PackagesInfoLevel {
     /// No package information is displayed.
     #[value(name = "none")]
+    #[strum(serialize = "none")]
     None,
 
     /// Shows non-Unity packages only.
     #[value(name = "no-unity")]
+    #[strum(serialize = "no-unity")]
     ExcludingUnity,
 
     /// Additionally includes information for packages from the Unity registry.
     #[value(name = "inc-unity")]
+    #[strum(serialize = "inc-unity")]
     IncludingUnity,
 
     /// Displays all package information including built-in packages and dependencies.
     #[value(name = "all")]
+    #[strum(serialize = "all")]
     All,
-}
-
-impl Display for PackagesInfoLevel {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        match self {
-            PackagesInfoLevel::None => write!(f, "none"),
-            PackagesInfoLevel::ExcludingUnity => write!(f, "no-unity"),
-            PackagesInfoLevel::IncludingUnity => write!(f, "inc-unity"),
-            PackagesInfoLevel::All => write!(f, "all"),
-        }
-    }
 }
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, ValueEnum)]

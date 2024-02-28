@@ -36,7 +36,7 @@ pub fn new_project(arguments: NewArguments) -> anyhow::Result<()> {
     }
 
     if let Some(target) = arguments.target {
-        cmd.args(["-buildTarget", &target.to_string()]);
+        cmd.args(["-buildTarget", target.as_ref()]);
     }
 
     if arguments.dry_run {

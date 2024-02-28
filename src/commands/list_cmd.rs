@@ -154,11 +154,8 @@ fn print_updates(installed: &[Version], available: &[ReleaseInfo]) -> anyhow::Re
                     format!(
                         "{:<max_len$} - {}",
                         version_str,
-                        format!(
-                            "No {} update info available",
-                            info.version.build_type.as_full_str()
-                        )
-                        .bright_black()
+                        format!("No {} update info available", info.version.build_type,)
+                            .bright_black()
                     )
                 }
             };
@@ -339,7 +336,7 @@ fn print_available_versions(
             if is_installed {
                 let line = format!(
                     "{:<max_len$} - {} > installed",
-                    version_str.to_string().green(),
+                    version_str.green(),
                     release_notes_url(entry.version).bright_blue()
                 );
                 println!("{}", line.bold());

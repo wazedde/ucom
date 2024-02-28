@@ -23,14 +23,14 @@ pub fn run_tests(arguments: TestArguments) -> anyhow::Result<()> {
     let mut cmd = Command::new(editor_exe);
     cmd.args(["-projectPath", &project.as_path().to_string_lossy()]);
     cmd.arg("-runTests");
-    cmd.args(["-testPlatform", &arguments.platform.to_string()]);
+    cmd.args(["-testPlatform", arguments.platform.as_ref()]);
 
     if let Some(target) = arguments.target {
-        cmd.args(["-buildTarget", &target.to_string()]);
+        cmd.args(["-buildTarget", target.as_ref()]);
     } else {
         cmd.args([
             "-buildTarget",
-            &arguments.platform.as_build_target().to_string(),
+            arguments.platform.as_build_target().as_ref(),
         ]);
     }
 
@@ -54,7 +54,7 @@ pub fn run_tests(arguments: TestArguments) -> anyhow::Result<()> {
         cmd.args(["-assemblyNames", &format!("\"{s}\"")]);
     }
 
-    let timestamp = Utc::now().format("%Y%m%d%H%M%S").to_string();
+    let timestamp = Utc::now().format("%Y%m%d%H%M%S");
     let filename = format!("tests-{}-{}.xml", arguments.platform, timestamp);
     let output_path = project.as_path().join(filename);
     cmd.args(["-testResults", &output_path.to_string_lossy()]);
@@ -144,7 +144,7 @@ pub fn run_tests(arguments: TestArguments) -> anyhow::Result<()> {
 
         println!(
             "Result: {}. {}",
-            TermStat::colorize(&status.to_string(), status),
+            TermStat::colorize(status.as_ref(), status),
             results,
         );
     }
@@ -167,14 +167,14 @@ fn print_test_cases<'a>(test_cases: impl Iterator<Item = &'a TestCase>) {
         if tc.result == TestResult::Passed {
             println!(
                 "{}: {}; finished in {:.2}s",
-                TermStat::colorize(&tc.result.to_string(), Status::Ok),
+                TermStat::colorize(tc.result.as_ref(), Status::Ok),
                 tc.full_name,
                 tc.duration,
             );
         } else {
             println!(
                 "{}: {}; finished in {:.2}s",
-                TermStat::colorize(&tc.result.to_string(), Status::Error),
+                TermStat::colorize(tc.result.as_ref(), Status::Error),
                 &tc.full_name.red(),
                 tc.duration,
             );

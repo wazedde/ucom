@@ -1,10 +1,10 @@
-use std::fmt::{Display, Formatter};
 use std::io::{stdout, IsTerminal, Write};
 
 use crossterm::cursor::{RestorePosition, SavePosition};
 use crossterm::terminal::{Clear, ClearType};
 use crossterm::ExecutableCommand;
-use yansi::{Color, Paint, Painted};
+use strum::{AsRefStr, Display};
+use yansi::{Color, Paint, Painted, Style};
 
 /// A status line that is only active if stdout is a terminal.
 /// Clears the status line when dropped.
@@ -67,35 +67,22 @@ impl TermStat {
 
     pub fn colorize(s: &str, status: Status) -> Painted<&str> {
         let color = match status {
-            Status::None => Color::Primary,
-            Status::Ok => Color::Green,
-            Status::Error => Color::Red,
-            Status::Warning => Color::Yellow,
-            Status::Info => Color::Blue,
+            Status::None => Style::new().bold(),
+            Status::Ok => Color::Green.bold(),
+            Status::Error => Color::Red.bold(),
+            Status::Warning => Color::Yellow.bold(),
+            Status::Info => Color::Blue.bold(),
         };
-        s.fg(color).bold()
+        s.paint(color)
     }
 }
 
 #[allow(dead_code)]
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Display, AsRefStr, Debug, Clone, Copy, PartialEq)]
 pub enum Status {
     None,
     Ok,
     Error,
     Warning,
     Info,
-}
-
-impl Display for Status {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        let str = match self {
-            Status::None => "None",
-            Status::Ok => "Ok",
-            Status::Error => "Error",
-            Status::Warning => "Warning",
-            Status::Info => "Info",
-        };
-        write!(f, "{}", str)
-    }
 }

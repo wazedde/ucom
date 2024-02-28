@@ -1,7 +1,7 @@
-use std::fmt::{Display, Formatter};
 use std::path::PathBuf;
 
 use clap::{Args, ValueEnum};
+use strum::{AsRefStr, Display};
 
 #[derive(Args)]
 pub struct BuildArguments {
@@ -137,18 +137,12 @@ pub enum InjectAction {
     Off,
 }
 
-#[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, ValueEnum)]
+#[derive(Display, AsRefStr, Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, ValueEnum)]
 pub enum BuildOutputType {
     /// Build output is written to the `Builds/Release` directory.
     Release,
     /// Build output is written to the `Builds/Debug` directory.
     Debug,
-}
-
-impl Display for BuildOutputType {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{self:?}")
-    }
 }
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, ValueEnum)]
@@ -171,7 +165,7 @@ pub enum BuildMode {
 }
 
 /// The build target to open the project with.
-#[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, ValueEnum)]
+#[derive(Display, AsRefStr, Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, ValueEnum)]
 #[allow(non_camel_case_types)]
 pub enum OpenTarget {
     Standalone,
@@ -195,14 +189,8 @@ pub enum OpenTarget {
     tvOS,
 }
 
-impl Display for OpenTarget {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{self:?}")
-    }
-}
-
 /// The build target to open the project to build with.
-#[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, ValueEnum)]
+#[derive(Display, AsRefStr, Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, ValueEnum)]
 #[allow(non_camel_case_types)]
 pub enum BuildOpenTarget {
     #[value(name = "win32")]
@@ -221,14 +209,8 @@ pub enum BuildOpenTarget {
     WebGL,
 }
 
-impl Display for BuildOpenTarget {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{self:?}")
-    }
-}
-
 /// The build target to pass to the Unity build script.
-#[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, ValueEnum)]
+#[derive(Display, AsRefStr, Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, ValueEnum)]
 #[allow(non_camel_case_types)]
 pub enum BuildScriptTarget {
     StandaloneOSX,
@@ -238,12 +220,6 @@ pub enum BuildScriptTarget {
     iOS,
     Android,
     WebGL,
-}
-
-impl Display for BuildScriptTarget {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{self:?}")
-    }
 }
 
 impl From<BuildOpenTarget> for BuildScriptTarget {

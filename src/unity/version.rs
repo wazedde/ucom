@@ -1,10 +1,11 @@
 use std::fmt::{Display, Formatter};
 use std::str::FromStr;
+use strum::Display;
 
 #[derive(Debug, Eq, PartialEq)]
 pub struct ParseError;
 
-#[derive(Debug, Eq, PartialEq, Ord, PartialOrd, Copy, Clone)]
+#[derive(Display, Debug, Eq, PartialEq, Ord, PartialOrd, Copy, Clone)]
 pub enum BuildType {
     Alpha,
     Beta,
@@ -23,16 +24,6 @@ impl BuildType {
         }
     }
 
-    /// Returns the full name of the build type.
-    pub const fn as_full_str(&self) -> &str {
-        match self {
-            Self::Alpha => "Alpha",
-            Self::Beta => "Beta",
-            Self::ReleaseCandidate => "ReleaseCandidate",
-            Self::Final => "Final",
-        }
-    }
-
     /// Returns the build type from a string.
     pub fn from(s: &str) -> Option<Self> {
         if s.contains('f') {
@@ -46,12 +37,6 @@ impl BuildType {
         } else {
             None
         }
-    }
-}
-
-impl Display for BuildType {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", self.as_short_str())
     }
 }
 
@@ -137,7 +122,11 @@ impl Display for Version {
         write!(
             f,
             "{}.{}.{}{}{}",
-            self.major, self.minor, self.patch, self.build_type, self.build
+            self.major,
+            self.minor,
+            self.patch,
+            self.build_type.as_short_str(),
+            self.build
         )
     }
 }

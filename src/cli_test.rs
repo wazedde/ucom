@@ -1,7 +1,7 @@
-use std::fmt::{Display, Formatter};
 use std::path::PathBuf;
 
 use clap::{Args, ValueEnum};
+use strum::{AsRefStr, Display};
 
 use crate::cli_build::OpenTarget;
 
@@ -87,7 +87,7 @@ pub struct TestArguments {
 }
 
 /// The build target to open the project with.
-#[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, ValueEnum)]
+#[derive(Display, AsRefStr, Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, ValueEnum)]
 #[allow(non_camel_case_types)]
 pub enum TestTarget {
     #[value(name = "editmode")]
@@ -122,12 +122,6 @@ impl TestTarget {
             TestTarget::Android => OpenTarget::Android,
             TestTarget::WebGL => OpenTarget::WebGL,
         }
-    }
-}
-
-impl Display for TestTarget {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{self:?}")
     }
 }
 
