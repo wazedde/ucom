@@ -107,7 +107,7 @@ pub fn build_project(arguments: BuildArguments) -> anyhow::Result<()> {
     let term_stat = if arguments.quiet {
         TermStat::new("Building", &build_text)
     } else {
-        TermStat::println_stat("Building", &build_text, Status::Info);
+        TermStat::println("Building", &build_text, Status::Info);
         TermStat::new_inactive()
     };
 
@@ -137,7 +137,7 @@ pub fn build_project(arguments: BuildArguments) -> anyhow::Result<()> {
         (Status::Error, "Failed")
     };
 
-    TermStat::println_stat(
+    TermStat::println(
         tag,
         &format!(
             "building Unity {unity_version} {} project in {}",
@@ -147,7 +147,7 @@ pub fn build_project(arguments: BuildArguments) -> anyhow::Result<()> {
         status,
     );
 
-    TermStat::println_stat(
+    TermStat::println(
         "Total time",
         &format!(
             "{:.2}s",
@@ -166,7 +166,7 @@ pub fn build_project(arguments: BuildArguments) -> anyhow::Result<()> {
             .take_while(|l| !l.is_empty()) // Read until empty line.
             .for_each(|l| {
                 if let Some((key, value)) = l.split_once(':') {
-                    TermStat::println_stat(key.trim(), value.trim(), status);
+                    TermStat::println(key.trim(), value.trim(), status);
                 } else {
                     println!("{l}");
                 }
@@ -320,7 +320,6 @@ fn csharp_build_script_injection_hooks(
         InjectAction::Auto => {
             let uuid = Uuid::new_v4();
             let unique_dir_name = format!("{AUTO_BUILD_SCRIPT_ROOT}-{uuid}");
-
             let closure_project_dir = project_path.to_path_buf();
             let closure_script_dir = PathBuf::from(&unique_dir_name).join("Editor");
             let closure_remove_dir = project_path.join(&unique_dir_name);

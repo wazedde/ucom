@@ -5,7 +5,7 @@ use std::path::{Path, PathBuf};
 use std::sync::OnceLock;
 
 use anyhow::anyhow;
-use chrono::{DateTime, Duration, Utc};
+use chrono::{DateTime, TimeDelta, Utc};
 use dirs::cache_dir;
 
 static CACHE_ENABLED: OnceLock<bool> = OnceLock::new();
@@ -22,7 +22,7 @@ pub fn fetch_content(url: &str) -> anyhow::Result<String> {
     if Path::new(&filename).exists() {
         let modified_time = metadata(&filename)?.modified()?;
         let delta_time = Utc::now() - DateTime::<Utc>::from(modified_time);
-        if delta_time <= Duration::hours(1) {
+        if delta_time <= TimeDelta::try_hours(1).unwrap() {
             return Ok(fs::read_to_string(&filename)?);
         }
     }

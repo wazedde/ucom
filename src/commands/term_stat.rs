@@ -51,8 +51,8 @@ impl TermStat {
     }
 
     /// Prints a status line with the given tag and message.
-    pub fn println_stat(tag: &str, msg: &str, status: Status) {
-        println!("{:>12} {}", Self::colorize(tag, status), msg);
+    pub fn println(tag: &str, msg: &str, status: Status) {
+        println!("{:>12} {}", Self::stylize(tag, status), msg);
     }
 
     /// Prints a status line with the given tag and message
@@ -60,12 +60,12 @@ impl TermStat {
     pub fn print_stat(tag: &str, msg: &str, status: Status) -> anyhow::Result<()> {
         stdout().execute(SavePosition)?;
 
-        print!("{:>12} {}", Self::colorize(tag, status), msg);
+        print!("{:>12} {}", Self::stylize(tag, status), msg);
         stdout().execute(RestorePosition)?.flush()?;
         Ok(())
     }
 
-    pub fn colorize(s: &str, status: Status) -> Painted<&str> {
+    pub fn stylize(s: &str, status: Status) -> Painted<&str> {
         let color = match status {
             Status::None => Style::new().bold(),
             Status::Ok => Color::Green.bold(),

@@ -103,7 +103,7 @@ pub fn spawn_and_forget(mut cmd: Command) {
         .stderr(Stdio::piped())
         .spawn()
         .map(|_| ())
-        .expect("Failed to run child process.")
+        .expect("Failed to run child process.");
 }
 
 /// Spawns command and outputs to the console. Blocks until the command has finished.

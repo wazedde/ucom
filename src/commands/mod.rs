@@ -1,6 +1,4 @@
 use std::fs;
-use std::fs::File;
-use std::io::Write;
 use std::path::Path;
 
 use anyhow::anyhow;
@@ -72,7 +70,5 @@ fn create_file<P: AsRef<Path>>(file_path: P, content: &str) -> anyhow::Result<()
         .ok_or_else(|| anyhow!("Invalid file path: {}", file_path.display()))?;
 
     fs::create_dir_all(parent_dir)?;
-
-    let mut file = File::create(file_path)?;
-    write!(file, "{}", content).map_err(Into::into)
+    fs::write(file_path, content).map_err(Into::into)
 }

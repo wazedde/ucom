@@ -112,7 +112,6 @@ impl Version {
         let exe_path = editor_parent_dir()?
             .join(self.to_string())
             .join(UNITY_EDITOR_EXE);
-
         if exe_path.exists() {
             Ok(exe_path)
         } else {

@@ -159,11 +159,9 @@ fn print_updates(installed: &[Version], available: &[ReleaseInfo]) -> anyhow::Re
                     )
                 }
             };
-
             println!("{}", line.bold_if(info.version == default_version));
         }
     }
-
     Ok(())
 }
 

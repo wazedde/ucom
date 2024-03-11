@@ -2,15 +2,13 @@ use std::process::{exit, Command};
 
 use anyhow::anyhow;
 use chrono::prelude::*;
-use yansi::Paint;
+use yansi::{Paint, Style};
 
 use crate::cli_test::{ShowResults, TestArguments};
 use crate::commands::term_stat::{Status, TermStat};
 use crate::commands::time_delta_to_seconds;
 use crate::nunit::{TestCase, TestResult, TestRun};
 use crate::unity::{build_command_line, wait_with_stdout, ProjectPath};
-
-// use colored::Colorize;
 
 pub fn run_tests(arguments: TestArguments) -> anyhow::Result<()> {
     let start_time = Utc::now();
@@ -101,7 +99,7 @@ pub fn run_tests(arguments: TestArguments) -> anyhow::Result<()> {
     };
 
     if !arguments.quiet {
-        TermStat::println_stat(
+        TermStat::println(
             "Finished",
             &format!(
                 "{} tests for project in {}; total time {:.2}s",
@@ -113,7 +111,7 @@ pub fn run_tests(arguments: TestArguments) -> anyhow::Result<()> {
         );
 
         let test_run = TestRun::from_file(&output_path)?;
-        TermStat::println_stat("Report", &output_path.to_string_lossy(), status);
+        TermStat::println("Report", &output_path.to_string_lossy(), status);
 
         match arguments.show_results {
             ShowResults::Errors => {
@@ -144,7 +142,7 @@ pub fn run_tests(arguments: TestArguments) -> anyhow::Result<()> {
 
         println!(
             "Result: {}. {}",
-            TermStat::colorize(status.as_ref(), status),
+            TermStat::stylize(status.as_ref(), status),
             results,
         );
     }
@@ -164,20 +162,17 @@ fn print_test_cases<'a>(test_cases: impl Iterator<Item = &'a TestCase>) {
     }
 
     for tc in test_cases {
-        if tc.result == TestResult::Passed {
-            println!(
-                "{}: {}; finished in {:.2}s",
-                TermStat::colorize(tc.result.as_ref(), Status::Ok),
-                tc.full_name,
-                tc.duration,
-            );
+        let (name_style, status) = if tc.result == TestResult::Passed {
+            (Style::new(), Status::Ok)
         } else {
-            println!(
-                "{}: {}; finished in {:.2}s",
-                TermStat::colorize(tc.result.as_ref(), Status::Error),
-                &tc.full_name.red(),
-                tc.duration,
-            );
+            (Style::new().red(), Status::Error)
         };
+
+        println!(
+            "{}: {}; finished in {:.2}s",
+            TermStat::stylize(tc.result.as_ref(), status),
+            tc.full_name.paint(name_style),
+            tc.duration,
+        );
     }
 }

@@ -50,7 +50,7 @@ pub fn new_project(arguments: NewArguments) -> anyhow::Result<()> {
             version,
             project_dir.display()
         );
-        println!("{}", Paint::new(s).bold());
+        println!("{}", s.bold());
     }
 
     if arguments.add_builder_menu {

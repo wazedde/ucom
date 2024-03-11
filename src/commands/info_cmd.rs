@@ -116,13 +116,12 @@ fn print_project_packages(
                 .dependencies
                 .iter()
                 .filter(|(name, package)| package_level.evaluate(name, package))
-                .collect_vec();
+                .sorted_by(|(_, pi1), (_, pi2)| pi1.source.cmp(&pi2.source))
+                .peekable();
 
-            if packages.is_empty() {
+            if packages.peek().is_none() {
                 return Ok(());
             }
-
-            packages.sort_by(|(_, pi1), (_, pi2)| pi1.source.cmp(&pi2.source));
 
             println!();
             println!(
