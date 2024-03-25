@@ -8,7 +8,8 @@ use crate::cli_test::{ShowResults, TestArguments};
 use crate::commands::term_stat::{Status, TermStat};
 use crate::commands::time_delta_to_seconds;
 use crate::nunit::{TestCase, TestResult, TestRun};
-use crate::unity::{build_command_line, wait_with_stdout, ProjectPath};
+use crate::unity::project::ProjectPath;
+use crate::unity::{build_command_line, wait_with_stdout};
 
 pub fn run_tests(arguments: TestArguments) -> anyhow::Result<()> {
     let start_time = Utc::now();

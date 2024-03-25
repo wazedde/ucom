@@ -17,6 +17,7 @@ pub const ENV_PACKAGE_LEVEL: &str = "UCOM_PACKAGE_LEVEL";
 /// Unity Commander: A command-line interface for Unity projects.
 #[derive(clap::Parser)]
 #[command(author, version, about)]
+#[command(arg_required_else_help = true)]
 pub struct Cli {
     /// Disables colored output.
     #[arg(long, short = 'D')]

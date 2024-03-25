@@ -5,8 +5,9 @@ use yansi::Paint;
 
 use crate::cli::PackagesInfoLevel;
 use crate::commands::INDENT;
+use crate::unity::project::ProjectPath;
 use crate::unity::project::*;
-use crate::unity::{release_notes_url, to_absolute_dir_path, ProjectPath};
+use crate::unity::{release_notes_url, to_absolute_dir_path};
 
 /// Shows project information.
 pub fn project_info(

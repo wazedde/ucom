@@ -129,7 +129,7 @@ pub fn wait_with_stdout(mut cmd: Command) -> Result<(), CommandError> {
 fn monitor_log_file(log_file: &Path, update_interval: Duration, stop_logging: &Arc<AtomicBool>) {
     // Wait until the file exists.
     while !log_file.exists() {
-        if stop_logging.load(Ordering::SeqCst) {
+        if stop_logging.load(Ordering::Relaxed) {
             // If the file writer thread has finished without creating the file, we can stop waiting.
             return;
         }
@@ -144,10 +144,9 @@ fn monitor_log_file(log_file: &Path, update_interval: Duration, stop_logging: &A
 
     loop {
         // Don't immediately exit if the file writer thread has finished to be able to read any last data.
-        let should_stop = stop_logging.load(Ordering::SeqCst);
+        let should_stop = stop_logging.load(Ordering::Relaxed);
 
-        reader.read_to_string(&mut buffer).unwrap();
-        if !buffer.is_empty() {
+        if reader.read_to_string(&mut buffer).is_ok() && !buffer.is_empty() {
             ended_with_newline = buffer.ends_with('\n');
             print!("{buffer}");
             buffer.clear();

@@ -1,7 +1,4 @@
-use std::process::exit;
-
 use anyhow::Context;
-use clap::CommandFactory;
 use clap::Parser;
 use yansi::Paint;
 
@@ -23,14 +20,13 @@ mod unity;
 fn main() -> anyhow::Result<()> {
     let cli = Cli::parse();
 
+    let Some(command) = cli.command else {
+        return Ok(());
+    };
+
     if cli.disable_color {
         yansi::disable();
     }
-
-    let Some(command) = cli.command else {
-        _ = Cli::command().print_help();
-        exit(0)
-    };
 
     http_cache::set_cache_from_env().context("Cannot set cache from environment")?;
 
