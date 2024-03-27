@@ -3,7 +3,7 @@ use std::process::Command;
 use yansi::Paint;
 
 use crate::cli::*;
-use crate::unity::installed::InstalledVersions;
+use crate::unity::installed::VersionList;
 use crate::unity::*;
 
 /// Opens the given Unity project in the Unity Editor.
@@ -13,9 +13,9 @@ pub fn open_project(arguments: OpenArguments) -> anyhow::Result<()> {
 
     let open_unity_version = match arguments.upgrade_version {
         // If a specific version is given, use that.
-        Some(Some(pattern)) => InstalledVersions::latest(Some(&pattern)),
+        Some(Some(pattern)) => VersionList::latest(Some(&pattern)),
         // Otherwise, use the latest version.
-        Some(None) => InstalledVersions::latest(Some(&project_unity_version.minor_partial())),
+        Some(None) => VersionList::latest(Some(&project_unity_version.minor_partial())),
         // Otherwise, use the current version.
         None => Ok(project_unity_version),
     }?;

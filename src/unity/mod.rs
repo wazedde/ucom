@@ -11,6 +11,7 @@ pub use crate::unity::version::*;
 
 pub mod http_cache;
 pub mod installed;
+pub mod non_empty_vec;
 pub mod project;
 pub mod releases;
 pub mod spawn_cmd;

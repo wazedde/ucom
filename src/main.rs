@@ -28,46 +28,49 @@ fn main() -> anyhow::Result<()> {
         yansi::disable();
     }
 
-    http_cache::set_cache_from_env().context("Cannot set cache from environment")?;
+    http_cache::set_cache_from_env()
+        .with_context(|| color_error("Cannot set cache from environment"))?;
 
     match command {
         Action::List {
             list_type,
             version_pattern,
         } => list_versions(list_type, version_pattern.as_deref())
-            .context("Cannot list installations".red().bold()),
+            .with_context(|| color_error(&format!("Cannot list `{}`", list_type))),
 
         Action::Info {
             project_dir,
             recursive,
             packages,
         } => project_info(&project_dir, packages, recursive)
-            .context("Cannot show project info".red().bold()),
+            .with_context(|| color_error("Cannot show project info")),
 
         Action::Check {
             project_dir,
             report: report_path,
         } => check_updates(&project_dir, report_path)
-            .context("Cannot show Unity updates for project".red().bold()),
+            .with_context(|| color_error("Cannot show Unity updates for project")),
 
-        Action::Run(settings) => run_unity(settings).context("Cannot run Unity".red().bold()),
+        Action::Run(settings) => run_unity(settings).context(color_error("Cannot run Unity")),
 
         Action::New(settings) => {
-            new_project(settings).context("Cannot create new Unity project".red().bold())
+            new_project(settings).with_context(|| color_error("Cannot create new Unity project"))
         }
 
         Action::Open(settings) => {
-            open_project(settings).context("Cannot open Unity project".red().bold())
+            open_project(settings).with_context(|| color_error("Cannot open Unity project"))
         }
 
         Action::Build(settings) => {
-            build_project(settings).context("Cannot build project".red().bold())
+            build_project(settings).with_context(|| color_error("Cannot build project"))
         }
 
-        Action::Test(settings) => run_tests(settings).context("Cannot run tests".red().bold()),
+        Action::Test(settings) => {
+            run_tests(settings).with_context(|| color_error("Cannot run tests"))
+        }
 
         Action::Add(arguments) => {
-            add_to_project(&arguments).context("Cannot add file to project".red().bold())
+            add_to_project(&arguments).with_context(|| color_error("Cannot add file to project"))
         }
 
         Action::Cache { action: command } => {
@@ -95,4 +98,8 @@ fn main() -> anyhow::Result<()> {
             Ok(())
         }
     }
+}
+
+fn color_error(message: &str) -> String {
+    message.red().bold().to_string()
 }

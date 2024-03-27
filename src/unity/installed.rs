@@ -7,6 +7,7 @@ use itertools::Itertools;
 
 use crate::cli::ENV_DEFAULT_VERSION;
 use crate::cli::ENV_EDITOR_DIR;
+use crate::unity::non_empty_vec::{NonEmptyVec, NonEmptyVecErr};
 use crate::unity::Version;
 
 /// Sub path to the executable on macOS.
@@ -35,14 +36,12 @@ const UNITY_EDITOR_DIR: &str = compile_error!("Unsupported platform");
 
 impl Version {
     pub(crate) fn is_editor_installed(self) -> Result<bool> {
-        Ok(InstalledVersions::parent_dir()?
-            .join(self.to_string())
-            .exists())
+        Ok(VersionList::parent_dir()?.join(self.to_string()).exists())
     }
 
     /// Returns the path to the editor executable.
     pub(crate) fn editor_executable_path(self) -> Result<PathBuf> {
-        let exe_path = InstalledVersions::parent_dir()?
+        let exe_path = VersionList::parent_dir()?
             .join(self.to_string())
             .join(UNITY_EDITOR_EXE);
         if exe_path.exists() {
@@ -53,30 +52,55 @@ impl Version {
     }
 }
 
-/// A non-empty list of installed Unity versions, sorted from the oldest to the newest.
-pub(crate) struct InstalledVersions {
-    versions: Vec<Version>,
+/// A non-empty list of Unity versions, sorted from the oldest to the newest.
+pub(crate) struct VersionList {
+    versions: NonEmptyVec<Version>,
 }
 
-#[allow(clippy::from_over_into)]
-impl Into<Vec<Version>> for InstalledVersions {
-    fn into(self) -> Vec<Version> {
-        self.versions
+impl TryFrom<Vec<Version>> for VersionList {
+    type Error = NonEmptyVecErr;
+
+    fn try_from(value: Vec<Version>) -> std::result::Result<Self, Self::Error> {
+        match NonEmptyVec::from_vec(value) {
+            Ok(mut versions) => {
+                versions.sort_unstable();
+                Ok(Self { versions })
+            }
+            Err(e) => Err(e),
+        }
     }
 }
 
-impl AsRef<Vec<Version>> for InstalledVersions {
-    fn as_ref(&self) -> &Vec<Version> {
+#[allow(clippy::from_over_into)]
+impl Into<Vec<Version>> for VersionList {
+    fn into(self) -> Vec<Version> {
+        self.versions.into()
+    }
+}
+
+impl AsRef<NonEmptyVec<Version>> for VersionList {
+    fn as_ref(&self) -> &NonEmptyVec<Version> {
         &self.versions
     }
 }
 
-impl InstalledVersions {
+#[allow(dead_code)]
+impl VersionList {
     /// Returns the parent directory of the editor installations and the list of installed versions.
-    pub(crate) fn get<'a>() -> Result<(Cow<'a, Path>, Self)> {
+    pub(crate) fn from_installations<'a>() -> Result<(Cow<'a, Path>, Self)> {
         let parent_dir = Self::parent_dir()?;
-        let installed_versions = InstalledVersions::from_dir(&parent_dir)?;
+        let installed_versions = VersionList::from_dir(&parent_dir)?;
         Ok((parent_dir, installed_versions))
+    }
+
+    pub(crate) fn from_vec(versions: Vec<Version>) -> std::result::Result<Self, NonEmptyVecErr> {
+        match NonEmptyVec::from_vec(versions) {
+            Ok(mut versions) => {
+                versions.sort_unstable();
+                Ok(Self { versions })
+            }
+            Err(_) => Err(NonEmptyVecErr::VecIsEmpty),
+        }
     }
 
     /// Returns a sorted list of installed Unity versions from the given directory or an error if no versions are found.
@@ -95,14 +119,21 @@ impl InstalledVersions {
             .sorted_unstable()
             .collect_vec();
 
-        if versions.is_empty() {
-            Err(anyhow!(
+        match NonEmptyVec::from_vec(versions) {
+            Ok(versions) => Ok(Self { versions }),
+            Err(_) => Err(anyhow!(
                 "No Unity installations found in `{}`",
                 dir.as_ref().display()
-            ))
-        } else {
-            Ok(Self { versions })
+            )),
         }
+    }
+
+    pub(crate) fn first(&self) -> &Version {
+        self.versions.first()
+    }
+
+    pub(crate) fn last(&self) -> &Version {
+        self.versions.last()
     }
 
     /// Returns the list with only the versions that match the partial version or Err if there is no matching version.
@@ -114,31 +145,30 @@ impl InstalledVersions {
 
         let versions = self
             .versions
-            .into_iter()
+            .iter()
             .filter(|v| v.to_string().starts_with(partial_version))
+            .copied()
             .collect_vec();
 
-        if versions.is_empty() {
-            Err(anyhow!(
+        match NonEmptyVec::from_vec(versions) {
+            Ok(versions) => Ok(Self { versions }),
+            Err(_) => Err(anyhow!(
                 "No Unity installation was found that matches version `{partial_version}`."
-            ))
-        } else {
-            Ok(Self { versions })
+            )),
         }
     }
 
     /// Returns the default version ucom uses for new Unity projects.
-    pub(crate) fn default_version(&self) -> Result<Version> {
-        let default_version = env::var_os(ENV_DEFAULT_VERSION)
+    pub(crate) fn default_version(&self) -> Version {
+        env::var_os(ENV_DEFAULT_VERSION)
             .and_then(|env| {
                 self.versions
                     .iter()
                     .rev()
                     .find(|v| v.to_string().starts_with(env.to_string_lossy().as_ref()))
+                    .copied()
             })
-            .or_else(|| self.versions.last())
-            .ok_or_else(|| anyhow!("No Unity versions installed"))?;
-        Ok(*default_version)
+            .unwrap_or(*self.versions.last())
     }
 
     /// Returns the parent directory of the editor installations.
@@ -174,11 +204,9 @@ impl InstalledVersions {
 
     /// Returns the version of the latest-installed version that matches the partial version.
     pub(crate) fn latest(partial_version: Option<&str>) -> Result<Version> {
-        let version = *InstalledVersions::from_dir(Self::parent_dir()?)?
+        let version = *VersionList::from_dir(Self::parent_dir()?)?
             .prune(partial_version)?
-            .as_ref()
-            .last()
-            .unwrap();
+            .last();
         Ok(version)
     }
 }

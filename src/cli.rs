@@ -145,7 +145,7 @@ pub struct OpenArguments {
     pub args: Option<Vec<String>>,
 }
 
-#[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, ValueEnum)]
+#[derive(Debug, Display, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, ValueEnum)]
 pub enum ListType {
     /// Lists the installed Unity versions.
     Installed,

@@ -5,26 +5,30 @@ use yansi::Paint;
 use crate::cli::ListType;
 use crate::commands::term_stat::TermStat;
 use crate::commands::ColoredStringIf;
-use crate::unity::installed::InstalledVersions;
+use crate::unity::installed::VersionList;
+use crate::unity::non_empty_vec::NonEmptyVec;
 use crate::unity::*;
+
+/// Version info grouped by minor version.
+struct VersionInfoGroups(Vec<NonEmptyVec<VersionInfo>>);
 
 /// Lists installed Unity versions.
 pub fn list_versions(list_type: ListType, partial_version: Option<&str>) -> anyhow::Result<()> {
-    let (dir, versions) = InstalledVersions::get()?;
+    let (dir, versions) = VersionList::from_installations()?;
 
     match list_type {
         ListType::Installed => {
-            let matching_versions = versions.prune(partial_version)?;
+            let installed = versions.prune(partial_version)?;
             let line = format!(
                 "Unity versions in: {} (*=default for new projects)",
                 dir.display(),
             );
             println!("{}", line.bold());
-            print_installed_versions(&matching_versions)?;
+            print_installed_versions(&installed);
             Ok(())
         }
         ListType::Updates => {
-            let matching_versions = versions.prune(partial_version)?;
+            let installed = versions.prune(partial_version)?;
             let line = format!(
                 "Updates for Unity versions in: {} (*=default for new projects)",
                 dir.display(),
@@ -33,33 +37,33 @@ pub fn list_versions(list_type: ListType, partial_version: Option<&str>) -> anyh
             let ts = TermStat::new("Downloading", "release data...");
             let releases = fetch_unity_editor_releases()?;
             drop(ts);
-            print_updates(&matching_versions, &releases)?;
+            print_updates(&installed, &releases)?;
             Ok(())
         }
         ListType::Latest => {
-            let matching_versions: Vec<_> = versions
+            // For this list type, it is ok to have no installed versions.
+            let installed: Vec<_> = versions
                 .prune(partial_version)
-                .map(|v| v.into())
+                .map(std::convert::Into::into)
                 .unwrap_or_default();
             println!("{}", "Latest available minor releases".bold());
             let ts = TermStat::new("Downloading", "release data...");
             let releases = fetch_unity_editor_releases()?;
             drop(ts);
-            print_latest_versions(&matching_versions, &releases, partial_version);
-            Ok(())
+            print_latest_versions(&installed, &releases, partial_version)
         }
         ListType::All => {
-            let matching_versions: Vec<_> = versions
+            // For this list type, it is ok to have no installed versions.
+            let installed: Vec<_> = versions
                 .prune(partial_version)
-                .map(|v| v.into())
+                .map(std::convert::Into::into)
                 .unwrap_or_default();
 
             println!("{}", "Available releases".bold());
             let ts = TermStat::new("Downloading", "release data...");
             let releases = fetch_unity_editor_releases()?;
             drop(ts);
-            print_available_versions(&matching_versions, &releases, partial_version);
-            Ok(())
+            print_available_versions(&installed, &releases, partial_version)
         }
     }
 }
@@ -74,16 +78,16 @@ pub fn list_versions(list_type: ListType, partial_version: Option<&str>) -> anyh
 /// ── 2023.1.0b12  - https://unity.com/releases/editor/beta/2023.1.0b12
 /// ── 2023.2.0a10  - https://unity.com/releases/editor/alpha/2023.2.0a10
 /// ```
-fn print_installed_versions(installed: &InstalledVersions) -> anyhow::Result<()> {
-    let default_version = installed.default_version()?;
-    let version_groups = group_minor_versions(installed.as_ref());
+fn print_installed_versions(installed: &VersionList) {
+    let default_version = installed.default_version();
+    let version_groups = group_minor_versions(installed);
     let max_len = max_version_string_length(&version_groups).max(default_version.len() + 1);
 
-    for group in version_groups {
-        for vi in &group {
+    for group in version_groups.0 {
+        for vi in group.iter() {
             print_list_marker(
-                vi.version == group.first().unwrap().version,
-                vi.version == group.last().unwrap().version,
+                vi.version == group.first().version,
+                vi.version == group.last().version,
             );
 
             let mut version_str = vi.version.to_string();
@@ -99,7 +103,6 @@ fn print_installed_versions(installed: &InstalledVersions) -> anyhow::Result<()>
             println!("{}", line.bold_if(vi.version == default_version));
         }
     }
-    Ok(())
 }
 
 /// Prints list of installed versions and available updates.
@@ -113,20 +116,20 @@ fn print_installed_versions(installed: &InstalledVersions) -> anyhow::Result<()>
 /// ── 2023.1.0b12  - No Beta update info available
 /// ── 2023.2.0a10  - No Alpha update info available
 /// ```
-fn print_updates(installed: &InstalledVersions, available: &[ReleaseInfo]) -> anyhow::Result<()> {
+fn print_updates(installed: &VersionList, available: &[ReleaseInfo]) -> anyhow::Result<()> {
     if available.is_empty() {
         return Err(anyhow!("No update information available."));
     }
 
-    let default_version = installed.default_version()?;
-    let version_groups = collect_update_info(installed, available).unwrap();
+    let default_version = installed.default_version();
+    let version_groups = collect_update_info(installed, available);
     let max_len = max_version_string_length(&version_groups).max(default_version.len() + 1);
 
-    for group in version_groups {
-        for vi in &group {
+    for group in version_groups.0 {
+        for vi in group.iter() {
             print_list_marker(
-                vi.version == group.first().unwrap().version,
-                vi.version == group.last().unwrap().version,
+                vi.version == group.first().version,
+                vi.version == group.last().version,
             );
 
             let mut version_str = vi.version.to_string();
@@ -137,7 +140,7 @@ fn print_updates(installed: &InstalledVersions, available: &[ReleaseInfo]) -> an
             let line = match &vi.v_type {
                 VersionType::HasLaterInstalled => version_str,
                 VersionType::LatestInstalled => {
-                    let last_in_group = vi.version == group.last().unwrap().version;
+                    let last_in_group = vi.version == group.last().version;
                     if last_in_group {
                         format!("{:<max_len$} - Up to date", version_str.green())
                     } else {
@@ -169,15 +172,12 @@ fn print_updates(installed: &InstalledVersions, available: &[ReleaseInfo]) -> an
 
 /// Groups installed versions by `major.minor` version
 /// and collects update information for each installed version.
-fn collect_update_info(
-    installed: &InstalledVersions,
-    available: &[ReleaseInfo],
-) -> anyhow::Result<Vec<Vec<VersionInfo>>> {
-    let mut version_groups = group_minor_versions(installed.as_ref());
+fn collect_update_info(installed: &VersionList, available: &[ReleaseInfo]) -> VersionInfoGroups {
+    let mut version_groups = group_minor_versions(installed);
 
     // Add available updates to groups
-    for group in &mut version_groups {
-        let latest_installed_version = group.last().expect("Group cannot be empty").version;
+    for group in &mut version_groups.0 {
+        let latest_installed_version = group.last().version;
 
         let has_releases = available.iter().any(|ri| {
             ri.version.major == latest_installed_version.major
@@ -200,16 +200,11 @@ fn collect_update_info(
                     });
                 });
         } else {
-            // No release info available for this minor version, pop it off...
-            let v = group.pop().unwrap().version;
-            // ...and add a NoReleaseInfo entry
-            group.push(VersionInfo {
-                version: v,
-                v_type: VersionType::NoReleaseInfo,
-            });
+            // No release info available for this minor version
+            group.last_mut().v_type = VersionType::NoReleaseInfo;
         }
     }
-    Ok(version_groups)
+    version_groups
 }
 
 /// Prints list of latest available Unity versions.
@@ -234,16 +229,15 @@ fn print_latest_versions(
     installed: &[Version],
     available: &[ReleaseInfo],
     partial_version: Option<&str>,
-) {
+) -> anyhow::Result<()> {
     // Get the latest version of each range.
     let minor_releases = latest_minor_releases(available, partial_version);
 
     if minor_releases.is_empty() {
-        println!(
+        return Err(anyhow!(
             "No releases available that match `{}`",
             partial_version.unwrap_or("*")
-        );
-        return;
+        ));
     }
 
     let max_len = minor_releases
@@ -285,6 +279,7 @@ fn print_latest_versions(
             print_installs_line(latest, &installed_in_range, max_len);
         }
     }
+    Ok(())
 }
 
 /// Prints list of available Unity versions.
@@ -306,7 +301,7 @@ fn print_available_versions(
     installed: &[Version],
     available: &[ReleaseInfo],
     partial_version: Option<&str>,
-) {
+) -> anyhow::Result<()> {
     let releases = available
         .iter()
         .filter(|r| partial_version.map_or(true, |p| r.version.to_string().starts_with(p)))
@@ -314,23 +309,22 @@ fn print_available_versions(
         .dedup()
         .collect_vec();
 
-    if releases.is_empty() {
-        println!(
+    let Ok(versions) = VersionList::from_vec(releases.iter().map(|r| r.version).collect_vec())
+    else {
+        return Err(anyhow!(
             "No releases available that match `{}`",
             partial_version.unwrap_or("*")
-        );
-        return;
-    }
+        ));
+    };
 
-    let versions = releases.iter().map(|r| r.version).collect_vec();
     let version_groups = group_minor_versions(&versions);
     let max_len = max_version_string_length(&version_groups);
 
-    for group in version_groups {
-        for vi in &group {
+    for group in version_groups.0 {
+        for vi in group.iter() {
             print_list_marker(
-                vi.version == group.first().unwrap().version,
-                vi.version == group.last().unwrap().version,
+                vi.version == group.first().version,
+                vi.version == group.last().version,
             );
 
             let is_installed = installed.contains(&vi.version);
@@ -359,6 +353,7 @@ fn print_available_versions(
             }
         }
     }
+    Ok(())
 }
 
 fn print_installs_line(latest: &ReleaseInfo, installed_in_range: &[Version], max_len: usize) {
@@ -406,23 +401,24 @@ enum VersionType {
     NoReleaseInfo,
 }
 
-/// Returns the max length of a version string in a list of lists of versions.
-fn max_version_string_length(version_groups: &[Vec<VersionInfo>]) -> usize {
+/// Returns the max length of the version strings ih the groups.
+fn max_version_string_length(version_groups: &VersionInfoGroups) -> usize {
     version_groups
+        .0
         .iter()
-        .flatten()
-        .map(|e| e.version.len())
+        .flat_map(|ne| ne.iter())
+        .map(|vi| vi.version.len())
         .max()
         .unwrap_or(0)
 }
 
 /// Returns list of grouped versions that are in the same minor range.
-fn group_minor_versions(installed: &[Version]) -> Vec<Vec<VersionInfo>> {
+fn group_minor_versions(installed: &VersionList) -> VersionInfoGroups {
     let mut version_groups = vec![];
     let mut group = vec![];
 
-    for (i, &version) in installed.iter().enumerate() {
-        let next_version = installed.get(i + 1);
+    for (i, &version) in installed.as_ref().iter().enumerate() {
+        let next_version = installed.as_ref().get(i + 1);
         let is_latest_minor = next_version.map_or(true, |v| {
             (v.major, v.minor) != (version.major, version.minor)
         });
@@ -437,16 +433,17 @@ fn group_minor_versions(installed: &[Version]) -> Vec<Vec<VersionInfo>> {
 
         // Finished group
         if is_latest_minor {
-            version_groups.push(std::mem::take(&mut group));
+            let v = NonEmptyVec::from_vec(std::mem::take(&mut group)).unwrap();
+            version_groups.push(v);
         }
     }
 
     // Add the last group
-    if !group.is_empty() {
-        version_groups.push(group);
+    if let Ok(v) = NonEmptyVec::from_vec(group) {
+        version_groups.push(v);
     }
 
-    version_groups
+    VersionInfoGroups(version_groups)
 }
 
 fn latest_minor_releases<'a>(
