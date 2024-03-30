@@ -11,10 +11,11 @@ use crate::unity::*;
 pub fn check_updates(project_dir: &Path, create_report: bool) -> anyhow::Result<()> {
     let project = ProjectPath::try_from(project_dir)?;
     let unity_version = project.unity_version()?;
-    let ts = TermStat::new("Checking", &format!("for updates to {unity_version}"));
 
-    let (project_version_info, updates) = fetch_update_info(unity_version)?;
-    drop(ts);
+    let (project_version_info, updates) = {
+        let _ts = TermStat::new("Checking", &format!("for updates to {unity_version}"));
+        fetch_update_info(unity_version)?
+    };
 
     if create_report {
         yansi::disable();
@@ -168,11 +169,6 @@ fn write_project_version(
 }
 
 fn write_available_updates(updates: &[ReleaseInfo], buf: &mut Vec<u8>) -> anyhow::Result<()> {
-    if updates.is_empty() {
-        writeln!(buf, "{}", "No updates available".green().bold())?;
-        return Ok(());
-    }
-
     writeln!(buf, "{}", "Available update(s):".bold())?;
     let max_len = updates.iter().map(|ri| ri.version.len()).max().unwrap();
 

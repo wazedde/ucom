@@ -50,7 +50,7 @@ impl ReleaseFilter {
 
 /// Gets Unity releases from the Unity website.
 pub fn fetch_unity_editor_releases() -> anyhow::Result<Vec<ReleaseInfo>> {
-    let body = http_cache::fetch_content(RELEASES_ARCHIVE_URL)?;
+    let body = http_cache::fetch_content(RELEASES_ARCHIVE_URL, true)?;
     let releases = extract_releases_from_html(&body, &ReleaseFilter::All);
     Ok(releases)
 }
@@ -59,7 +59,7 @@ pub fn fetch_unity_editor_releases() -> anyhow::Result<Vec<ReleaseInfo>> {
 pub fn fetch_update_info(
     version: Version,
 ) -> anyhow::Result<(Option<ReleaseInfo>, Vec<ReleaseInfo>)> {
-    let body = http_cache::fetch_content(RELEASES_ARCHIVE_URL)?;
+    let body = http_cache::fetch_content(RELEASES_ARCHIVE_URL, true)?;
     let releases = extract_releases_from_html(
         &body,
         &ReleaseFilter::Minor {
@@ -82,7 +82,7 @@ pub type Url = String;
 /// Gets the release notes for the given version from the Unity website.
 pub fn fetch_release_notes(version: Version) -> anyhow::Result<(Url, String)> {
     let url = release_notes_url(version);
-    let body = http_cache::fetch_content(&url)?;
+    let body = http_cache::fetch_content(&url, true)?;
     Ok((url, body))
 }
 
@@ -332,8 +332,8 @@ mod releases_tests_online {
     fn test_request_updates_2019_1_0() {
         initialize();
         let v = Version::from_str("2019.1.0f1").unwrap();
-        let (_, updates) = fetch_update_info(v).unwrap();
-
+        let (current, updates) = fetch_update_info(v).unwrap();
+        current.unwrap();
         assert!(updates.len() >= 15);
     }
 
@@ -343,8 +343,9 @@ mod releases_tests_online {
     fn test_request_updates_5_0_0() {
         initialize();
         let v = Version::from_str("5.0.0f1").unwrap();
-        let (_, updates) = fetch_update_info(v).unwrap();
-
+        let (current, updates) = fetch_update_info(v).unwrap();
+        // 5.0.0f1 does not have a release
+        assert!(current.is_none());
         assert_eq!(updates.len(), 5);
     }
 

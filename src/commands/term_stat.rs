@@ -21,7 +21,8 @@ impl Drop for TermStat {
 }
 
 impl TermStat {
-    /// Creates a new `TermStat`.
+    /// Creates a new `TermStat` message with the given tag and message.
+    /// The message is cleared when dropped.
     pub fn new(tag: &str, msg: &str) -> Self {
         if stdout().is_terminal() {
             _ = Self::print_stat(tag, msg, Status::Info);

@@ -37,8 +37,7 @@ pub fn list_versions(list_type: ListType, partial_version: Option<&str>) -> anyh
             let ts = TermStat::new("Downloading", "release data...");
             let releases = fetch_unity_editor_releases()?;
             drop(ts);
-            print_updates(&installed, &releases)?;
-            Ok(())
+            print_updates(&installed, &releases)
         }
         ListType::Latest => {
             // For this list type, it is ok to have no installed versions.

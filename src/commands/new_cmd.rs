@@ -69,7 +69,7 @@ pub fn new_project(arguments: NewArguments) -> anyhow::Result<()> {
 
     match (arguments.wait, arguments.quit && !arguments.quiet) {
         (true, true) => {
-            _ = TermStat::new("Creating", "project...");
+            let _ts = TermStat::new("Creating", "project...");
             wait_with_stdout(cmd)?;
         }
         (true, false) => wait_with_stdout(cmd)?,
