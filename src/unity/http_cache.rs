@@ -23,7 +23,7 @@ enum CacheState {
 }
 
 /// Gets the content of the given URL. Gets the content from the cache if it exists and is not too old.
-pub fn fetch_content(url: &str, check_for_remote_change: bool) -> anyhow::Result<String> {
+pub(crate) fn fetch_content(url: &str, check_for_remote_change: bool) -> anyhow::Result<String> {
     if !is_cache_enabled() {
         return Ok(ureq::get(url).call()?.into_string()?);
     }
@@ -43,20 +43,20 @@ pub fn fetch_content(url: &str, check_for_remote_change: bool) -> anyhow::Result
 }
 
 /// Clears the cache.
-pub fn clear() {
+pub(crate) fn clear() {
     _ = fs::remove_dir_all(ucom_cache_dir());
 }
 
 /// Sets whether the cache is enabled or not.
 /// This value can only be set once.
-pub fn set_cache_enabled(enabled: bool) -> anyhow::Result<()> {
+pub(crate) fn set_cache_enabled(enabled: bool) -> anyhow::Result<()> {
     CACHE_ENABLED
         .set(enabled)
         .map_err(|_| anyhow!("Failed to set CACHE_ENABLED"))
 }
 
 /// Sets whether the cache is enabled or not based on environment variable `UCOM_ENABLE_CACHE`.
-pub fn set_cache_from_env() -> anyhow::Result<()> {
+pub(crate) fn set_cache_from_env() -> anyhow::Result<()> {
     if let Ok(val) = env::var("UCOM_ENABLE_CACHE") {
         set_cache_enabled(val == "true" || val == "1")
     } else {
@@ -65,11 +65,11 @@ pub fn set_cache_from_env() -> anyhow::Result<()> {
 }
 
 /// Returns whether the cache is enabled or not.
-pub fn is_cache_enabled() -> bool {
+pub(crate) fn is_cache_enabled() -> bool {
     *CACHE_ENABLED.get().unwrap_or(&true)
 }
 
-pub fn ucom_cache_dir() -> PathBuf {
+pub(crate) fn ucom_cache_dir() -> PathBuf {
     cache_dir()
         .expect("unable to get cache directory")
         .join("ucom")

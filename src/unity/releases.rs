@@ -11,10 +11,10 @@ use crate::unity::{BuildType, Major, Minor, Version};
 const RELEASES_ARCHIVE_URL: &str = "https://unity.com/releases/editor/archive";
 
 #[derive(Debug, Eq, PartialEq, Ord, PartialOrd, Clone)]
-pub struct ReleaseInfo {
-    pub version: Version,
-    pub date_header: String,
-    pub installation_url: String,
+pub(crate) struct ReleaseInfo {
+    pub(crate) version: Version,
+    pub(crate) date_header: String,
+    pub(crate) installation_url: String,
 }
 
 impl ReleaseInfo {
@@ -28,7 +28,7 @@ impl ReleaseInfo {
 }
 
 #[allow(dead_code)]
-pub enum ReleaseFilter {
+pub(crate) enum ReleaseFilter {
     /// Match all releases.
     All,
     /// Match releases on the major version.
@@ -49,14 +49,14 @@ impl ReleaseFilter {
 }
 
 /// Gets Unity releases from the Unity website.
-pub fn fetch_unity_editor_releases() -> anyhow::Result<Vec<ReleaseInfo>> {
+pub(crate) fn fetch_unity_editor_releases() -> anyhow::Result<Vec<ReleaseInfo>> {
     let body = http_cache::fetch_content(RELEASES_ARCHIVE_URL, true)?;
     let releases = extract_releases_from_html(&body, &ReleaseFilter::All);
     Ok(releases)
 }
 
 /// Gets the current and update releases for the given version from the Unity website.
-pub fn fetch_update_info(
+pub(crate) fn fetch_update_info(
     version: Version,
 ) -> anyhow::Result<(Option<ReleaseInfo>, Vec<ReleaseInfo>)> {
     let body = http_cache::fetch_content(RELEASES_ARCHIVE_URL, true)?;
@@ -77,10 +77,10 @@ pub fn fetch_update_info(
     Ok((current, updates))
 }
 
-pub type Url = String;
+pub(crate) type Url = String;
 
 /// Gets the release notes for the given version from the Unity website.
-pub fn fetch_release_notes(version: Version) -> anyhow::Result<(Url, String)> {
+pub(crate) fn fetch_release_notes(version: Version) -> anyhow::Result<(Url, String)> {
     let url = release_notes_url(version);
     let body = http_cache::fetch_content(&url, true)?;
     Ok((url, body))
@@ -131,7 +131,7 @@ fn version_from_url(url: &str) -> Option<Version> {
     version_part.parse::<Version>().ok()
 }
 
-pub fn release_notes_url(version: Version) -> Url {
+pub(crate) fn release_notes_url(version: Version) -> Url {
     match version.build_type {
         BuildType::Alpha => format!("https://unity.com/releases/editor/alpha/{version}"),
         BuildType::Beta => format!("https://unity.com/releases/editor/beta/{version}"),
@@ -156,7 +156,7 @@ pub fn release_notes_url(version: Version) -> Url {
 }
 
 /// Extracts release notes from the supplied html.
-pub fn extract_release_notes(html: &str) -> IndexMap<String, Vec<String>> {
+pub(crate) fn extract_release_notes(html: &str) -> IndexMap<String, Vec<String>> {
     let document = Document::from(html);
     let mut release_notes = IndexMap::<String, Vec<String>>::new();
 
@@ -320,7 +320,7 @@ mod releases_tests_online {
 
     static INIT: Once = Once::new();
 
-    pub fn initialize() {
+    pub(crate) fn initialize() {
         INIT.call_once(|| {
             http_cache::set_cache_enabled(false).unwrap();
         });

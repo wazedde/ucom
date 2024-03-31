@@ -3,7 +3,7 @@ use std::fs::File;
 use std::io::{BufRead, BufReader};
 use std::path::{Path, PathBuf};
 
-use anyhow::{anyhow, Context, Result};
+use anyhow::{anyhow, Context};
 use serde::Deserialize;
 use walkdir::{DirEntry, IntoIter, WalkDir};
 
@@ -12,7 +12,7 @@ use crate::unity::Version;
 
 const VERSION_SUB_PATH: &str = "ProjectSettings/ProjectVersion.txt";
 
-pub fn recursive_dir_iter<P: AsRef<Path>>(
+pub(crate) fn recursive_dir_iter<P: AsRef<Path>>(
     root: P,
 ) -> walkdir::FilterEntry<IntoIter, fn(&DirEntry) -> bool> {
     WalkDir::new(root)
@@ -29,37 +29,39 @@ fn is_hidden_file(entry: &DirEntry) -> bool {
 }
 
 #[derive(Deserialize, Debug)]
-pub struct Manifest {
-    pub dependencies: BTreeMap<String, String>,
+#[allow(dead_code)]
+pub(crate) struct Manifest {
+    pub(crate) dependencies: BTreeMap<String, String>,
     #[serde(rename = "enableLockFile")]
-    pub enable_lock_file: Option<bool>,
+    pub(crate) enable_lock_file: Option<bool>,
 }
 
 #[derive(Deserialize, Debug)]
-pub struct PackagesLock {
-    pub dependencies: BTreeMap<String, String>,
+#[allow(dead_code)]
+pub(crate) struct PackagesLock {
+    pub(crate) dependencies: BTreeMap<String, String>,
 }
 
 #[allow(dead_code)]
 impl PackagesLock {
-    pub fn from_project(project_dir: &Path) -> Result<Self> {
+    pub(crate) fn from_project(project_dir: &Path) -> anyhow::Result<Self> {
         let file = File::open(project_dir.join("Packages/manifest.json"))?;
         serde_json::from_reader(BufReader::new(file)).map_err(Into::into)
     }
 }
 
 #[derive(Deserialize, Debug, PartialEq, Eq)]
-pub struct PackageInfo {
-    pub version: String,
-    pub depth: u32,
-    pub source: Option<PackageSource>,
-    pub dependencies: BTreeMap<String, String>,
-    pub url: Option<String>,
+pub(crate) struct PackageInfo {
+    pub(crate) version: String,
+    pub(crate) depth: u32,
+    pub(crate) source: Option<PackageSource>,
+    pub(crate) dependencies: BTreeMap<String, String>,
+    pub(crate) url: Option<String>,
 }
 
 #[derive(Deserialize, Debug, PartialEq, Eq, PartialOrd, Ord, Clone, Copy)]
 #[serde(rename_all = "lowercase")]
-pub enum PackageSource {
+pub(crate) enum PackageSource {
     Local,
     Embedded,
     Git,
@@ -70,7 +72,7 @@ pub enum PackageSource {
 }
 
 impl PackageSource {
-    pub fn to_short_str(self) -> &'static str {
+    pub(crate) fn to_short_str(self) -> &'static str {
         match self {
             PackageSource::Local => "L",
             PackageSource::Embedded => "E",
@@ -83,12 +85,12 @@ impl PackageSource {
 }
 
 #[derive(Deserialize, Debug, Default, PartialEq, Eq)]
-pub struct Packages {
-    pub dependencies: BTreeMap<String, PackageInfo>,
+pub(crate) struct Packages {
+    pub(crate) dependencies: BTreeMap<String, PackageInfo>,
 }
 
 #[derive(PartialEq, Eq, Debug)]
-pub enum PackagesAvailability {
+pub(crate) enum PackagesAvailability {
     /// The project does not have a manifest file.
     NoManifest,
     /// The project has a manifest file but the lock file is disabled.
@@ -100,7 +102,7 @@ pub enum PackagesAvailability {
 }
 
 impl Packages {
-    pub fn from_project(project: &ProjectPath) -> Result<PackagesAvailability> {
+    pub(crate) fn from_project(project: &ProjectPath) -> anyhow::Result<PackagesAvailability> {
         const MANIFEST_FILE: &str = "Packages/manifest.json";
         const PACKAGES_LOCK_FILE: &str = "Packages/packages-lock.json";
 
@@ -130,31 +132,32 @@ impl Packages {
 }
 
 #[derive(Deserialize, Debug)]
-pub struct Settings {
+pub(crate) struct Settings {
     #[serde(rename = "PlayerSettings")]
-    pub player_settings: PlayerSettings,
+    pub(crate) player_settings: PlayerSettings,
 }
 
 #[derive(Deserialize, Debug)]
-pub struct PlayerSettings {
+#[allow(dead_code)]
+pub(crate) struct PlayerSettings {
     #[serde(rename = "productName")]
-    pub product_name: String,
+    pub(crate) product_name: String,
 
     #[serde(rename = "companyName")]
-    pub company_name: String,
+    pub(crate) company_name: String,
 
     #[serde(rename = "bundleVersion")]
-    pub bundle_version: String,
+    pub(crate) bundle_version: String,
 
     #[serde(rename = "buildNumber")]
-    pub build_number: Option<BTreeMap<String, String>>,
+    pub(crate) build_number: Option<BTreeMap<String, String>>,
 
     #[serde(rename = "AndroidBundleVersionCode")]
-    pub android_bundle_version_code: Option<String>,
+    pub(crate) android_bundle_version_code: Option<String>,
 }
 
 impl Settings {
-    pub fn from_project(project: &ProjectPath) -> Result<Self> {
+    pub(crate) fn from_project(project: &ProjectPath) -> anyhow::Result<Self> {
         let project_dir = project.as_path();
         let file = File::open(project_dir.join("ProjectSettings/ProjectSettings.asset"))?;
         serde_yaml::from_reader(BufReader::new(file))
@@ -164,11 +167,11 @@ impl Settings {
 }
 
 /// Represents a valid path to a Unity project.
-pub struct ProjectPath(PathBuf);
+pub(crate) struct ProjectPath(PathBuf);
 
 impl ProjectPath {
     /// Creates a new `ProjectPath` from the given directory.
-    pub fn try_from<P: AsRef<Path>>(path: P) -> anyhow::Result<Self> {
+    pub(crate) fn try_from<P: AsRef<Path>>(path: P) -> anyhow::Result<Self> {
         let path = unity::to_absolute_dir_path(&path)?;
         if ProjectPath::is_unity_project_directory(&path) {
             Ok(Self(path.as_ref().to_path_buf()))
@@ -181,12 +184,12 @@ impl ProjectPath {
     }
 
     /// Returns the absolute path to the project directory.
-    pub fn as_path(&self) -> &Path {
+    pub(crate) fn as_path(&self) -> &Path {
         self.0.as_path()
     }
 
     /// Returns the Unity version for the project in the given directory.
-    pub fn unity_version(&self) -> anyhow::Result<Version> {
+    pub(crate) fn unity_version(&self) -> anyhow::Result<Version> {
         let version_file = self.as_path().join(VERSION_SUB_PATH);
         let mut reader = BufReader::new(File::open(&version_file)?);
 
@@ -215,7 +218,7 @@ impl ProjectPath {
     }
 
     /// Checks if the project directory has an `Assets` directory.
-    pub fn check_assets_directory_exists(&self) -> anyhow::Result<()> {
+    pub(crate) fn check_assets_directory_exists(&self) -> anyhow::Result<()> {
         let assets_path = self.as_path().join("Assets");
 
         if assets_path.exists() {

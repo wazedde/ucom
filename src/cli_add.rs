@@ -7,10 +7,10 @@ use crate::commands::term_stat::TermStat;
 use crate::unity::http_cache;
 
 #[derive(Args)]
-pub struct AddArguments {
+pub(crate) struct AddArguments {
     /// The file to be added to the project.
     #[arg(value_enum)]
-    pub file: IncludedFile,
+    pub(crate) file: IncludedFile,
 
     /// Defines the project's directory.
     #[arg(
@@ -19,7 +19,7 @@ pub struct AddArguments {
         default_value = ".",
         conflicts_with = "display_content"
     )]
-    pub project_dir: PathBuf,
+    pub(crate) project_dir: PathBuf,
 
     /// Overwrites existing files.
     #[arg(
@@ -28,7 +28,7 @@ pub struct AddArguments {
         conflicts_with = "display_content",
         conflicts_with = "display_url"
     )]
-    pub force: bool,
+    pub(crate) force: bool,
 
     /// Displays the file's content to stdout instead of adding it.
     #[arg(
@@ -37,7 +37,7 @@ pub struct AddArguments {
         conflicts_with = "force",
         conflicts_with = "display_url"
     )]
-    pub display_content: bool,
+    pub(crate) display_content: bool,
 
     /// Displays the file's source URL.
     #[arg(
@@ -46,11 +46,11 @@ pub struct AddArguments {
         conflicts_with = "force",
         conflicts_with = "display_content"
     )]
-    pub display_url: bool,
+    pub(crate) display_url: bool,
 }
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, ValueEnum)]
-pub enum IncludedFile {
+pub(crate) enum IncludedFile {
     /// A C# helper script that handles project building.
     Builder,
     /// A C# helper script that adds build commands to Unity's menu (also adds 'builder').
@@ -61,19 +61,19 @@ pub enum IncludedFile {
     GitAttributes,
 }
 
-pub struct FileData {
-    pub filename: &'static str,
-    pub content: ContentType,
+pub(crate) struct FileData {
+    pub(crate) filename: &'static str,
+    pub(crate) content: ContentType,
 }
 
 #[allow(dead_code)]
-pub enum ContentType {
+pub(crate) enum ContentType {
     Included(&'static str),
     Url(&'static str),
 }
 
 impl FileData {
-    pub fn fetch_content<'a>(&self) -> anyhow::Result<Cow<'a, str>> {
+    pub(crate) fn fetch_content<'a>(&self) -> anyhow::Result<Cow<'a, str>> {
         match self.content {
             ContentType::Included(content) => Ok(Cow::Borrowed(content)),
             ContentType::Url(url) => {
@@ -86,7 +86,7 @@ impl FileData {
 }
 
 impl IncludedFile {
-    pub const fn data(self) -> FileData {
+    pub(crate) const fn data(self) -> FileData {
         match self {
             Self::Builder => FileData {
                 filename: "UnityBuilder.cs",

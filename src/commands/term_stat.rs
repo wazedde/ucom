@@ -8,14 +8,14 @@ use yansi::{Color, Paint, Painted, Style};
 
 /// A status line that is only active if stdout is a terminal.
 /// Clears the status line when dropped.
-pub struct TermStat {
-    is_active: bool,
+pub(crate) struct TermStat {
+    show_output: bool,
 }
 
 impl Drop for TermStat {
     fn drop(&mut self) {
-        if self.is_active {
-            _ = Self::clear_last_line();
+        if self.show_output {
+            Self::clear_last_line();
         }
     }
 }
@@ -23,50 +23,34 @@ impl Drop for TermStat {
 impl TermStat {
     /// Creates a new `TermStat` message with the given tag and message.
     /// The message is cleared when dropped.
-    pub fn new(tag: &str, msg: &str) -> Self {
+    pub(crate) fn new(tag: &str, msg: &str) -> Self {
         if stdout().is_terminal() {
-            _ = Self::print_stat(tag, msg, Status::Info);
-            Self { is_active: true }
+            Self::print_transient(tag, msg, Status::Info);
+            Self { show_output: true }
         } else {
-            Self { is_active: false }
+            Self { show_output: false }
         }
     }
 
-    /// Creates a new `TermStat` that is inactive.
-    pub fn new_inactive() -> Self {
-        Self { is_active: false }
+    /// Creates a new `TermStat` that does not output anything.
+    pub(crate) fn new_null_output() -> Self {
+        Self { show_output: false }
     }
 
-    /// Updates the status line with the given message.
-    pub fn update_text(&self, tag: &str, msg: &str) -> anyhow::Result<()> {
-        if self.is_active {
-            Self::clear_last_line()?;
-            Self::print_stat(tag, msg, Status::Info)?;
+    /// Reprints the status line with the given message.
+    pub(crate) fn reprint(&self, tag: &str, msg: &str) {
+        if self.show_output {
+            Self::clear_last_line();
+            Self::print_transient(tag, msg, Status::Info);
         };
-        Ok(())
-    }
-
-    pub fn clear_last_line() -> anyhow::Result<()> {
-        stdout().execute(Clear(ClearType::FromCursorDown))?;
-        Ok(())
     }
 
     /// Prints a status line with the given tag and message.
-    pub fn println(tag: &str, msg: &str, status: Status) {
+    pub(crate) fn println(tag: &str, msg: &str, status: Status) {
         println!("{:>12} {}", Self::stylize(tag, status), msg);
     }
 
-    /// Prints a status line with the given tag and message
-    /// and moves the cursor back to the start of the line.
-    pub fn print_stat(tag: &str, msg: &str, status: Status) -> anyhow::Result<()> {
-        stdout().execute(SavePosition)?;
-
-        print!("{:>12} {}", Self::stylize(tag, status), msg);
-        stdout().execute(RestorePosition)?.flush()?;
-        Ok(())
-    }
-
-    pub fn stylize(s: &str, status: Status) -> Painted<&str> {
+    pub(crate) fn stylize(s: &str, status: Status) -> Painted<&str> {
         let color = match status {
             Status::None => Style::new().bold(),
             Status::Ok => Color::Green.bold(),
@@ -76,11 +60,23 @@ impl TermStat {
         };
         s.paint(color)
     }
+
+    /// Prints a status line with the given tag and message that is cleared.
+    fn print_transient(tag: &str, msg: &str, status: Status) {
+        _ = stdout().execute(SavePosition).and_then(|o| {
+            print!("{:>12} {}", Self::stylize(tag, status), msg);
+            o.execute(RestorePosition)?.flush()
+        });
+    }
+
+    fn clear_last_line() {
+        _ = stdout().execute(Clear(ClearType::FromCursorDown));
+    }
 }
 
 #[allow(dead_code)]
 #[derive(Display, AsRefStr, Debug, Clone, Copy, PartialEq)]
-pub enum Status {
+pub(crate) enum Status {
     None,
     Ok,
     Error,

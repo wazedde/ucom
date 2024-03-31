@@ -6,7 +6,7 @@ use crate::cli_add::{AddArguments, ContentType, IncludedFile};
 use crate::commands::{add_file_to_project, PERSISTENT_BUILD_SCRIPT_ROOT};
 use crate::unity::project::ProjectPath;
 
-pub fn add_to_project(args: &AddArguments) -> anyhow::Result<()> {
+pub(crate) fn add_to_project(args: &AddArguments) -> anyhow::Result<()> {
     if args.display_content {
         println!("{}", args.file.data().fetch_content()?);
         return Ok(());

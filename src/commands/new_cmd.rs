@@ -4,17 +4,16 @@ use std::process::Command;
 
 use anyhow::{anyhow, Context};
 use path_absolutize::Absolutize;
-use yansi::Paint;
 
 use crate::cli_add::IncludedFile;
 use crate::cli_new::NewArguments;
 use crate::commands::term_stat::TermStat;
-use crate::commands::{add_file_to_project, INDENT, PERSISTENT_BUILD_SCRIPT_ROOT};
+use crate::commands::{add_file_to_project, println_b, INDENT, PERSISTENT_BUILD_SCRIPT_ROOT};
 use crate::unity::installed::VersionList;
 use crate::unity::*;
 
 /// Creates a new Unity project and optional Git repository in the given directory.
-pub fn new_project(arguments: NewArguments) -> anyhow::Result<()> {
+pub(crate) fn new_project(arguments: NewArguments) -> anyhow::Result<()> {
     let project_dir = arguments.project_dir.absolutize()?;
 
     if project_dir.exists() {
@@ -46,12 +45,11 @@ pub fn new_project(arguments: NewArguments) -> anyhow::Result<()> {
     }
 
     if !arguments.quiet {
-        let s = format!(
+        println_b!(
             "Create new Unity {} project in: {}",
             version,
             project_dir.display()
         );
-        println!("{}", s.bold());
     }
 
     if arguments.add_builder_menu {

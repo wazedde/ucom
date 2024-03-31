@@ -4,10 +4,10 @@ use std::str::FromStr;
 use strum::Display;
 
 #[derive(Debug, Eq, PartialEq)]
-pub struct ParseError;
+pub(crate) struct ParseError;
 
 #[derive(Display, Debug, Eq, PartialEq, Ord, PartialOrd, Copy, Clone)]
-pub enum BuildType {
+pub(crate) enum BuildType {
     Alpha,
     Beta,
     ReleaseCandidate,
@@ -16,7 +16,7 @@ pub enum BuildType {
 
 impl BuildType {
     /// Returns the short name of the build type.
-    pub const fn as_short_str(&self) -> &str {
+    pub(crate) const fn as_short_str(&self) -> &str {
         match self {
             Self::Alpha => "a",
             Self::Beta => "b",
@@ -26,7 +26,7 @@ impl BuildType {
     }
 
     /// Returns the build type from a string.
-    pub fn from(s: &str) -> Option<Self> {
+    pub(crate) fn from(s: &str) -> Option<Self> {
         if s.contains('f') {
             Some(Self::Final)
         } else if s.contains('b') {
@@ -41,24 +41,24 @@ impl BuildType {
     }
 }
 
-pub type Major = u16;
-pub type Minor = u8;
-pub type Patch = u8;
-pub type BuildNumber = u8;
+pub(crate) type Major = u16;
+pub(crate) type Minor = u8;
+pub(crate) type Patch = u8;
+pub(crate) type BuildNumber = u8;
 
 /// The Unity version separated into its components.
 #[derive(Debug, Eq, PartialEq, Ord, PartialOrd, Copy, Clone)]
-pub struct Version {
-    pub major: Major,
-    pub minor: Minor,
-    pub patch: Patch,
-    pub build_type: BuildType,
-    pub build: BuildNumber,
+pub(crate) struct Version {
+    pub(crate) major: Major,
+    pub(crate) minor: Minor,
+    pub(crate) patch: Patch,
+    pub(crate) build_type: BuildType,
+    pub(crate) build: BuildNumber,
 }
 
 impl Version {
     /// Returns the length of the string representation of this version.
-    pub fn len(self) -> usize {
+    pub(crate) fn len(self) -> usize {
         Self::count_digits(self.major.into())
             + Self::count_digits(self.minor.into())
             + Self::count_digits(self.patch.into())
@@ -68,7 +68,7 @@ impl Version {
     }
 
     /// Returns the `major.minor` part of this version.
-    pub fn minor_partial(self) -> String {
+    pub(crate) fn minor_partial(self) -> String {
         format!("{}.{}", self.major, self.minor)
     }
 

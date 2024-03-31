@@ -1,13 +1,12 @@
 use std::process::Command;
 
-use yansi::Paint;
-
 use crate::cli::*;
+use crate::commands::println_b;
 use crate::unity::installed::VersionList;
 use crate::unity::*;
 
 /// Opens the given Unity project in the Unity Editor.
-pub fn open_project(arguments: OpenArguments) -> anyhow::Result<()> {
+pub(crate) fn open_project(arguments: OpenArguments) -> anyhow::Result<()> {
     let project = ProjectPath::try_from(&arguments.project_dir)?;
     let project_unity_version = project.unity_version()?;
 
@@ -44,12 +43,11 @@ pub fn open_project(arguments: OpenArguments) -> anyhow::Result<()> {
     }
 
     if !arguments.quiet {
-        let s = format!(
+        println_b!(
             "Open Unity {} project in: {}",
             open_unity_version,
             project.as_path().display()
         );
-        println!("{}", s.bold());
     }
 
     if arguments.wait {

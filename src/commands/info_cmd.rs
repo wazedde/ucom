@@ -4,13 +4,13 @@ use itertools::Itertools;
 use yansi::Paint;
 
 use crate::cli::PackagesInfoLevel;
-use crate::commands::INDENT;
+use crate::commands::{println_b, INDENT};
 use crate::unity::project::ProjectPath;
 use crate::unity::project::*;
 use crate::unity::{release_notes_url, to_absolute_dir_path};
 
 /// Shows project information.
-pub fn project_info(
+pub(crate) fn project_info(
     path: &Path,
     packages_level: PackagesInfoLevel,
     recursive: bool,
@@ -40,11 +40,7 @@ fn print_project_info(
     packages_level: PackagesInfoLevel,
 ) -> anyhow::Result<()> {
     let unity_version = project.unity_version()?;
-
-    println!(
-        "{}",
-        format!("Project info for: {}", project.as_path().display()).bold()
-    );
+    println_b!("Project info for: {}", project.as_path().display());
 
     match Settings::from_project(project) {
         Ok(settings) => {
@@ -125,11 +121,9 @@ fn print_project_packages(
             }
 
             println!();
-            println!(
-                "{} {} {}",
-                "Packages:".bold(),
-                package_level.bold(),
-                "(L=local, E=embedded, G=git, T=tarball, R=registry, B=builtin)".bold()
+            println_b!(
+                "Packages: {} (L=local, E=embedded, G=git, T=tarball, R=registry, B=builtin)",
+                package_level,
             );
 
             for (name, package) in packages {

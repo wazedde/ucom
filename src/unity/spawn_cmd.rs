@@ -9,9 +9,9 @@ use std::time::Duration;
 use std::{fs, io, thread};
 
 #[derive(Debug)]
-pub struct CommandError {
-    pub exit_code: i32,
-    pub stderr: String,
+pub(crate) struct CommandError {
+    pub(crate) exit_code: i32,
+    pub(crate) stderr: String,
 }
 
 impl Error for CommandError {
@@ -31,7 +31,7 @@ impl Display for CommandError {
 }
 
 impl CommandError {
-    pub fn from_output(output: std::process::Output) -> Self {
+    pub(crate) fn from_output(output: std::process::Output) -> Self {
         Self {
             exit_code: output.status.code().unwrap_or(-1),
             stderr: String::from_utf8(output.stderr).unwrap_or_default(),
@@ -40,7 +40,7 @@ impl CommandError {
 }
 
 /// Returns the full command line string.
-pub fn build_command_line(cmd: &Command) -> String {
+pub(crate) fn build_command_line(cmd: &Command) -> String {
     let mut line = cmd.get_program().to_string_lossy().to_string();
 
     // Handle spaces in the path.
@@ -68,7 +68,7 @@ pub fn build_command_line(cmd: &Command) -> String {
 }
 
 /// Spawns command and outputs Unity's log to the console. Blocks until the command has finished.
-pub fn wait_with_log_output(mut cmd: Command, log_file: &Path) -> Result<(), CommandError> {
+pub(crate) fn wait_with_log_output(mut cmd: Command, log_file: &Path) -> Result<(), CommandError> {
     let child = cmd
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
@@ -98,7 +98,7 @@ pub fn wait_with_log_output(mut cmd: Command, log_file: &Path) -> Result<(), Com
 }
 
 /// Spawns command and immediately returns without any output.
-pub fn spawn_and_forget(mut cmd: Command) {
+pub(crate) fn spawn_and_forget(mut cmd: Command) {
     cmd.stdout(Stdio::piped())
         .stderr(Stdio::piped())
         .spawn()
@@ -107,7 +107,7 @@ pub fn spawn_and_forget(mut cmd: Command) {
 }
 
 /// Spawns command and outputs to the console. Blocks until the command has finished.
-pub fn wait_with_stdout(mut cmd: Command) -> Result<(), CommandError> {
+pub(crate) fn wait_with_stdout(mut cmd: Command) -> Result<(), CommandError> {
     let child = cmd
         .stdout(Stdio::inherit())
         .stderr(Stdio::inherit())

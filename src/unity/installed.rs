@@ -2,7 +2,7 @@ use std::borrow::Cow;
 use std::path::{Path, PathBuf};
 use std::{env, fs};
 
-use anyhow::{anyhow, Context, Result};
+use anyhow::{anyhow, Context};
 use itertools::Itertools;
 
 use crate::cli::ENV_DEFAULT_VERSION;
@@ -35,12 +35,12 @@ const UNITY_EDITOR_DIR: &str = r"C:\Program Files\Unity\Hub\Editor";
 const UNITY_EDITOR_DIR: &str = compile_error!("Unsupported platform");
 
 impl Version {
-    pub(crate) fn is_editor_installed(self) -> Result<bool> {
+    pub(crate) fn is_editor_installed(self) -> anyhow::Result<bool> {
         Ok(VersionList::parent_dir()?.join(self.to_string()).exists())
     }
 
     /// Returns the path to the editor executable.
-    pub(crate) fn editor_executable_path(self) -> Result<PathBuf> {
+    pub(crate) fn editor_executable_path(self) -> anyhow::Result<PathBuf> {
         let exe_path = VersionList::parent_dir()?
             .join(self.to_string())
             .join(UNITY_EDITOR_EXE);
@@ -87,7 +87,7 @@ impl AsRef<NonEmptyVec<Version>> for VersionList {
 #[allow(dead_code)]
 impl VersionList {
     /// Returns the parent directory of the editor installations and the list of installed versions.
-    pub(crate) fn from_installations<'a>() -> Result<(Cow<'a, Path>, Self)> {
+    pub(crate) fn from_installations<'a>() -> anyhow::Result<(Cow<'a, Path>, Self)> {
         let parent_dir = Self::parent_dir()?;
         let installed_versions = VersionList::from_dir(&parent_dir)?;
         Ok((parent_dir, installed_versions))
@@ -104,7 +104,7 @@ impl VersionList {
     }
 
     /// Returns a sorted list of installed Unity versions from the given directory or an error if no versions are found.
-    fn from_dir<P: AsRef<Path>>(dir: P) -> Result<Self> {
+    fn from_dir<P: AsRef<Path>>(dir: P) -> anyhow::Result<Self> {
         let versions = fs::read_dir(&dir)
             .with_context(|| {
                 format!(
@@ -137,7 +137,7 @@ impl VersionList {
     }
 
     /// Returns the list with only the versions that match the partial version or Err if there is no matching version.
-    pub(crate) fn prune(self, partial_version: Option<&str>) -> Result<Self> {
+    pub(crate) fn prune(self, partial_version: Option<&str>) -> anyhow::Result<Self> {
         let Some(partial_version) = partial_version else {
             // No version to match, return the full list again.
             return Ok(self);
@@ -172,7 +172,7 @@ impl VersionList {
     }
 
     /// Returns the parent directory of the editor installations.
-    fn parent_dir<'a>() -> Result<Cow<'a, Path>> {
+    fn parent_dir<'a>() -> anyhow::Result<Cow<'a, Path>> {
         // Try to get the directory from the environment variable.
         env::var_os(ENV_EDITOR_DIR).map_or_else(
             || {
@@ -203,7 +203,7 @@ impl VersionList {
     }
 
     /// Returns the version of the latest-installed version that matches the partial version.
-    pub(crate) fn latest(partial_version: Option<&str>) -> Result<Version> {
+    pub(crate) fn latest(partial_version: Option<&str>) -> anyhow::Result<Version> {
         let version = *VersionList::from_dir(Self::parent_dir()?)?
             .prune(partial_version)?
             .last();

@@ -4,21 +4,21 @@ use std::path::Path;
 use anyhow::{anyhow, Context};
 use path_absolutize::Absolutize;
 
-pub use crate::unity::project::*;
-pub use crate::unity::releases::*;
-pub use crate::unity::spawn_cmd::*;
-pub use crate::unity::version::*;
+pub(crate) use crate::unity::project::*;
+pub(crate) use crate::unity::releases::*;
+pub(crate) use crate::unity::spawn_cmd::*;
+pub(crate) use crate::unity::version::*;
 
-pub mod http_cache;
-pub mod installed;
-pub mod non_empty_vec;
-pub mod project;
-pub mod releases;
-pub mod spawn_cmd;
-pub mod version;
+pub(crate) mod http_cache;
+pub(crate) mod installed;
+pub(crate) mod non_empty_vec;
+pub(crate) mod project;
+pub(crate) mod releases;
+pub(crate) mod spawn_cmd;
+pub(crate) mod version;
 
 /// Returns the absolute path to an existing directory.
-pub fn to_absolute_dir_path<P: AsRef<Path>>(path: &P) -> anyhow::Result<Cow<'_, Path>> {
+pub(crate) fn to_absolute_dir_path<P: AsRef<Path>>(path: &P) -> anyhow::Result<Cow<'_, Path>> {
     let path = path.as_ref();
     if cfg!(target_os = "windows") && path.starts_with("~") {
         return Err(anyhow!(

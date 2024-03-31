@@ -11,7 +11,7 @@ use crate::nunit::{TestCase, TestResult, TestRun};
 use crate::unity::project::ProjectPath;
 use crate::unity::{build_command_line, wait_with_stdout};
 
-pub fn run_tests(arguments: TestArguments) -> anyhow::Result<()> {
+pub(crate) fn run_tests(arguments: TestArguments) -> anyhow::Result<()> {
     let start_time = Utc::now();
     let project = ProjectPath::try_from(&arguments.project_dir)?;
     let project_unity_version = project.unity_version()?;
@@ -65,7 +65,7 @@ pub fn run_tests(arguments: TestArguments) -> anyhow::Result<()> {
     }
 
     let ts = if arguments.quiet {
-        TermStat::new_inactive()
+        TermStat::new_null_output()
     } else {
         TermStat::new(
             "Running",

@@ -4,11 +4,11 @@ use std::path::Path;
 use yansi::Paint;
 
 use crate::commands::term_stat::TermStat;
-use crate::commands::INDENT;
+use crate::commands::{writeln_b, INDENT};
 use crate::unity::*;
 
 /// Checks on the Unity website for updates to the version used by the project.
-pub fn check_updates(project_dir: &Path, create_report: bool) -> anyhow::Result<()> {
+pub(crate) fn check_updates(project_dir: &Path, create_report: bool) -> anyhow::Result<()> {
     let project = ProjectPath::try_from(project_dir)?;
     let unity_version = project.unity_version()?;
 
@@ -36,7 +36,7 @@ pub fn check_updates(project_dir: &Path, create_report: bool) -> anyhow::Result<
     if create_report {
         let ts = TermStat::new("Downloading", "Unity release notes...");
         for release in updates {
-            _ = ts.update_text(
+            ts.reprint(
                 "Downloading",
                 &format!("Unity {} release notes...", release.version),
             );
@@ -65,11 +65,11 @@ fn write_project_header(
         write!(buf, "# ")?;
     }
 
-    let s = format!(
+    writeln_b!(
+        buf,
         "Unity updates for: {}",
         project.as_path().to_string_lossy().bold()
-    );
-    writeln!(buf, "{}", s.bold())?;
+    )?;
 
     if create_report {
         writeln!(buf)?;

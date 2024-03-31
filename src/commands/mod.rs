@@ -3,17 +3,16 @@ use std::path::Path;
 
 use anyhow::anyhow;
 use chrono::TimeDelta;
-use yansi::{Paint, Painted};
 
 use crate::cli_add::IncludedFile;
-pub use crate::commands::add_cmd::add_to_project;
-pub use crate::commands::build_cmd::build_project;
-pub use crate::commands::check_cmd::check_updates;
-pub use crate::commands::info_cmd::project_info;
-pub use crate::commands::list_cmd::list_versions;
-pub use crate::commands::new_cmd::new_project;
-pub use crate::commands::open_cmd::open_project;
-pub use crate::commands::run_cmd::run_unity;
+pub(crate) use crate::commands::add_cmd::add_to_project;
+pub(crate) use crate::commands::build_cmd::build_project;
+pub(crate) use crate::commands::check_cmd::check_updates;
+pub(crate) use crate::commands::info_cmd::project_info;
+pub(crate) use crate::commands::list_cmd::list_versions;
+pub(crate) use crate::commands::new_cmd::new_project;
+pub(crate) use crate::commands::open_cmd::open_project;
+pub(crate) use crate::commands::run_cmd::run_unity;
 
 mod add_cmd;
 mod build_cmd;
@@ -24,34 +23,19 @@ mod new_cmd;
 mod open_cmd;
 mod run_cmd;
 
-pub mod term_stat;
-pub mod test_cmd;
+pub(crate) mod term_stat;
+pub(crate) mod test_cmd;
 
-pub const PERSISTENT_BUILD_SCRIPT_ROOT: &str = "Assets/Plugins/Ucom/Editor";
-pub const INDENT: &str = "  ";
-
-pub trait ColoredStringIf {
-    /// Returns bold string if `is_bold` is true.
-    fn bold_if(&self, is_bold: bool) -> Painted<&str>;
-}
-
-impl ColoredStringIf for str {
-    fn bold_if(&self, is_bold: bool) -> Painted<&str> {
-        if is_bold {
-            self.bold()
-        } else {
-            Paint::new(self)
-        }
-    }
-}
+pub(crate) const PERSISTENT_BUILD_SCRIPT_ROOT: &str = "Assets/Plugins/Ucom/Editor";
+pub(crate) const INDENT: &str = "  ";
 
 /// Returns the given time delta as seconds.
-pub fn time_delta_to_seconds(duration: TimeDelta) -> f64 {
+pub(crate) fn time_delta_to_seconds(duration: TimeDelta) -> f64 {
     duration.num_seconds() as f64 + duration.subsec_nanos() as f64 * 1e-9
 }
 
 /// Adds the given file to the project.
-pub fn add_file_to_project<P: AsRef<Path>, Q: AsRef<Path>>(
+pub(crate) fn add_file_to_project<P: AsRef<Path>, Q: AsRef<Path>>(
     project_dir: P,
     file_dir: Q,
     template: IncludedFile,
@@ -72,3 +56,32 @@ fn create_file<P: AsRef<Path>>(file_path: P, content: &str) -> anyhow::Result<()
     fs::create_dir_all(parent_dir)?;
     fs::write(file_path, content).map_err(Into::into)
 }
+
+macro_rules! writeln_b {
+    ($dst:expr $(, $fmt:expr $(, $arg:expr)*)?) => {{
+        use std::io::Write;
+        let formatted = format!($($fmt $(, $arg)*)?);
+        let bold_text = yansi::Paint::new(formatted).bold();
+        writeln!($dst, "{}", bold_text)
+    }};
+}
+
+macro_rules! println_b {
+    ($($arg:tt)*) => {
+        println!("{}", yansi::Paint::new(format!($($arg)*)).bold());
+    };
+}
+
+macro_rules! println_b_if {
+    ($bold:expr, $fmt:expr $(, $arg:expr)*) => {{
+        if $bold {
+            println!("{}", yansi::Paint::new(format!($fmt $(, $arg)*)).bold());
+        } else {
+            println!($fmt $(, $arg)*);
+        }
+    }};
+}
+
+pub(crate) use println_b;
+pub(crate) use println_b_if;
+pub(crate) use writeln_b;

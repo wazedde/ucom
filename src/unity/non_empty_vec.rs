@@ -1,6 +1,7 @@
 #[derive(Debug)]
 pub enum NonEmptyVecErr {
     VecIsEmpty,
+    CannotPopLastElement,
 }
 
 /// A non-empty list of values.
@@ -42,7 +43,7 @@ impl<T> NonEmptyVec<T> {
 
     /// Returns the last value.
     pub fn last(&self) -> &T {
-        &self.inner[self.inner.len() - 1]
+        self.inner.last().unwrap()
     }
 
     /// Returns a mutable reference to the first value.
@@ -52,8 +53,7 @@ impl<T> NonEmptyVec<T> {
 
     /// Returns a mutable reference to the last value.
     pub fn last_mut(&mut self) -> &mut T {
-        let len = self.inner.len();
-        &mut self.inner[len - 1]
+        self.inner.last_mut().unwrap()
     }
 
     /// Returns an iterator over the values.
@@ -74,6 +74,16 @@ impl<T> NonEmptyVec<T> {
     /// Pushes a value to the end of the list.
     pub fn push(&mut self, value: T) {
         self.inner.push(value);
+    }
+
+    /// Pops the last value from the list.
+    /// Returns an error if attempting to pop the last value.
+    pub fn pop(&mut self) -> Result<T, NonEmptyVecErr> {
+        if self.inner.len() == 1 {
+            Err(NonEmptyVecErr::CannotPopLastElement)
+        } else {
+            Ok(self.inner.pop().unwrap())
+        }
     }
 
     /// Appends the values from the other list.

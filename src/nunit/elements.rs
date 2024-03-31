@@ -58,11 +58,11 @@ pub(crate) struct TestRun {
 }
 
 impl TestRun {
-    pub fn test_result(&self) -> TestResult {
+    pub(crate) fn test_result(&self) -> TestResult {
         self.result.as_str().into()
     }
 
-    pub fn stats(&self) -> TestStats {
+    pub(crate) fn stats(&self) -> TestStats {
         TestStats {
             id: self.id,
             test_case_count: self.test_case_count,

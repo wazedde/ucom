@@ -4,7 +4,7 @@ use yansi::Paint;
 
 use crate::cli::ListType;
 use crate::commands::term_stat::TermStat;
-use crate::commands::ColoredStringIf;
+use crate::commands::{println_b, println_b_if};
 use crate::unity::installed::VersionList;
 use crate::unity::non_empty_vec::NonEmptyVec;
 use crate::unity::*;
@@ -13,27 +13,28 @@ use crate::unity::*;
 struct VersionInfoGroups(Vec<NonEmptyVec<VersionInfo>>);
 
 /// Lists installed Unity versions.
-pub fn list_versions(list_type: ListType, partial_version: Option<&str>) -> anyhow::Result<()> {
+pub(crate) fn list_versions(
+    list_type: ListType,
+    partial_version: Option<&str>,
+) -> anyhow::Result<()> {
     let (dir, versions) = VersionList::from_installations()?;
 
     match list_type {
         ListType::Installed => {
             let installed = versions.prune(partial_version)?;
-            let line = format!(
+            println_b!(
                 "Unity versions in: {} (*=default for new projects)",
-                dir.display(),
+                dir.display()
             );
-            println!("{}", line.bold());
             print_installed_versions(&installed);
             Ok(())
         }
         ListType::Updates => {
             let installed = versions.prune(partial_version)?;
-            let line = format!(
+            println_b!(
                 "Updates for Unity versions in: {} (*=default for new projects)",
                 dir.display(),
             );
-            println!("{}", line.bold());
             let ts = TermStat::new("Downloading", "release data...");
             let releases = fetch_unity_editor_releases()?;
             drop(ts);
@@ -45,7 +46,7 @@ pub fn list_versions(list_type: ListType, partial_version: Option<&str>) -> anyh
                 .prune(partial_version)
                 .map(std::convert::Into::into)
                 .unwrap_or_default();
-            println!("{}", "Latest available minor releases".bold());
+            println_b!("Latest available minor releases");
             let ts = TermStat::new("Downloading", "release data...");
             let releases = fetch_unity_editor_releases()?;
             drop(ts);
@@ -58,7 +59,7 @@ pub fn list_versions(list_type: ListType, partial_version: Option<&str>) -> anyh
                 .map(std::convert::Into::into)
                 .unwrap_or_default();
 
-            println!("{}", "Available releases".bold());
+            println_b!("Available releases");
             let ts = TermStat::new("Downloading", "release data...");
             let releases = fetch_unity_editor_releases()?;
             drop(ts);
@@ -94,12 +95,12 @@ fn print_installed_versions(installed: &VersionList) {
                 version_str.push('*');
             }
 
-            let line = format!(
+            println_b_if!(
+                vi.version == default_version,
                 "{:<max_len$} - {}",
                 version_str,
                 release_notes_url(vi.version).bright_blue()
             );
-            println!("{}", line.bold_if(vi.version == default_version));
         }
     }
 }
@@ -132,38 +133,44 @@ fn print_updates(installed: &VersionList, available: &[ReleaseInfo]) -> anyhow::
             );
 
             let mut version_str = vi.version.to_string();
-            if vi.version == default_version {
+            let is_default = vi.version == default_version;
+            if is_default {
                 version_str.push('*');
             }
 
-            let line = match &vi.v_type {
-                VersionType::HasLaterInstalled => version_str,
+            match &vi.v_type {
+                VersionType::HasLaterInstalled => println_b_if!(is_default, "{}", version_str),
                 VersionType::LatestInstalled => {
                     let last_in_group = vi.version == group.last().version;
                     if last_in_group {
-                        format!("{:<max_len$} - Up to date", version_str.green())
+                        println_b_if!(is_default, "{:<max_len$} - Up to date", version_str.green());
                     } else {
-                        format!("{:<max_len$} - Update(s) available", version_str)
-                    }
+                        println_b_if!(
+                            is_default,
+                            "{:<max_len$} - Update(s) available",
+                            version_str
+                        );
+                    };
                 }
                 VersionType::UpdateToLatest(release_info) => {
-                    format!(
+                    println_b_if!(
+                        is_default,
                         "{:<max_len$} - {} > {}",
                         release_info.version.to_string().blue().bold(),
                         release_notes_url(release_info.version).bright_blue().bold(),
-                        release_info.installation_url.bright_blue().bold(),
-                    )
+                        release_info.installation_url.bright_blue().bold()
+                    );
                 }
                 VersionType::NoReleaseInfo => {
-                    format!(
+                    println_b_if!(
+                        is_default,
                         "{:<max_len$} - {}",
                         version_str,
                         format!("No {} update info available", vi.version.build_type,)
                             .bright_black()
-                    )
+                    );
                 }
             };
-            println!("{}", line.bold_if(vi.version == default_version));
         }
     }
     Ok(())
@@ -330,25 +337,23 @@ fn print_available_versions(
             let version_str = vi.version.to_string();
 
             if is_installed {
-                let line = format!(
+                println_b!(
                     "{:<max_len$} - {} > installed",
                     version_str.green(),
                     release_notes_url(vi.version).bright_blue()
                 );
-                println!("{}", line.bold());
             } else {
                 let ri = releases
                     .iter()
                     .find(|p| p.version == vi.version)
                     .expect("Could not find release info for version");
 
-                let line = format!(
+                println!(
                     "{:<max_len$} - {} > {}",
                     version_str,
                     release_notes_url(vi.version).bright_blue(),
                     ri.installation_url.bright_blue()
                 );
-                println!("{}", line);
             }
         }
     }
@@ -371,21 +376,20 @@ fn print_installs_line(latest: &ReleaseInfo, installed_in_range: &[Version], max
         .collect_vec()
         .join(", ");
 
-    let line = if is_up_to_date {
-        format!(
+    if is_up_to_date {
+        println_b!(
             "{:<max_len$} - Installed: {}",
             latest.version.to_string().green(),
             joined_versions
-        )
+        );
     } else {
-        format!(
+        println_b!(
             "{:<max_len$} - Installed: {} - update > {}",
             latest.version.to_string().blue(),
             joined_versions,
             latest.installation_url.bright_blue()
-        )
+        );
     };
-    println!("{}", line.bold());
 }
 
 struct VersionInfo {

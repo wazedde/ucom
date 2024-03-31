@@ -1,13 +1,12 @@
 use std::process::Command;
 
-use yansi::Paint;
-
 use crate::cli_run::RunArguments;
+use crate::commands::println_b;
 use crate::unity::installed::VersionList;
 use crate::unity::*;
 
 /// Runs the Unity Editor with the given arguments.
-pub fn run_unity(arguments: RunArguments) -> anyhow::Result<()> {
+pub(crate) fn run_unity(arguments: RunArguments) -> anyhow::Result<()> {
     let unity_version = VersionList::latest(arguments.version_pattern.as_deref())?;
     let editor_exe = unity_version.editor_executable_path()?;
 
@@ -20,7 +19,7 @@ pub fn run_unity(arguments: RunArguments) -> anyhow::Result<()> {
     }
 
     if !arguments.quiet {
-        println!("{}", format!("Run Unity {unity_version}").bold());
+        println_b!("Run Unity {unity_version}");
     }
 
     if arguments.wait {
