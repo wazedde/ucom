@@ -156,9 +156,9 @@ fn print_updates(installed: &VersionList, available: &[ReleaseInfo]) -> anyhow::
                     println_b_if!(
                         is_default,
                         "{:<max_len$} - {} > {}",
-                        release_info.version.to_string().blue().bold(),
-                        release_notes_url(release_info.version).bright_blue().bold(),
-                        release_info.installation_url.bright_blue().bold()
+                        release_info.version.to_string().blue(),
+                        release_notes_url(release_info.version).bright_blue(),
+                        release_info.installation_url.bright_blue()
                     );
                 }
                 VersionType::NoReleaseInfo => {

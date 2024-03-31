@@ -57,6 +57,7 @@ fn create_file<P: AsRef<Path>>(file_path: P, content: &str) -> anyhow::Result<()
     fs::write(file_path, content).map_err(Into::into)
 }
 
+/// Version of `writeln!` that writes bold text.
 macro_rules! writeln_b {
     ($dst:expr $(, $fmt:expr $(, $arg:expr)*)?) => {{
         use std::io::Write;
@@ -66,12 +67,14 @@ macro_rules! writeln_b {
     }};
 }
 
+/// Version of `println!` that writes bold text.
 macro_rules! println_b {
     ($($arg:tt)*) => {
         println!("{}", yansi::Paint::new(format!($($arg)*)).bold());
     };
 }
 
+/// Version of `println!` that writes bold text if the given condition is true.
 macro_rules! println_b_if {
     ($bold:expr, $fmt:expr $(, $arg:expr)*) => {{
         if $bold {

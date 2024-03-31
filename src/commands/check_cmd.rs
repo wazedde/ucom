@@ -65,11 +65,7 @@ fn write_project_header(
         write!(buf, "# ")?;
     }
 
-    writeln_b!(
-        buf,
-        "Unity updates for: {}",
-        project.as_path().to_string_lossy().bold()
-    )?;
+    writeln_b!(buf, "Unity updates for: {}", project.as_path().display())?;
 
     if create_report {
         writeln!(buf)?;
@@ -169,7 +165,7 @@ fn write_project_version(
 }
 
 fn write_available_updates(updates: &[ReleaseInfo], buf: &mut Vec<u8>) -> anyhow::Result<()> {
-    writeln!(buf, "{}", "Available update(s):".bold())?;
+    writeln_b!(buf, "Available update(s):")?;
     let max_len = updates.iter().map(|ri| ri.version.len()).max().unwrap();
 
     for release in updates {
