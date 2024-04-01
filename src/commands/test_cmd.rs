@@ -1,3 +1,4 @@
+use std::path::Path;
 use std::process::{exit, Command};
 
 use anyhow::anyhow;
@@ -18,67 +19,35 @@ pub(crate) fn run_tests(arguments: TestArguments) -> anyhow::Result<()> {
     let editor_exe = project_unity_version.editor_executable_path()?;
     project.check_assets_directory_exists()?;
 
-    // Build the command to execute.
-    let mut cmd = Command::new(editor_exe);
-    cmd.args(["-projectPath", &project.as_path().to_string_lossy()]);
-    cmd.arg("-runTests");
-    cmd.args(["-testPlatform", arguments.platform.as_ref()]);
-
-    if let Some(target) = arguments.target {
-        cmd.args(["-buildTarget", target.as_ref()]);
-    } else {
-        cmd.args([
-            "-buildTarget",
-            arguments.platform.as_build_target().as_ref(),
-        ]);
-    }
-
-    if !arguments.no_batch_mode {
-        cmd.arg("-batchmode");
-    }
-
-    if arguments.forget_project_path {
-        cmd.arg("-forgetProjectPath");
-    }
-
-    if let Some(s) = arguments.categories {
-        cmd.args(["-testCategory", &format!("\"{s}\"")]);
-    }
-
-    if let Some(s) = arguments.tests {
-        cmd.args(["-testFilter", &format!("\"{s}\"")]);
-    }
-
-    if let Some(s) = arguments.assemblies {
-        cmd.args(["-assemblyNames", &format!("\"{s}\"")]);
-    }
-
-    let timestamp = Utc::now().format("%Y%m%d%H%M%S");
-    let filename = format!("tests-{}-{}.xml", arguments.platform, timestamp);
+    let filename = format!(
+        "tests-{}-{}.xml",
+        arguments.platform,
+        Utc::now().format("%Y%m%d%H%M%S")
+    );
     let output_path = project.as_path().join(filename);
-    cmd.args(["-testResults", &output_path.to_string_lossy()]);
-    cmd.args(arguments.args.unwrap_or_default());
+
+    let cmd = arguments.build_cmd(&project, &editor_exe, &output_path);
 
     if arguments.dry_run {
         println!("{}", build_command_line(&cmd));
         return Ok(());
     }
 
-    let ts = if arguments.quiet {
-        TermStat::new_null_output()
-    } else {
-        TermStat::new(
-            "Running",
-            &format!(
-                "{} tests for project in {}",
-                &arguments.platform,
-                project.as_path().display()
-            ),
-        )
+    let result = {
+        let _ts = if arguments.quiet {
+            TermStat::new_null_output()
+        } else {
+            TermStat::new(
+                "Running",
+                &format!(
+                    "{} tests for project in {}",
+                    &arguments.platform,
+                    project.as_path().display()
+                ),
+            )
+        };
+        wait_with_stdout(cmd)
     };
-
-    let result = wait_with_stdout(cmd);
-    drop(ts);
 
     if let Err(e) = &result {
         // If the error was not caused by the command exiting with code 2 (tests failed), return it.
@@ -94,58 +63,13 @@ pub(crate) fn run_tests(arguments: TestArguments) -> anyhow::Result<()> {
         ));
     }
 
-    let status = match result {
-        Ok(()) => Status::Ok,
-        Err(_) => Status::Error,
-    };
-
     if !arguments.quiet {
-        TermStat::println(
-            "Finished",
-            &format!(
-                "{} tests for project in {}; total time {:.2}s",
-                &arguments.platform,
-                project.as_path().display(),
-                time_delta_to_seconds(Utc::now().signed_duration_since(start_time))
-            ),
-            status,
-        );
-
-        let test_run = TestRun::from_file(&output_path)?;
-        TermStat::println("Report", &output_path.to_string_lossy(), status);
-
-        match arguments.show_results {
-            ShowResults::Errors => {
-                let r = test_run
-                    .test_cases
-                    .iter()
-                    .filter(|tc| tc.result != TestResult::Passed);
-                print_test_cases(r);
-            }
-
-            ShowResults::All => {
-                print_test_cases(test_run.test_cases.iter());
-            }
-            _ => {}
+        let status = match result {
+            Ok(()) => Status::Ok,
+            Err(_) => Status::Error,
         };
 
-        println!();
-        let results = format!(
-            "{} total; {} passed; {} failed; {} inconclusive; {} skipped; {} asserts; finished in {:.2}s",
-            test_run.stats.total,
-            test_run.stats.passed,
-            test_run.stats.failed,
-            test_run.stats.inconclusive,
-            test_run.stats.skipped,
-            test_run.stats.asserts,
-            test_run.stats.duration,
-        );
-
-        println!(
-            "Result: {}. {}",
-            TermStat::stylize(status.as_ref(), status),
-            results,
-        );
+        print_results(&arguments, &start_time, &project, &output_path, status)?;
     }
 
     if result.is_err() {
@@ -156,6 +80,104 @@ pub(crate) fn run_tests(arguments: TestArguments) -> anyhow::Result<()> {
     }
 }
 
+fn print_results(
+    arguments: &TestArguments,
+    start_time: &DateTime<Utc>,
+    project: &ProjectPath,
+    output_path: &Path,
+    status: Status,
+) -> anyhow::Result<()> {
+    TermStat::println(
+        "Finished",
+        &format!(
+            "{} tests for project in {}; total time {:.2}s",
+            &arguments.platform,
+            project.as_path().display(),
+            time_delta_to_seconds(Utc::now().signed_duration_since(start_time))
+        ),
+        status,
+    );
+
+    let test_run = TestRun::from_file(output_path)?;
+    TermStat::println("Report", &output_path.to_string_lossy(), status);
+
+    match arguments.show_results {
+        ShowResults::Errors => {
+            let r = test_run
+                .test_cases
+                .iter()
+                .filter(|tc| tc.result != TestResult::Passed);
+            print_test_cases(r);
+        }
+
+        ShowResults::All => {
+            print_test_cases(test_run.test_cases.iter());
+        }
+        _ => {}
+    };
+
+    println!();
+    let results = format!(
+        "{} total; {} passed; {} failed; {} inconclusive; {} skipped; {} asserts; finished in {:.2}s",
+        test_run.stats.total,
+        test_run.stats.passed,
+        test_run.stats.failed,
+        test_run.stats.inconclusive,
+        test_run.stats.skipped,
+        test_run.stats.asserts,
+        test_run.stats.duration,
+    );
+
+    println!(
+        "Result: {}. {}",
+        TermStat::stylize(status.as_ref(), status),
+        results,
+    );
+    Ok(())
+}
+
+impl TestArguments {
+    fn build_cmd(&self, project: &ProjectPath, editor_exe: &Path, output_dir: &Path) -> Command {
+        // Build the command to execute.
+        let mut cmd = Command::new(editor_exe);
+        cmd.args(["-projectPath", &project.as_path().to_string_lossy()]);
+        cmd.arg("-runTests");
+        cmd.args(["-testPlatform", self.platform.as_ref()]);
+
+        if let Some(target) = self.target {
+            cmd.args(["-buildTarget", target.as_ref()]);
+        } else {
+            cmd.args(["-buildTarget", self.platform.as_build_target().as_ref()]);
+        }
+
+        if self.no_batch_mode {
+            cmd.arg("-batchmode");
+        }
+
+        if self.forget_project_path {
+            cmd.arg("-forgetProjectPath");
+        }
+
+        if let Some(s) = &self.categories {
+            cmd.args(["-testCategory", &format!("\"{s}\"")]);
+        }
+
+        if let Some(s) = &self.tests {
+            cmd.args(["-testFilter", &format!("\"{s}\"")]);
+        }
+
+        if let Some(s) = &self.assemblies {
+            cmd.args(["-assemblyNames", &format!("\"{s}\"")]);
+        }
+
+        cmd.args(["-testResults", &output_dir.to_string_lossy()]);
+
+        if let Some(a) = self.args.as_ref() {
+            cmd.args(a);
+        }
+        cmd
+    }
+}
 fn print_test_cases<'a>(test_cases: impl Iterator<Item = &'a TestCase>) {
     let mut test_cases = test_cases.peekable();
     if test_cases.peek().is_some() {

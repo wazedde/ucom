@@ -24,80 +24,17 @@ pub(crate) fn build_project(arguments: BuildArguments) -> anyhow::Result<()> {
     let start_time = Utc::now();
     let project = ProjectPath::try_from(&arguments.project_dir)?;
     let unity_version = project.unity_version()?;
-    let editor_exe = unity_version.editor_executable_path()?;
+    let editor = unity_version.editor_executable_path()?;
 
-    let output_dir = match &arguments.build_path {
-        Some(path) => path.absolutize()?.into(),
-        None => {
-            // If no build path is given, use <project>/Builds/<target>
-            project
-                .as_path()
-                .join("Builds")
-                .join(arguments.output_type.as_ref())
-                .join(arguments.target.as_ref())
-        }
-    };
+    let output = arguments.get_output_path(&project)?;
+    let log = arguments.get_full_log_path(project.as_path())?;
 
-    if project.as_path() == output_dir {
-        return Err(anyhow!(
-            "Output directory cannot be the same as the project directory: {}",
-            project.as_path().display()
-        ));
-    }
-
-    let log_file = match &arguments.log_file {
-        Some(path) => path.to_owned(),
-        None => format!("Build-{}.log", arguments.target).into(),
-    };
-
-    let log_file = get_full_log_path(&log_file, project.as_path())?;
-    if log_file.exists() {
-        fs::remove_file(&log_file)?;
-    }
-
-    // Build the command to execute.
-    let mut cmd = Command::new(editor_exe);
-    cmd.args(["-projectPath", &project.as_path().to_string_lossy()])
-        .args(["-buildTarget", arguments.target.as_ref()])
-        .args(["-logFile", &log_file.to_string_lossy()])
-        .args(["-executeMethod", &arguments.build_function])
-        .args(["--ucom-build-output", &output_dir.to_string_lossy()])
-        .args([
-            "--ucom-build-target",
-            BuildScriptTarget::from(arguments.target).as_ref(),
-        ]);
-
-    let build_options = arguments.get_build_option_flags();
-    if build_options != (BuildOptions::None as i32) {
-        cmd.args(["--ucom-build-options", &build_options.to_string()]);
-    }
-
-    if let Some(build_args) = arguments.build_args {
-        cmd.args(["--ucom-pre-build-args", &build_args]);
-    }
-
-    // Add the build mode.
-    match arguments.mode {
-        BuildMode::BatchNoGraphics => {
-            cmd.args(["-batchmode", "-nographics", "-quit"]);
-        }
-        BuildMode::Batch => {
-            cmd.args(["-batchmode", "-quit"]);
-        }
-        BuildMode::EditorQuit => {
-            cmd.args(["-quit"]);
-        }
-        BuildMode::Editor => (), // Do nothing.
-    }
-
-    // Add any additional arguments.
-    cmd.args(arguments.args.unwrap_or_default());
+    let cmd = arguments.create_cmd(&project, &editor, &output, &log);
 
     if arguments.dry_run {
         println!("{}", build_command_line(&cmd));
         return Ok(());
     }
-
     let build_text = format!(
         "Unity {unity_version} {} project in {}",
         arguments.target,
@@ -116,11 +53,12 @@ pub(crate) fn build_project(arguments: BuildArguments) -> anyhow::Result<()> {
 
     inject_build_script_hook()?;
 
-    let show_log = !arguments.quiet
-        && (arguments.mode == BuildMode::Batch || arguments.mode == BuildMode::BatchNoGraphics);
+    if log.exists() {
+        fs::remove_file(&log)?;
+    }
 
-    let build_result = if show_log {
-        wait_with_log_output(cmd, &log_file)
+    let build_result = if arguments.show_log() {
+        wait_with_log_output(cmd, &log)
     } else {
         wait_with_stdout(cmd)
     };
@@ -130,7 +68,7 @@ pub(crate) fn build_project(arguments: BuildArguments) -> anyhow::Result<()> {
 
     let (status, tag) = if build_result.is_ok() {
         if arguments.clean {
-            clean_output_directory(&output_dir)?;
+            clean_output_directory(&output)?;
         }
         (Status::Ok, "Succeeded")
     } else {
@@ -156,26 +94,109 @@ pub(crate) fn build_project(arguments: BuildArguments) -> anyhow::Result<()> {
         status,
     );
 
-    if let Ok(log_file) = File::open(&log_file) {
-        // Iterate over lines from the build report in the log file.
-        BufReader::new(log_file)
-            .lines()
-            .map_while(Result::ok)
-            .skip_while(|l| !l.starts_with("[Builder] Build Report")) // Find marker.
-            .skip(1) // Skip the marker.
-            .take_while(|l| !l.is_empty()) // Read until empty line.
-            .for_each(|l| {
-                if let Some((key, value)) = l.split_once(':') {
-                    TermStat::println(key.trim(), value.trim(), status);
-                } else {
-                    println!("{l}");
-                }
-            });
-    }
-    build_result.map_err(|_| collect_log_errors(&log_file))
+    print_build_report(&log, status);
+    build_result.map_err(|_| collect_log_errors(&log))
 }
 
 impl BuildArguments {
+    fn show_log(&self) -> bool {
+        !self.quiet && (self.mode == BuildMode::Batch || self.mode == BuildMode::BatchNoGraphics)
+    }
+
+    /// Returns the full path to the log file.
+    /// By default, the project's `Logs` directory is used as destination.
+    fn get_full_log_path(&self, project_dir: &Path) -> anyhow::Result<PathBuf> {
+        let log_file = match self.log_file.as_deref() {
+            Some(path) => path.to_owned(),
+            _ => format!("Build-{}.log", self.target).into(),
+        };
+
+        let file_name = log_file
+            .file_name()
+            .ok_or_else(|| anyhow!("Invalid log file name: {}", log_file.display()))?;
+
+        let path = if log_file == file_name {
+            // Log filename without the path was given,
+            // use the project's `Logs` directory as destination.
+            project_dir.join("Logs").join(file_name)
+        } else {
+            log_file
+        };
+
+        let path = path.absolutize()?.to_path_buf();
+        Ok(path)
+    }
+
+    fn get_output_path(&self, project: &ProjectPath) -> anyhow::Result<PathBuf> {
+        let output_dir = match &self.build_path {
+            Some(path) => path.absolutize()?.into(),
+            None => {
+                // If no build path is given, use <project>/Builds/<target>
+                project
+                    .as_path()
+                    .join("Builds")
+                    .join(self.output_type.as_ref())
+                    .join(self.target.as_ref())
+            }
+        };
+
+        if project.as_path() == output_dir {
+            return Err(anyhow!(
+                "Output directory cannot be the same as the project directory: {}",
+                project.as_path().display()
+            ));
+        }
+        Ok(output_dir)
+    }
+    fn create_cmd(
+        &self,
+        project: &ProjectPath,
+        editor_exe: &Path,
+        output_dir: &Path,
+        log_file: &Path,
+    ) -> Command {
+        // Build the command to execute.
+        let mut cmd = Command::new(editor_exe);
+        cmd.args(["-projectPath", &project.as_path().to_string_lossy()])
+            .args(["-buildTarget", self.target.as_ref()])
+            .args(["-logFile", &log_file.to_string_lossy()])
+            .args(["-executeMethod", &self.build_function])
+            .args(["--ucom-build-output", &output_dir.to_string_lossy()])
+            .args([
+                "--ucom-build-target",
+                BuildScriptTarget::from(self.target).as_ref(),
+            ]);
+
+        let build_options = self.get_build_option_flags();
+        if build_options != (BuildOptions::None as i32) {
+            cmd.args(["--ucom-build-options", &build_options.to_string()]);
+        }
+
+        if let Some(build_args) = &self.build_args {
+            cmd.args(["--ucom-pre-build-args", &build_args]);
+        }
+
+        // Add the build mode.
+        match self.mode {
+            BuildMode::BatchNoGraphics => {
+                cmd.args(["-batchmode", "-nographics", "-quit"]);
+            }
+            BuildMode::Batch => {
+                cmd.args(["-batchmode", "-quit"]);
+            }
+            BuildMode::EditorQuit => {
+                cmd.args(["-quit"]);
+            }
+            BuildMode::Editor => (), // Do nothing.
+        }
+
+        // Add any additional arguments.
+        if let Some(a) = self.args.as_ref() {
+            cmd.args(a);
+        }
+        cmd
+    }
+
     fn get_build_option_flags(&self) -> i32 {
         let mut option_flags = 0;
         if self.run_player {
@@ -215,6 +236,25 @@ impl BuildArguments {
     }
 }
 
+fn print_build_report(log_path: &Path, status: Status) {
+    if let Ok(file) = File::open(log_path) {
+        // Iterate over lines from the build report in the log file.
+        BufReader::new(file)
+            .lines()
+            .map_while(Result::ok)
+            .skip_while(|l| !l.starts_with("[Builder] Build Report")) // Find marker.
+            .skip(1) // Skip the marker.
+            .take_while(|l| !l.is_empty()) // Read until empty line.
+            .for_each(|l| {
+                if let Some((key, value)) = l.split_once(':') {
+                    TermStat::println(key.trim(), value.trim(), status);
+                } else {
+                    println!("{l}");
+                }
+            });
+    }
+}
+
 fn clean_output_directory(path: &Path) -> anyhow::Result<()> {
     let to_delete = fs::read_dir(path)?
         .map_while(Result::ok)
@@ -233,25 +273,6 @@ fn clean_output_directory(path: &Path) -> anyhow::Result<()> {
     }
 
     Ok(())
-}
-
-/// Returns the full path to the log file.
-/// By default, the project's `Logs` directory is used as destination.
-fn get_full_log_path(log_file: &Path, project_dir: &Path) -> anyhow::Result<PathBuf> {
-    let file_name = log_file
-        .file_name()
-        .ok_or_else(|| anyhow!("Invalid log file name: {}", log_file.display()))?;
-
-    let path = if log_file == file_name {
-        // Log filename without the path was given,
-        // use the project's `Logs` directory as destination.
-        project_dir.join("Logs").join(file_name)
-    } else {
-        log_file.into()
-    };
-
-    let path = path.absolutize()?.to_path_buf();
-    Ok(path)
 }
 
 /// Returns errors from the given log file as one collected Err.
