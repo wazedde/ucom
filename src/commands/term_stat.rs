@@ -24,12 +24,11 @@ impl TermStat {
     /// Creates a new `TermStat` message with the given tag and message.
     /// The message is cleared when dropped.
     pub(crate) fn new(tag: &str, msg: &str) -> Self {
-        if stdout().is_terminal() {
+        let show_output = stdout().is_terminal();
+        if show_output {
             Self::print_transient(tag, msg, Status::Info);
-            Self { show_output: true }
-        } else {
-            Self { show_output: false }
         }
+        Self { show_output }
     }
 
     /// Creates a new `TermStat` that does not output anything.

@@ -28,7 +28,7 @@ fn main() -> anyhow::Result<()> {
         yansi::disable();
     }
 
-    http_cache::set_cache_from_env()
+    http_cache::enable_cache_from_env()
         .with_context(|| color_error("Cannot set cache from environment"))?;
 
     match command {

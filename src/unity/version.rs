@@ -73,14 +73,13 @@ impl Version {
     }
 
     fn count_digits(number: usize) -> usize {
-        // The maximum number of digits for a version number is 5.
         match number {
             0..=9 => 1,
             10..=99 => 2,
             100..=999 => 3,
             1000..=9999 => 4,
             10000..=99999 => 5,
-            _ => unreachable!("The number is too big"),
+            _ => 6,
         }
     }
 }

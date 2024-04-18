@@ -56,11 +56,10 @@ pub(crate) fn set_cache_enabled(enabled: bool) -> anyhow::Result<()> {
 }
 
 /// Sets whether the cache is enabled or not based on environment variable `UCOM_ENABLE_CACHE`.
-pub(crate) fn set_cache_from_env() -> anyhow::Result<()> {
-    if let Ok(val) = env::var("UCOM_ENABLE_CACHE") {
-        set_cache_enabled(val == "true" || val == "1")
-    } else {
-        Ok(())
+pub(crate) fn enable_cache_from_env() -> anyhow::Result<()> {
+    match env::var("UCOM_ENABLE_CACHE") {
+        Ok(val) => set_cache_enabled(val == "true" || val == "1"),
+        Err(_) => Ok(()),
     }
 }
 
@@ -114,13 +113,7 @@ fn is_remote_newer_than_local(url: &str, local_time: &SystemTime) -> bool {
 }
 
 fn sanitize_filename(filename: &str) -> String {
-    filename
-        .chars()
-        .map(|c| match c {
-            '.' | ' ' | '\\' | '/' | ':' | '*' | '?' | '\"' | '<' | '>' | '|' => '_',
-            _ => c,
-        })
-        .collect()
+    filename.replace(|c: char| !c.is_ascii_alphanumeric(), "_")
 }
 
 /// Downloads the content from the given URL and saves it to the given filename.

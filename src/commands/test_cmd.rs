@@ -7,7 +7,7 @@ use yansi::{Paint, Style};
 
 use crate::cli_test::{ShowResults, TestArguments};
 use crate::commands::term_stat::{Status, TermStat};
-use crate::commands::time_delta_to_seconds;
+use crate::commands::TimeDeltaExt;
 use crate::nunit::{TestCase, TestResult, TestRun};
 use crate::unity::project::ProjectPath;
 use crate::unity::{build_command_line, wait_with_stdout};
@@ -93,7 +93,7 @@ fn print_results(
             "{} tests for project in {}; total time {:.2}s",
             &arguments.platform,
             project.as_path().display(),
-            time_delta_to_seconds(Utc::now().signed_duration_since(start_time))
+            Utc::now().signed_duration_since(start_time).as_seconds()
         ),
         status,
     );

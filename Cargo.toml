@@ -2,6 +2,7 @@
 name = "ucom"
 version = "0.1.0"
 edition = "2021"
+readme = "README.md"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
@@ -33,4 +34,4 @@ strum = { version = "0.26", features = ["derive"] }
 ureq = "2.9"
 uuid = { version = "1.8", features = ["v4"] }
 walkdir = "2.5"
-yansi = "1.0.0-rc.1"
+yansi = "1.0"

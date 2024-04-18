@@ -14,7 +14,7 @@ use uuid::Uuid;
 use crate::cli_add::IncludedFile;
 use crate::cli_build::{BuildArguments, BuildMode, BuildOptions, BuildScriptTarget, InjectAction};
 use crate::commands::term_stat::{Status, TermStat};
-use crate::commands::{add_file_to_project, time_delta_to_seconds, PERSISTENT_BUILD_SCRIPT_ROOT};
+use crate::commands::{add_file_to_project, TimeDeltaExt, PERSISTENT_BUILD_SCRIPT_ROOT};
 use crate::unity::*;
 
 const AUTO_BUILD_SCRIPT_ROOT: &str = "Assets/Ucom";
@@ -89,7 +89,7 @@ pub(crate) fn build_project(arguments: BuildArguments) -> anyhow::Result<()> {
         "Total time",
         &format!(
             "{:.2}s",
-            time_delta_to_seconds(Utc::now().signed_duration_since(start_time))
+            Utc::now().signed_duration_since(start_time).as_seconds()
         ),
         status,
     );

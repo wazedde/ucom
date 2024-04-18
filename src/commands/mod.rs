@@ -29,9 +29,15 @@ pub(crate) mod test_cmd;
 pub(crate) const PERSISTENT_BUILD_SCRIPT_ROOT: &str = "Assets/Plugins/Ucom/Editor";
 pub(crate) const INDENT: &str = "  ";
 
-/// Returns the given time delta as seconds.
-pub(crate) fn time_delta_to_seconds(duration: TimeDelta) -> f64 {
-    duration.num_seconds() as f64 + duration.subsec_nanos() as f64 * 1e-9
+pub(crate) trait TimeDeltaExt {
+    fn as_seconds(&self) -> f64;
+}
+
+impl TimeDeltaExt for TimeDelta {
+    /// Returns the given time delta as seconds.
+    fn as_seconds(&self) -> f64 {
+        (*self).num_milliseconds() as f64 / 1000f64
+    }
 }
 
 /// Adds the given file to the project.
