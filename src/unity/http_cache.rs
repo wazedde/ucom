@@ -5,13 +5,14 @@ use std::path::{Path, PathBuf};
 use std::sync::OnceLock;
 use std::time::SystemTime;
 
-use anyhow::anyhow;
+use anyhow::{anyhow, Context};
 use chrono::{DateTime, TimeDelta, Utc};
 use dirs::cache_dir;
 
 static CACHE_ENABLED: OnceLock<bool> = OnceLock::new();
 
-const CACHE_REFRESH_SECONDS: i64 = 3600;
+const CACHE_REFRESH_SECONDS: i64 = 10;
+// const CACHE_REFRESH_SECONDS: i64 = 3600;
 
 enum CacheState {
     /// The cache is expired.
@@ -36,8 +37,19 @@ pub(crate) fn fetch_content(url: &str, check_for_remote_change: bool) -> anyhow:
         CacheState::Valid => Ok(fs::read_to_string(&filename)?),
         CacheState::RefreshNeeded => {
             // Update the local timestamp
-            fs::File::open(&filename)?.set_modified(Utc::now().into())?;
-            Ok(fs::read_to_string(&filename)?)
+            let r = fs::File::open(&filename)?.set_modified(Utc::now().into());
+            if let Err(e) = &r {
+                if e.raw_os_error() != Some(5) {
+                    // If error is not a permission error, return it
+                    r.context("Error reading cache file")?;
+                }
+                // Otherwise do workaround by re-saving the file
+                let content = fs::read_to_string(&filename)?;
+                fs::write(&filename, &content)?;
+                Ok(content)
+            } else {
+                Ok(fs::read_to_string(&filename)?)
+            }
         }
     }
 }
