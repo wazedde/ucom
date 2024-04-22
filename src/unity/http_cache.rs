@@ -11,8 +11,7 @@ use dirs::cache_dir;
 
 static CACHE_ENABLED: OnceLock<bool> = OnceLock::new();
 
-const CACHE_REFRESH_SECONDS: i64 = 10;
-// const CACHE_REFRESH_SECONDS: i64 = 3600;
+const CACHE_REFRESH_SECONDS: i64 = 3600;
 
 enum CacheState {
     /// The cache is expired.
