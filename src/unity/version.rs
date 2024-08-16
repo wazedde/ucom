@@ -12,6 +12,7 @@ pub(crate) enum BuildType {
     Beta,
     ReleaseCandidate,
     Final,
+    FinalPatch,
 }
 
 impl BuildType {
@@ -22,6 +23,7 @@ impl BuildType {
             Self::Beta => "b",
             Self::ReleaseCandidate => "rc",
             Self::Final => "f",
+            Self::FinalPatch => "p",
         }
     }
 
@@ -35,6 +37,8 @@ impl BuildType {
             Some(Self::Alpha)
         } else if s.contains("rc") {
             Some(Self::ReleaseCandidate)
+        } else if s.contains('p') {
+            Some(Self::FinalPatch)
         } else {
             None
         }

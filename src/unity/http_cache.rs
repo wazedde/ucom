@@ -5,7 +5,7 @@ use std::path::{Path, PathBuf};
 use std::sync::OnceLock;
 use std::time::SystemTime;
 
-use anyhow::{anyhow, Context};
+use anyhow::anyhow;
 use chrono::{DateTime, TimeDelta, Utc};
 use dirs::cache_dir;
 
@@ -33,23 +33,8 @@ pub(crate) fn fetch_content(url: &str, check_for_remote_change: bool) -> anyhow:
 
     match get_cache_state(url, &filename, check_for_remote_change)? {
         CacheState::Expired => fetch_and_save_to_cache(url, &filename, &cache_dir),
-        CacheState::Valid => Ok(fs::read_to_string(&filename)?),
-        CacheState::RefreshNeeded => {
-            // Update the local timestamp
-            let r = fs::File::open(&filename)?.set_modified(Utc::now().into());
-            if let Err(e) = &r {
-                if e.raw_os_error() != Some(5) {
-                    // If error is not a permission error, return it
-                    r.context("Error reading cache file")?;
-                }
-                // Otherwise do workaround by re-saving the file
-                let content = fs::read_to_string(&filename)?;
-                fs::write(&filename, &content)?;
-                Ok(content)
-            } else {
-                Ok(fs::read_to_string(&filename)?)
-            }
-        }
+        CacheState::Valid => fs::read_to_string(&filename).map_err(anyhow::Error::msg),
+        CacheState::RefreshNeeded => read_and_refresh(&filename),
     }
 }
 
@@ -133,6 +118,20 @@ fn fetch_and_save_to_cache(url: &str, filename: &Path, cache_dir: &Path) -> anyh
     create_dir_all(cache_dir).expect("unable to create cache directory");
     fs::write(filename, &content)?;
     Ok(content)
+}
+
+fn read_and_refresh(filename: &PathBuf) -> anyhow::Result<String> {
+    // Update the local timestamp
+    match fs::File::open(filename)?.set_modified(Utc::now().into()) {
+        Ok(()) => fs::read_to_string(filename).map_err(anyhow::Error::msg),
+        Err(e) if e.raw_os_error() == Some(5) => {
+            // If error is a permission error, do workaround by re-saving the file
+            let content = fs::read_to_string(filename)?;
+            fs::write(filename, &content)?;
+            Ok(content)
+        }
+        Err(e) => Err(e.into()),
+    }
 }
 
 fn fetch_remote_last_modified_time(url: &str) -> anyhow::Result<DateTime<Utc>> {

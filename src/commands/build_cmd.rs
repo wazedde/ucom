@@ -173,7 +173,7 @@ impl BuildArguments {
         }
 
         if let Some(build_args) = &self.build_args {
-            cmd.args(["--ucom-pre-build-args", &build_args]);
+            cmd.args(["--ucom-pre-build-args", build_args]);
         }
 
         // Add the build mode.
