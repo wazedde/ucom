@@ -6,6 +6,7 @@ use select::document::Document;
 use select::predicate::{Class, Name};
 use serde::de::{self, Deserializer};
 use serde::Deserialize;
+use strum::Display;
 
 const RELEASES_ARCHIVE_URL: &str = "https://unity.com/releases/editor/archive";
 
@@ -20,17 +21,22 @@ pub(crate) struct ReleaseInfo {
     pub(crate) stream: ReleaseStream,
 }
 
-#[derive(Deserialize, Debug, Eq, PartialEq, Ord, PartialOrd, Clone)]
+#[derive(Display, Deserialize, Debug, Eq, PartialEq, Ord, PartialOrd, Clone, Copy)]
 pub(crate) enum ReleaseStream {
     #[serde(rename = "LTS")]
+    #[strum(serialize = "LTS")]
     Lts,
     #[serde(rename = "TECH")]
+    #[strum(serialize = "TECH")]
     Tech,
     #[serde(rename = "BETA")]
+    #[strum(serialize = "BETA")]
     Beta,
     #[serde(rename = "ALPHA")]
+    #[strum(serialize = "ALPHA")]
     Alpha,
     #[serde(other)]
+    #[strum(serialize = "????")]
     Other,
 }
 
