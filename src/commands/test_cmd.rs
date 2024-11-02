@@ -24,8 +24,8 @@ pub(crate) fn run_tests(arguments: TestArguments) -> anyhow::Result<()> {
         arguments.platform,
         Utc::now().format("%Y%m%d%H%M%S")
     );
-    let output_path = project.as_path().join(filename);
 
+    let output_path = project.as_path().join(filename);
     let cmd = arguments.build_cmd(&project, &editor_exe, &output_path);
 
     if arguments.dry_run {

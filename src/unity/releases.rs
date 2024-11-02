@@ -126,7 +126,8 @@ fn extract_releases_from_html(html: &str, filter: &ReleaseFilter) -> Vec<Release
         .collect::<String>();
 
     let mut parsed = parse_next_release_json(&data);
-    let mut releases: Vec<ReleaseInfo> = vec![];
+    let mut releases = vec![];
+
     while let Some((json, remainder)) = parsed {
         if let Ok(ri) = serde_json::from_str::<ReleaseInfo>(json) {
             if filter.eval(ri.version) {
@@ -135,6 +136,7 @@ fn extract_releases_from_html(html: &str, filter: &ReleaseFilter) -> Vec<Release
         }
         parsed = parse_next_release_json(remainder);
     }
+
     releases.sort_unstable();
     releases.dedup();
     releases

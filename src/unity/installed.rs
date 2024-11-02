@@ -149,7 +149,6 @@ impl VersionList {
             .filter(|v| v.to_string().starts_with(partial_version))
             .copied()
             .collect_vec();
-
         match NonEmptyVec::from_vec(versions) {
             Ok(versions) => Ok(Self { versions }),
             Err(_) => Err(anyhow!(
