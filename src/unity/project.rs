@@ -160,7 +160,7 @@ impl Settings {
     pub(crate) fn from_project(project: &ProjectPath) -> anyhow::Result<Self> {
         let project_dir = project.as_path();
         let file = File::open(project_dir.join("ProjectSettings/ProjectSettings.asset"))?;
-        serde_yaml::from_reader(BufReader::new(file))
+        serde_yml::from_reader(BufReader::new(file))
             .context("Error reading `ProjectSettings/ProjectSettings.asset`")
             .map_err(Into::into)
     }
