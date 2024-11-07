@@ -61,6 +61,7 @@ where
 }
 
 /// Loads the release info from the cache.
+/// Releases are sorted by release date in descending order.
 pub fn load_release_info(path: &PathBuf) -> anyhow::Result<Vec<ReleaseData>> {
     let file = File::open(path)?;
     let reader = BufReader::new(file);
@@ -84,12 +85,13 @@ pub fn load_and_download_release_info() -> anyhow::Result<Vec<ReleaseData>> {
         if fetch_count > 0 {
             create_dir_all(ucom_cache_dir())?;
             let path = ucom_cache_dir().join(RELEASES_FILENAME);
-            let file = File::create(&path)?;
-            let writer = BufWriter::new(file);
+            let writer = BufWriter::new(File::create(&path)?);
             serde_json::to_writer(writer, &json!(releases))?;
         } else {
             http_cache::touch_timestamp(&path)?;
         }
     }
+    // Sort ascending by version
+    releases.sort_by_key(|r| r.version);
     Ok(releases)
 }

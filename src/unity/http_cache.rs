@@ -97,6 +97,7 @@ fn get_cache_state(
     Ok(state)
 }
 
+/// Returns whether the cached file is expired.
 pub(crate) fn has_expired(path: &Path) -> bool {
     let cached_time = path
         .metadata()
@@ -106,6 +107,7 @@ pub(crate) fn has_expired(path: &Path) -> bool {
     delta_time > TimeDelta::seconds(CACHE_REFRESH_SECONDS)
 }
 
+/// Touches the timestamp of the given file.
 pub(crate) fn touch_timestamp(filename: &PathBuf) -> anyhow::Result<()> {
     // Update the local timestamp
     match fs::File::open(filename)?.set_modified(Utc::now().into()) {
@@ -119,6 +121,7 @@ pub(crate) fn touch_timestamp(filename: &PathBuf) -> anyhow::Result<()> {
         Err(e) => Err(e.into()),
     }
 }
+
 /// Checks if the page has been updated since the given time.
 fn is_remote_newer_than_local(url: &str, local_time: &SystemTime) -> bool {
     if let Ok(server_utc) = fetch_remote_last_modified_time(url) {
