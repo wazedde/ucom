@@ -97,6 +97,28 @@ fn get_cache_state(
     Ok(state)
 }
 
+pub(crate) fn has_expired(path: &Path) -> bool {
+    let cached_time = path
+        .metadata()
+        .and_then(|m| m.modified())
+        .unwrap_or(SystemTime::UNIX_EPOCH);
+    let delta_time = Utc::now() - DateTime::<Utc>::from(cached_time);
+    delta_time > TimeDelta::seconds(CACHE_REFRESH_SECONDS)
+}
+
+pub(crate) fn touch_timestamp(filename: &PathBuf) -> anyhow::Result<()> {
+    // Update the local timestamp
+    match fs::File::open(filename)?.set_modified(Utc::now().into()) {
+        Ok(()) => Ok(()),
+        Err(e) if e.raw_os_error() == Some(5) => {
+            // If error is a permission error, do workaround by re-saving the file
+            let content = fs::read_to_string(filename)?;
+            fs::write(filename, &content)?;
+            Ok(())
+        }
+        Err(e) => Err(e.into()),
+    }
+}
 /// Checks if the page has been updated since the given time.
 fn is_remote_newer_than_local(url: &str, local_time: &SystemTime) -> bool {
     if let Ok(server_utc) = fetch_remote_last_modified_time(url) {

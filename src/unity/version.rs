@@ -1,10 +1,18 @@
+use serde::{de, Serialize, Serializer};
+use serde::{Deserialize, Deserializer};
+use std::fmt;
 use std::fmt::{Display, Formatter};
 use std::str::FromStr;
-
 use strum::Display;
 
 #[derive(Debug, Eq, PartialEq)]
 pub(crate) struct ParseError;
+
+impl fmt::Display for ParseError {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        write!(f, "failed to parse MyType")
+    }
+}
 
 #[derive(Display, Debug, Eq, PartialEq, Ord, PartialOrd, Copy, Clone)]
 pub(crate) enum BuildType {
@@ -133,6 +141,25 @@ impl Display for Version {
             self.build_type.as_short_str(),
             self.build
         )
+    }
+}
+
+impl<'de> Deserialize<'de> for Version {
+    fn deserialize<D>(deserializer: D) -> Result<Version, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        let s = String::deserialize(deserializer)?;
+        Version::from_str(&s).map_err(de::Error::custom)
+    }
+}
+
+impl Serialize for Version {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        serializer.serialize_str(&self.to_string())
     }
 }
 

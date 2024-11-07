@@ -8,6 +8,7 @@ use crate::commands::term_stat::TermStat;
 use crate::commands::{println_b, println_b_if};
 use crate::unity::installed::VersionList;
 use crate::unity::non_empty_vec::NonEmptyVec;
+use crate::unity::release_api_data::ReleaseData;
 use crate::unity::*;
 
 /// Version info grouped by minor version.
@@ -120,7 +121,7 @@ fn print_installed_versions(installed: &VersionList) {
 /// ── 2023.1.0b12  - No Beta update info available
 /// ── 2023.2.0a10  - No Alpha update info available
 /// ```
-fn print_updates(installed: &VersionList, available: &[ReleaseInfo]) -> anyhow::Result<()> {
+fn print_updates(installed: &VersionList, available: &[ReleaseData]) -> anyhow::Result<()> {
     if available.is_empty() {
         return Err(anyhow!("No update information available."));
     }
@@ -180,7 +181,7 @@ fn print_updates(installed: &VersionList, available: &[ReleaseInfo]) -> anyhow::
                         version_str.blue(),
                         separator,
                         release_notes_url(release_info.version).bright_blue(),
-                        release_info.installation_url.bright_blue()
+                        release_info.unity_hub_deep_link.bright_blue()
                     );
                 }
                 VersionType::NoReleaseInfo => {
@@ -202,7 +203,7 @@ fn print_updates(installed: &VersionList, available: &[ReleaseInfo]) -> anyhow::
 
 /// Groups installed versions by `major.minor` version
 /// and collects update information for each installed version.
-fn collect_update_info(installed: &VersionList, available: &[ReleaseInfo]) -> VersionInfoGroups {
+fn collect_update_info(installed: &VersionList, available: &[ReleaseData]) -> VersionInfoGroups {
     let mut version_groups = group_minor_versions(installed);
 
     // Add available updates to groups
@@ -257,7 +258,7 @@ fn collect_update_info(installed: &VersionList, available: &[ReleaseInfo]) -> Ve
 /// ```
 fn print_latest_versions(
     installed: &[Version],
-    available: &[ReleaseInfo],
+    available: &[ReleaseData],
     partial_version: Option<&str>,
 ) -> anyhow::Result<()> {
     // Get the latest version of each range.
@@ -308,7 +309,7 @@ fn print_latest_versions(
                 "{} {} > {}",
                 stream,
                 version,
-                latest.installation_url.bright_blue(),
+                latest.unity_hub_deep_link.bright_blue(),
             );
         } else {
             print_installs_line(latest, &installed_in_range, max_len);
@@ -345,7 +346,7 @@ fn fixed_version_string(version: Version, max_len: usize) -> String {
 /// ```
 fn print_available_versions(
     installed: &[Version],
-    available: &[ReleaseInfo],
+    available: &[ReleaseData],
     partial_version: Option<&str>,
 ) -> anyhow::Result<()> {
     let releases = available
@@ -397,7 +398,7 @@ fn print_available_versions(
                     stream,
                     version,
                     release_notes_url(vi.version).bright_blue(),
-                    ri.installation_url.bright_blue()
+                    ri.unity_hub_deep_link.bright_blue()
                 );
             }
         }
@@ -405,7 +406,7 @@ fn print_available_versions(
     Ok(())
 }
 
-fn print_installs_line(latest: &ReleaseInfo, installed_in_range: &[Version], max_len: usize) {
+fn print_installs_line(latest: &ReleaseData, installed_in_range: &[Version], max_len: usize) {
     let is_up_to_date = installed_in_range
         .last()
         .filter(|&v| v == &latest.version)
@@ -438,7 +439,7 @@ fn print_installs_line(latest: &ReleaseInfo, installed_in_range: &[Version], max
             stream.yellow(),
             version.blue(),
             joined_versions,
-            latest.installation_url.bright_blue()
+            latest.unity_hub_deep_link.bright_blue()
         );
     };
 }
@@ -451,7 +452,7 @@ struct VersionInfo {
 enum VersionType {
     HasLaterInstalled,
     LatestInstalled,
-    UpdateToLatest(ReleaseInfo),
+    UpdateToLatest(ReleaseData),
     NoReleaseInfo,
 }
 
@@ -501,9 +502,9 @@ fn group_minor_versions(installed: &VersionList) -> VersionInfoGroups {
 }
 
 fn latest_minor_releases<'a>(
-    available: &'a [ReleaseInfo],
+    available: &'a [ReleaseData],
     partial_version: Option<&str>,
-) -> Vec<&'a ReleaseInfo> {
+) -> Vec<&'a ReleaseData> {
     available
         .iter()
         .filter(|r| partial_version.map_or(true, |p| r.version.to_string().starts_with(p)))

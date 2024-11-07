@@ -5,6 +5,7 @@ use yansi::Paint;
 
 use crate::commands::term_stat::TermStat;
 use crate::commands::{writeln_b, INDENT};
+use crate::unity::release_api_data::ReleaseData;
 use crate::unity::*;
 
 /// Checks on the Unity website for updates to the version used by the project.
@@ -93,8 +94,8 @@ fn write_project_header(
 
 fn write_project_version(
     project_version: Version,
-    project_version_info: Option<ReleaseInfo>,
-    updates: &[ReleaseInfo],
+    project_version_info: Option<ReleaseData>,
+    updates: &[ReleaseData],
     create_report: bool,
     buf: &mut Vec<u8>,
 ) -> anyhow::Result<()> {
@@ -141,7 +142,7 @@ fn write_project_version(
             buf,
             " > {}",
             project_version_info
-                .map(|r| r.installation_url)
+                .map(|r| r.unity_hub_deep_link)
                 .map_or_else(
                     || "No release info available".into(),
                     |s| format!("[install in Unity HUB]({s})"),
@@ -155,7 +156,7 @@ fn write_project_version(
             project_version_info
                 .map_or_else(
                     || "No release info available".to_string(),
-                    |r| r.installation_url.bright_blue().to_string(),
+                    |r| r.unity_hub_deep_link.bright_blue().to_string(),
                 )
                 .bold()
         )?;
@@ -164,7 +165,7 @@ fn write_project_version(
     Ok(())
 }
 
-fn write_available_updates(updates: &[ReleaseInfo], buf: &mut Vec<u8>) -> anyhow::Result<()> {
+fn write_available_updates(updates: &[ReleaseData], buf: &mut Vec<u8>) -> anyhow::Result<()> {
     writeln_b!(buf, "Available update(s):")?;
     let max_len = updates.iter().map(|ri| ri.version.len()).max().unwrap();
 
@@ -172,7 +173,7 @@ fn write_available_updates(updates: &[ReleaseInfo], buf: &mut Vec<u8>) -> anyhow
         let status = if release.version.is_editor_installed()? {
             "installed".bold()
         } else {
-            release.installation_url.as_str().bright_blue().bold()
+            release.unity_hub_deep_link.as_str().bright_blue().bold()
         };
 
         writeln!(
@@ -187,7 +188,7 @@ fn write_available_updates(updates: &[ReleaseInfo], buf: &mut Vec<u8>) -> anyhow
     Ok(())
 }
 
-fn write_release_notes(buf: &mut Vec<u8>, release: &ReleaseInfo) -> anyhow::Result<()> {
+fn write_release_notes(buf: &mut Vec<u8>, release: &ReleaseData) -> anyhow::Result<()> {
     let (url, body) = fetch_release_notes(release.version)?;
     let release_notes = extract_release_notes(&body);
 
@@ -195,7 +196,11 @@ fn write_release_notes(buf: &mut Vec<u8>, release: &ReleaseInfo) -> anyhow::Resu
         writeln!(buf)?;
         writeln!(buf, "## Release notes for [{}]({url})", release.version)?;
         writeln!(buf)?;
-        writeln!(buf, "[install in Unity HUB]({})", release.installation_url)?;
+        writeln!(
+            buf,
+            "[install in Unity HUB]({})",
+            release.unity_hub_deep_link
+        )?;
 
         for (header, entries) in release_notes {
             writeln!(buf)?;

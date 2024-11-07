@@ -13,6 +13,8 @@ pub(crate) mod http_cache;
 pub(crate) mod installed;
 pub(crate) mod non_empty_vec;
 pub(crate) mod project;
+pub(crate) mod release_api;
+pub(crate) mod release_api_data;
 pub(crate) mod releases;
 pub(crate) mod spawn_cmd;
 pub(crate) mod version;
