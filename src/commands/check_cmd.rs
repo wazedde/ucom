@@ -189,28 +189,20 @@ fn write_available_updates(updates: &[ReleaseData], buf: &mut Vec<u8>) -> anyhow
 }
 
 fn write_release_notes(buf: &mut Vec<u8>, release: &ReleaseData) -> anyhow::Result<()> {
-    let (url, body) = fetch_release_notes(release.version)?;
-    let release_notes = extract_release_notes(&body);
+    let url = &release.release_notes.url;
+    let body = http_cache::fetch_content(url, true)?;
 
-    if !release_notes.is_empty() {
-        writeln!(buf)?;
-        writeln!(buf, "## Release notes for [{}]({url})", release.version)?;
-        writeln!(buf)?;
-        writeln!(
-            buf,
-            "[install in Unity HUB]({})",
-            release.unity_hub_deep_link
-        )?;
+    writeln!(buf)?;
+    writeln!(buf, "## Release notes for [{}]({url})", release.version)?;
+    writeln!(buf)?;
+    writeln!(
+        buf,
+        "[install in Unity HUB]({})",
+        release.unity_hub_deep_link
+    )?;
 
-        for (header, entries) in release_notes {
-            writeln!(buf)?;
-            writeln!(buf, "### {header}")?;
-            writeln!(buf)?;
-            for e in &entries {
-                writeln!(buf, "- {e}")?;
-            }
-        }
-    }
+    writeln!(buf)?;
+    writeln!(buf, "{}", body)?;
 
     Ok(())
 }
