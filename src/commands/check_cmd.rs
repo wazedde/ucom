@@ -167,7 +167,7 @@ fn write_project_version(
 
 fn write_available_updates(updates: &[ReleaseData], buf: &mut Vec<u8>) -> anyhow::Result<()> {
     writeln_b!(buf, "Available update(s):")?;
-    let max_len = updates.iter().map(|ri| ri.version.len()).max().unwrap();
+    let max_len = updates.iter().map(|rd| rd.version.len()).max().unwrap();
 
     for release in updates {
         let status = if release.version.is_editor_installed()? {

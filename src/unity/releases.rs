@@ -65,10 +65,10 @@ pub(crate) fn fetch_update_info(
         .filter(|rd| filter.eval(rd.version))
         .collect_vec();
 
-    let current = releases.iter().find(|ri| ri.version == version).cloned();
+    let current = releases.iter().find(|rd| rd.version == version).cloned();
     let updates = releases
         .into_iter()
-        .filter(|ri| ri.version > version) // Only newer versions.
+        .filter(|rd| rd.version > version) // Only newer versions.
         .collect();
 
     Ok((current, updates))

@@ -121,32 +121,32 @@ fn print_installed_versions(installed: &VersionList) {
 /// ── 2023.1.0b12  - No Beta update info available
 /// ── 2023.2.0a10  - No Alpha update info available
 /// ```
-fn print_updates(installed: &VersionList, available: &[ReleaseData]) -> anyhow::Result<()> {
-    if available.is_empty() {
+fn print_updates(installed: &VersionList, releases: &[ReleaseData]) -> anyhow::Result<()> {
+    if releases.is_empty() {
         return Err(anyhow!("No update information available."));
     }
 
     let default_version = installed.default_version();
-    let version_groups = collect_update_info(installed, available);
-    let max_len = max_version_string_length(&version_groups);
+    let version_groups = collect_update_info(installed, releases);
+    let max_version_len = max_version_string_length(&version_groups);
 
     for group in version_groups.0 {
         for vi in group.iter() {
-            print_list_marker(
+            print_slim_list_marker(
                 vi.version == group.first().version,
                 vi.version == group.last().version,
             );
 
             let is_default = vi.version == default_version;
-            let version_str = format!("{:<max_len$}", vi.version.to_string());
+            let version_str = format!("{:<max_version_len$}", vi.version.to_string());
             let separator = if is_default { '*' } else { '-' };
 
-            let ri = available
+            let rd = releases
                 .iter()
                 .find(|p| p.version == vi.version)
                 .expect("Could not find release info for version");
 
-            let (fill, stream) = fixed_stream_string(ri.stream);
+            let (fill, stream) = fixed_stream_string(rd.stream);
             print!("{fill}");
 
             match &vi.v_type {
@@ -203,31 +203,31 @@ fn print_updates(installed: &VersionList, available: &[ReleaseData]) -> anyhow::
 
 /// Groups installed versions by `major.minor` version
 /// and collects update information for each installed version.
-fn collect_update_info(installed: &VersionList, available: &[ReleaseData]) -> VersionInfoGroups {
+fn collect_update_info(installed: &VersionList, releases: &[ReleaseData]) -> VersionInfoGroups {
     let mut version_groups = group_minor_versions(installed);
 
     // Add available updates to groups
     for group in &mut version_groups.0 {
         let latest_installed_version = group.last().version;
 
-        let has_releases = available.iter().any(|ri| {
-            ri.version.major == latest_installed_version.major
-                && ri.version.minor == latest_installed_version.minor
+        let has_releases = releases.iter().any(|rd| {
+            rd.version.major == latest_installed_version.major
+                && rd.version.minor == latest_installed_version.minor
         });
 
         if has_releases {
             // Add update info to group (if there are any)
-            available
+            releases
                 .iter()
-                .filter(|ri| {
-                    ri.version.major == latest_installed_version.major
-                        && ri.version.minor == latest_installed_version.minor
-                        && ri.version > latest_installed_version
+                .filter(|rd| {
+                    rd.version.major == latest_installed_version.major
+                        && rd.version.minor == latest_installed_version.minor
+                        && rd.version > latest_installed_version
                 })
-                .for_each(|ri| {
+                .for_each(|rd| {
                     group.push(VersionInfo {
-                        version: ri.version,
-                        v_type: VersionType::UpdateToLatest(ri.clone()),
+                        version: rd.version,
+                        v_type: VersionType::UpdateToLatest(rd.clone()),
                     });
                 });
         } else {
@@ -258,11 +258,11 @@ fn collect_update_info(installed: &VersionList, available: &[ReleaseData]) -> Ve
 /// ```
 fn print_latest_versions(
     installed: &[Version],
-    available: &[ReleaseData],
+    releases: &[ReleaseData],
     partial_version: Option<&str>,
 ) -> anyhow::Result<()> {
     // Get the latest version of each range.
-    let minor_releases = latest_minor_releases(available, partial_version);
+    let minor_releases = latest_minor_releases(releases, partial_version);
 
     if minor_releases.is_empty() {
         return Err(anyhow!(
@@ -273,7 +273,7 @@ fn print_latest_versions(
 
     let max_len = minor_releases
         .iter()
-        .map(|ri| ri.version.len())
+        .map(|rd| rd.version.len())
         .max()
         .unwrap_or(0);
 
@@ -285,7 +285,7 @@ fn print_latest_versions(
             .peek()
             .map_or(true, |v| v.version.major != latest.version.major);
 
-        print_list_marker(
+        print_slim_list_marker(
             Some(latest.version.major) != previous_major,
             is_last_in_range,
         );
@@ -319,9 +319,8 @@ fn print_latest_versions(
 }
 
 fn fixed_stream_string(stream: ReleaseStream) -> (String, String) {
-    let mut stream = stream.to_string();
-    stream.push(':');
-    let line = "─".repeat(6 - stream.len());
+    let stream = stream.to_string();
+    let line = "─".repeat(5 - stream.len());
     (format!("{} ", line), stream)
 }
 
@@ -346,10 +345,10 @@ fn fixed_version_string(version: Version, max_len: usize) -> String {
 /// ```
 fn print_available_versions(
     installed: &[Version],
-    available: &[ReleaseData],
+    releases: &[ReleaseData],
     partial_version: Option<&str>,
 ) -> anyhow::Result<()> {
-    let releases = available
+    let releases = releases
         .iter()
         .filter(|r| partial_version.map_or(true, |p| r.version.to_string().starts_with(p)))
         .sorted_unstable()
@@ -369,20 +368,20 @@ fn print_available_versions(
 
     for group in version_groups.0 {
         for vi in group.iter() {
-            print_list_marker(
+            print_slim_list_marker(
                 vi.version == group.first().version,
                 vi.version == group.last().version,
             );
 
             let is_installed = installed.contains(&vi.version);
 
-            let ri = releases
+            let rd = releases
                 .iter()
                 .find(|p| p.version == vi.version)
                 .expect("Could not find release info for version");
 
-            let version = fixed_version_string(ri.version, max_len);
-            let (fill, stream) = fixed_stream_string(ri.stream);
+            let version = fixed_version_string(rd.version, max_len);
+            let (fill, stream) = fixed_stream_string(rd.stream);
             print!("{fill}");
 
             if is_installed {
@@ -398,7 +397,7 @@ fn print_available_versions(
                     stream,
                     version,
                     release_notes_url(vi.version).bright_blue(),
-                    ri.unity_hub_deep_link.bright_blue()
+                    rd.unity_hub_deep_link.bright_blue()
                 );
             }
         }
@@ -502,17 +501,17 @@ fn group_minor_versions(installed: &VersionList) -> VersionInfoGroups {
 }
 
 fn latest_minor_releases<'a>(
-    available: &'a [ReleaseData],
+    releases: &'a [ReleaseData],
     partial_version: Option<&str>,
 ) -> Vec<&'a ReleaseData> {
-    available
+    releases
         .iter()
         .filter(|r| partial_version.map_or(true, |p| r.version.to_string().starts_with(p)))
         .map(|r| (r.version.major, r.version.minor))
         .sorted_unstable()
         .dedup()
         .filter_map(|(major, minor)| {
-            available
+            releases
                 .iter()
                 .filter(|r| r.version.major == major && r.version.minor == minor)
                 .max()
@@ -522,15 +521,26 @@ fn latest_minor_releases<'a>(
 
 /// Prints the list marker for the current item.
 fn print_list_marker(is_first: bool, is_last: bool) {
-    print!("{}", list_marker(is_first, is_last));
+    print!(
+        "{}",
+        match (is_first, is_last) {
+            (true, true) => "──",
+            (true, false) => "┬─",
+            (false, false) => "├─",
+            (false, true) => "└─",
+        }
+    );
 }
 
-/// Returns the list marker for the current item.
-fn list_marker(is_first: bool, is_last: bool) -> &'static str {
-    match (is_first, is_last) {
-        (true, true) => "──",
-        (true, false) => "┬─",
-        (false, false) => "├─",
-        (false, true) => "└─",
-    }
+/// Prints the slim list marker for the current item.
+fn print_slim_list_marker(is_first: bool, is_last: bool) {
+    print!(
+        "{}",
+        match (is_first, is_last) {
+            (true, true) => "─",
+            (true, false) => "┬",
+            (false, false) => "├",
+            (false, true) => "└",
+        }
+    );
 }
