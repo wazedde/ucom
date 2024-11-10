@@ -12,7 +12,7 @@ use crate::unity::release_api_data::ReleaseData;
 use crate::unity::*;
 
 /// Version info grouped by minor version.
-struct VersionInfoGroups(Vec<NonEmptyVec<VersionInfo>>);
+struct VersionInfoGroups<'a>(Vec<NonEmptyVec<VersionInfo<'a>>>);
 
 /// Lists installed Unity versions.
 pub(crate) fn list_versions(
@@ -72,13 +72,12 @@ pub(crate) fn list_versions(
 
 /// Prints list of installed versions.
 /// ```
-/// ── 2020.3.46f1  - https://unity.com/releases/editor/whats-new/2020.3.46
-/// ┬─ 2021.3.19f1  - https://unity.com/releases/editor/whats-new/2021.3.19
-/// ├─ 2021.3.22f1  - https://unity.com/releases/editor/whats-new/2021.3.22
-/// └─ 2021.3.23f1* - https://unity.com/releases/editor/whats-new/2021.3.23
-/// ── 2022.2.15f1  - https://unity.com/releases/editor/whats-new/2022.2.15
-/// ── 2023.1.0b12  - https://unity.com/releases/editor/beta/2023.1.0b12
-/// ── 2023.2.0a10  - https://unity.com/releases/editor/alpha/2023.2.0a10
+/// Unity versions in: /Applications/Unity/Hub/Editor/ (*=default for new projects)
+/// ┬─ 2022.3.51f1 - https://unity.com/releases/editor/whats-new/2022.3.51#notes
+/// └─ 2022.3.52f1 * https://unity.com/releases/editor/whats-new/2022.3.52#notes
+/// ┬─ 6000.0.24f1 - https://unity.com/releases/editor/whats-new/6000.0.24#notes
+/// ├─ 6000.0.25f1 - https://unity.com/releases/editor/whats-new/6000.0.25#notes
+/// └─ 6000.0.26f1 - https://unity.com/releases/editor/whats-new/6000.0.26#notes
 /// ```
 fn print_installed_versions(installed: &VersionList) {
     let default_version = installed.default_version();
@@ -112,14 +111,12 @@ fn print_installed_versions(installed: &VersionList) {
 
 /// Prints list of installed versions and available updates.
 /// ```
-/// ┬─ 2020.3.46f1  - Update(s) available
-/// └─ 2020.3.47f1  - https://unity.com/releases/editor/whats-new/2020.3.47 > unityhub://2020.3.47f1/5ef4f5b5e2d4
-/// ┬─ 2021.3.19f1
-/// ├─ 2021.3.22f1
-/// └─ 2021.3.23f1* - Up to date
-/// ── 2022.2.15f1  - Up to date
-/// ── 2023.1.0b12  - No Beta update info available
-/// ── 2023.2.0a10  - No Alpha update info available
+/// Updates for Unity versions in: /Applications/Unity/Hub/Editor/ (*=default for new projects)
+/// ┬── LTS 2022.3.51f1
+/// └── LTS 2022.3.52f1 * Up to date
+/// ┬── LTS 6000.0.24f1
+/// ├── LTS 6000.0.25f1 - Update(s) available
+/// └── LTS 6000.0.26f1 - https://unity.com/releases/editor/whats-new/6000.0.26#notes > unityhub://6000.0.26f1/ccb7c73d2c02
 /// ```
 fn print_updates(installed: &VersionList, releases: &[ReleaseData]) -> anyhow::Result<()> {
     if releases.is_empty() {
@@ -203,7 +200,10 @@ fn print_updates(installed: &VersionList, releases: &[ReleaseData]) -> anyhow::R
 
 /// Groups installed versions by `major.minor` version
 /// and collects update information for each installed version.
-fn collect_update_info(installed: &VersionList, releases: &[ReleaseData]) -> VersionInfoGroups {
+fn collect_update_info<'a>(
+    installed: &'a VersionList,
+    releases: &'a [ReleaseData],
+) -> VersionInfoGroups<'a> {
     let mut version_groups = group_minor_versions(installed);
 
     // Add available updates to groups
@@ -227,7 +227,7 @@ fn collect_update_info(installed: &VersionList, releases: &[ReleaseData]) -> Ver
                 .for_each(|rd| {
                     group.push(VersionInfo {
                         version: rd.version,
-                        v_type: VersionType::UpdateToLatest(rd.clone()),
+                        v_type: VersionType::UpdateToLatest(rd),
                     });
                 });
         } else {
@@ -241,20 +241,18 @@ fn collect_update_info(installed: &VersionList, releases: &[ReleaseData]) -> Ver
 /// Prints list of latest available Unity versions.
 /// ```
 /// ...
-/// ┬─ 2019.1.14f1 > unityhub://2019.1.14f1/148b5891095a
-/// ├─ 2019.2.21f1 > unityhub://2019.2.21f1/9d528d026557
-/// ├─ 2019.3.15f1 > unityhub://2019.3.15f1/59ff3e03856d
-/// └─ 2019.4.40f1 > unityhub://2019.4.40f1/ffc62b691db5
-/// ┬─ 2020.1.17f1 > unityhub://2020.1.17f1/9957aee8edc2
-/// ├─ 2020.2.7f1  > unityhub://2020.2.7f1/c53830e277f1
-/// └─ 2020.3.48f1 > unityhub://2020.3.48f1/b805b124c6b7
-/// ┬─ 2021.1.28f1 > unityhub://2021.1.28f1/f3f9dc10f3dd
-/// ├─ 2021.2.19f1 > unityhub://2021.2.19f1/602ecdbb2fb0
-/// └─ 2021.3.29f1 - Installed: 2021.3.26f1, 2021.3.29f1
-/// ┬─ 2022.1.24f1 > unityhub://2022.1.24f1/709dddfb713f
-/// ├─ 2022.2.21f1 > unityhub://2022.2.21f1/4907324dc95b
-/// └─ 2022.3.5f1  - Installed: 2022.3.5f1
-/// ── 2023.1.6f1  > unityhub://2023.1.6f1/964b2488c462
+/// ┬─ TECH 2021.1.28f1 > unityhub://2021.1.28f1/f3f9dc10f3dd
+/// ├─ TECH 2021.2.19f1 > unityhub://2021.2.19f1/602ecdbb2fb0
+/// └── LTS 2021.3.45f1 > unityhub://2021.3.45f1/0da89fac8e79
+/// ┬─ TECH 2022.1.24f1 > unityhub://2022.1.24f1/709dddfb713f
+/// ├─ TECH 2022.2.21f1 > unityhub://2022.2.21f1/4907324dc95b
+/// └── LTS 2022.3.52f1 - Installed: 2022.3.51f1, 2022.3.52f1
+/// ┬─ TECH 2023.1.20f1 > unityhub://2023.1.20f1/35a524b12060
+/// ├─ TECH 2023.2.20f1 > unityhub://2023.2.20f1/0e25a174756c
+/// └─ BETA 2023.3.0b10 > unityhub://2023.3.0b10/52ddac442a2c
+/// ┬── LTS 6000.0.26f1 - Installed: 6000.0.24f1, 6000.0.25f1 - update > unityhub://6000.0.26f1/ccb7c73d2c02
+/// └ ALPHA 6000.1.0a3  > unityhub://6000.1.0a3/26ee3f072390
+/// ...
 /// ```
 fn print_latest_versions(
     installed: &[Version],
@@ -330,17 +328,18 @@ fn fixed_version_string(version: Version, max_len: usize) -> String {
 
 /// Prints list of available Unity versions.
 /// ```
+/// Available releases
 /// ...
-/// ├─ 2021.1.4f1  - https://unity.com/releases/editor/whats-new/2021.1.4 > unityhub://2021.1.4f1/4cd64a618c1b
-/// ├─ 2021.1.5f1  - https://unity.com/releases/editor/whats-new/2021.1.5 > unityhub://2021.1.5f1/3737af19df53
-/// ├─ 2021.1.6f1  - https://unity.com/releases/editor/whats-new/2021.1.6 > unityhub://2021.1.6f1/c0fade0cc7e9
-/// ├─ 2021.1.7f1  - https://unity.com/releases/editor/whats-new/2021.1.7 > unityhub://2021.1.7f1/d91830b65d9b
-/// ├─ 2021.1.9f1  - https://unity.com/releases/editor/whats-new/2021.1.9 > unityhub://2021.1.9f1/7a790e367ab3
-/// ├─ 2021.1.10f1 - https://unity.com/releases/editor/whats-new/2021.1.10 > unityhub://2021.1.10f1/b15f561b2cef
-/// ├─ 2021.1.11f1 - https://unity.com/releases/editor/whats-new/2021.1.11 > unityhub://2021.1.11f1/4d8c25f7477e
-/// ├─ 2021.1.12f1 - https://unity.com/releases/editor/whats-new/2021.1.12 > unityhub://2021.1.12f1/afcadd793de6
-/// ├─ 2021.1.13f1 - https://unity.com/releases/editor/whats-new/2021.1.13 > unityhub://2021.1.13f1/a03098edbbe0
-/// ├─ 2021.1.14f1 - https://unity.com/releases/editor/whats-new/2021.1.14 > unityhub://2021.1.14f1/51d2f824827f
+/// ┬─ BETA 6000.0.0b11 - https://unity.com/releases/editor/beta/6000.0.0b11#notes > unityhub://6000.0.0b11/a707ca4efec4
+/// ├─ BETA 6000.0.0b12 - https://unity.com/releases/editor/beta/6000.0.0b12#notes > unityhub://6000.0.0b12/0ac662189661
+/// ├─ BETA 6000.0.0b13 - https://unity.com/releases/editor/beta/6000.0.0b13#notes > unityhub://6000.0.0b13/21aeb48b6ed2
+/// ├─ BETA 6000.0.0b15 - https://unity.com/releases/editor/beta/6000.0.0b15#notes > unityhub://6000.0.0b15/8008bc0c1b74
+/// ├─ BETA 6000.0.0b16 - https://unity.com/releases/editor/beta/6000.0.0b16#notes > unityhub://6000.0.0b16/1ddb887463a9
+/// ├─ TECH 6000.0.0f1  - https://unity.com/releases/editor/whats-new/6000.0.0#notes > unityhub://6000.0.0f1/4ff56b3ea44c
+/// ├─ TECH 6000.0.1f1  - https://unity.com/releases/editor/whats-new/6000.0.1#notes > unityhub://6000.0.1f1/d9cf669c6271
+/// ├─ TECH 6000.0.2f1  - https://unity.com/releases/editor/whats-new/6000.0.2#notes > unityhub://6000.0.2f1/c36be92430b9
+/// ├─ TECH 6000.0.3f1  - https://unity.com/releases/editor/whats-new/6000.0.3#notes > unityhub://6000.0.3f1/019aa96b6ed9
+/// ├─ TECH 6000.0.4f1  - https://unity.com/releases/editor/whats-new/6000.0.4#notes > unityhub://6000.0.4f1/b5d5d06b038a
 /// ...
 /// ```
 fn print_available_versions(
@@ -351,8 +350,6 @@ fn print_available_versions(
     let releases = releases
         .iter()
         .filter(|r| partial_version.map_or(true, |p| r.version.to_string().starts_with(p)))
-        .sorted_unstable()
-        .dedup()
         .collect_vec();
 
     let Ok(versions) = VersionList::from_vec(releases.iter().map(|r| r.version).collect_vec())
@@ -443,20 +440,20 @@ fn print_installs_line(latest: &ReleaseData, installed_in_range: &[Version], max
     };
 }
 
-struct VersionInfo {
+struct VersionInfo<'a> {
     version: Version,
-    v_type: VersionType,
+    v_type: VersionType<'a>,
 }
 
-enum VersionType {
+enum VersionType<'a> {
     HasLaterInstalled,
     LatestInstalled,
-    UpdateToLatest(ReleaseData),
+    UpdateToLatest(&'a ReleaseData),
     NoReleaseInfo,
 }
 
 /// Returns the max length of the version strings ih the groups.
-fn max_version_string_length(version_groups: &VersionInfoGroups) -> usize {
+fn max_version_string_length(version_groups: &VersionInfoGroups<'_>) -> usize {
     version_groups
         .0
         .iter()
@@ -467,7 +464,7 @@ fn max_version_string_length(version_groups: &VersionInfoGroups) -> usize {
 }
 
 /// Returns list of grouped versions that are in the same minor range.
-fn group_minor_versions(installed: &VersionList) -> VersionInfoGroups {
+fn group_minor_versions(installed: &VersionList) -> VersionInfoGroups<'_> {
     let mut version_groups = vec![];
     let mut group = vec![];
 
@@ -508,13 +505,12 @@ fn latest_minor_releases<'a>(
         .iter()
         .filter(|r| partial_version.map_or(true, |p| r.version.to_string().starts_with(p)))
         .map(|r| (r.version.major, r.version.minor))
-        .sorted_unstable()
         .dedup()
         .filter_map(|(major, minor)| {
             releases
                 .iter()
                 .filter(|r| r.version.major == major && r.version.minor == minor)
-                .max()
+                .max_by(|a, b| a.version.cmp(&b.version))
         })
         .collect()
 }

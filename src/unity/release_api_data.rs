@@ -3,7 +3,7 @@ use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 
 #[allow(dead_code)]
-#[derive(Debug, Serialize, Deserialize, Clone)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct ReleaseDataPayload {
     #[serde(rename = "offset")]
     pub offset: usize,
@@ -16,7 +16,7 @@ pub struct ReleaseDataPayload {
 }
 
 #[allow(dead_code)]
-#[derive(Deserialize, Serialize, Debug, Eq, PartialEq, Ord, PartialOrd, Clone)]
+#[derive(Deserialize, Serialize, Debug)]
 pub struct ReleaseData {
     #[serde(rename = "version")]
     pub version: Version,
@@ -32,15 +32,17 @@ pub struct ReleaseData {
     pub sku_family: String,
     #[serde(rename = "unityHubDeepLink")]
     pub unity_hub_deep_link: String,
-    // #[serde(rename = "downloads")]
-    // pub downloads: Vec<DownloadsElement>,
-    // #[serde(rename = "recommended")]
-    // pub recommended: bool,
-    // #[serde(rename = "thirdPartyNotices")]
-    // pub third_party_notices: Vec<ThirdPartyNoticesElement>,
+
+    // Not used
+    #[serde(skip, rename = "recommended")]
+    pub recommended: bool,
+    #[serde(skip, rename = "downloads")]
+    pub downloads: Option<Vec<DownloadsElement>>,
+    #[serde(skip, rename = "thirdPartyNotices")]
+    pub third_party_notices: Option<Vec<ThirdPartyNoticesElement>>,
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct DownloadsElement {
     #[serde(rename = "architecture")]
     pub architecture: String,
@@ -60,7 +62,7 @@ pub struct DownloadsElement {
     pub url: String,
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct SizeUnitValue {
     #[serde(rename = "unit")]
     pub unit: String,
@@ -68,7 +70,7 @@ pub struct SizeUnitValue {
     pub value: f64,
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct ModulesElement {
     #[serde(rename = "category")]
     pub category: String,
@@ -104,7 +106,7 @@ pub struct ModulesElement {
     pub integrity: Option<String>,
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct EulaElement {
     #[serde(rename = "label")]
     pub label: String,
@@ -116,7 +118,7 @@ pub struct EulaElement {
     pub url: String,
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct SubModulesElement {
     #[serde(rename = "category")]
     pub category: String,
@@ -154,7 +156,7 @@ pub struct SubModulesElement {
     pub url: String,
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct ExtractedPathRename {
     #[serde(rename = "from")]
     pub from: String,
@@ -162,7 +164,7 @@ pub struct ExtractedPathRename {
     pub to: String,
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone, Ord, PartialOrd, Eq, PartialEq)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct ReleaseNotes {
     #[serde(rename = "type")]
     pub notes_type: String, // Renamed due to keyword collision
@@ -170,7 +172,7 @@ pub struct ReleaseNotes {
     pub url: String,
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct ThirdPartyNoticesElement {
     #[serde(rename = "originalFileName")]
     pub original_file_name: String,

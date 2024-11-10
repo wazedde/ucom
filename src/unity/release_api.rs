@@ -45,7 +45,7 @@ where
             if release.release_date <= latest_release_date {
                 break 'outer;
             }
-            releases.push(release.clone());
+            releases.push(release);
             fetched += 1;
         }
 
@@ -69,7 +69,7 @@ pub fn load_release_info(path: &PathBuf) -> anyhow::Result<Vec<ReleaseData>> {
     Ok(releases)
 }
 
-/// Downloads and caches the release info.
+/// Downloads and caches the release info. List is sorted by version in ascending order.
 pub fn load_and_download_release_info() -> anyhow::Result<Vec<ReleaseData>> {
     let path = ucom_cache_dir().join(RELEASES_FILENAME);
     let mut releases = load_release_info(&path).unwrap_or_default();
@@ -92,6 +92,6 @@ pub fn load_and_download_release_info() -> anyhow::Result<Vec<ReleaseData>> {
         }
     }
     // Sort ascending by version
-    releases.sort_by_key(|r| r.version);
+    releases.sort_unstable_by_key(|r| r.version);
     Ok(releases)
 }

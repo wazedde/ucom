@@ -45,12 +45,12 @@ impl ReleaseFilter {
     }
 }
 
-/// Gets Unity releases from the Unity website.
+/// Downloads and caches the release info. List is sorted by version in ascending order.
 pub(crate) fn fetch_unity_editor_releases() -> anyhow::Result<Vec<ReleaseData>> {
     load_and_download_release_info()
 }
 
-/// Gets the current and update releases for the given version from the Unity website.
+/// Gets the current and update releases for the given version. Releases are sorted by version in ascending order.
 pub(crate) fn fetch_update_info(
     version: Version,
 ) -> anyhow::Result<(Option<ReleaseData>, Vec<ReleaseData>)> {
@@ -60,16 +60,18 @@ pub(crate) fn fetch_update_info(
         minor: version.minor,
     };
 
-    let releases = releases
+    let mut releases = releases
         .into_iter()
         .filter(|rd| filter.eval(rd.version))
         .collect_vec();
 
-    let current = releases.iter().find(|rd| rd.version == version).cloned();
+    let position = releases.iter().position(|rd| rd.version == version);
+    let current = position.map(|pos| releases.remove(pos));
+
     let updates = releases
         .into_iter()
-        .filter(|rd| rd.version > version) // Only newer versions.
-        .collect();
+        .filter(|rd| rd.version > version)
+        .collect_vec();
 
     Ok((current, updates))
 }

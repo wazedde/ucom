@@ -60,7 +60,7 @@ pub(crate) struct VersionList {
 impl TryFrom<Vec<Version>> for VersionList {
     type Error = NonEmptyVecErr;
 
-    fn try_from(value: Vec<Version>) -> std::result::Result<Self, Self::Error> {
+    fn try_from(value: Vec<Version>) -> Result<Self, Self::Error> {
         match NonEmptyVec::from_vec(value) {
             Ok(mut versions) => {
                 versions.sort_unstable();
@@ -93,7 +93,7 @@ impl VersionList {
         Ok((parent_dir, installed_versions))
     }
 
-    pub(crate) fn from_vec(versions: Vec<Version>) -> std::result::Result<Self, NonEmptyVecErr> {
+    pub(crate) fn from_vec(versions: Vec<Version>) -> Result<Self, NonEmptyVecErr> {
         match NonEmptyVec::from_vec(versions) {
             Ok(mut versions) => {
                 versions.sort_unstable();
