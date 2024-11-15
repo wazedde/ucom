@@ -33,9 +33,10 @@ pub struct ReleaseData {
     #[serde(rename = "unityHubDeepLink")]
     pub unity_hub_deep_link: String,
 
+    #[serde(skip_serializing, rename = "recommended")]
+    pub recommended: Option<bool>,
+
     // Not used
-    #[serde(skip, rename = "recommended")]
-    pub recommended: bool,
     #[serde(skip, rename = "downloads")]
     pub downloads: Option<Vec<DownloadsElement>>,
     #[serde(skip, rename = "thirdPartyNotices")]

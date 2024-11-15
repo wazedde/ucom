@@ -1,4 +1,4 @@
-use crate::unity::release_api::load_and_download_release_info;
+use crate::unity::release_api::get_latest_releases;
 use crate::unity::release_api_data::ReleaseData;
 use crate::unity::{BuildType, Major, Minor, Version};
 use itertools::Itertools;
@@ -45,16 +45,11 @@ impl ReleaseFilter {
     }
 }
 
-/// Downloads and caches the release info. List is sorted by version in ascending order.
-pub(crate) fn fetch_unity_editor_releases() -> anyhow::Result<Vec<ReleaseData>> {
-    load_and_download_release_info()
-}
-
-/// Gets the current and update releases for the given version. Releases are sorted by version in ascending order.
-pub(crate) fn fetch_update_info(
+/// Returns the latest releases for a given version.
+pub(crate) fn get_latest_releases_for(
     version: Version,
 ) -> anyhow::Result<(Option<ReleaseData>, Vec<ReleaseData>)> {
-    let releases = load_and_download_release_info()?;
+    let releases = get_latest_releases()?;
     let filter = ReleaseFilter::Minor {
         major: version.major,
         minor: version.minor,
@@ -166,44 +161,5 @@ mod releases_tests {
             url,
             "https://unity.com/releases/editor/whats-new/5.1.0#notes"
         );
-    }
-}
-
-#[cfg(test)]
-mod releases_tests_online {
-    use std::str::FromStr;
-    use std::sync::Once;
-
-    use crate::unity::{fetch_update_info, http_cache, Version};
-
-    static INIT: Once = Once::new();
-
-    pub(crate) fn initialize() {
-        INIT.call_once(|| {
-            http_cache::set_cache_enabled(false).unwrap();
-        });
-    }
-
-    /// Scraping <https://unity.com/releases/editor/archive> for updates to 2019.1.0f1.
-    /// At the time of writing, there were 15.
-    #[test]
-    fn test_request_updates_2019_1_0() {
-        initialize();
-        let v = Version::from_str("2019.1.0f1").unwrap();
-        let (current, updates) = fetch_update_info(v).unwrap();
-        current.unwrap();
-        assert!(updates.len() >= 15);
-    }
-
-    /// Scraping <https://unity.com/releases/editor/archive> for updates to 5.0.0f1.
-    /// At the time of writing, there were 19, and it is assumed that this will not change.
-    #[test]
-    fn test_request_updates_5_0_0() {
-        initialize();
-        let v = Version::from_str("5.0.0f1").unwrap();
-        let (current, updates) = fetch_update_info(v).unwrap();
-        // 5.0.0f1 does not have a release
-        assert!(current.is_none());
-        assert_eq!(updates.len(), 19);
     }
 }

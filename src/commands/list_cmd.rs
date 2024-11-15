@@ -8,6 +8,7 @@ use crate::commands::term_stat::TermStat;
 use crate::commands::{println_b, println_b_if};
 use crate::unity::installed::VersionList;
 use crate::unity::non_empty_vec::NonEmptyVec;
+use crate::unity::release_api::{get_latest_releases, Releases};
 use crate::unity::release_api_data::ReleaseData;
 use crate::unity::*;
 
@@ -38,7 +39,7 @@ pub(crate) fn list_versions(
                 dir.display(),
             );
             let ts = TermStat::new("Downloading", "release data...");
-            let releases = fetch_unity_editor_releases()?;
+            let releases = get_latest_releases()?;
             drop(ts);
             print_updates(&installed, &releases)
         }
@@ -50,7 +51,7 @@ pub(crate) fn list_versions(
                 .unwrap_or_default();
             println_b!("Latest available minor releases");
             let ts = TermStat::new("Downloading", "release data...");
-            let releases = fetch_unity_editor_releases()?;
+            let releases = get_latest_releases()?;
             drop(ts);
             print_latest_versions(&installed, &releases, partial_version)
         }
@@ -63,7 +64,7 @@ pub(crate) fn list_versions(
 
             println_b!("Available releases");
             let ts = TermStat::new("Downloading", "release data...");
-            let releases = fetch_unity_editor_releases()?;
+            let releases = get_latest_releases()?;
             drop(ts);
             print_available_versions(&installed, &releases, partial_version)
         }
@@ -118,7 +119,7 @@ fn print_installed_versions(installed: &VersionList) {
 /// ├── LTS 6000.0.25f1 - Update(s) available
 /// └── LTS 6000.0.26f1 - https://unity.com/releases/editor/whats-new/6000.0.26#notes > unityhub://6000.0.26f1/ccb7c73d2c02
 /// ```
-fn print_updates(installed: &VersionList, releases: &[ReleaseData]) -> anyhow::Result<()> {
+fn print_updates(installed: &VersionList, releases: &Releases) -> anyhow::Result<()> {
     if releases.is_empty() {
         return Err(anyhow!("No update information available."));
     }
@@ -202,7 +203,7 @@ fn print_updates(installed: &VersionList, releases: &[ReleaseData]) -> anyhow::R
 /// and collects update information for each installed version.
 fn collect_update_info<'a>(
     installed: &'a VersionList,
-    releases: &'a [ReleaseData],
+    releases: &'a Releases,
 ) -> VersionInfoGroups<'a> {
     let mut version_groups = group_minor_versions(installed);
 
@@ -256,7 +257,7 @@ fn collect_update_info<'a>(
 /// ```
 fn print_latest_versions(
     installed: &[Version],
-    releases: &[ReleaseData],
+    releases: &Releases,
     partial_version: Option<&str>,
 ) -> anyhow::Result<()> {
     // Get the latest version of each range.
@@ -344,7 +345,7 @@ fn fixed_version_string(version: Version, max_len: usize) -> String {
 /// ```
 fn print_available_versions(
     installed: &[Version],
-    releases: &[ReleaseData],
+    releases: &Releases,
     partial_version: Option<&str>,
 ) -> anyhow::Result<()> {
     let releases = releases
@@ -498,7 +499,7 @@ fn group_minor_versions(installed: &VersionList) -> VersionInfoGroups<'_> {
 }
 
 fn latest_minor_releases<'a>(
-    releases: &'a [ReleaseData],
+    releases: &'a Releases,
     partial_version: Option<&str>,
 ) -> Vec<&'a ReleaseData> {
     releases

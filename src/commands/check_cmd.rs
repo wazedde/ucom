@@ -15,7 +15,7 @@ pub(crate) fn check_updates(project_dir: &Path, create_report: bool) -> anyhow::
 
     let (project_version_info, updates) = {
         let _ts = TermStat::new("Checking", &format!("for updates to {unity_version}"));
-        fetch_update_info(unity_version)?
+        get_latest_releases_for(unity_version)?
     };
 
     if create_report {
