@@ -5,7 +5,6 @@ use std::{env, fs};
 use anyhow::{anyhow, Context};
 use itertools::Itertools;
 
-use crate::cli::ENV_DEFAULT_VERSION;
 use crate::cli::ENV_EDITOR_DIR;
 use crate::unity::non_empty_vec::{NonEmptyVec, NonEmptyVecErr};
 use crate::unity::Version;
@@ -155,19 +154,6 @@ impl VersionList {
                 "No Unity installation was found that matches version `{partial_version}`."
             )),
         }
-    }
-
-    /// Returns the default version ucom uses for new Unity projects.
-    pub(crate) fn default_version(&self) -> Version {
-        env::var_os(ENV_DEFAULT_VERSION)
-            .and_then(|env| {
-                self.versions
-                    .iter()
-                    .rev()
-                    .find(|v| v.to_string().starts_with(env.to_string_lossy().as_ref()))
-                    .copied()
-            })
-            .unwrap_or(*self.versions.last())
     }
 
     /// Returns the parent directory of the editor installations.

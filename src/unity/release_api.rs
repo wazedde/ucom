@@ -108,17 +108,21 @@ pub fn load_release_info(path: &PathBuf) -> anyhow::Result<Releases> {
     Ok(releases)
 }
 
+pub fn load_cached_releases() -> anyhow::Result<Releases> {
+    let path = ucom_cache_dir().join(RELEASES_FILENAME);
+    if path.exists() {
+        load_release_info(&path)
+    } else {
+        Ok(Releases::default())
+    }
+}
+
 /// Downloads and caches the release info. List is sorted by version in ascending order.
 pub fn get_latest_releases() -> anyhow::Result<Releases> {
-    let path = ucom_cache_dir().join(RELEASES_FILENAME);
+    let releases_path = ucom_cache_dir().join(RELEASES_FILENAME);
+    let mut releases = load_cached_releases()?;
 
-    let mut releases = if path.exists() {
-        load_release_info(&path)?
-    } else {
-        Releases::default()
-    };
-
-    if http_cache::has_expired(&path) {
+    if http_cache::has_expired(&releases_path) {
         let ts = TermStat::new("Download", "Release info");
         let fetch_count = download_release_info(&mut releases, |count: usize, total: usize| {
             let percentage = count as f64 / total as f64 * 100.0;
@@ -131,9 +135,12 @@ pub fn get_latest_releases() -> anyhow::Result<Releases> {
             releases.last_updated = Utc::now();
 
             create_dir_all(ucom_cache_dir())?;
-            serde_json::to_writer(BufWriter::new(File::create(&path)?), &json!(releases))?;
+            serde_json::to_writer(
+                BufWriter::new(File::create(&releases_path)?),
+                &json!(releases),
+            )?;
         } else {
-            http_cache::touch_timestamp(&path)?;
+            http_cache::touch_timestamp(&releases_path)?;
         }
     }
     Ok(releases)

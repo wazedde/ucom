@@ -8,7 +8,7 @@ use crate::commands::term_stat::TermStat;
 use crate::commands::{println_b, println_b_if};
 use crate::unity::installed::VersionList;
 use crate::unity::non_empty_vec::NonEmptyVec;
-use crate::unity::release_api::{get_latest_releases, Releases};
+use crate::unity::release_api::{get_latest_releases, load_cached_releases, Releases};
 use crate::unity::release_api_data::ReleaseData;
 use crate::unity::*;
 
@@ -25,17 +25,13 @@ pub(crate) fn list_versions(
     match list_type {
         ListType::Installed => {
             let installed = versions.prune(partial_version)?;
-            println_b!(
-                "Unity versions in: {} (*=default for new projects)",
-                dir.display()
-            );
-            print_installed_versions(&installed);
-            Ok(())
+            println_b!("Unity versions in: {} (*=suggested version)", dir.display());
+            print_installed_versions(&installed)
         }
         ListType::Updates => {
             let installed = versions.prune(partial_version)?;
             println_b!(
-                "Updates for Unity versions in: {} (*=default for new projects)",
+                "Updates for Unity versions in: {} (*=suggested version)",
                 dir.display(),
             );
             let ts = TermStat::new("Downloading", "release data...");
@@ -80,8 +76,9 @@ pub(crate) fn list_versions(
 /// ├─ 6000.0.25f1 - https://unity.com/releases/editor/whats-new/6000.0.25#notes
 /// └─ 6000.0.26f1 - https://unity.com/releases/editor/whats-new/6000.0.26#notes
 /// ```
-fn print_installed_versions(installed: &VersionList) {
-    let default_version = installed.default_version();
+fn print_installed_versions(installed: &VersionList) -> anyhow::Result<()> {
+    let releases = load_cached_releases()?;
+    let suggested_version = releases.suggested_version;
     let version_groups = group_minor_versions(installed);
     let max_len = max_version_string_length(&version_groups);
 
@@ -92,7 +89,7 @@ fn print_installed_versions(installed: &VersionList) {
                 vi.version == group.last().version,
             );
 
-            let separator = if vi.version == default_version {
+            let separator = if Some(vi.version) == suggested_version {
                 '*'
             } else {
                 '-'
@@ -100,7 +97,7 @@ fn print_installed_versions(installed: &VersionList) {
             let version_str = vi.version.to_string();
 
             println_b_if!(
-                vi.version == default_version,
+                Some(vi.version) == suggested_version,
                 " {:<max_len$} {} {}",
                 version_str,
                 separator,
@@ -108,6 +105,8 @@ fn print_installed_versions(installed: &VersionList) {
             );
         }
     }
+
+    Ok(())
 }
 
 /// Prints list of installed versions and available updates.
@@ -124,7 +123,6 @@ fn print_updates(installed: &VersionList, releases: &Releases) -> anyhow::Result
         return Err(anyhow!("No update information available."));
     }
 
-    let default_version = installed.default_version();
     let version_groups = collect_update_info(installed, releases);
     let max_version_len = max_version_string_length(&version_groups);
 
@@ -135,9 +133,9 @@ fn print_updates(installed: &VersionList, releases: &Releases) -> anyhow::Result
                 vi.version == group.last().version,
             );
 
-            let is_default = vi.version == default_version;
+            let is_suggested = Some(vi.version) == releases.suggested_version;
             let version_str = format!("{:<max_version_len$}", vi.version.to_string());
-            let separator = if is_default { '*' } else { '-' };
+            let separator = if is_suggested { '*' } else { '-' };
 
             let rd = releases
                 .iter()
@@ -149,13 +147,13 @@ fn print_updates(installed: &VersionList, releases: &Releases) -> anyhow::Result
 
             match &vi.v_type {
                 VersionType::HasLaterInstalled => {
-                    println_b_if!(is_default, "{} {}", stream, version_str);
+                    println_b_if!(is_suggested, "{} {}", stream, version_str);
                 }
                 VersionType::LatestInstalled => {
                     let last_in_group = vi.version == group.last().version;
                     if last_in_group {
                         println_b_if!(
-                            is_default,
+                            is_suggested,
                             "{} {} {} Up to date",
                             stream.green(),
                             version_str.green(),
@@ -163,7 +161,7 @@ fn print_updates(installed: &VersionList, releases: &Releases) -> anyhow::Result
                         );
                     } else {
                         println_b_if!(
-                            is_default,
+                            is_suggested,
                             "{} {} {} Update(s) available",
                             stream.yellow(),
                             version_str.yellow(),
@@ -173,7 +171,7 @@ fn print_updates(installed: &VersionList, releases: &Releases) -> anyhow::Result
                 }
                 VersionType::UpdateToLatest(release_info) => {
                     println_b_if!(
-                        is_default,
+                        is_suggested,
                         "{} {} {} {} > {}",
                         stream,
                         version_str.blue(),
@@ -184,7 +182,7 @@ fn print_updates(installed: &VersionList, releases: &Releases) -> anyhow::Result
                 }
                 VersionType::NoReleaseInfo => {
                     println_b_if!(
-                        is_default,
+                        is_suggested,
                         "{} {} {} {}",
                         stream,
                         version_str,

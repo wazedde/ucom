@@ -7,7 +7,7 @@ use crate::unity::*;
 
 /// Runs the Unity Editor with the given arguments.
 pub(crate) fn run_unity(arguments: RunArguments) -> anyhow::Result<()> {
-    let unity_version = VersionList::latest(arguments.version_pattern.as_deref())?;
+    let unity_version = VersionList::latest(Some(&arguments.version_pattern))?;
     let editor_exe = unity_version.editor_executable_path()?;
 
     let mut cmd = Command::new(editor_exe);

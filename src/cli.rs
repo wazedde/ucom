@@ -10,7 +10,6 @@ use crate::cli_run::RunArguments;
 use crate::cli_test::TestArguments;
 
 pub(crate) const ENV_EDITOR_DIR: &str = "UCOM_EDITOR_DIR";
-pub(crate) const ENV_DEFAULT_VERSION: &str = "UCOM_DEFAULT_VERSION";
 pub(crate) const ENV_BUILD_TARGET: &str = "UCOM_BUILD_TARGET";
 pub(crate) const ENV_PACKAGE_LEVEL: &str = "UCOM_PACKAGE_LEVEL";
 

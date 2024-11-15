@@ -23,7 +23,7 @@ pub(crate) fn new_project(arguments: NewArguments) -> anyhow::Result<()> {
         ));
     }
 
-    let version = VersionList::latest(arguments.version_pattern.as_deref())?;
+    let version = VersionList::latest(Some(&arguments.version_pattern))?;
     let editor_exe = version.editor_executable_path()?;
 
     let mut cmd = Command::new(editor_exe);

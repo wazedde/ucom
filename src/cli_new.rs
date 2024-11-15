@@ -7,13 +7,8 @@ use clap::Args;
 pub(crate) struct NewArguments {
     /// Specifies the Unity version for the new project.
     /// For example, '2021' uses the latest-installed 2021.x.y version.
-    #[arg(
-        short = 'u',
-        long = "unity",
-        value_name = "VERSION",
-        env = crate::cli::ENV_DEFAULT_VERSION
-    )]
-    pub(crate) version_pattern: Option<String>,
+    #[arg(short = 'u', long = "unity", value_name = "VERSION")]
+    pub(crate) version_pattern: String,
 
     /// Defines the directory for creating the project. This directory should not pre-exist.
     #[arg(
