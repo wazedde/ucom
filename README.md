@@ -22,9 +22,9 @@ given range. This tool simplifies the task of tracking and managing multiple Uni
 - `ucom list -u 2021.3` displays all Unity versions within the 2021.3 range installed on your system.
 - `ucom info` or `ucom i` provides information about the Unity project in the current directory.
 - `ucom check` or `ucom c` checks for Unity updates for the project in the current directory.
-- `ucom new ~/Develop/MyProject` or `ucom n ~/Develop/MyProject` creates a new project using the latest system Unity
-  version and initializes a Git repository with a Unity-specific `.gitignore`.
-- `ucom new ~/Develop/MyProject -Q -u 2021.3` creates a new project using the latest 2021.3 version on the system and
+- `ucom new ~/Develop/MyProject -u 2021.3` or `ucom n ~/Develop/MyProject -u 2021.3` creates a new project using the
+  latest installed 2021.3 Unity version and initializes a Git repository with a Unity-specific `.gitignore`.
+- `ucom new ~/Develop/MyProject -Q -u 2021.3` creates a new project using the latest installed 2021.3 Unity version and
   closes the editor afterward.
 - `ucom open ~/Develop/MyProject` opens the project in the specified directory.
 - `ucom open ~/Develop/MyProject -U 2021.3` opens the project and upgrades it to the latest installed 2021.3 version.
@@ -57,7 +57,6 @@ To view the build script, use `ucom template build-script`.
 
 - `UCOM_EDITOR_DIR`: Path to the directory where editors are installed.
 - `UCOM_BUILD_TARGET`: Default build target for project builds.
-- `UCOM_DEFAULT_VERSION`: Default Unity version for new projects or Unity runs.
 - `UCOM_PACKAGE_LEVEL`: Default level of package information for the `info` command.
 
 If not set, `ucom` will use the default Unity Hub installation directory for `UCOM_EDITOR_DIR`, and the latest installed
@@ -80,16 +79,17 @@ Unity Commander: A command-line interface for Unity projects
 Usage: ucom [OPTIONS] [COMMAND]
 
 Commands:
-  list      Lists installed Unity versions [aliases: l]
-  info      Displays project information [aliases: i]
-  check     Checks the Unity website for updates to the project's version [aliases: c]
-  new       Creates a new Unity project and Git repository, defaulting to the latest installed Unity version
-                [aliases: n]
-  open      Opens a specified Unity project in the Unity Editor [aliases: o]
-  build     Builds a specified Unity project [aliases: b]
-  run       Runs Unity with specified arguments, defaulting to the latest installed Unity version [aliases: r]
-  template  Prints the specified template to standard output
-  help      Print this message or the help of the given subcommand(s)
+  list   Lists installed Unity versions [aliases: l]
+  info   Displays project information [aliases: i]
+  check  Checks the Unity website for updates to the project's version [aliases: c]
+  new    Creates a new Unity project and Git repository, defaulting to the latest-installed Unity version [aliases: n]
+  open   Opens a specified Unity project in the Unity Editor [aliases: o]
+  build  Builds a specified Unity project [aliases: b]
+  test   Runs tests in the Project [aliases: t]
+  run    Runs Unity with specified arguments, defaulting to the latest-installed Unity version [aliases: r]
+  add    Adds a helper script or configuration file to the project
+  cache  Handles caching for downloaded Unity release data
+  help   Print this message or the help of the given subcommand(s)
 
 Options:
   -D, --disable-color  Disables colored output
@@ -114,11 +114,11 @@ Arguments:
           - installed: Lists the installed Unity versions
           - updates:   Displays installed Unity versions and checks for online updates
           - latest:    Shows the latest available Unity versions
+          - all:       Shows all available Unity versions
 
 Options:
   -u, --unity <VERSION>
-          Filters the Unity versions to list based on the pattern. For example, '2021' will list all
-          2021.x.y versions
+          Filters the Unity versions to list based on the pattern. For example, '2021' will list all 2021.x.y versions
 
   -h, --help
           Print help (see a summary with '-h')
@@ -134,21 +134,24 @@ Usage: ucom info [OPTIONS] [DIRECTORY]
 Arguments:
   [DIRECTORY]
           Specifies the project's directory
-
+          
           [default: .]
 
 Options:
+  -R, --recursive
+          Recursively searches for Unity projects in the given directory
+
   -p, --packages <PACKAGES>
           Determines the level of package information to display
-
+          
           [env: UCOM_PACKAGE_LEVEL=]
-          [default: excluding-unity]
+          [default: no-unity]
 
           Possible values:
-          - none:            No package information is displayed
-          - excluding-unity: Displays non-Unity packages only
-          - including-unity: Additionally includes information for packages from the Unity registry
-          - all:             Displays all package information including built-in packages and dependencies
+          - none:      No package information is displayed
+          - no-unity:  Shows non-Unity packages only
+          - inc-unity: Additionally includes information for packages from the Unity registry
+          - all:       Displays all package information including built-in packages and dependencies
 
   -h, --help
           Print help (see a summary with '-h')
@@ -172,25 +175,53 @@ Options:
 ## `ucom help new`
 
 ```
-Creates a new Unity project and Git repository, defaulting to the latest installed Unity version
+Creates a new Unity project and Git repository, defaulting to the latest-installed Unity version
 
-Usage: ucom new [OPTIONS] <DIRECTORY> [-- <UNITY_ARGS>...]
+Usage: ucom new [OPTIONS] --unity <VERSION> <DIRECTORY> [-- <UNITY_ARGS>...]
 
 Arguments:
-  <DIRECTORY>      Defines the directory for creating the project. This directory should not pre-exist
-  [UNITY_ARGS]...  A list of arguments to be passed directly to Unity
+  <DIRECTORY>
+          Defines the directory for creating the project. This directory should not pre-exist
+
+  [UNITY_ARGS]...
+          A list of arguments to be passed directly to Unity
 
 Options:
-  -u, --unity <VERSION>  Specifies the Unity version for the new project. For example, '2021' uses the latest installed
-                         2021.x.y version [env: UCOM_DEFAULT_VERSION=]
-      --lfs              Initializes LFS for the repository and includes a .gitattributes file with Unity-specific LFS
-                         settings
-      --no-git           Skips initialization of a new Git repository
-  -w, --wait             Waits for the command to complete before proceeding
-  -Q, --quit             Closes the editor after the project creation
-  -q, --quiet            Suppresses ucom messages
-  -n, --dry-run          Shows the command to be run without actually executing it
-  -h, --help             Print help
+  -u, --unity <VERSION>
+          Specifies the Unity version for the new project. For example, '2021' uses the latest-installed 2021.x.y
+          version
+
+  -t, --target <NAME>
+          Determines the active build target to open the project with
+          
+          [possible values: standalone, win32, win64, macos, linux64, ios, android, webgl, winstore, tvos]
+
+      --add-builder-menu
+          Adds a build menu script to the project.
+          
+          This will add both the `EditorMenu.cs` and `UnityBuilder.cs` scripts to the project in the
+          `Assets/Plugins/Ucom/Editor` directory.
+
+      --lfs
+          Initializes LFS for the repository and includes a .gitattributes file with Unity-specific LFS settings
+
+      --no-git
+          Skips initialization of a new Git repository
+
+  -w, --wait
+          Waits for the command to complete before proceeding
+
+  -Q, --quit
+          Closes the editor after the project creation
+
+  -q, --quiet
+          Suppresses ucom messages
+
+  -n, --dry-run
+          Shows the command to be run without actually executing it
+
+  -h, --help
+          Print help (see a summary with '-h')
 ```
 
 ## `ucom help open`
@@ -205,13 +236,11 @@ Arguments:
   [UNITY_ARGS]...  A list of arguments to be passed directly to Unity
 
 Options:
-  -U, --upgrade [<VERSION>]  Upgrades the project's Unity version. A partial version like '2021'
-                             selects the latest installed version within the 2021.x.y range. If no
-                             version is specified, it defaults to the latest available version
-                             within the project's major.minor range
-  -t, --target <NAME>        Determines the active build target to open the project with [possible
-                             values: standalone, win32, win64, macos, linux64, ios, android, webgl,
-                             winstore, tvos]
+  -U, --upgrade [<VERSION>]  Upgrades the project's Unity version. A partial version like '2021' selects the
+                             latest-installed version within the 2021.x.y range. If no version is specified, it defaults
+                             to the latest available version within the project's `major.minor` range
+  -t, --target <NAME>        Determines the active build target to open the project with [possible values: standalone,
+                             win32, win64, macos, linux64, ios, android, webgl, winstore, tvos]
   -w, --wait                 Waits for the command to complete before proceeding
   -Q, --quit                 Closes the editor after opening the project
   -q, --quiet                Suppresses ucom messages
@@ -244,7 +273,54 @@ Arguments:
 Options:
   -o, --output <DIRECTORY>
           Sets the output directory for the build. If omitted, the build is placed in
-          <PROJECT_DIR>/Builds/<TARGET>
+          <PROJECT_DIR>/Builds/<TYPE>/<TARGET>
+
+  -t, --type <TYPE>
+          Sets the output type for the build.
+          
+          This is mainly a flag used in the output directory; it doesn't dictate the physical type of build. Ignored if
+          `--output` is set.
+          
+          [default: release]
+
+          Possible values:
+          - release: Build output is written to the `Builds/Release` directory
+          - debug:   Build output is written to the `Builds/Debug` directory
+
+  -r, --run
+          Run the built player.
+          
+          Same as `--build-options auto-run-player`.
+
+  -d, --development
+          Build a development version of the player.
+          
+          Same as `--build-options development`.
+
+  -S, --show
+          Show the built player.
+          
+          Same as `--build-options show-built-player`.
+
+  -D, --debugging
+          Allow script debuggers to attach to the player remotely.
+          
+          Same as `--build-options allow-debugging`.
+
+  -p, --profiling
+          Start the player with a connection to the profiler in the editor.
+          
+          Same as `--build-options connect-with-profiler`.
+
+  -P, --deep-profiling
+          Enables Deep Profiling support in the player.
+          
+          Same as `--build-options enable-deep-profiling-support`.
+
+  -H, --connect-host
+          Sets the Player to connect to the Editor.
+          
+          Same as `--build-options connect-to-host`.
 
   -O, --build-options [<OPTION>...]
           Sets the build options. Multiple options can be combined by separating them with spaces
@@ -256,27 +332,41 @@ Options:
           - development:                             Build a development version of the player
           - auto-run-player:                         Run the built player
           - show-built-player:                       Show the built player
-          - build-additional-streamed-scenes:        Build a compressed asset bundle that contains streamed Scenes loadable with the UnityWebRequest class
+          - build-additional-streamed-scenes:        Build a compressed asset bundle that contains streamed Scenes
+            loadable with the UnityWebRequest class
           - accept-external-modifications-to-player: Used when building Xcode (iOS) or Eclipse (Android) projects
-          - clean-build-cache:                       Clear all cached build results, resulting in a full rebuild of all scripts and all player data
+          - clean-build-cache:                       Clear all cached build results, resulting in a full rebuild of all
+            scripts and all player data
           - connect-with-profiler:                   Start the player with a connection to the profiler in the editor
           - allow-debugging:                         Allow script debuggers to attach to the player remotely
-          - symlink-sources:                         Symlink sources when generating the project. This is useful if you're changing source files inside the generated project and want to bring the changes back into your Unity project or a package
+          - symlink-sources:                         Symlink sources when generating the project. This is useful if
+            you're changing source files inside the generated project and want to bring the changes back into your Unity
+            project or a package
           - uncompressed-asset-bundle:               Don't compress the data when creating the asset bundle
           - connect-to-host:                         Sets the Player to connect to the Editor
           - custom-connection-id:                    Determines if the player should be using the custom connection ID
           - build-scripts-only:                      Only build the scripts in a Project
-          - patch-package:                           Patch a Development app package rather than completely rebuilding it. Supported platforms: Android
+          - patch-package:                           Patch a Development app package rather than completely rebuilding
+            it. Supported platforms: Android
           - compress-with-lz4:                       Use chunk-based LZ4 compression when building the Player
           - compress-with-lz4-hc:                    Use chunk-based LZ4 high-compression when building the Player
-          - strict-mode:                             Do not allow the build to succeed if any errors are reporting during it
+          - strict-mode:                             Do not allow the build to succeed if any errors are reporting
+            during it
           - include-test-assemblies:                 Build will include Assemblies for testing
           - no-unique-identifier:                    Will force the buildGUID to all zeros
           - wait-for-player-connection:              Sets the Player to wait for player connection on player start
-          - enable-code-coverage:                    Enables code coverage. You can use this as a complimentary way of enabling code coverage on platforms that do not support command line arguments
+          - enable-code-coverage:                    Enables code coverage. You can use this as a complimentary way of
+            enabling code coverage on platforms that do not support command line arguments
           - enable-deep-profiling-support:           Enables Deep Profiling support in the player
           - detailed-build-report:                   Generates more information in the BuildReport
           - shader-livelink-support:                 Enable Shader Livelink support
+
+  -a, --build-args <STRING>
+          A string to be passed directly to functions tagged with the UcomPreProcessBuild attribute.
+          
+          Use it to pass custom arguments to your own C# build scripts before the project is built, like e.g., a
+          release, debug or test build tag or a version number. This requires the use of ucom's injected build script as
+          it passes the arguments through.
 
   -C, --clean
           Removes directories from the output directory not needed for distribution
@@ -308,8 +398,7 @@ Options:
           [default: Ucom.UnityBuilder.Build]
 
   -l, --log-file <FILE>
-          Designates the log file for Unity's build output. By default, log is written to the
-          project's `Logs` directory
+          Designates the log file for Unity's build output. By default, log is written to the project's `Logs` directory
 
   -q, --quiet
           Suppresses build log output to stdout
@@ -321,53 +410,166 @@ Options:
           Print help (see a summary with '-h')
 ```
 
+## `ucom help test`
+
+```
+Runs tests in the Project
+
+Usage: ucom test [OPTIONS] <PLATFORM> [DIRECTORY] [-- <UNITY_ARGS>...]
+
+Arguments:
+  <PLATFORM>
+          The platform to run tests on.
+          
+          The build target to open the project with is automatically determined by the platform. E.g., `editmode` and
+          `playmode' will open the project with the `standalone` build target and `macos' will open the project with the
+          `macos` build target. If you want to override this, you can use the `--target` option.
+          
+          [possible values: editmode, playmode, macos, win32, win64, linux64, ios, android, webgl]
+
+  [DIRECTORY]
+          Specifies the project's directory
+          
+          [default: .]
+
+  [UNITY_ARGS]...
+          A list of arguments to be passed directly to Unity
+
+Options:
+  -t, --target <NAME>
+          Determines the active build target to open the project with.
+          
+          By default, the build target matches the specified test platform. However, you can override this by specifying
+          a different build target. For example to run `editmode` tests using the `ios` build target.
+          
+          [possible values: standalone, win32, win64, macos, linux64, ios, android, webgl, winstore, tvos]
+
+  -r, --show-results <RESULTS>
+          The type of test results to display
+          
+          [default: all]
+
+          Possible values:
+          - all:    Display all results
+          - errors: Only display errors
+          - none:   Don't display any results
+
+      --no-batch-mode
+          Suppresses running Unity in batch mode.
+          
+          Running tests in batch mode removes the need for manual user inputs, but it also disables the graphics device
+          and may cause some tests to fail.
+
+      --forget-project-path
+          Don't save your current Project into the Unity launcher/hub history
+
+      --categories <LIST>
+          A semicolon-separated list of test categories to include in the run.
+          
+          A semi-colon separated list should be formatted as a string enclosed in quotation marks, e.g. `categories
+          "firstCategory;secondCategory"`. If using both `categories` and `tests`, then only test that matches both are
+          run. This argument supports negation using '!'. If using '!MyCategory' then no tests with the 'MyCategory'
+          category will be included in the run.
+
+      --tests <LIST>
+          A semicolon-separated list of test names to run, or a regular expression pattern to match tests by their full
+          name.
+          
+          A semi-colon separated list should be formatted as a string enclosed in quotation marks, e.g. `tests
+          "Low;Medium"`. This argument supports negation using '!'. If using the test filter
+          '!MyNamespace.Something.MyTest', then all tests except that test will be run. It is also possible to run a
+          specific variation of a parameterized test like so: `"ClassName\.MethodName\(Param1,Param2\)"`
+
+      --assemblies <LIST>
+          A semicolon-separated list of test assemblies to include in the run.
+          
+          A semi-colon separated list should be formatted as a string enclosed in quotation marks, e.g. `assemblyNames
+          "firstAssembly;secondAssembly"`.
+
+  -q, --quiet
+          Suppresses ucom messages
+
+  -n, --dry-run
+          Shows the command to be run without actually executing it
+
+  -h, --help
+          Print help (see a summary with '-h')
+```
+
 ## `ucom help run`
 
 ```
-Runs Unity with specified arguments, defaulting to the latest installed Unity version
+Runs Unity with specified arguments, defaulting to the latest-installed Unity version
 
-Usage: ucom run [OPTIONS] -- <UNITY_ARGS>...
+Usage: ucom run [OPTIONS] --unity <VERSION> -- <UNITY_ARGS>...
 
 Arguments:
   <UNITY_ARGS>...  A list of arguments to be passed directly to Unity
 
 Options:
-  -u, --unity <VERSION>  Specifies the Unity version to run. For example, '2021' runs the latest
-                         installed 2021.x.y version [env: UCOM_DEFAULT_VERSION=2021]
+  -u, --unity <VERSION>  Specifies the Unity version to run. For example, '2021' runs the latest-installed 2021.x.y
+                         version
   -w, --wait             Waits for the command to complete before proceeding
   -q, --quiet            Suppresses ucom messages
   -n, --dry-run          Displays the command to be run without actually executing it
   -h, --help             Print help
 ```
 
-## `ucom help template`
+## `ucom help add`
 
 ```
-Prints the specified template to standard output
+Adds a helper script or configuration file to the project
 
-Usage: ucom template <TEMPLATE>
+Usage: ucom add [OPTIONS] <FILE> [DIRECTORY]
 
 Arguments:
-  <TEMPLATE>
+  <FILE>
+          The file to be added to the project
+
           Possible values:
-          - build-script:   The C# script injected into the project when building
-          - git-ignore:     The .gitignore file for newly created projects
-          - git-attributes: The .gitattributes file for newly created projects
+          - builder:        A C# helper script that handles project building
+          - builder-menu:   A C# helper script that adds build commands to Unity's menu (also adds 'builder')
+          - git-ignore:     A Unity specific .gitignore file for newly created projects
+          - git-attributes: A Unity specific .gitattributes file for newly created projects
+
+  [DIRECTORY]
+          Defines the project's directory
+          
+          [default: .]
 
 Options:
+  -f, --force
+          Overwrites existing files
+
+  -c, --display-content
+          Displays the file's content to stdout instead of adding it
+
+  -u, --display-url
+          Displays the file's source URL
+
   -h, --help
           Print help (see a summary with '-h')
   ```
 
-## ucom help clear-cache
+## ucom help cache
 
 ```
-Purges the download cache.
+Handles caching for downloaded Unity release data.
 
-Unity release data, once downloaded, is stored for an hour to improve performance. Set the `UCOM_ENABLE_CACHE`
-environment variable to `false` to turn off the download cache.
+By default, cached files have a lifespan of one hour. After this time, the system will re-download the required files
+for updated data.
 
-Usage: ucom clear-cache
+Use the `UCOM_ENABLE_CACHE` environment variable to control caching. Set it to `false` if you want to disable the
+download cache feature. When disabled, the system will download the required Unity release data afresh for every
+command, instead of using cached files.
+
+Usage: ucom cache <ACTION>
+
+Arguments:
+  <ACTION>
+          Possible values:
+          - clear: Removes all files from the cache
+          - show:  Displays a list of all currently cached files
 
 Options:
   -h, --help
