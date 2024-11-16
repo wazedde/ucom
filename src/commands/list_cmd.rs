@@ -1,10 +1,10 @@
 use anyhow::anyhow;
 use crossterm::style::Stylize;
 use itertools::Itertools;
+use std::path::Path;
 use yansi::Paint;
 
 use crate::cli::ListType;
-use crate::commands::term_stat::TermStat;
 use crate::commands::{println_b, println_b_if};
 use crate::unity::installed::VersionList;
 use crate::unity::non_empty_vec::NonEmptyVec;
@@ -20,24 +20,16 @@ pub(crate) fn list_versions(
     list_type: ListType,
     partial_version: Option<&str>,
 ) -> anyhow::Result<()> {
-    let (dir, versions) = VersionList::from_installations()?;
+    let (install_dir, versions) = VersionList::from_installations()?;
 
     match list_type {
         ListType::Installed => {
             let installed = versions.prune(partial_version)?;
-            println_b!("Unity versions in: {} (*=suggested version)", dir.display());
-            print_installed_versions(&installed)
+            print_installed_versions(&install_dir, &installed)
         }
         ListType::Updates => {
             let installed = versions.prune(partial_version)?;
-            println_b!(
-                "Updates for Unity versions in: {} (*=suggested version)",
-                dir.display(),
-            );
-            let ts = TermStat::new("Downloading", "release data...");
-            let releases = get_latest_releases()?;
-            drop(ts);
-            print_updates(&installed, &releases)
+            print_updates(&install_dir, &installed)
         }
         ListType::Latest => {
             // For this list type, it is ok to have no installed versions.
@@ -45,11 +37,8 @@ pub(crate) fn list_versions(
                 .prune(partial_version)
                 .map(std::convert::Into::into)
                 .unwrap_or_default();
-            println_b!("Latest available minor releases");
-            let ts = TermStat::new("Downloading", "release data...");
-            let releases = get_latest_releases()?;
-            drop(ts);
-            print_latest_versions(&installed, &releases, partial_version)
+
+            print_latest_versions(&installed, partial_version)
         }
         ListType::All => {
             // For this list type, it is ok to have no installed versions.
@@ -58,26 +47,28 @@ pub(crate) fn list_versions(
                 .map(std::convert::Into::into)
                 .unwrap_or_default();
 
-            println_b!("Available releases");
-            let ts = TermStat::new("Downloading", "release data...");
-            let releases = get_latest_releases()?;
-            drop(ts);
-            print_available_versions(&installed, &releases, partial_version)
+            print_available_versions(&installed, partial_version)
         }
     }
 }
 
 /// Prints list of installed versions.
 /// ```
-/// Unity versions in: /Applications/Unity/Hub/Editor/ (*=default for new projects)
+/// Unity versions in: /Applications/Unity/Hub/Editor/ (*=suggested version)
 /// ┬─ 2022.3.51f1 - https://unity.com/releases/editor/whats-new/2022.3.51#notes
 /// └─ 2022.3.52f1 * https://unity.com/releases/editor/whats-new/2022.3.52#notes
 /// ┬─ 6000.0.24f1 - https://unity.com/releases/editor/whats-new/6000.0.24#notes
 /// ├─ 6000.0.25f1 - https://unity.com/releases/editor/whats-new/6000.0.25#notes
 /// └─ 6000.0.26f1 - https://unity.com/releases/editor/whats-new/6000.0.26#notes
 /// ```
-fn print_installed_versions(installed: &VersionList) -> anyhow::Result<()> {
+fn print_installed_versions(install_dir: &Path, installed: &VersionList) -> anyhow::Result<()> {
     let releases = load_cached_releases()?;
+    println_b!(
+        "Unity versions in: {} {}",
+        install_dir.display(),
+        suggested_version_string(&releases)
+    );
+
     let suggested_version = releases.suggested_version;
     let version_groups = group_minor_versions(installed);
     let max_len = max_version_string_length(&version_groups);
@@ -111,19 +102,26 @@ fn print_installed_versions(installed: &VersionList) -> anyhow::Result<()> {
 
 /// Prints list of installed versions and available updates.
 /// ```
-/// Updates for Unity versions in: /Applications/Unity/Hub/Editor/ (*=default for new projects)
+/// Updates for Unity versions in: /Applications/Unity/Hub/Editor/ (*=suggested version)
 /// ┬── LTS 2022.3.51f1
 /// └── LTS 2022.3.52f1 * Up to date
 /// ┬── LTS 6000.0.24f1
 /// ├── LTS 6000.0.25f1 - Update(s) available
 /// └── LTS 6000.0.26f1 - https://unity.com/releases/editor/whats-new/6000.0.26#notes > unityhub://6000.0.26f1/ccb7c73d2c02
 /// ```
-fn print_updates(installed: &VersionList, releases: &Releases) -> anyhow::Result<()> {
+fn print_updates(install_dir: &Path, installed: &VersionList) -> anyhow::Result<()> {
+    let releases = get_latest_releases()?;
+    println_b!(
+        "Updates for Unity versions in: {} {}",
+        install_dir.display(),
+        suggested_version_string(&releases)
+    );
+
     if releases.is_empty() {
         return Err(anyhow!("No update information available."));
     }
 
-    let version_groups = collect_update_info(installed, releases);
+    let version_groups = collect_update_info(installed, &releases);
     let max_version_len = max_version_string_length(&version_groups);
 
     for group in version_groups.0 {
@@ -255,11 +253,16 @@ fn collect_update_info<'a>(
 /// ```
 fn print_latest_versions(
     installed: &[Version],
-    releases: &Releases,
     partial_version: Option<&str>,
 ) -> anyhow::Result<()> {
+    let releases = get_latest_releases()?;
+    println_b!(
+        "Latest available minor releases {}",
+        suggested_version_string(&releases)
+    );
+
     // Get the latest version of each range.
-    let minor_releases = latest_minor_releases(releases, partial_version);
+    let minor_releases = latest_minor_releases(&releases, partial_version);
 
     if minor_releases.is_empty() {
         return Err(anyhow!(
@@ -315,6 +318,20 @@ fn print_latest_versions(
     Ok(())
 }
 
+fn suggested_version_string(releases: &Releases) -> String {
+    let suggested_version = releases.suggested_version;
+    if let Some(suggested_version) = suggested_version {
+        let stream = releases
+            .iter()
+            .find(|x| x.version == suggested_version)
+            .map(|x| x.stream)
+            .unwrap_or(ReleaseStream::Other);
+        format!("(suggested: {} {})", stream, suggested_version)
+    } else {
+        String::new()
+    }
+}
+
 fn fixed_stream_string(stream: ReleaseStream) -> (String, String) {
     let stream = stream.to_string();
     let line = "─".repeat(5 - stream.len());
@@ -343,9 +360,11 @@ fn fixed_version_string(version: Version, max_len: usize) -> String {
 /// ```
 fn print_available_versions(
     installed: &[Version],
-    releases: &Releases,
     partial_version: Option<&str>,
 ) -> anyhow::Result<()> {
+    let releases = get_latest_releases()?;
+    println_b!("Available releases {}", suggested_version_string(&releases));
+
     let releases = releases
         .iter()
         .filter(|r| partial_version.map_or(true, |p| r.version.to_string().starts_with(p)))

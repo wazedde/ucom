@@ -123,10 +123,10 @@ pub fn get_latest_releases() -> anyhow::Result<Releases> {
     let mut releases = load_cached_releases()?;
 
     if http_cache::has_expired(&releases_path) {
-        let ts = TermStat::new("Download", "Release info");
+        let ts = TermStat::new("Downloading", "release data...");
         let fetch_count = download_release_info(&mut releases, |count: usize, total: usize| {
             let percentage = count as f64 / total as f64 * 100.0;
-            ts.reprint("Download", &format!("Release info ({:.2}%)", percentage));
+            ts.reprint("Downloading", &format!("release data ({:.2}%)", percentage));
         })?;
 
         if fetch_count > 0 {
