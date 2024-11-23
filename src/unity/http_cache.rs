@@ -6,7 +6,7 @@ use std::sync::OnceLock;
 use std::time::SystemTime;
 
 use anyhow::anyhow;
-use chrono::{DateTime, TimeDelta, Utc};
+use chrono::{DateTime, Duration, TimeDelta, Utc};
 use dirs::cache_dir;
 
 static CACHE_ENABLED: OnceLock<bool> = OnceLock::new();
@@ -99,12 +99,18 @@ fn get_cache_state(
 
 /// Returns whether the cached file is expired.
 pub(crate) fn has_expired(path: &Path) -> bool {
-    let cached_time = path
-        .metadata()
-        .and_then(|m| m.modified())
-        .unwrap_or(SystemTime::UNIX_EPOCH);
-    let delta_time = Utc::now() - DateTime::<Utc>::from(cached_time);
-    delta_time > TimeDelta::seconds(CACHE_REFRESH_SECONDS)
+    let cached_time: DateTime<Utc> = match path.metadata().and_then(|m| m.modified()) {
+        Ok(modified) => DateTime::<Utc>::from(modified),
+        Err(_) => return true, // Cannot get modification time; consider expired
+    };
+
+    let delta_time = Utc::now() - cached_time;
+
+    if delta_time < Duration::zero() {
+        return true; // Modification time is in the future; consider expired
+    }
+
+    delta_time > Duration::seconds(CACHE_REFRESH_SECONDS)
 }
 
 /// Touches the timestamp of the given file.
@@ -112,7 +118,7 @@ pub(crate) fn touch_timestamp(filename: &PathBuf) -> anyhow::Result<()> {
     // Update the local timestamp
     match fs::File::open(filename)?.set_modified(Utc::now().into()) {
         Ok(()) => Ok(()),
-        Err(e) if e.raw_os_error() == Some(5) => {
+        Err(e) if e.kind() == std::io::ErrorKind::PermissionDenied => {
             // If error is a permission error, do workaround by re-saving the file
             let content = fs::read_to_string(filename)?;
             fs::write(filename, &content)?;
@@ -125,8 +131,7 @@ pub(crate) fn touch_timestamp(filename: &PathBuf) -> anyhow::Result<()> {
 /// Checks if the page has been updated since the given time.
 fn is_remote_newer_than_local(url: &str, local_time: &SystemTime) -> bool {
     if let Ok(server_utc) = fetch_remote_last_modified_time(url) {
-        let local_utc = DateTime::<Utc>::from(*local_time);
-        local_utc < server_utc
+        DateTime::<Utc>::from(*local_time) < server_utc
     } else {
         // Always update if we couldn't check
         true

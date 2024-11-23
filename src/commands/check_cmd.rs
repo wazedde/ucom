@@ -5,6 +5,7 @@ use yansi::Paint;
 
 use crate::commands::term_stat::TermStat;
 use crate::commands::{writeln_b, INDENT};
+use crate::unity::release_api::SortedReleases;
 use crate::unity::release_api_data::ReleaseData;
 use crate::unity::*;
 
@@ -13,7 +14,7 @@ pub(crate) fn check_updates(project_dir: &Path, create_report: bool) -> anyhow::
     let project = ProjectPath::try_from(project_dir)?;
     let unity_version = project.unity_version()?;
 
-    let (project_version_info, updates) = {
+    let (project_version_info, releases) = {
         let _ts = TermStat::new("Checking", &format!("for updates to {unity_version}"));
         get_latest_releases_for(unity_version)?
     };
@@ -29,27 +30,27 @@ pub(crate) fn check_updates(project_dir: &Path, create_report: bool) -> anyhow::
     write_project_version(
         unity_version,
         project_version_info,
-        &updates,
+        &releases,
         create_report,
         &mut buf,
     )?;
 
     if create_report {
         let ts = TermStat::new("Downloading", "Unity release notes...");
-        for release in updates {
+        for release in releases.iter() {
             ts.reprint(
                 "Downloading",
                 &format!("Unity {} release notes...", release.version),
             );
 
-            write_release_notes(&mut buf, &release)?;
+            write_release_notes(&mut buf, release)?;
         }
         drop(ts);
         print!("{}", String::from_utf8(buf)?);
     } else {
-        if !updates.is_empty() {
+        if !releases.is_empty() {
             writeln!(buf)?;
-            write_available_updates(&updates, &mut buf)?;
+            write_available_updates(&releases, &mut buf)?;
         }
         print!("{}", String::from_utf8(buf)?);
     }
@@ -95,7 +96,7 @@ fn write_project_header(
 fn write_project_version(
     project_version: Version,
     project_version_info: Option<ReleaseData>,
-    updates: &[ReleaseData],
+    updates: &SortedReleases,
     create_report: bool,
     buf: &mut Vec<u8>,
 ) -> anyhow::Result<()> {
@@ -165,11 +166,11 @@ fn write_project_version(
     Ok(())
 }
 
-fn write_available_updates(updates: &[ReleaseData], buf: &mut Vec<u8>) -> anyhow::Result<()> {
+fn write_available_updates(releases: &SortedReleases, buf: &mut Vec<u8>) -> anyhow::Result<()> {
     writeln_b!(buf, "Available update(s):")?;
-    let max_len = updates.iter().map(|rd| rd.version.len()).max().unwrap();
+    let max_len = releases.iter().map(|rd| rd.version.len()).max().unwrap();
 
-    for release in updates {
+    for release in releases.iter() {
         let status = if release.version.is_editor_installed()? {
             "installed".bold()
         } else {

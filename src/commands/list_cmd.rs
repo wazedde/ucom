@@ -8,7 +8,9 @@ use crate::cli::ListType;
 use crate::commands::{println_b, println_b_if};
 use crate::unity::installed::VersionList;
 use crate::unity::non_empty_vec::NonEmptyVec;
-use crate::unity::release_api::{get_latest_releases, load_cached_releases, Releases};
+use crate::unity::release_api::{
+    get_latest_releases, load_cached_releases, Releases, SortedReleases,
+};
 use crate::unity::release_api_data::ReleaseData;
 use crate::unity::*;
 
@@ -199,7 +201,7 @@ fn print_updates(install_dir: &Path, installed: &VersionList) -> anyhow::Result<
 /// and collects update information for each installed version.
 fn collect_update_info<'a>(
     installed: &'a VersionList,
-    releases: &'a Releases,
+    releases: &'a SortedReleases,
 ) -> VersionInfoGroups<'a> {
     let mut version_groups = group_minor_versions(installed);
 
@@ -324,8 +326,7 @@ fn suggested_version_string(releases: &Releases) -> String {
         let stream = releases
             .iter()
             .find(|x| x.version == suggested_version)
-            .map(|x| x.stream)
-            .unwrap_or(ReleaseStream::Other);
+            .map_or(ReleaseStream::Other, |x| x.stream);
         format!("(suggested: {} {})", stream, suggested_version)
     } else {
         String::new()
@@ -516,7 +517,7 @@ fn group_minor_versions(installed: &VersionList) -> VersionInfoGroups<'_> {
 }
 
 fn latest_minor_releases<'a>(
-    releases: &'a Releases,
+    releases: &'a SortedReleases,
     partial_version: Option<&str>,
 ) -> Vec<&'a ReleaseData> {
     releases

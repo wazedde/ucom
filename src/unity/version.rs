@@ -131,7 +131,7 @@ impl FromStr for Version {
 }
 
 impl Display for Version {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         write!(
             f,
             "{}.{}.{}{}{}",

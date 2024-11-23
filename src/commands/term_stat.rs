@@ -41,7 +41,7 @@ impl TermStat {
         if self.show_output {
             Self::clear_last_line();
             Self::print_transient(tag, msg, Status::Info);
-        };
+        }
     }
 
     /// Prints a status line with the given tag and message.

@@ -1,3 +1,5 @@
+use std::ops::{Deref, DerefMut};
+
 #[derive(Debug)]
 pub enum NonEmptyVecErr {
     VecIsEmpty,
@@ -7,6 +9,20 @@ pub enum NonEmptyVecErr {
 /// A non-empty list of values.
 pub struct NonEmptyVec<T> {
     inner: Vec<T>,
+}
+
+impl<T> DerefMut for NonEmptyVec<T> {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.inner
+    }
+}
+
+impl<T> Deref for NonEmptyVec<T> {
+    type Target = [T];
+
+    fn deref(&self) -> &Self::Target {
+        &self.inner
+    }
 }
 
 #[allow(dead_code)]
@@ -26,14 +42,9 @@ impl<T> NonEmptyVec<T> {
         }
     }
 
-    /// Returns the value at the given index.
-    pub fn get(&self, index: usize) -> Option<&T> {
-        self.inner.get(index)
-    }
-
-    /// Returns a mutable reference to the value at the given index.
-    pub fn get_mut(&mut self, index: usize) -> Option<&mut T> {
-        self.inner.get_mut(index)
+    /// Returns the length of the list.
+    pub fn len(&self) -> usize {
+        self.inner.len()
     }
 
     /// Returns the first value.
@@ -43,7 +54,9 @@ impl<T> NonEmptyVec<T> {
 
     /// Returns the last value.
     pub fn last(&self) -> &T {
-        self.inner.last().unwrap()
+        self.inner
+            .last()
+            .expect("NonEmptyVec should never be empty")
     }
 
     /// Returns a mutable reference to the first value.
@@ -53,22 +66,14 @@ impl<T> NonEmptyVec<T> {
 
     /// Returns a mutable reference to the last value.
     pub fn last_mut(&mut self) -> &mut T {
-        self.inner.last_mut().unwrap()
-    }
-
-    /// Returns an iterator over the values.
-    pub fn iter(&self) -> std::slice::Iter<'_, T> {
-        self.inner.iter()
+        self.inner
+            .last_mut()
+            .expect("NonEmptyVec should never be empty")
     }
 
     /// Returns a mutable iterator over the values.
     pub fn iter_mut(&mut self) -> std::slice::IterMut<'_, T> {
         self.inner.iter_mut()
-    }
-
-    /// Returns the number of values.
-    pub fn len(&self) -> usize {
-        self.inner.len()
     }
 
     /// Pushes a value to the end of the list.
@@ -94,56 +99,6 @@ impl<T> NonEmptyVec<T> {
     /// Extends the list with the values from the other list.
     pub fn extend(&mut self, other: Vec<T>) {
         self.inner.extend(other);
-    }
-
-    /// Unstable sorts the values in place.
-    pub fn sort_unstable(&mut self)
-    where
-        T: Ord,
-    {
-        self.inner.sort_unstable();
-    }
-
-    /// Unstable sorts the values in place by the key.
-    pub fn sort_unstable_by_key<K, F>(&mut self, f: F)
-    where
-        F: FnMut(&T) -> K,
-        K: Ord,
-    {
-        self.inner.sort_unstable_by_key(f);
-    }
-
-    /// Unstable sorts the values in place by the comparison function.
-    pub fn sort_unstable_by<F>(&mut self, compare: F)
-    where
-        F: FnMut(&T, &T) -> std::cmp::Ordering,
-    {
-        self.inner.sort_unstable_by(compare);
-    }
-
-    /// Sorts the values in place.
-    pub fn sort(&mut self)
-    where
-        T: Ord,
-    {
-        self.inner.sort();
-    }
-
-    /// Sorts the values in place by the key.
-    pub fn sort_by_key<K, F>(&mut self, f: F)
-    where
-        F: FnMut(&T) -> K,
-        K: Ord,
-    {
-        self.inner.sort_by_key(f);
-    }
-
-    /// Sorts the values in place by the comparison function.
-    pub fn sort_by<F>(&mut self, compare: F)
-    where
-        F: FnMut(&T, &T) -> std::cmp::Ordering,
-    {
-        self.inner.sort_by(compare);
     }
 }
 

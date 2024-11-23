@@ -127,12 +127,12 @@ impl VersionList {
         }
     }
 
-    pub(crate) fn first(&self) -> &Version {
-        self.versions.first()
+    pub(crate) fn first(&self) -> Version {
+        *self.versions.first()
     }
 
-    pub(crate) fn last(&self) -> &Version {
-        self.versions.last()
+    pub(crate) fn last(&self) -> Version {
+        *self.versions.last()
     }
 
     /// Returns the list with only the versions that match the partial version or Err if there is no matching version.
@@ -148,6 +148,7 @@ impl VersionList {
             .filter(|v| v.to_string().starts_with(partial_version))
             .copied()
             .collect_vec();
+
         match NonEmptyVec::from_vec(versions) {
             Ok(versions) => Ok(Self { versions }),
             Err(_) => Err(anyhow!(
@@ -189,7 +190,7 @@ impl VersionList {
 
     /// Returns the version of the latest-installed version that matches the partial version.
     pub(crate) fn latest(partial_version: Option<&str>) -> anyhow::Result<Version> {
-        let version = *VersionList::from_dir(Self::parent_dir()?)?
+        let version = VersionList::from_dir(Self::parent_dir()?)?
             .prune(partial_version)?
             .last();
         Ok(version)

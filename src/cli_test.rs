@@ -45,7 +45,7 @@ pub(crate) struct TestArguments {
 
     /// A semicolon-separated list of test categories to include in the run.
     ///
-    /// A semi-colon separated list should be formatted as a string enclosed in quotation marks,
+    /// A semicolon separated list should be formatted as a string enclosed in quotation marks,
     /// e.g. `categories "firstCategory;secondCategory"`.
     /// If using both `categories` and `tests`, then only test that matches both are run.
     /// This argument supports negation using '!'.
@@ -56,7 +56,7 @@ pub(crate) struct TestArguments {
     /// A semicolon-separated list of test names to run,
     /// or a regular expression pattern to match tests by their full name.
     ///
-    /// A semi-colon separated list should be formatted as a string enclosed in quotation marks,
+    /// A semicolon separated list should be formatted as a string enclosed in quotation marks,
     /// e.g. `tests "Low;Medium"`.
     /// This argument supports negation using '!'.
     /// If using the test filter '!MyNamespace.Something.MyTest',
@@ -68,7 +68,7 @@ pub(crate) struct TestArguments {
 
     /// A semicolon-separated list of test assemblies to include in the run.
     ///
-    /// A semi-colon separated list should be formatted as a string enclosed in quotation marks,
+    /// A semicolon separated list should be formatted as a string enclosed in quotation marks,
     /// e.g. `assemblyNames "firstAssembly;secondAssembly"`.
     #[arg(long, value_name = "LIST")]
     pub(crate) assemblies: Option<String>,

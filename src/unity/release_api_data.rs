@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 
 #[allow(dead_code)]
 #[derive(Debug, Serialize, Deserialize)]
-pub struct ReleaseDataPayload {
+pub struct ReleaseDataPage {
     #[serde(rename = "offset")]
     pub offset: usize,
     #[serde(rename = "limit")]

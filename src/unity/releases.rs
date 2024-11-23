@@ -1,7 +1,6 @@
-use crate::unity::release_api::get_latest_releases;
+use crate::unity::release_api::{get_latest_releases, SortedReleases};
 use crate::unity::release_api_data::ReleaseData;
 use crate::unity::{BuildType, Major, Minor, Version};
-use itertools::Itertools;
 use serde::{Deserialize, Serialize};
 use strum::Display;
 
@@ -48,25 +47,17 @@ impl ReleaseFilter {
 /// Returns the latest releases for a given version.
 pub(crate) fn get_latest_releases_for(
     version: Version,
-) -> anyhow::Result<(Option<ReleaseData>, Vec<ReleaseData>)> {
+) -> anyhow::Result<(Option<ReleaseData>, SortedReleases)> {
     let releases = get_latest_releases()?;
     let filter = ReleaseFilter::Minor {
         major: version.major,
         minor: version.minor,
     };
 
-    let mut releases = releases
-        .into_iter()
-        .filter(|rd| filter.eval(rd.version))
-        .collect_vec();
-
+    let mut releases = releases.filtered(|rd| filter.eval(rd.version));
     let position = releases.iter().position(|rd| rd.version == version);
-    let current = position.map(|pos| releases.remove(pos));
-
-    let updates = releases
-        .into_iter()
-        .filter(|rd| rd.version > version)
-        .collect_vec();
+    let current = position.map(|index| releases.remove(index));
+    let updates = releases.filtered(|rd| rd.version > version);
 
     Ok((current, updates))
 }
