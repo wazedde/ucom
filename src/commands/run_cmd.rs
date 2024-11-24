@@ -25,7 +25,7 @@ pub(crate) fn run_unity(arguments: RunArguments) -> anyhow::Result<()> {
     if arguments.wait {
         wait_with_stdout(cmd)?;
     } else {
-        spawn_and_forget(cmd);
+        spawn_and_forget(cmd)?;
     }
     Ok(())
 }

@@ -14,6 +14,24 @@ pub(crate) struct CommandError {
     pub(crate) stderr: String,
 }
 
+impl From<io::Error> for CommandError {
+    fn from(value: io::Error) -> Self {
+        Self {
+            exit_code: -1,
+            stderr: value.to_string(),
+        }
+    }
+}
+
+impl From<std::process::Output> for CommandError {
+    fn from(value: std::process::Output) -> Self {
+        Self {
+            exit_code: value.status.code().unwrap_or(-1),
+            stderr: String::from_utf8(value.stderr).unwrap_or_default(),
+        }
+    }
+}
+
 impl Error for CommandError {
     fn source(&self) -> Option<&(dyn Error + 'static)> {
         Some(self)
@@ -27,15 +45,6 @@ impl Display for CommandError {
             "Command failed with exit code: {} {}",
             self.exit_code, self.stderr
         )
-    }
-}
-
-impl CommandError {
-    pub(crate) fn from_output(output: std::process::Output) -> Self {
-        Self {
-            exit_code: output.status.code().unwrap_or(-1),
-            stderr: String::from_utf8(output.stderr).unwrap_or_default(),
-        }
     }
 }
 
@@ -69,11 +78,7 @@ pub(crate) fn build_command_line(cmd: &Command) -> String {
 
 /// Spawns command and outputs Unity's log to the console. Blocks until the command has finished.
 pub(crate) fn wait_with_log_output(mut cmd: Command, log_file: &Path) -> Result<(), CommandError> {
-    let child = cmd
-        .stdout(Stdio::piped())
-        .stderr(Stdio::piped())
-        .spawn()
-        .expect("Failed to run child process.");
+    let child = cmd.stdout(Stdio::piped()).stderr(Stdio::piped()).spawn()?;
 
     let build_finished = Arc::new(AtomicBool::new(false));
 
@@ -87,23 +92,26 @@ pub(crate) fn wait_with_log_output(mut cmd: Command, log_file: &Path) -> Result<
     build_finished.store(true, Ordering::Release);
 
     // Wait for echo to finish.
-    echo_runner.join().expect("Log echo thread panicked.");
+    echo_runner.join().map_err(|e| CommandError {
+        exit_code: -1,
+        stderr: format!("Echo runner thread panicked: {:?}", e),
+    })??;
 
-    let output = output.expect("Failed to wait for child process.");
+    let output = output?;
     output
         .status
         .success()
         .then_some(())
-        .ok_or_else(|| CommandError::from_output(output))
+        .ok_or_else(|| output.into())
 }
 
 /// Spawns command and immediately returns without any output.
-pub(crate) fn spawn_and_forget(mut cmd: Command) {
+pub(crate) fn spawn_and_forget(mut cmd: Command) -> Result<(), CommandError> {
     cmd.stdout(Stdio::piped())
         .stderr(Stdio::piped())
         .spawn()
         .map(|_| ())
-        .expect("Failed to run child process.");
+        .map_err(|e| e.into())
 }
 
 /// Spawns command and outputs to the console. Blocks until the command has finished.
@@ -111,32 +119,33 @@ pub(crate) fn wait_with_stdout(mut cmd: Command) -> Result<(), CommandError> {
     let child = cmd
         .stdout(Stdio::inherit())
         .stderr(Stdio::inherit())
-        .spawn()
-        .expect("Failed to run child process.");
+        .spawn()?;
 
-    let output = child
-        .wait_with_output()
-        .expect("Failed to wait for child process.");
+    let output = child.wait_with_output()?;
 
     output
         .status
         .success()
         .then_some(())
-        .ok_or_else(|| CommandError::from_output(output))
+        .ok_or_else(|| output.into())
 }
 
 /// Continuously reads the log file and prints it to the console.
-fn monitor_log_file(log_file: &Path, update_interval: Duration, stop_logging: &Arc<AtomicBool>) {
+fn monitor_log_file(
+    log_file: &Path,
+    update_interval: Duration,
+    stop_logging: &Arc<AtomicBool>,
+) -> io::Result<()> {
     // Wait until the file exists.
     while !log_file.exists() {
         if stop_logging.load(Ordering::Acquire) {
             // If the file writer thread has finished without creating the file, we can stop waiting.
-            return;
+            return Ok(());
         }
         thread::sleep(update_interval);
     }
 
-    let file = fs::File::open(log_file).expect("Cannot open log file.");
+    let file = fs::File::open(log_file)?;
     let mut reader = io::BufReader::new(file);
     // The buffer can get quite large, pre-allocate a reasonable amount of memory.
     let mut buffer = String::with_capacity(128 * 1024);
@@ -160,4 +169,6 @@ fn monitor_log_file(log_file: &Path, update_interval: Duration, stop_logging: &A
         }
         thread::sleep(update_interval);
     }
+
+    Ok(())
 }

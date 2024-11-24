@@ -53,7 +53,7 @@ pub(crate) fn open_project(arguments: OpenArguments) -> anyhow::Result<()> {
     if arguments.wait {
         wait_with_stdout(cmd)?;
     } else {
-        spawn_and_forget(cmd);
+        spawn_and_forget(cmd)?;
     }
     Ok(())
 }
