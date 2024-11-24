@@ -84,7 +84,7 @@ pub(crate) fn wait_with_log_output(mut cmd: Command, log_file: &Path) -> Result<
     });
 
     let output = child.wait_with_output();
-    build_finished.store(true, Ordering::SeqCst);
+    build_finished.store(true, Ordering::Release);
 
     // Wait for echo to finish.
     echo_runner.join().expect("Log echo thread panicked.");
@@ -129,7 +129,7 @@ pub(crate) fn wait_with_stdout(mut cmd: Command) -> Result<(), CommandError> {
 fn monitor_log_file(log_file: &Path, update_interval: Duration, stop_logging: &Arc<AtomicBool>) {
     // Wait until the file exists.
     while !log_file.exists() {
-        if stop_logging.load(Ordering::Relaxed) {
+        if stop_logging.load(Ordering::Acquire) {
             // If the file writer thread has finished without creating the file, we can stop waiting.
             return;
         }
@@ -144,7 +144,7 @@ fn monitor_log_file(log_file: &Path, update_interval: Duration, stop_logging: &A
 
     loop {
         // Don't immediately exit if the file writer thread has finished to be able to read any last data.
-        let should_stop = stop_logging.load(Ordering::Relaxed);
+        let should_stop = stop_logging.load(Ordering::Acquire);
 
         if reader.read_to_string(&mut buffer).is_ok() && !buffer.is_empty() {
             ended_with_newline = buffer.ends_with('\n');
