@@ -8,9 +8,11 @@ use strum::Display;
 #[derive(Debug, Eq, PartialEq)]
 pub(crate) struct ParseError;
 
+impl std::error::Error for ParseError {}
+
 impl fmt::Display for ParseError {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-        write!(f, "failed to parse MyType")
+        write!(f, "failed to parse Version")
     }
 }
 
@@ -91,7 +93,7 @@ impl Version {
             100..=999 => 3,
             1000..=9999 => 4,
             10000..=99999 => 5,
-            _ => 6,
+            _ => number.to_string().len(),
         }
     }
 }

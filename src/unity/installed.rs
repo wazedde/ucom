@@ -160,32 +160,29 @@ impl VersionList {
     /// Returns the parent directory of the editor installations.
     fn parent_dir<'a>() -> anyhow::Result<Cow<'a, Path>> {
         // Try to get the directory from the environment variable.
-        env::var_os(ENV_EDITOR_DIR).map_or_else(
-            || {
-                // Use the default directory.
-                let path = Path::new(UNITY_EDITOR_DIR);
-                // If the default directory does not exist, return an error.
-                path.exists().then(|| path.into()).ok_or_else(|| {
+        if let Some(path) = env::var_os(ENV_EDITOR_DIR) {
+            // Use the directory set by the environment variable.
+            let path = Path::new(&path);
+            // If the directory does not exist or is not a directory, return an error.
+            (path.exists() && path.is_dir())
+                .then(|| path.to_owned().into())
+                .ok_or_else(|| {
                     let path = path.display();
                     anyhow!(
-                    "Set `{ENV_EDITOR_DIR}` to the editor directory, the default directory does not exist: `{path}`"
-                )
-                })
-            },
-            |path| {
-                // Use the directory set by the environment variable.
-                let path = Path::new(&path);
-                // If the directory does not exist or is not a directory, return an error.
-                (path.exists() && path.is_dir())
-                    .then(|| path.to_owned().into())
-                    .ok_or_else(|| {
-                        let path = path.display();
-                        anyhow!(
                         "Editor directory set by `{ENV_EDITOR_DIR}` is not a valid directory: `{path}`"
                     )
-                    })
-            },
-        )
+                })
+        } else {
+            // Use the default directory.
+            let path = Path::new(UNITY_EDITOR_DIR);
+            // If the default directory does not exist, return an error.
+            path.exists().then(|| path.into()).ok_or_else(|| {
+                let path = path.display();
+                anyhow!(
+                    "Set `{ENV_EDITOR_DIR}` to the editor directory, the default directory does not exist: `{path}`"
+                )
+            })
+        }
     }
 
     /// Returns the version of the latest-installed version that matches the partial version.

@@ -306,11 +306,13 @@ fn print_latest_versions(
             let (fill, stream) = fixed_stream_string(latest.stream);
             print!("{fill}");
             let version = fixed_version_string(latest.version, max_len);
+            let release_date = latest.release_date.format("%Y-%m-%d").to_string();
 
             println!(
-                "{} {} > {}",
+                "{} {} - {} > {}",
                 stream,
                 version,
+                release_date,
                 latest.unity_hub_deep_link.bright_blue(),
             );
         } else {
@@ -440,19 +442,22 @@ fn print_installs_line(latest: &ReleaseData, installed_in_range: &[Version], max
     let (fill, stream) = fixed_stream_string(latest.stream);
     print!("{fill}");
     let version = fixed_version_string(latest.version, max_len);
+    let release_date = latest.release_date.format("%Y-%m-%d").to_string();
 
     if is_up_to_date {
         println_b!(
-            "{} {} - Installed: {}",
+            "{} {} - {} - Installed: {}",
             stream.green(),
             version.green(),
+            release_date,
             joined_versions
         );
     } else {
         println_b!(
-            "{} {} - Installed: {} - update > {}",
+            "{} {} - {} - Installed: {} - update > {}",
             stream.yellow(),
             version.blue(),
+            release_date,
             joined_versions,
             latest.unity_hub_deep_link.bright_blue()
         );
