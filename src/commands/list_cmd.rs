@@ -1,7 +1,7 @@
 use anyhow::anyhow;
 use crossterm::style::Stylize;
 use itertools::Itertools;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use yansi::Paint;
 
 use crate::cli::ListType;
@@ -22,35 +22,38 @@ pub(crate) fn list_versions(
     list_type: ListType,
     partial_version: Option<&str>,
 ) -> anyhow::Result<()> {
-    let (install_dir, versions) = VersionList::from_installations()?;
-
-    match list_type {
+    return match list_type {
         ListType::Installed => {
-            let installed = versions.prune(partial_version)?;
+            let (install_dir, installed) = get_installed_versions(partial_version)?;
             print_installed_versions(&install_dir, &installed)
         }
         ListType::Updates => {
-            let installed = versions.prune(partial_version)?;
+            let (install_dir, installed) = get_installed_versions(partial_version)?;
             print_updates(&install_dir, &installed)
         }
         ListType::Latest => {
-            // For this list type, it is ok to have no installed versions.
-            let installed: Vec<_> = versions
-                .prune(partial_version)
-                .map(std::convert::Into::into)
-                .unwrap_or_default();
-
-            print_latest_versions(&installed, partial_version)
+            let installed = get_optional_installed_versions(partial_version);
+            print_latest_versions(installed.as_deref(), partial_version)
         }
         ListType::All => {
-            // For this list type, it is ok to have no installed versions.
-            let installed: Vec<_> = versions
-                .prune(partial_version)
-                .map(std::convert::Into::into)
-                .unwrap_or_default();
-
-            print_available_versions(&installed, partial_version)
+            let installed = get_optional_installed_versions(partial_version);
+            print_available_versions(installed.as_deref(), partial_version)
         }
+    };
+
+    fn get_optional_installed_versions(partial_version: Option<&str>) -> Option<Vec<Version>> {
+        VersionList::from_installations()
+            .and_then(|(_, versions)| versions.prune(partial_version))
+            .map(std::convert::Into::into)
+            .ok()
+    }
+
+    fn get_installed_versions(
+        partial_version: Option<&str>,
+    ) -> anyhow::Result<(PathBuf, VersionList)> {
+        let (install_dir, versions) = VersionList::from_installations()?;
+        let installed = versions.prune(partial_version)?;
+        Ok((install_dir.into(), installed))
     }
 }
 
@@ -254,7 +257,7 @@ fn collect_update_info<'a>(
 /// ...
 /// ```
 fn print_latest_versions(
-    installed: &[Version],
+    installed: Option<&[Version]>,
     partial_version: Option<&str>,
 ) -> anyhow::Result<()> {
     let releases = get_latest_releases()?;
@@ -296,6 +299,7 @@ fn print_latest_versions(
 
         // Find all installed versions in the same range as the latest version.
         let installed_in_range = installed
+            .unwrap_or_default()
             .iter()
             .filter(|v| v.major == latest.version.major && v.minor == latest.version.minor)
             .copied()
@@ -362,7 +366,7 @@ fn fixed_version_string(version: Version, max_len: usize) -> String {
 /// ...
 /// ```
 fn print_available_versions(
-    installed: &[Version],
+    installed: Option<&[Version]>,
     partial_version: Option<&str>,
 ) -> anyhow::Result<()> {
     let releases = get_latest_releases()?;
@@ -391,7 +395,7 @@ fn print_available_versions(
                 vi.version == group.last().version,
             );
 
-            let is_installed = installed.contains(&vi.version);
+            let is_installed = installed.map_or(false, |v| v.contains(&vi.version));
 
             let rd = releases
                 .iter()
