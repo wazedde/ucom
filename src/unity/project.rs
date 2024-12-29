@@ -42,8 +42,8 @@ pub(crate) struct PackagesLock {
     pub(crate) dependencies: BTreeMap<String, String>,
 }
 
-#[allow(dead_code)]
 impl PackagesLock {
+    #[allow(dead_code)]
     pub(crate) fn from_project(project_dir: &Path) -> anyhow::Result<Self> {
         let file = File::open(project_dir.join("Packages/manifest.json"))?;
         serde_json::from_reader(BufReader::new(file)).map_err(Into::into)
@@ -160,10 +160,19 @@ impl Settings {
     pub(crate) fn from_project(project: &ProjectPath) -> anyhow::Result<Self> {
         let project_dir = project.as_path();
         let file = File::open(project_dir.join("ProjectSettings/ProjectSettings.asset"))?;
-        serde_yml::from_reader(BufReader::new(file))
+        serde_yaml::from_reader(BufReader::new(file))
             .context("Error reading `ProjectSettings/ProjectSettings.asset`")
             .map_err(Into::into)
     }
+}
+
+#[test]
+fn test_project_settings_deserialization() {
+    let data = include_str!("test_data/ProjectSettings.asset");
+    let settings = serde_yaml::from_str::<Settings>(data).unwrap();
+    assert_eq!(settings.player_settings.product_name, "WebTest");
+    assert_eq!(settings.player_settings.company_name, "DefaultCompany");
+    assert_eq!(settings.player_settings.bundle_version, "0.1");
 }
 
 /// Represents a valid path to a Unity project.

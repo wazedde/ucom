@@ -2,6 +2,7 @@ use crate::unity::release_api::{get_latest_releases, SortedReleases};
 use crate::unity::release_api_data::ReleaseData;
 use crate::unity::{BuildType, Major, Minor, Version};
 use serde::{Deserialize, Serialize};
+use std::fmt::{Display, Formatter};
 use strum::Display;
 
 #[derive(Display, Serialize, Deserialize, Debug, Eq, PartialEq, Ord, PartialOrd, Clone, Copy)]
@@ -23,13 +24,15 @@ pub(crate) enum ReleaseStream {
     Other,
 }
 
-#[allow(dead_code)]
 pub(crate) enum ReleaseFilter {
     /// Match all releases.
+    #[allow(dead_code)]
     All,
     /// Match releases on the major version.
+    #[allow(dead_code)]
     Major { major: Major },
     /// Match releases on the major and minor version.
+    #[allow(dead_code)]
     Minor { major: Major, minor: Minor },
 }
 
@@ -62,26 +65,37 @@ pub(crate) fn get_latest_releases_for(
     Ok((current, updates))
 }
 
-pub(crate) type Url = String;
+pub(crate) struct Url(String);
 
-/// The url looks like: `unityhub://2021.2.14f1/bcb93e5482d2`
-#[allow(dead_code)]
-fn version_from_url(url: &str) -> Option<Version> {
-    let version_part = url.split('/').rev().nth(1)?;
-    version_part.parse::<Version>().ok()
+impl AsRef<str> for Url {
+    fn as_ref(&self) -> &str {
+        &self.0
+    }
+}
+
+impl Display for Url {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.0)
+    }
 }
 
 pub(crate) fn release_notes_url(version: Version) -> Url {
     match version.build_type {
-        BuildType::Alpha => format!("https://unity.com/releases/editor/alpha/{version}#notes"),
-        BuildType::Beta => format!("https://unity.com/releases/editor/beta/{version}#notes"),
+        BuildType::Alpha => Url(format!(
+            "https://unity.com/releases/editor/alpha/{version}#notes"
+        )),
+        BuildType::Beta => Url(format!(
+            "https://unity.com/releases/editor/beta/{version}#notes"
+        )),
         BuildType::Final | BuildType::ReleaseCandidate => {
             let version = format!("{}.{}.{}", version.major, version.minor, version.patch);
-            format!("https://unity.com/releases/editor/whats-new/{version}#notes")
+            Url(format!(
+                "https://unity.com/releases/editor/whats-new/{version}#notes"
+            ))
         }
-        BuildType::FinalPatch => {
-            format!("https://unity.com/releases/editor/whats-new/{version}#notes")
-        }
+        BuildType::FinalPatch => Url(format!(
+            "https://unity.com/releases/editor/whats-new/{version}#notes"
+        )),
     }
 }
 
@@ -91,35 +105,12 @@ mod releases_tests {
 
     use crate::unity::Version;
 
-    use super::version_from_url;
-
-    #[test]
-    fn test_version_from_url() {
-        let url = "unityhub://2021.2.14f1/bcb93e5482d2";
-        let version = version_from_url(url).unwrap();
-        assert_eq!(version, Version::from_str("2021.2.14f1").unwrap());
-    }
-
-    #[test]
-    fn test_version_from_url_invalid_url() {
-        let url = "unityhub://2021.2.14f1";
-        let version = version_from_url(url);
-        assert!(version.is_none());
-    }
-
-    #[test]
-    fn test_version_from_url_invalid_version() {
-        let url = "unityhub://2021.2.14/bcb93e5482d2";
-        let version = version_from_url(url);
-        assert!(version.is_none());
-    }
-
     #[test]
     fn test_release_notes_url() {
         let version = Version::from_str("2021.2.14f1").unwrap();
         let url = super::release_notes_url(version);
         assert_eq!(
-            url,
+            url.as_ref(),
             "https://unity.com/releases/editor/whats-new/2021.2.14#notes"
         );
     }
@@ -129,7 +120,7 @@ mod releases_tests {
         let version = Version::from_str("5.1.0f1").unwrap();
         let url = super::release_notes_url(version);
         assert_eq!(
-            url,
+            url.as_ref(),
             "https://unity.com/releases/editor/whats-new/5.1.0#notes"
         );
     }
@@ -139,7 +130,7 @@ mod releases_tests {
         let version = Version::from_str("5.1.0f2").unwrap();
         let url = super::release_notes_url(version);
         assert_eq!(
-            url,
+            url.as_ref(),
             "https://unity.com/releases/editor/whats-new/5.1.0#notes"
         );
     }
@@ -149,7 +140,7 @@ mod releases_tests {
         let version = Version::from_str("5.1.0f3").unwrap();
         let url = super::release_notes_url(version);
         assert_eq!(
-            url,
+            url.as_ref(),
             "https://unity.com/releases/editor/whats-new/5.1.0#notes"
         );
     }

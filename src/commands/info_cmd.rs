@@ -53,7 +53,7 @@ fn print_project_info(
         Err(e) => {
             println!(
                 "{INDENT}{}: {}",
-                "No project settings found".yellow(),
+                "Could not read project settings".yellow(),
                 e.yellow()
             );
         }

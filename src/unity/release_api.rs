@@ -188,10 +188,10 @@ pub(crate) fn get_latest_releases() -> anyhow::Result<SortedReleases> {
         return Ok(SortedReleases::new(releases));
     }
 
-    let term_stat = TermStat::new("Downloading", "release data...");
+    let download_status = TermStat::new("Downloading", "release data...");
     let fetch_count = download_release_info(&mut releases, |count, total| {
         let percentage = count as f64 / total as f64 * 100.0;
-        term_stat.reprint("Downloading", &format!("release data ({:.2}%)", percentage));
+        download_status.reprint("Downloading", &format!("release data ({:.2}%)", percentage));
     })?;
 
     if fetch_count > 0 {

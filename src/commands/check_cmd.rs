@@ -85,7 +85,7 @@ fn write_project_header(
             writeln!(
                 buf,
                 "{INDENT}{}: {}",
-                "No project settings found".yellow(),
+                "Could not read project settings".yellow(),
                 e.yellow()
             )?;
         }

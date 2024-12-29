@@ -66,9 +66,10 @@ pub(crate) struct FileData {
     pub(crate) content: ContentType,
 }
 
-#[allow(dead_code)]
 pub(crate) enum ContentType {
+    #[allow(dead_code)]
     Included(&'static str),
+    #[allow(dead_code)]
     Url(&'static str),
 }
 
