@@ -1,9 +1,9 @@
 use std::collections::BTreeMap;
 use std::fs::File;
-use std::io::{BufRead, BufReader};
+use std::io::{BufRead, BufReader, Read};
 use std::path::{Path, PathBuf};
 
-use anyhow::{anyhow, Context};
+use anyhow::anyhow;
 use serde::Deserialize;
 use walkdir::{DirEntry, IntoIter, WalkDir};
 
@@ -132,48 +132,77 @@ impl Packages {
     }
 }
 
-#[derive(Deserialize, Debug)]
-pub(crate) struct Settings {
-    #[serde(rename = "PlayerSettings")]
-    pub(crate) player_settings: PlayerSettings,
-}
-
-#[derive(Deserialize, Debug)]
-#[allow(dead_code)]
-pub(crate) struct PlayerSettings {
-    #[serde(rename = "productName")]
+#[derive(Debug)]
+pub(crate) struct ProjectSettings {
     pub(crate) product_name: String,
-
-    #[serde(rename = "companyName")]
     pub(crate) company_name: String,
-
-    #[serde(rename = "bundleVersion")]
     pub(crate) bundle_version: String,
-
-    #[serde(rename = "buildNumber")]
-    pub(crate) build_number: Option<BTreeMap<String, String>>,
-
-    #[serde(rename = "AndroidBundleVersionCode")]
-    pub(crate) android_bundle_version_code: Option<String>,
 }
 
-impl Settings {
+impl ProjectSettings {
     pub(crate) fn from_project(project: &ProjectPath) -> anyhow::Result<Self> {
         let project_dir = project.as_path();
         let file = File::open(project_dir.join("ProjectSettings/ProjectSettings.asset"))?;
-        serde_yaml::from_reader(BufReader::new(file))
-            .context("Error reading `ProjectSettings/ProjectSettings.asset`")
-            .map_err(Into::into)
+        Self::from_reader(BufReader::new(file))
+    }
+
+    /// Reads the project settings from a reader.
+    /// Uses basic, hand rolled, parsing because ProjectSettings.asset
+    /// is non-standard yaml that isn't fully supported by yaml crates.
+    fn from_reader<R: Read + BufRead>(reader: R) -> anyhow::Result<Self> {
+        let mut product_name: Option<_> = None;
+        let mut company_name: Option<_> = None;
+        let mut bundle_version: Option<_> = None;
+
+        for line in reader.lines() {
+            let line = line?;
+            if product_name.is_none() {
+                product_name = Self::try_parse_value("productName", &line);
+            }
+
+            if company_name.is_none() {
+                company_name = Self::try_parse_value("companyName", &line);
+            }
+
+            if bundle_version.is_none() {
+                bundle_version = Self::try_parse_value("bundleVersion", &line);
+            }
+
+            if product_name.is_some() && company_name.is_some() && bundle_version.is_some() {
+                break;
+            }
+        }
+
+        match (product_name, company_name, bundle_version) {
+            (Some(product_name), Some(company_name), Some(bundle_version)) => {
+                Ok(ProjectSettings { product_name, company_name, bundle_version }) }
+            _ => Err(anyhow!("Could not find `productName` or `companyName` or `bundleVersion` in `ProjectSettings/ProjectSettings.asset`")),
+        }
+    }
+
+    /// Parse the given line as a key-value pair.
+    fn try_parse_value(key: &str, line: &str) -> Option<String> {
+        let line = line.trim_start();
+
+        if !line.starts_with(key) {
+            return None;
+        }
+
+        if let Some((_, value)) = line.split_once(":") {
+            Some(value.trim().to_string())
+        } else {
+            None
+        }
     }
 }
 
 #[test]
 fn test_project_settings_deserialization() {
     let data = include_str!("test_data/ProjectSettings.asset");
-    let settings = serde_yaml::from_str::<Settings>(data).unwrap();
-    assert_eq!(settings.player_settings.product_name, "WebTest");
-    assert_eq!(settings.player_settings.company_name, "DefaultCompany");
-    assert_eq!(settings.player_settings.bundle_version, "0.1");
+    let settings = ProjectSettings::from_reader(BufReader::new(data.as_bytes())).unwrap();
+    assert_eq!(settings.product_name, "WebTest");
+    assert_eq!(settings.company_name, "DefaultCompany");
+    assert_eq!(settings.bundle_version, "0.1");
 }
 
 /// Represents a valid path to a Unity project.

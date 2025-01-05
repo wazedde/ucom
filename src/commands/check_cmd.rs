@@ -73,9 +73,8 @@ fn write_project_header(
         writeln!(buf)?;
     }
 
-    match Settings::from_project(project) {
-        Ok(settings) => {
-            let ps = settings.player_settings;
+    match ProjectSettings::from_project(project) {
+        Ok(ps) => {
             writeln!(buf, "{}Product name:  {}", INDENT, ps.product_name.bold())?;
             writeln!(buf, "{}Company name:  {}", INDENT, ps.company_name.bold())?;
             writeln!(buf, "{}Version:       {}", INDENT, ps.bundle_version.bold())?;

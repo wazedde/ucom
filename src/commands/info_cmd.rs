@@ -42,9 +42,8 @@ fn print_project_info(
     let unity_version = project.unity_version()?;
     println_b!("Project info for: {}", project.as_path().display());
 
-    match Settings::from_project(project) {
-        Ok(settings) => {
-            let ps = settings.player_settings;
+    match ProjectSettings::from_project(project) {
+        Ok(ps) => {
             println!("{INDENT}Product name:  {}", ps.product_name.bold());
             println!("{INDENT}Company name:  {}", ps.company_name.bold());
             println!("{INDENT}Version:       {}", ps.bundle_version.bold());
