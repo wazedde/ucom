@@ -20,7 +20,7 @@ pub(crate) mod spawn_cmd;
 pub(crate) mod version;
 
 /// Returns the absolute path to an existing directory.
-pub(crate) fn to_absolute_dir_path<P: AsRef<Path>>(path: &P) -> anyhow::Result<Cow<'_, Path>> {
+pub(crate) fn to_absolute_dir_path(path: &impl AsRef<Path>) -> anyhow::Result<Cow<'_, Path>> {
     let path = path.as_ref();
     return inner(path);
 

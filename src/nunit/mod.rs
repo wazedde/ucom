@@ -14,7 +14,7 @@ pub(crate) struct TestRun {
 
 impl TestRun {
     /// Parses the given XML string into a `TestRun`.
-    pub(crate) fn from_file<P: AsRef<Path>>(path: P) -> anyhow::Result<TestRun> {
+    pub(crate) fn from_file(path: impl AsRef<Path>) -> anyhow::Result<TestRun> {
         let xml = std::fs::read_to_string(path)?;
         let test_run = xml.parse::<elements::TestRun>()?;
         let test_cases = test_run.collect_test_cases();

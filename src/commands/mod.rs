@@ -41,19 +41,28 @@ impl TimeDeltaExt for TimeDelta {
 }
 
 /// Adds the given file to the project.
-pub(crate) fn add_file_to_project<P: AsRef<Path>, Q: AsRef<Path>>(
-    project_dir: P,
-    file_dir: Q,
-    template: IncludedFile,
+pub(crate) fn add_file_to_project(
+    project_root: impl AsRef<Path>,
+    destination_dir: impl AsRef<Path>,
+    template_file: IncludedFile,
 ) -> anyhow::Result<()> {
-    let data = template.data();
-    let file_path = file_dir.as_ref().join(data.filename);
-    let content = data.fetch_content()?;
-    println!("Added to project: {}", file_path.display());
-    create_file(project_dir.as_ref().join(file_path), &content)
+    let template_data = template_file.data();
+    let file_path = destination_dir.as_ref().join(template_data.filename);
+    let content = template_data.fetch_content()?;
+
+    match create_file(project_root.as_ref().join(&file_path), &content) {
+        Ok(()) => {
+            println!("Added to project: {}", file_path.display());
+            Ok(())
+        }
+        Err(e) => {
+            println!("Failed to add file to project: {}", file_path.display());
+            Err(e)
+        }
+    }
 }
 
-fn create_file<P: AsRef<Path>>(file_path: P, content: &str) -> anyhow::Result<()> {
+fn create_file(file_path: impl AsRef<Path>, content: &str) -> anyhow::Result<()> {
     let file_path = file_path.as_ref();
     let parent_dir = file_path
         .parent()

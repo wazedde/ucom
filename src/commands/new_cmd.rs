@@ -67,7 +67,7 @@ pub(crate) fn new_project(arguments: NewArguments) -> anyhow::Result<()> {
 
     match (arguments.wait, arguments.quit && !arguments.quiet) {
         (true, true) => {
-            let _ts = TermStat::new("Creating", "project...");
+            let _status = TermStat::new("Creating", "project...");
             wait_with_stdout(cmd)?;
         }
         (true, false) => wait_with_stdout(cmd)?,
@@ -78,7 +78,7 @@ pub(crate) fn new_project(arguments: NewArguments) -> anyhow::Result<()> {
 }
 
 /// Initializes a new git repository with a default Unity specific .gitignore.
-fn git_init<P: AsRef<Path>>(project_dir: P, include_lfs: bool) -> anyhow::Result<()> {
+fn git_init(project_dir: impl AsRef<Path>, include_lfs: bool) -> anyhow::Result<()> {
     println!("Initializing Git repository:");
     let project_dir = project_dir.as_ref();
 

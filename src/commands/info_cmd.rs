@@ -22,14 +22,14 @@ pub(crate) fn project_info(
     let path = to_absolute_dir_path(&path)?;
     println!("Searching for Unity projects in: {}", path.display(),);
 
-    let mut it = recursive_dir_iter(path);
-    while let Some(Ok(entry)) = it.next() {
+    let mut directories = directory_walker(path);
+    while let Some(Ok(entry)) = directories.next() {
         if let Ok(path) = ProjectPath::try_from(entry.path()) {
             println!();
             if let Err(err) = print_project_info(&path, packages_level) {
                 println!("{}{}", INDENT, err.red());
             }
-            it.skip_current_dir();
+            directories.skip_current_dir();
         }
     }
     Ok(())
@@ -112,7 +112,7 @@ fn print_project_packages(
             let mut packages = packages
                 .dependencies
                 .iter()
-                .filter(|(name, package)| package_level.evaluate(name, package))
+                .filter(|(name, package)| package_level.is_allowed(name, package))
                 .sorted_by(|(_, pi1), (_, pi2)| pi1.source.cmp(&pi2.source))
                 .peekable();
 
@@ -141,7 +141,7 @@ fn print_project_packages(
 
 impl PackagesInfoLevel {
     /// Evaluates if the `PackageInfo` is allowed by the info level.
-    fn evaluate(self, name: &str, package: &PackageInfo) -> bool {
+    fn is_allowed(self, name: &str, package: &PackageInfo) -> bool {
         match self {
             Self::None => false,
 

@@ -12,11 +12,11 @@ use crate::unity::*;
 /// Checks on the Unity website for updates to the version used by the project.
 pub(crate) fn check_updates(project_dir: &Path, create_report: bool) -> anyhow::Result<()> {
     let project = ProjectPath::try_from(project_dir)?;
-    let unity_version = project.unity_version()?;
+    let current_version = project.unity_version()?;
 
-    let (project_version_info, releases) = {
-        let _ts = TermStat::new("Checking", &format!("for updates to {unity_version}"));
-        get_latest_releases_for(unity_version)?
+    let (project_updates, releases) = {
+        let _status = TermStat::new("Checking", &format!("for updates to {current_version}"));
+        get_latest_releases_for(current_version)?
     };
 
     if create_report {
@@ -28,24 +28,24 @@ pub(crate) fn check_updates(project_dir: &Path, create_report: bool) -> anyhow::
     writeln!(buf)?;
 
     write_project_version(
-        unity_version,
-        project_version_info,
+        current_version,
+        project_updates,
         &releases,
         create_report,
         &mut buf,
     )?;
 
     if create_report {
-        let ts = TermStat::new("Downloading", "Unity release notes...");
+        let download_status = TermStat::new("Downloading", "Unity release notes...");
         for release in releases.iter() {
-            ts.reprint(
+            download_status.reprint(
                 "Downloading",
                 &format!("Unity {} release notes...", release.version),
             );
 
             write_release_notes(&mut buf, release)?;
         }
-        drop(ts);
+        drop(download_status);
         print!("{}", String::from_utf8(buf)?);
     } else {
         if !releases.is_empty() {

@@ -24,15 +24,15 @@ pub(crate) fn build_project(arguments: BuildArguments) -> anyhow::Result<()> {
     let start_time = Utc::now();
     let project = ProjectPath::try_from(&arguments.project_dir)?;
     let unity_version = project.unity_version()?;
-    let editor = unity_version.editor_executable_path()?;
+    let editor_path = unity_version.editor_executable_path()?;
 
-    let output = arguments.get_output_path(&project)?;
-    let log = arguments.get_full_log_path(project.as_path())?;
+    let output_path = arguments.get_output_path(&project)?;
+    let log_path = arguments.get_full_log_path(&project)?;
 
-    let cmd = arguments.create_cmd(&project, &editor, &output, &log);
+    let build_command = arguments.create_cmd(&project, &editor_path, &output_path, &log_path);
 
     if arguments.dry_run {
-        println!("{}", build_command_line(&cmd));
+        println!("{}", build_command_line(&build_command));
         return Ok(());
     }
     let build_text = format!(
@@ -41,34 +41,34 @@ pub(crate) fn build_project(arguments: BuildArguments) -> anyhow::Result<()> {
         project.as_path().display()
     );
 
-    let term_stat = if arguments.quiet {
+    let build_status = if arguments.quiet {
         TermStat::new("Building", &build_text)
     } else {
         TermStat::println("Building", &build_text, Status::Info);
         TermStat::new_null_output()
     };
 
-    let (inject_build_script_hook, cleanup_build_script_hook) =
+    let (inject_build_script, cleanup_build_script) =
         csharp_build_script_injection_hooks(&project, arguments.inject);
 
-    inject_build_script_hook()?;
+    inject_build_script()?;
 
-    if log.exists() {
-        fs::remove_file(&log)?;
+    if log_path.exists() {
+        fs::remove_file(&log_path)?;
     }
 
     let build_result = if arguments.show_log() {
-        wait_with_log_output(cmd, &log)
+        wait_with_log_output(build_command, &log_path)
     } else {
-        wait_with_stdout(cmd)
+        wait_with_stdout(build_command)
     };
 
-    cleanup_build_script_hook()?;
-    drop(term_stat);
+    cleanup_build_script()?;
+    drop(build_status);
 
-    let (status, tag) = if build_result.is_ok() {
+    let (build_status, log_tag) = if build_result.is_ok() {
         if arguments.clean {
-            clean_output_directory(&output)?;
+            clean_output_directory(&output_path)?;
         }
         (Status::Ok, "Succeeded")
     } else {
@@ -76,13 +76,13 @@ pub(crate) fn build_project(arguments: BuildArguments) -> anyhow::Result<()> {
     };
 
     TermStat::println(
-        tag,
+        log_tag,
         &format!(
             "building Unity {unity_version} {} project in {}",
             arguments.target,
             project.as_path().display()
         ),
-        status,
+        build_status,
     );
 
     TermStat::println(
@@ -91,11 +91,11 @@ pub(crate) fn build_project(arguments: BuildArguments) -> anyhow::Result<()> {
             "{:.2}s",
             Utc::now().signed_duration_since(start_time).as_seconds()
         ),
-        status,
+        build_status,
     );
 
-    print_build_report(&log, status);
-    build_result.map_err(|_| collect_log_errors(&log))
+    print_build_report(&log_path, build_status);
+    build_result.map_err(|_| collect_log_errors(&log_path))
 }
 
 impl BuildArguments {
@@ -105,7 +105,7 @@ impl BuildArguments {
 
     /// Returns the full path to the log file.
     /// By default, the project's `Logs` directory is used as destination.
-    fn get_full_log_path(&self, project_dir: &Path) -> anyhow::Result<PathBuf> {
+    fn get_full_log_path(&self, project: &ProjectPath) -> anyhow::Result<PathBuf> {
         let log_file = match self.log_file.as_deref() {
             Some(path) => path.to_owned(),
             _ => format!("Build-{}.log", self.target).into(),
@@ -118,7 +118,7 @@ impl BuildArguments {
         let path = if log_file == file_name {
             // Log filename without the path was given,
             // use the project's `Logs` directory as destination.
-            project_dir.join("Logs").join(file_name)
+            project.as_path().join("Logs").join(file_name)
         } else {
             log_file
         };
@@ -383,7 +383,7 @@ fn csharp_build_script_injection_hooks(
 }
 
 /// Removes the injected build script from the project.
-fn cleanup_csharp_build_script<P: AsRef<Path>>(parent_dir: P) -> anyhow::Result<()> {
+fn cleanup_csharp_build_script(parent_dir: impl AsRef<Path>) -> anyhow::Result<()> {
     let parent_dir = parent_dir.as_ref();
     if !parent_dir.exists() {
         return Ok(());

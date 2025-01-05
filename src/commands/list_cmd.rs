@@ -79,25 +79,25 @@ fn print_installed_versions(install_dir: &Path, installed: &VersionList) -> anyh
     let max_len = max_version_string_length(&version_groups);
 
     for group in version_groups.0 {
-        for vi in group.iter() {
+        for info in group.iter() {
             print_list_marker(
-                vi.version == group.first().version,
-                vi.version == group.last().version,
+                info.version == group.first().version,
+                info.version == group.last().version,
             );
 
-            let separator = if Some(vi.version) == suggested_version {
+            let separator = if Some(info.version) == suggested_version {
                 '*'
             } else {
                 '-'
             };
-            let version_str = vi.version.to_string();
+            let version_str = info.version.to_string();
 
             println_b_if!(
-                Some(vi.version) == suggested_version,
+                Some(info.version) == suggested_version,
                 " {:<max_len$} {} {}",
                 version_str,
                 separator,
-                release_notes_url(vi.version).bright_blue()
+                release_notes_url(info.version).bright_blue()
             );
         }
     }
@@ -130,30 +130,30 @@ fn print_updates(install_dir: &Path, installed: &VersionList) -> anyhow::Result<
     let max_version_len = max_version_string_length(&version_groups);
 
     for group in version_groups.0 {
-        for vi in group.iter() {
+        for info in group.iter() {
             print_slim_list_marker(
-                vi.version == group.first().version,
-                vi.version == group.last().version,
+                info.version == group.first().version,
+                info.version == group.last().version,
             );
 
-            let is_suggested = Some(vi.version) == releases.suggested_version;
-            let version_str = format!("{:<max_version_len$}", vi.version.to_string());
+            let is_suggested = Some(info.version) == releases.suggested_version;
+            let version_str = format!("{:<max_version_len$}", info.version.to_string());
             let separator = if is_suggested { '*' } else { '-' };
 
             let rd = releases
                 .iter()
-                .find(|p| p.version == vi.version)
+                .find(|p| p.version == info.version)
                 .expect("Could not find release info for version");
 
             let (fill, stream) = fixed_stream_string(rd.stream);
             print!("{fill}");
 
-            match &vi.v_type {
+            match &info.version_type {
                 VersionType::HasLaterInstalled => {
                     println_b_if!(is_suggested, "{} {}", stream, version_str);
                 }
                 VersionType::LatestInstalled => {
-                    let last_in_group = vi.version == group.last().version;
+                    let last_in_group = info.version == group.last().version;
                     if last_in_group {
                         println_b_if!(
                             is_suggested,
@@ -190,7 +190,7 @@ fn print_updates(install_dir: &Path, installed: &VersionList) -> anyhow::Result<
                         stream,
                         version_str,
                         separator,
-                        format!("No {} update info available", vi.version.build_type,)
+                        format!("No {} update info available", info.version.build_type,)
                             .bright_black()
                     );
                 }
@@ -229,12 +229,12 @@ fn collect_update_info<'a>(
                 .for_each(|rd| {
                     group.push(VersionInfo {
                         version: rd.version,
-                        v_type: VersionType::UpdateToLatest(rd),
+                        version_type: VersionType::UpdateToLatest(rd),
                     });
                 });
         } else {
             // No release info available for this minor version
-            group.last_mut().v_type = VersionType::NoReleaseInfo;
+            group.last_mut().version_type = VersionType::NoReleaseInfo;
         }
     }
     version_groups
@@ -298,14 +298,14 @@ fn print_latest_versions(
         previous_major = Some(latest.version.major);
 
         // Find all installed versions in the same range as the latest version.
-        let installed_in_range = installed
+        let installs_in_range = installed
             .unwrap_or_default()
             .iter()
             .filter(|v| v.major == latest.version.major && v.minor == latest.version.minor)
             .copied()
             .collect_vec();
 
-        if installed_in_range.is_empty() {
+        if installs_in_range.is_empty() {
             // No installed versions in the range.
             let (fill, stream) = fixed_stream_string(latest.stream);
             print!("{fill}");
@@ -320,7 +320,7 @@ fn print_latest_versions(
                 latest.unity_hub_deep_link.bright_blue(),
             );
         } else {
-            print_installs_line(latest, &installed_in_range, max_len);
+            print_installs_line(latest, &installs_in_range, max_len);
         }
     }
     Ok(())
@@ -389,21 +389,21 @@ fn print_available_versions(
     let max_len = max_version_string_length(&version_groups);
 
     for group in version_groups.0 {
-        for vi in group.iter() {
+        for info in group.iter() {
             print_slim_list_marker(
-                vi.version == group.first().version,
-                vi.version == group.last().version,
+                info.version == group.first().version,
+                info.version == group.last().version,
             );
 
-            let is_installed = installed.map_or(false, |v| v.contains(&vi.version));
+            let is_installed = installed.map_or(false, |v| v.contains(&info.version));
 
-            let rd = releases
+            let release = releases
                 .iter()
-                .find(|p| p.version == vi.version)
+                .find(|p| p.version == info.version)
                 .expect("Could not find release info for version");
 
-            let version = fixed_version_string(rd.version, max_len);
-            let (fill, stream) = fixed_stream_string(rd.stream);
+            let version = fixed_version_string(release.version, max_len);
+            let (fill, stream) = fixed_stream_string(release.stream);
             print!("{fill}");
 
             if is_installed {
@@ -411,15 +411,15 @@ fn print_available_versions(
                     "{} {} - {} > installed",
                     stream.green(),
                     version.green(),
-                    release_notes_url(vi.version).bright_blue()
+                    release_notes_url(info.version).bright_blue()
                 );
             } else {
                 println!(
                     "{} {} - {} > {}",
                     stream,
                     version,
-                    release_notes_url(vi.version).bright_blue(),
-                    rd.unity_hub_deep_link.bright_blue()
+                    release_notes_url(info.version).bright_blue(),
+                    release.unity_hub_deep_link.bright_blue()
                 );
             }
         }
@@ -470,7 +470,7 @@ fn print_installs_line(latest: &ReleaseData, installed_in_range: &[Version], max
 
 struct VersionInfo<'a> {
     version: Version,
-    v_type: VersionType<'a>,
+    version_type: VersionType<'a>,
 }
 
 enum VersionType<'a> {
@@ -502,13 +502,16 @@ fn group_minor_versions(installed: &VersionList) -> VersionInfoGroups<'_> {
             (v.major, v.minor) != (version.major, version.minor)
         });
 
-        let v_type = if is_latest_minor {
+        let version_type = if is_latest_minor {
             VersionType::LatestInstalled
         } else {
             VersionType::HasLaterInstalled
         };
 
-        group.push(VersionInfo { version, v_type });
+        group.push(VersionInfo {
+            version,
+            version_type,
+        });
 
         // Finished group
         if is_latest_minor {

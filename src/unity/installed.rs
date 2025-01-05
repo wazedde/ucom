@@ -103,7 +103,7 @@ impl VersionList {
     }
 
     /// Returns a sorted list of installed Unity versions from the given directory or an error if no versions are found.
-    fn from_dir<P: AsRef<Path>>(dir: P) -> anyhow::Result<Self> {
+    fn from_dir(dir: impl AsRef<Path>) -> anyhow::Result<Self> {
         let versions = fs::read_dir(&dir)
             .with_context(|| {
                 format!(

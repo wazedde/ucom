@@ -10,11 +10,11 @@ pub(crate) fn run_unity(arguments: RunArguments) -> anyhow::Result<()> {
     let unity_version = VersionList::latest(Some(&arguments.version_pattern))?;
     let editor_exe = unity_version.editor_executable_path()?;
 
-    let mut cmd = Command::new(editor_exe);
-    cmd.args(arguments.args.unwrap_or_default());
+    let mut run_command = Command::new(editor_exe);
+    run_command.args(arguments.args.unwrap_or_default());
 
     if arguments.dry_run {
-        println!("{}", build_command_line(&cmd));
+        println!("{}", build_command_line(&run_command));
         return Ok(());
     }
 
@@ -23,9 +23,9 @@ pub(crate) fn run_unity(arguments: RunArguments) -> anyhow::Result<()> {
     }
 
     if arguments.wait {
-        wait_with_stdout(cmd)?;
+        wait_with_stdout(run_command)?;
     } else {
-        spawn_and_forget(cmd)?;
+        spawn_and_forget(run_command)?;
     }
     Ok(())
 }

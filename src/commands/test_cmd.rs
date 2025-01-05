@@ -19,22 +19,22 @@ pub(crate) fn run_tests(arguments: TestArguments) -> anyhow::Result<()> {
     let editor_exe = project_unity_version.editor_executable_path()?;
     project.check_assets_directory_exists()?;
 
-    let filename = format!(
+    let test_results = format!(
         "tests-{}-{}.xml",
         arguments.platform,
         Utc::now().format("%Y%m%d%H%M%S")
     );
 
-    let output_path = project.as_path().join(filename);
-    let cmd = arguments.build_cmd(&project, &editor_exe, &output_path);
+    let output_path = project.as_path().join(test_results);
+    let test_command = arguments.build_cmd(&project, &editor_exe, &output_path);
 
     if arguments.dry_run {
-        println!("{}", build_command_line(&cmd));
+        println!("{}", build_command_line(&test_command));
         return Ok(());
     }
 
     let result = {
-        let _ts = if arguments.quiet {
+        let _status = if arguments.quiet {
             TermStat::new_null_output()
         } else {
             TermStat::new(
@@ -46,7 +46,7 @@ pub(crate) fn run_tests(arguments: TestArguments) -> anyhow::Result<()> {
                 ),
             )
         };
-        wait_with_stdout(cmd)
+        wait_with_stdout(test_command)
     };
 
     if let Err(e) = &result {

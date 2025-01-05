@@ -12,16 +12,17 @@ use crate::unity::Version;
 
 const VERSION_SUB_PATH: &str = "ProjectSettings/ProjectVersion.txt";
 
-pub(crate) fn recursive_dir_iter<P: AsRef<Path>>(
-    root: P,
+/// Returns all directories in and including `root` that are not hidden.
+pub(crate) fn directory_walker(
+    root: impl AsRef<Path>,
 ) -> walkdir::FilterEntry<IntoIter, fn(&DirEntry) -> bool> {
     WalkDir::new(root)
         .max_depth(5)
         .into_iter()
-        .filter_entry(|e| e.file_type().is_dir() && !is_hidden_file(e))
+        .filter_entry(|e| e.file_type().is_dir() && !is_hidden_directory(e))
 }
 
-fn is_hidden_file(entry: &DirEntry) -> bool {
+fn is_hidden_directory(entry: &DirEntry) -> bool {
     match entry.file_name().to_str() {
         Some(s) => s.starts_with('.'),
         None => false,
@@ -180,7 +181,7 @@ pub(crate) struct ProjectPath(PathBuf);
 
 impl ProjectPath {
     /// Creates a new `ProjectPath` from the given directory.
-    pub(crate) fn try_from<P: AsRef<Path>>(path: P) -> anyhow::Result<Self> {
+    pub(crate) fn try_from(path: impl AsRef<Path>) -> anyhow::Result<Self> {
         let path = unity::to_absolute_dir_path(&path)?;
         if ProjectPath::is_unity_project_directory(&path) {
             Ok(Self(path.as_ref().to_path_buf()))
@@ -241,7 +242,7 @@ impl ProjectPath {
     }
 
     /// Checks if the directory contains a Unity project.
-    fn is_unity_project_directory<P: AsRef<Path>>(dir: P) -> bool {
+    fn is_unity_project_directory(dir: impl AsRef<Path>) -> bool {
         dir.as_ref().join(VERSION_SUB_PATH).exists()
     }
 }

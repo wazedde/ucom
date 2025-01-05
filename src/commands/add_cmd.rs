@@ -21,7 +21,7 @@ pub(crate) fn add_to_project(args: &AddArguments) -> anyhow::Result<()> {
 
     let project = ProjectPath::try_from(&args.project_dir)?;
 
-    let file_dir = match args.file {
+    let destination_dir = match args.file {
         IncludedFile::Builder | IncludedFile::BuilderMenu => {
             PathBuf::from(PERSISTENT_BUILD_SCRIPT_ROOT)
         }
@@ -30,7 +30,7 @@ pub(crate) fn add_to_project(args: &AddArguments) -> anyhow::Result<()> {
 
     let full_path = project
         .as_path()
-        .join(&file_dir)
+        .join(&destination_dir)
         .join(args.file.data().filename);
 
     if full_path.exists() && !args.force {
@@ -53,5 +53,5 @@ pub(crate) fn add_to_project(args: &AddArguments) -> anyhow::Result<()> {
         _ = add_to_project(&temp_args);
     }
 
-    add_file_to_project(project.as_path(), file_dir, args.file)
+    add_file_to_project(project.as_path(), destination_dir, args.file)
 }
