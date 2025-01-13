@@ -50,16 +50,9 @@ pub(crate) fn add_file_to_project(
     let file_path = destination_dir.as_ref().join(template_data.filename);
     let content = template_data.fetch_content()?;
 
-    match create_file(project_root.as_ref().join(&file_path), &content) {
-        Ok(()) => {
-            println!("Added to project: {}", file_path.display());
-            Ok(())
-        }
-        Err(e) => {
-            println!("Failed to add file to project: {}", file_path.display());
-            Err(e)
-        }
-    }
+    create_file(project_root.as_ref().join(&file_path), &content)
+        .inspect(|_| println!("Added to project: {}", file_path.display()))
+        .inspect_err(|_| println!("Failed to add file to project: {}", file_path.display()))
 }
 
 fn create_file(file_path: impl AsRef<Path>, content: &str) -> anyhow::Result<()> {

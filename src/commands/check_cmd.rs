@@ -1,6 +1,6 @@
+use anyhow::anyhow;
 use std::io::Write;
 use std::path::Path;
-
 use yansi::Paint;
 
 use crate::commands::term_stat::TermStat;
@@ -141,12 +141,10 @@ fn write_project_version(
         writeln!(
             buf,
             " > {}",
-            project_version_info
-                .map(|r| r.unity_hub_deep_link)
-                .map_or_else(
-                    || "No release info available".into(),
-                    |s| format!("[install in Unity HUB]({s})"),
-                )
+            project_version_info.map_or_else(
+                || "No release info available".into(),
+                |r| format!("[install in Unity HUB]({})", r.unity_hub_deep_link),
+            )
         )?;
     } else {
         // The editor used by the project is not installed, and we're not writing to a file.
@@ -167,7 +165,11 @@ fn write_project_version(
 
 fn write_available_updates(releases: &SortedReleases, buf: &mut Vec<u8>) -> anyhow::Result<()> {
     writeln_b!(buf, "Available update(s):")?;
-    let max_len = releases.iter().map(|rd| rd.version.len()).max().unwrap();
+    let max_len = releases
+        .iter()
+        .map(|rd| rd.version.len())
+        .max()
+        .ok_or(anyhow!("No releases"))?;
 
     for release in releases.iter() {
         let status = if release.version.is_editor_installed()? {

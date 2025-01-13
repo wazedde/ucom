@@ -146,19 +146,19 @@ impl PackagesInfoLevel {
 
             Self::ExcludingUnity => {
                 package.depth == 0
-                    && package.source.map_or(false, |ps| {
+                    && package.source.is_some_and(|ps| {
                         ps < PackageSource::Registry
                             || (ps == PackageSource::Registry
                                 && package
                                     .url
                                     .as_ref()
-                                    .map_or(false, |u| u != "https://packages.unity.com"))
+                                    .is_some_and(|u| u != "https://packages.unity.com"))
                     })
             }
 
             Self::IncludingUnity => {
                 package.depth == 0
-                    && package.source.map_or(false, |ps| {
+                    && package.source.is_some_and(|ps| {
                         ps < PackageSource::Builtin || name.starts_with("com.unity.feature.")
                     })
             }

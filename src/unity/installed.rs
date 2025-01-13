@@ -6,7 +6,7 @@ use anyhow::{anyhow, Context};
 use itertools::Itertools;
 
 use crate::cli::ENV_EDITOR_DIR;
-use crate::unity::non_empty_vec::{NonEmptyVec, NonEmptyVecErr};
+use crate::unity::vec1::{Vec1, Vec1Err};
 use crate::unity::Version;
 
 /// Sub path to the executable on macOS.
@@ -53,14 +53,14 @@ impl Version {
 
 /// A non-empty list of Unity versions, sorted from the oldest to the newest.
 pub(crate) struct VersionList {
-    versions: NonEmptyVec<Version>,
+    versions: Vec1<Version>,
 }
 
 impl TryFrom<Vec<Version>> for VersionList {
-    type Error = NonEmptyVecErr;
+    type Error = Vec1Err;
 
     fn try_from(value: Vec<Version>) -> Result<Self, Self::Error> {
-        match NonEmptyVec::from_vec(value) {
+        match Vec1::from_vec(value) {
             Ok(mut versions) => {
                 versions.sort_unstable();
                 Ok(Self { versions })
@@ -77,8 +77,8 @@ impl Into<Vec<Version>> for VersionList {
     }
 }
 
-impl AsRef<NonEmptyVec<Version>> for VersionList {
-    fn as_ref(&self) -> &NonEmptyVec<Version> {
+impl AsRef<Vec1<Version>> for VersionList {
+    fn as_ref(&self) -> &Vec1<Version> {
         &self.versions
     }
 }
@@ -92,13 +92,13 @@ impl VersionList {
         Ok((parent_dir, installed_versions))
     }
 
-    pub(crate) fn from_vec(versions: Vec<Version>) -> Result<Self, NonEmptyVecErr> {
-        match NonEmptyVec::from_vec(versions) {
+    pub(crate) fn from_vec(versions: Vec<Version>) -> Result<Self, Vec1Err> {
+        match Vec1::from_vec(versions) {
             Ok(mut versions) => {
                 versions.sort_unstable();
                 Ok(Self { versions })
             }
-            Err(_) => Err(NonEmptyVecErr::VecIsEmpty),
+            Err(_) => Err(Vec1Err::VecIsEmpty),
         }
     }
 
@@ -111,14 +111,14 @@ impl VersionList {
                     dir.as_ref().display()
                 )
             })?
-            .flatten()
+            .map_while(Result::ok)
             .map(|de| de.path()) //
             .filter(|p| p.is_dir() && p.join(UNITY_EDITOR_EXE).exists())
-            .filter_map(|p| p.file_name()?.to_string_lossy().parse::<Version>().ok())
+            .flat_map(|p| p.file_name()?.to_string_lossy().parse::<Version>().ok())
             .sorted_unstable()
             .collect_vec();
 
-        match NonEmptyVec::from_vec(versions) {
+        match Vec1::from_vec(versions) {
             Ok(versions) => Ok(Self { versions }),
             Err(_) => Err(anyhow!(
                 "No Unity installations found in `{}`",
@@ -136,20 +136,16 @@ impl VersionList {
     }
 
     /// Returns the list with only the versions that match the partial version or Err if there is no matching version.
-    pub(crate) fn prune(self, partial_version: Option<&str>) -> anyhow::Result<Self> {
+    pub(crate) fn retain(self, partial_version: Option<&str>) -> anyhow::Result<Self> {
         let Some(partial_version) = partial_version else {
             // No version to match, return the full list again.
             return Ok(self);
         };
 
-        let versions = self
-            .versions
-            .iter()
-            .filter(|v| v.to_string().starts_with(partial_version))
-            .copied()
-            .collect_vec();
+        let mut versions = self.versions.into_vec();
+        versions.retain(|v| v.to_string().starts_with(partial_version));
 
-        match NonEmptyVec::from_vec(versions) {
+        match Vec1::from_vec(versions) {
             Ok(versions) => Ok(Self { versions }),
             Err(_) => Err(anyhow!(
                 "No Unity installation was found that matches version `{partial_version}`."
@@ -188,7 +184,7 @@ impl VersionList {
     /// Returns the version of the latest-installed version that matches the partial version.
     pub(crate) fn latest(partial_version: Option<&str>) -> anyhow::Result<Version> {
         let version = VersionList::from_dir(Self::parent_dir()?)?
-            .prune(partial_version)?
+            .retain(partial_version)?
             .last();
         Ok(version)
     }

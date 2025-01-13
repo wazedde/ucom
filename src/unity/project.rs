@@ -141,8 +141,8 @@ pub(crate) struct ProjectSettings {
 
 impl ProjectSettings {
     pub(crate) fn from_project(project: &ProjectPath) -> anyhow::Result<Self> {
-        let project_dir = project.as_path();
-        let file = File::open(project_dir.join("ProjectSettings/ProjectSettings.asset"))?;
+        const SETTINGS_FILE: &str = "ProjectSettings/ProjectSettings.asset";
+        let file = File::open(project.as_path().join(SETTINGS_FILE))?;
         Self::from_reader(BufReader::new(file))
     }
 
@@ -157,15 +157,15 @@ impl ProjectSettings {
         for line in reader.lines() {
             let line = line?;
             if product_name.is_none() {
-                product_name = Self::try_parse_value("productName", &line);
+                product_name = Self::try_parse_value("productName", &line).map(str::to_string);
             }
 
             if company_name.is_none() {
-                company_name = Self::try_parse_value("companyName", &line);
+                company_name = Self::try_parse_value("companyName", &line).map(str::to_string);
             }
 
             if bundle_version.is_none() {
-                bundle_version = Self::try_parse_value("bundleVersion", &line);
+                bundle_version = Self::try_parse_value("bundleVersion", &line).map(str::to_string);
             }
 
             if product_name.is_some() && company_name.is_some() && bundle_version.is_some() {
@@ -175,24 +175,16 @@ impl ProjectSettings {
 
         match (product_name, company_name, bundle_version) {
             (Some(product_name), Some(company_name), Some(bundle_version)) => {
-                Ok(ProjectSettings { product_name, company_name, bundle_version }) }
+                Ok(ProjectSettings { product_name, company_name, bundle_version })
+            }
             _ => Err(anyhow!("Could not find `productName` or `companyName` or `bundleVersion` in `ProjectSettings/ProjectSettings.asset`")),
         }
     }
 
     /// Parse the given line as a key-value pair.
-    fn try_parse_value(key: &str, line: &str) -> Option<String> {
-        let line = line.trim_start();
-
-        if !line.starts_with(key) {
-            return None;
-        }
-
-        if let Some((_, value)) = line.split_once(":") {
-            Some(value.trim().to_string())
-        } else {
-            None
-        }
+    fn try_parse_value<'a>(key: &str, line: &'a str) -> Option<&'a str> {
+        line.split_once(":")
+            .and_then(|(l, r)| l.trim().eq(key).then_some(r).map(|r| r.trim()))
     }
 }
 
@@ -258,9 +250,7 @@ impl ProjectPath {
 
     /// Checks if the project directory has an `Assets` directory.
     pub(crate) fn check_assets_directory_exists(&self) -> anyhow::Result<()> {
-        let assets_path = self.as_path().join("Assets");
-
-        if assets_path.exists() {
+        if self.as_path().join("Assets").exists() {
             Ok(())
         } else {
             Err(anyhow!(

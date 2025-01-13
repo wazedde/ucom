@@ -33,7 +33,7 @@ pub(crate) fn run_tests(arguments: TestArguments) -> anyhow::Result<()> {
         return Ok(());
     }
 
-    let result = {
+    let tests_result = {
         let _status = if arguments.quiet {
             TermStat::new_null_output()
         } else {
@@ -49,7 +49,7 @@ pub(crate) fn run_tests(arguments: TestArguments) -> anyhow::Result<()> {
         wait_with_stdout(test_command)
     };
 
-    if let Err(e) = &result {
+    if let Err(e) = &tests_result {
         // If the error was not caused by the command exiting with code 2 (tests failed), return it.
         if e.exit_code != 2 {
             return Err(anyhow!("{e}"));
@@ -64,7 +64,7 @@ pub(crate) fn run_tests(arguments: TestArguments) -> anyhow::Result<()> {
     }
 
     if !arguments.quiet {
-        let status = match result {
+        let status = match tests_result {
             Ok(()) => Status::Ok,
             Err(_) => Status::Error,
         };
@@ -72,7 +72,7 @@ pub(crate) fn run_tests(arguments: TestArguments) -> anyhow::Result<()> {
         print_results(&arguments, &start_time, &project, &output_path, status)?;
     }
 
-    if result.is_err() {
+    if tests_result.is_err() {
         // Unity returns exit code 2 when tests fail.
         exit(2);
     } else {

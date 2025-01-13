@@ -1,23 +1,23 @@
 use std::ops::{Deref, DerefMut};
 
 #[derive(Debug)]
-pub enum NonEmptyVecErr {
+pub enum Vec1Err {
     VecIsEmpty,
     CannotPopLastElement,
 }
 
-/// A non-empty list of values.
-pub struct NonEmptyVec<T> {
+/// A non-empty list.
+pub struct Vec1<T> {
     inner: Vec<T>,
 }
 
-impl<T> DerefMut for NonEmptyVec<T> {
+impl<T> DerefMut for Vec1<T> {
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.inner
     }
 }
 
-impl<T> Deref for NonEmptyVec<T> {
+impl<T> Deref for Vec1<T> {
     type Target = [T];
 
     fn deref(&self) -> &Self::Target {
@@ -26,7 +26,7 @@ impl<T> Deref for NonEmptyVec<T> {
 }
 
 #[allow(dead_code)]
-impl<T> NonEmptyVec<T> {
+impl<T> Vec1<T> {
     /// Creates a new non-empty list.
     pub fn new(first: T) -> Self {
         let inner = vec![first];
@@ -34,12 +34,17 @@ impl<T> NonEmptyVec<T> {
     }
 
     /// Creates a new non-empty list from a vector.
-    pub fn from_vec(value: Vec<T>) -> Result<Self, NonEmptyVecErr> {
+    pub fn from_vec(value: Vec<T>) -> Result<Self, Vec1Err> {
         if value.is_empty() {
-            Err(NonEmptyVecErr::VecIsEmpty)
+            Err(Vec1Err::VecIsEmpty)
         } else {
             Ok(Self { inner: value })
         }
+    }
+
+    /// Converts the list into a vector.
+    pub fn into_vec(self) -> Vec<T> {
+        self.inner
     }
 
     /// Returns the length of the list.
@@ -83,9 +88,9 @@ impl<T> NonEmptyVec<T> {
 
     /// Pops the last value from the list.
     /// Returns an error if attempting to pop the last value.
-    pub fn pop(&mut self) -> Result<T, NonEmptyVecErr> {
+    pub fn pop(&mut self) -> Result<T, Vec1Err> {
         if self.inner.len() == 1 {
-            Err(NonEmptyVecErr::CannotPopLastElement)
+            Err(Vec1Err::CannotPopLastElement)
         } else {
             Ok(self.inner.pop().unwrap())
         }
@@ -102,13 +107,13 @@ impl<T> NonEmptyVec<T> {
     }
 }
 
-impl<T> TryFrom<Vec<T>> for NonEmptyVec<T> {
-    type Error = NonEmptyVecErr;
+impl<T> TryFrom<Vec<T>> for Vec1<T> {
+    type Error = Vec1Err;
 
     /// Tries to create a non-empty list from a vector.
     fn try_from(value: Vec<T>) -> Result<Self, Self::Error> {
         if value.is_empty() {
-            Err(NonEmptyVecErr::VecIsEmpty)
+            Err(Vec1Err::VecIsEmpty)
         } else {
             Ok(Self { inner: value })
         }
@@ -116,14 +121,13 @@ impl<T> TryFrom<Vec<T>> for NonEmptyVec<T> {
 }
 
 #[allow(clippy::from_over_into)]
-impl<T> Into<Vec<T>> for NonEmptyVec<T> {
-    /// Converts the non-empty list into a vector.
+impl<T> Into<Vec<T>> for Vec1<T> {
     fn into(self) -> Vec<T> {
         self.inner
     }
 }
 
-impl<T> AsRef<Vec<T>> for NonEmptyVec<T> {
+impl<T> AsRef<Vec<T>> for Vec1<T> {
     fn as_ref(&self) -> &Vec<T> {
         &self.inner
     }
