@@ -11,7 +11,6 @@ use std::fs::{create_dir_all, File};
 use std::io::{BufReader, BufWriter};
 use std::ops::Deref;
 use std::path::Path;
-use ureq::Agent;
 
 const RELEASES_API_URL: &str = "https://services.api.unity.com/unity/editor/release/v1/releases";
 const RELEASES_FILENAME: &str = "releases.json";
@@ -103,16 +102,16 @@ impl SortedReleases {
 
 /// Fetches a page of releases from the Unity Release API in descending order by release date.
 fn fetch_releases_page(limit: usize, offset: usize) -> anyhow::Result<ReleaseDataPage> {
-    let response = Agent::new()
-        .get(RELEASES_API_URL)
-        .query("limit", &limit.to_string())
-        .query("offset", &offset.to_string())
+    let body = ureq::get(RELEASES_API_URL)
+        .query("limit", limit.to_string())
+        .query("offset", offset.to_string())
         .query("order", "RELEASE_DATE_DESC")
         .call()
         .context("Failed to fetch release data")?
+        .into_body()
         .into_reader();
 
-    serde_json::from_reader(response).context("Failed to parse release data")
+    serde_json::from_reader(body).context("Failed to parse release data")
 }
 
 /// Download release information from the Unity Release API.

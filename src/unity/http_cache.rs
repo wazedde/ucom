@@ -25,7 +25,11 @@ enum CacheState {
 /// Gets the content of the given URL. Gets the content from the cache if it exists and is not too old.
 pub(crate) fn fetch_content(url: &str, check_for_remote_change: bool) -> anyhow::Result<String> {
     if !is_cache_enabled() {
-        return Ok(ureq::get(url).call()?.into_string()?);
+        return ureq::get(url)
+            .call()?
+            .into_body()
+            .read_to_string()
+            .map_err(anyhow::Error::msg);
     }
 
     let cache_dir = ucom_cache_dir();
@@ -144,7 +148,7 @@ fn sanitize_filename(filename: &str) -> String {
 
 /// Downloads the content from the given URL and saves it to the given filename.
 fn fetch_and_save_to_cache(url: &str, filename: &Path, cache_dir: &Path) -> anyhow::Result<String> {
-    let content = ureq::get(url).call()?.into_string()?;
+    let content = ureq::get(url).call()?.into_body().read_to_string()?;
     create_dir_all(cache_dir).expect("unable to create cache directory");
     fs::write(filename, &content)?;
     Ok(content)
@@ -167,7 +171,9 @@ fn read_and_refresh(filename: &PathBuf) -> anyhow::Result<String> {
 fn fetch_remote_last_modified_time(url: &str) -> anyhow::Result<DateTime<Utc>> {
     let response = ureq::head(url).call()?;
     let lm = response
-        .header("Last-Modified")
+        .headers()
+        .get("Last-Modified")
+        .and_then(|s| s.to_str().ok())
         .ok_or_else(|| anyhow!("Last-Modified header not found in response from {}", url))?;
     let time = DateTime::parse_from_rfc2822(lm)?.with_timezone(&Utc);
     Ok(time)
