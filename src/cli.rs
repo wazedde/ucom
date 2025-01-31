@@ -40,12 +40,24 @@ pub(crate) enum Action {
         version_pattern: Option<String>,
     },
 
+    /// Installs the latest Unity version that matches the specified version range.
+    #[command(visible_alias = "I")]
+    Install {
+        /// The version of Unity to install. Can be a partial version like '2023.1' or a full version like '2021.1.0f1'.
+        #[arg(value_name = "VERSION")]
+        version: String,
+    },
+
     /// Displays project information.
     #[command(visible_alias = "i")]
     Info {
         /// Specifies the project's directory.
         #[arg(value_name = "DIRECTORY", value_hint = clap::ValueHint::DirPath, default_value = ".")]
         project_dir: PathBuf,
+
+        /// Installs the required Unity version if it is not installed.
+        #[arg(short = 'I', long)]
+        install: bool,
 
         /// Recursively searches for Unity projects in the given directory.
         #[arg(short = 'R', long)]
@@ -56,12 +68,16 @@ pub(crate) enum Action {
         packages: PackagesInfoLevel,
     },
 
-    /// Checks the Unity website for updates to the project's version.
+    /// Checks for Unity updates for the project.
     #[command(visible_alias = "c")]
     Check {
         /// Specifies the project's directory.
         #[arg(value_name = "DIRECTORY", value_hint = clap::ValueHint::DirPath, default_value = ".")]
         project_dir: PathBuf,
+
+        /// Installs the latest Unity version if it is not installed.
+        #[arg(short = 'I', long)]
+        install: bool,
 
         /// Generates a Markdown report of aggregated release notes.
         #[arg(short = 'r', long)]

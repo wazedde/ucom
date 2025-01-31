@@ -4,19 +4,35 @@ use itertools::Itertools;
 use yansi::Paint;
 
 use crate::cli::PackagesInfoLevel;
-use crate::commands::{println_b, INDENT};
+use crate::commands::{install_partial_version, println_b, INDENT};
 use crate::unity::project::ProjectPath;
 use crate::unity::project::*;
-use crate::unity::{release_notes_url, to_absolute_dir_path};
+use crate::unity::{release_notes_url, to_absolute_dir_path, Version};
 
 /// Shows project information.
 pub(crate) fn project_info(
     path: &Path,
     packages_level: PackagesInfoLevel,
+    install_unity: bool,
     recursive: bool,
 ) -> anyhow::Result<()> {
     if !recursive {
-        return print_project_info(&ProjectPath::try_from(path)?, packages_level);
+        let version = print_project_info(&ProjectPath::try_from(path)?, packages_level)?;
+        if !version.is_editor_installed()? {
+            if install_unity {
+                println!();
+                install_partial_version(&version.to_string())?;
+            } else {
+                println!();
+                println!(
+                    "Use the `{}` flag to install Unity version {}",
+                    "--install".bold(),
+                    version.bold()
+                );
+            }
+        }
+
+        return Ok(());
     }
 
     let path = to_absolute_dir_path(&path)?;
@@ -38,7 +54,7 @@ pub(crate) fn project_info(
 fn print_project_info(
     project: &ProjectPath,
     packages_level: PackagesInfoLevel,
-) -> anyhow::Result<()> {
+) -> anyhow::Result<Version> {
     let unity_version = project.unity_version()?;
     println_b!("Project info for: {}", project.as_path().display());
 
@@ -64,7 +80,9 @@ fn print_project_info(
         release_notes_url(unity_version).bright_blue()
     );
 
-    if unity_version.is_editor_installed()? {
+    let installed = unity_version.is_editor_installed()?;
+
+    if installed {
         println!();
     } else {
         println!(" {}", "*not installed".red().bold());
@@ -74,7 +92,7 @@ fn print_project_info(
         print_project_packages(project, packages_level)?;
     };
 
-    Ok(())
+    Ok(unity_version)
 }
 
 /// Show packages used by the project.

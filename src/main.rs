@@ -38,17 +38,22 @@ fn main() -> anyhow::Result<()> {
         } => list_versions(list_type, version_pattern.as_deref())
             .with_context(|| color_error(&format!("Cannot list `{}`", list_type))),
 
+        Action::Install { version } => install_partial_version(&version)
+            .with_context(|| color_error("Cannot install Unity version")),
+
         Action::Info {
             project_dir,
+            install,
             recursive,
             packages,
-        } => project_info(&project_dir, packages, recursive)
+        } => project_info(&project_dir, packages, install, recursive)
             .with_context(|| color_error("Cannot show project info")),
 
         Action::Check {
             project_dir,
-            report: report_path,
-        } => check_updates(&project_dir, report_path)
+            install,
+            report,
+        } => check_updates(&project_dir, install, report)
             .with_context(|| color_error("Cannot show Unity updates for project")),
 
         Action::Run(settings) => run_unity(settings).context(color_error("Cannot run Unity")),

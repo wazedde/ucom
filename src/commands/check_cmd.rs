@@ -3,6 +3,7 @@ use std::io::Write;
 use std::path::Path;
 use yansi::Paint;
 
+use crate::commands::install_cmd::install_version;
 use crate::commands::term_stat::TermStat;
 use crate::commands::{writeln_b, INDENT};
 use crate::unity::release_api::SortedReleases;
@@ -10,7 +11,11 @@ use crate::unity::release_api_data::ReleaseData;
 use crate::unity::*;
 
 /// Checks on the Unity website for updates to the version used by the project.
-pub(crate) fn check_updates(project_dir: &Path, create_report: bool) -> anyhow::Result<()> {
+pub(crate) fn check_updates(
+    project_dir: &Path,
+    install_update: bool,
+    create_report: bool,
+) -> anyhow::Result<()> {
     let project = ProjectPath::try_from(project_dir)?;
     let current_version = project.unity_version()?;
 
@@ -53,6 +58,22 @@ pub(crate) fn check_updates(project_dir: &Path, create_report: bool) -> anyhow::
             write_available_updates(&releases, &mut buf)?;
         }
         print!("{}", String::from_utf8(buf)?);
+    }
+
+    if let Some(newer_release) = releases.iter().last() {
+        if install_update {
+            if !newer_release.version.is_editor_installed()? {
+                println!();
+                install_version(newer_release)?;
+            }
+        } else {
+            println!();
+            println!(
+                "Use the `{}` flag to install Unity version {}",
+                "--install".bold(),
+                newer_release.version.bold()
+            );
+        }
     }
 
     Ok(())
@@ -104,19 +125,27 @@ fn write_project_version(
 
     let version = match (is_installed, updates.is_empty()) {
         (true, true) => {
-            writeln!(buf, "{}", "installed and up to date".green().bold())?;
+            writeln!(buf, "{}", "installed, up to date".green().bold())?;
             project_version.green()
         }
         (true, false) => {
-            writeln!(buf, "{}", "installed and out of date".yellow().bold())?;
+            writeln!(
+                buf,
+                "{}",
+                "installed, newer version available".yellow().bold()
+            )?;
             project_version.yellow()
         }
         (false, true) => {
-            writeln!(buf, "{}", "not installed and up to date".red().bold())?;
+            writeln!(buf, "{}", "not installed, up to date".red().bold())?;
             project_version.red()
         }
         (false, false) => {
-            writeln!(buf, "{}", "not installed and out of date".red().bold())?;
+            writeln!(
+                buf,
+                "{}",
+                "not installed, newer version available".red().bold()
+            )?;
             project_version.red()
         }
     };
