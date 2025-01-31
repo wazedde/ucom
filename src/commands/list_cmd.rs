@@ -152,7 +152,13 @@ fn print_updates(install_dir: &Path, installed: &VersionList) -> anyhow::Result<
 
             match &info.version_type {
                 VersionType::HasLaterInstalled => {
-                    println_b_if!(is_suggested, "{} {}", stream, version_str);
+                    println_b_if!(
+                        is_suggested,
+                        "{} {} ({})",
+                        stream,
+                        version_str,
+                        release_date
+                    );
                 }
                 VersionType::LatestInstalled => {
                     let last_in_group = info.version == group.last().version;
