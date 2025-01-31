@@ -32,6 +32,11 @@ impl Releases {
         self.releases.is_empty()
     }
 
+    pub(crate) fn has_version(&self, version: Version) -> bool {
+        // TODO: Use a HashSet for faster lookups
+        self.releases.iter().any(|r| r.version == version)
+    }
+
     pub(crate) fn iter(&self) -> impl Iterator<Item = &ReleaseData> {
         self.releases.iter()
     }
@@ -115,6 +120,11 @@ fn fetch_releases_page(limit: usize, offset: usize) -> anyhow::Result<ReleaseDat
 }
 
 /// Download release information from the Unity Release API.
+/// Because the API is very slow, we minimize the number of requests when looking for new releases
+/// by assuming there were no new releases if all releases in a page are already in the list.
+/// This is not perfect, but seems to be good enough for our use case.
+/// Note: checking if the latest release is already in the list is not sufficient, because in
+/// practice earlier releases can be added later.
 pub(crate) fn download_release_info<F>(
     releases: &mut Releases,
     callback: F,
@@ -122,35 +132,43 @@ pub(crate) fn download_release_info<F>(
 where
     F: Fn(usize, usize),
 {
-    let latest_release_date = releases
-        .iter()
-        .max_by(|a, b| a.release_date.cmp(&b.release_date))
-        .map(|d| d.release_date)
-        .unwrap_or_default();
-
     // If list is empty, fetch as much as possible, otherwise fetch 5 at a time to make it faster.
-    let limit = if releases.releases.is_empty() { 25 } else { 5 };
+    let fetch_all = releases.is_empty();
+
+    let limit = if fetch_all { 25 } else { 5 };
+
     let mut fetched = 0;
     let mut offset = 0;
     let mut total = usize::MAX;
+    let mut fetched_in_page;
 
     while offset < total {
         let page = fetch_releases_page(limit, offset)?;
         total = page.total;
+        fetched_in_page = 0;
 
         if page.results.is_empty() {
+            // No more releases to fetch
             break;
         }
 
         for release in page.results {
-            if release.release_date <= latest_release_date {
-                return Ok(fetched);
+            if !fetch_all && releases.has_version(release.version) {
+                continue;
             }
-            if release.recommended.unwrap_or_default() {
+
+            if release.recommended == Some(true) {
                 releases.suggested_version = Some(release.version);
             }
+
             releases.releases.push(release);
             fetched += 1;
+            fetched_in_page += 1;
+        }
+
+        if fetched_in_page == 0 {
+            // No new releases in this page, assume we have fetched all new releases.
+            break;
         }
 
         offset += limit;
