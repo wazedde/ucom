@@ -19,7 +19,7 @@ pub(crate) fn check_updates(
     let project = ProjectPath::try_from(project_dir)?;
     let current_version = project.unity_version()?;
 
-    let (project_updates, releases) = {
+    let (current_release, releases) = {
         let _status = TermStat::new("Checking", &format!("for updates to {current_version}"));
         get_latest_releases_for(current_version)?
     };
@@ -32,13 +32,7 @@ pub(crate) fn check_updates(
     write_project_header(&project, create_report, &mut buf)?;
     writeln!(buf)?;
 
-    write_project_version(
-        current_version,
-        project_updates,
-        &releases,
-        create_report,
-        &mut buf,
-    )?;
+    write_project_version(current_release, &releases, create_report, &mut buf)?;
 
     if create_report {
         let download_status = TermStat::new("Downloading", "Unity release notes...");
@@ -114,19 +108,18 @@ fn write_project_header(
 }
 
 fn write_project_version(
-    project_version: Version,
-    project_version_info: Option<ReleaseData>,
+    release: ReleaseData,
     updates: &SortedReleases,
     create_report: bool,
     buf: &mut Vec<u8>,
 ) -> anyhow::Result<()> {
-    let is_installed = project_version.is_editor_installed()?;
+    let is_installed = release.version.is_editor_installed()?;
     write!(buf, "{}", "Unity editor: ".bold())?;
 
     let version = match (is_installed, updates.is_empty()) {
         (true, true) => {
             writeln!(buf, "{}", "installed, up to date".green().bold())?;
-            project_version.green()
+            release.version.green()
         }
         (true, false) => {
             writeln!(
@@ -134,11 +127,11 @@ fn write_project_version(
                 "{}",
                 "installed, newer version available".yellow().bold()
             )?;
-            project_version.yellow()
+            release.version.yellow()
         }
         (false, true) => {
             writeln!(buf, "{}", "not installed, up to date".red().bold())?;
-            project_version.red()
+            release.version.red()
         }
         (false, false) => {
             writeln!(
@@ -146,7 +139,7 @@ fn write_project_version(
                 "{}",
                 "not installed, newer version available".red().bold()
             )?;
-            project_version.red()
+            release.version.red()
         }
     };
 
@@ -159,7 +152,7 @@ fn write_project_version(
         "{}{} - {}",
         INDENT,
         version,
-        release_notes_url(project_version).bright_blue()
+        release_notes_url(release.version).bright_blue()
     )?;
 
     if is_installed {
@@ -169,24 +162,12 @@ fn write_project_version(
         // The editor used by the project is not installed, and we're writing to a file.
         writeln!(
             buf,
-            " > {}",
-            project_version_info.map_or_else(
-                || "No release info available".into(),
-                |r| format!("[install in Unity HUB]({})", r.unity_hub_deep_link),
-            )
+            " > [install in Unity HUB]({})",
+            release.unity_hub_deep_link
         )?;
     } else {
-        // The editor used by the project is not installed, and we're not writing to a file.
-        writeln!(
-            buf,
-            " > {}",
-            project_version_info
-                .map_or_else(
-                    || "No release info available".to_string(),
-                    |r| r.unity_hub_deep_link.bright_blue().to_string(),
-                )
-                .bold()
-        )?;
+        // The editor used by the project is not installed, and we're writing to the terminal.
+        writeln!(buf)?;
     }
 
     Ok(())
@@ -201,19 +182,21 @@ fn write_available_updates(releases: &SortedReleases, buf: &mut Vec<u8>) -> anyh
         .ok_or(anyhow!("No releases"))?;
 
     for release in releases.iter() {
-        let status = if release.version.is_editor_installed()? {
-            "installed".bold()
-        } else {
-            release.unity_hub_deep_link.as_str().bright_blue().bold()
-        };
+        let release_date = release.release_date.format("%Y-%m-%d");
 
-        writeln!(
+        write!(
             buf,
-            "- {:<max_len$} - {} > {}",
-            release.version.blue().bold(),
+            "- {:<max_len$} ({}) - {}",
+            release.version.to_string().blue().bold(),
+            release_date,
             release_notes_url(release.version).bright_blue(),
-            status
         )?;
+
+        if release.version.is_editor_installed()? {
+            writeln!(buf, " > {}", "installed".bold())?;
+        } else {
+            writeln!(buf)?;
+        };
     }
 
     Ok(())

@@ -50,7 +50,7 @@ impl ReleaseFilter {
 /// Returns the latest releases for a given version.
 pub(crate) fn get_latest_releases_for(
     version: Version,
-) -> anyhow::Result<(Option<ReleaseData>, SortedReleases)> {
+) -> anyhow::Result<(ReleaseData, SortedReleases)> {
     let releases = get_latest_releases()?;
     let filter = ReleaseFilter::Minor {
         major: version.major,
@@ -59,7 +59,9 @@ pub(crate) fn get_latest_releases_for(
 
     let mut releases = releases.filtered(|rd| filter.eval(rd.version));
     let position = releases.iter().position(|rd| rd.version == version);
-    let current = position.map(|index| releases.remove(index));
+    let current = position
+        .map(|index| releases.remove(index))
+        .ok_or(anyhow::anyhow!("Version {} not found in releases", version))?;
     let updates = releases.filtered(|rd| rd.version > version);
 
     Ok((current, updates))

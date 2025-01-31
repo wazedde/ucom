@@ -145,6 +145,8 @@ fn print_updates(install_dir: &Path, installed: &VersionList) -> anyhow::Result<
                 .find(|p| p.version == info.version)
                 .expect("Could not find release info for version");
 
+            let release_date = rd.release_date.format("%Y-%m-%d");
+
             let (fill, stream) = fixed_stream_string(rd.stream);
             print!("{fill}");
 
@@ -157,17 +159,19 @@ fn print_updates(install_dir: &Path, installed: &VersionList) -> anyhow::Result<
                     if last_in_group {
                         println_b_if!(
                             is_suggested,
-                            "{} {} {} Up to date",
+                            "{} {} ({}) {} Up to date",
                             stream.green(),
                             version_str.green(),
+                            release_date,
                             separator
                         );
                     } else {
                         println_b_if!(
                             is_suggested,
-                            "{} {} {} Update(s) available",
+                            "{} {} ({}) {} Update(s) available",
                             stream.yellow(),
                             version_str.yellow(),
+                            release_date,
                             separator
                         );
                     };
@@ -175,20 +179,21 @@ fn print_updates(install_dir: &Path, installed: &VersionList) -> anyhow::Result<
                 VersionType::UpdateToLatest(release_info) => {
                     println_b_if!(
                         is_suggested,
-                        "{} {} {} {} > {}",
-                        stream,
+                        "{} {} ({}) {} {}",
+                        stream.blue(),
                         version_str.blue(),
+                        release_date,
                         separator,
-                        release_notes_url(release_info.version).bright_blue(),
-                        release_info.unity_hub_deep_link.bright_blue()
+                        release_notes_url(release_info.version).bright_blue()
                     );
                 }
                 VersionType::NoReleaseInfo => {
                     println_b_if!(
                         is_suggested,
-                        "{} {} {} {}",
+                        "{} {} ({}) {} {}",
                         stream,
                         version_str,
+                        release_date,
                         separator,
                         format!("No {} update info available", info.version.build_type,)
                             .bright_black()
@@ -310,15 +315,9 @@ fn print_latest_versions(
             let (fill, stream) = fixed_stream_string(latest.stream);
             print!("{fill}");
             let version = fixed_version_string(latest.version, max_len);
-            let release_date = latest.release_date.format("%Y-%m-%d").to_string();
+            let release_date = latest.release_date.format("%Y-%m-%d");
 
-            println!(
-                "{} {} - {} > {}",
-                stream,
-                version,
-                release_date,
-                latest.unity_hub_deep_link.bright_blue(),
-            );
+            println!("{} {} ({})", stream, version, release_date,);
         } else {
             print_installs_line(latest, &installs_in_range, max_len);
         }
@@ -402,24 +401,27 @@ fn print_available_versions(
                 .find(|p| p.version == info.version)
                 .expect("Could not find release info for version");
 
+            let release_date = release.release_date.format("%Y-%m-%d");
+
             let version = fixed_version_string(release.version, max_len);
             let (fill, stream) = fixed_stream_string(release.stream);
             print!("{fill}");
 
             if is_installed {
                 println_b!(
-                    "{} {} - {} > installed",
+                    "{} {} ({}) - {} > installed",
                     stream.green(),
                     version.green(),
+                    release_date,
                     release_notes_url(info.version).bright_blue()
                 );
             } else {
                 println!(
-                    "{} {} - {} > {}",
+                    "{} {} ({}) - {}",
                     stream,
                     version,
-                    release_notes_url(info.version).bright_blue(),
-                    release.unity_hub_deep_link.bright_blue()
+                    release_date,
+                    release_notes_url(info.version).bright_blue()
                 );
             }
         }
@@ -441,11 +443,11 @@ fn print_installs_line(latest: &ReleaseData, installed_in_range: &[Version], max
     let (fill, stream) = fixed_stream_string(latest.stream);
     print!("{fill}");
     let version = fixed_version_string(latest.version, max_len);
-    let release_date = latest.release_date.format("%Y-%m-%d").to_string();
+    let release_date = latest.release_date.format("%Y-%m-%d");
 
     if is_up_to_date {
         println_b!(
-            "{} {} - {} - Installed: {}",
+            "{} {} ({}) - Installed: {}",
             stream.green(),
             version.green(),
             release_date,
@@ -453,12 +455,11 @@ fn print_installs_line(latest: &ReleaseData, installed_in_range: &[Version], max
         );
     } else {
         println_b!(
-            "{} {} - {} - Installed: {} - update > {}",
-            stream.yellow(),
+            "{} {} ({}) - Installed: {} - update available",
+            stream.blue(),
             version.blue(),
             release_date,
-            joined_versions,
-            latest.unity_hub_deep_link.bright_blue()
+            joined_versions
         );
     };
 }
