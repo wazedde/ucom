@@ -1,6 +1,5 @@
-use std::path::Path;
-
 use itertools::Itertools;
+use std::path::Path;
 use yansi::Paint;
 
 use crate::cli::PackagesInfoLevel;
@@ -16,25 +15,17 @@ pub(crate) fn project_info(
     install_unity: bool,
     recursive: bool,
 ) -> anyhow::Result<()> {
-    if !recursive {
-        let version = print_project_info(&ProjectPath::try_from(path)?, packages_level)?;
-        if !version.is_editor_installed()? {
-            if install_unity {
-                println!();
-                install_partial_version(&version.to_string())?;
-            } else {
-                println!();
-                println!(
-                    "Use the `{}` flag to install Unity version {}",
-                    "--install".bold(),
-                    version.bold()
-                );
-            }
-        }
-
-        return Ok(());
+    if recursive {
+        show_recursive_project_info(path, packages_level)
+    } else {
+        show_project_info(path, packages_level, install_unity)
     }
+}
 
+fn show_recursive_project_info(
+    path: &Path,
+    packages_level: PackagesInfoLevel,
+) -> anyhow::Result<()> {
     let path = to_absolute_dir_path(&path)?;
     println!("Searching for Unity projects in: {}", path.display(),);
 
@@ -48,6 +39,29 @@ pub(crate) fn project_info(
             directories.skip_current_dir();
         }
     }
+    Ok(())
+}
+
+fn show_project_info(
+    path: &Path,
+    packages_level: PackagesInfoLevel,
+    install_unity: bool,
+) -> anyhow::Result<()> {
+    let version = print_project_info(&ProjectPath::try_from(path)?, packages_level)?;
+
+    if !version.is_editor_installed()? {
+        println!();
+        if install_unity {
+            install_partial_version(&version.to_string())?;
+        } else {
+            println!(
+                "Use the `{}` flag to install Unity version {}",
+                "--install".bold(),
+                version.bold()
+            );
+        }
+    }
+
     Ok(())
 }
 

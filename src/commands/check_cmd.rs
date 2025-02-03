@@ -54,22 +54,33 @@ pub(crate) fn check_updates(
         print!("{}", String::from_utf8(buf)?);
     }
 
+    handle_newer_release_installation(install_update, &releases)
+}
+
+fn handle_newer_release_installation(
+    install_update: bool,
+    releases: &SortedReleases,
+) -> anyhow::Result<()> {
     if let Some(newer_release) = releases.iter().last() {
-        if install_update {
-            if !newer_release.version.is_editor_installed()? {
+        let is_installed = newer_release.version.is_editor_installed()?;
+        match (is_installed, install_update) {
+            (false, true) => {
+                // There is a newer version available, and the user wants to install it.
                 println!();
                 install_version(newer_release)?;
             }
-        } else {
-            println!();
-            println!(
-                "Use the `{}` flag to install Unity version {}",
-                "--install".bold(),
-                newer_release.version.bold()
-            );
+            (false, false) => {
+                // There is a newer version available, but the user has not requested installation.
+                println!();
+                println!(
+                    "Use the `{}` flag to install Unity version {}",
+                    "--install".bold(),
+                    newer_release.version.bold()
+                );
+            }
+            _ => { /* The latest version is already installed. */ }
         }
     }
-
     Ok(())
 }
 
