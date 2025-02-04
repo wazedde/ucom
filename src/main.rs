@@ -87,7 +87,7 @@ fn main() -> anyhow::Result<()> {
                         http_cache::ucom_cache_dir().display()
                     );
                 }
-                CacheAction::Show => {
+                CacheAction::List => {
                     let cache_dir = http_cache::ucom_cache_dir();
                     if !cache_dir.exists() {
                         println!("No cache found at: {}", cache_dir.display());

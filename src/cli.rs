@@ -200,5 +200,5 @@ pub(crate) enum CacheAction {
     /// Removes all files from the cache.
     Clear,
     /// Displays a list of all currently cached files.
-    Show,
+    List,
 }
