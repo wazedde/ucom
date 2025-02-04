@@ -13,7 +13,7 @@ use std::ops::Deref;
 use std::path::Path;
 
 const RELEASES_API_URL: &str = "https://services.api.unity.com/unity/editor/release/v1/releases";
-const RELEASES_FILENAME: &str = "releases.json";
+const RELEASES_FILENAME: &str = "releases_dataset.json";
 
 #[allow(dead_code)]
 #[derive(Debug, Serialize, Deserialize)]
