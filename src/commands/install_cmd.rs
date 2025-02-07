@@ -1,9 +1,9 @@
-use crate::unity::release_api::get_latest_releases;
+use crate::unity::release_api::{get_latest_releases, Mode};
 use crate::unity::release_api_data::ReleaseData;
 use yansi::Paint;
 
-pub(crate) fn install_partial_version(partial_version: &str) -> anyhow::Result<()> {
-    let releases = get_latest_releases()?;
+pub(crate) fn install_partial_version(partial_version: &str, mode: Mode) -> anyhow::Result<()> {
+    let releases = get_latest_releases(mode)?;
     let release = releases
         .iter()
         .filter(|rd| rd.version.to_string().starts_with(partial_version))

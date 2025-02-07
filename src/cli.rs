@@ -38,6 +38,10 @@ pub(crate) enum Action {
         /// Filters the Unity versions to list based on the pattern. For example, '2021' will list all 2021.x.y versions.
         #[arg(short = 'u', long = "unity", value_name = "VERSION")]
         version_pattern: Option<String>,
+
+        /// Forces downloading release data from the Unity API.
+        #[arg(short = 'f', long)]
+        force: bool,
     },
 
     /// Installs the latest Unity version that matches the specified version range.

@@ -6,7 +6,7 @@ use yansi::Paint;
 use crate::commands::install_cmd::install_version;
 use crate::commands::term_stat::TermStat;
 use crate::commands::{writeln_b, INDENT};
-use crate::unity::release_api::SortedReleases;
+use crate::unity::release_api::{Mode, SortedReleases};
 use crate::unity::release_api_data::ReleaseData;
 use crate::unity::*;
 
@@ -15,13 +15,14 @@ pub(crate) fn check_updates(
     project_dir: &Path,
     install_update: bool,
     create_report: bool,
+    mode: Mode,
 ) -> anyhow::Result<()> {
     let project = ProjectPath::try_from(project_dir)?;
     let current_version = project.unity_version()?;
 
     let (current_release, releases) = {
         let _status = TermStat::new("Checking", &format!("for updates to {current_version}"));
-        get_latest_releases_for(current_version)?
+        get_latest_releases_for(current_version, mode)?
     };
 
     if create_report {

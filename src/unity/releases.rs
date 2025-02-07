@@ -1,4 +1,4 @@
-use crate::unity::release_api::{get_latest_releases, SortedReleases};
+use crate::unity::release_api::{get_latest_releases, Mode, SortedReleases};
 use crate::unity::release_api_data::ReleaseData;
 use crate::unity::{BuildType, Major, Minor, Version};
 use serde::{Deserialize, Serialize};
@@ -20,7 +20,7 @@ pub(crate) enum ReleaseStream {
     #[strum(serialize = "ALPHA")]
     Alpha,
     #[serde(other)]
-    #[strum(serialize = "????")]
+    #[strum(serialize = "    ")]
     Other,
 }
 
@@ -50,8 +50,9 @@ impl ReleaseFilter {
 /// Returns the latest releases for a given version.
 pub(crate) fn get_latest_releases_for(
     version: Version,
+    mode: Mode,
 ) -> anyhow::Result<(ReleaseData, SortedReleases)> {
-    let releases = get_latest_releases()?;
+    let releases = get_latest_releases(mode)?;
     let filter = ReleaseFilter::Minor {
         major: version.major,
         minor: version.minor,

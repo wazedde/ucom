@@ -196,12 +196,22 @@ pub(crate) fn load_cached_releases() -> anyhow::Result<Releases> {
     }
 }
 
-/// Downloads and caches the release info.
-pub(crate) fn get_latest_releases() -> anyhow::Result<SortedReleases> {
-    let releases_path = ucom_cache_dir().join(RELEASES_FILENAME);
-    let mut releases = load_cached_releases()?;
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum Mode {
+    Auto,
+    Force,
+}
 
-    if !http_cache::has_expired(&releases_path) {
+/// Downloads and caches the release info.
+pub(crate) fn get_latest_releases(mode: Mode) -> anyhow::Result<SortedReleases> {
+    let releases_path = ucom_cache_dir().join(RELEASES_FILENAME);
+    let mut releases = if mode == Mode::Auto {
+        load_cached_releases()?
+    } else {
+        Releases::default()
+    };
+
+    if mode == Mode::Auto && !http_cache::has_expired(&releases_path) {
         return Ok(SortedReleases::new(releases));
     }
 

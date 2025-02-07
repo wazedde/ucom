@@ -6,6 +6,7 @@ use crate::cli::PackagesInfoLevel;
 use crate::commands::{install_partial_version, println_b, INDENT};
 use crate::unity::project::ProjectPath;
 use crate::unity::project::*;
+use crate::unity::release_api::Mode;
 use crate::unity::{release_notes_url, to_absolute_dir_path, Version};
 
 /// Shows project information.
@@ -14,11 +15,12 @@ pub(crate) fn project_info(
     packages_level: PackagesInfoLevel,
     install_unity: bool,
     recursive: bool,
+    mode: Mode,
 ) -> anyhow::Result<()> {
     if recursive {
         show_recursive_project_info(path, packages_level)
     } else {
-        show_project_info(path, packages_level, install_unity)
+        show_project_info(path, packages_level, install_unity, mode)
     }
 }
 
@@ -46,13 +48,14 @@ fn show_project_info(
     path: &Path,
     packages_level: PackagesInfoLevel,
     install_unity: bool,
+    mode: Mode,
 ) -> anyhow::Result<()> {
     let version = print_project_info(&ProjectPath::try_from(path)?, packages_level)?;
 
     if !version.is_editor_installed()? {
         println!();
         if install_unity {
-            install_partial_version(&version.to_string())?;
+            install_partial_version(&version.to_string(), mode)?;
         } else {
             println!(
                 "Use the `{}` flag to install Unity version {}",
