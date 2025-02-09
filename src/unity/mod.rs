@@ -20,7 +20,7 @@ pub(crate) mod vec1;
 pub(crate) mod version;
 
 /// Returns the absolute path to an existing directory.
-pub(crate) fn to_absolute_dir_path(path: &impl AsRef<Path>) -> anyhow::Result<Cow<'_, Path>> {
+pub(crate) fn resolve_absolute_dir_path(path: &impl AsRef<Path>) -> anyhow::Result<Cow<'_, Path>> {
     let path = path.as_ref();
 
     if cfg!(target_os = "windows") && path.starts_with("~") {

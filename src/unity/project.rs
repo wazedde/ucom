@@ -183,8 +183,8 @@ impl ProjectSettings {
 
     /// Parse the given line as a key-value pair.
     fn try_parse_value<'a>(key: &str, line: &'a str) -> Option<&'a str> {
-        line.split_once(":")
-            .and_then(|(l, r)| l.trim().eq(key).then_some(r).map(|r| r.trim()))
+        line.split_once(':')
+            .and_then(|(l, r)| l.trim().eq(key).then_some(r).map(str::trim))
     }
 }
 
@@ -203,8 +203,8 @@ pub(crate) struct ProjectPath(PathBuf);
 impl ProjectPath {
     /// Creates a new `ProjectPath` from the given directory.
     pub(crate) fn try_from(path: impl AsRef<Path>) -> anyhow::Result<Self> {
-        let path = unity::to_absolute_dir_path(&path)?;
-        if ProjectPath::is_unity_project_directory(&path) {
+        let path = unity::resolve_absolute_dir_path(&path)?;
+        if ProjectPath::contains_unity_project(&path) {
             Ok(Self(path.as_ref().to_path_buf()))
         } else {
             Err(anyhow!(
@@ -249,7 +249,7 @@ impl ProjectPath {
     }
 
     /// Checks if the project directory has an `Assets` directory.
-    pub(crate) fn check_assets_directory_exists(&self) -> anyhow::Result<()> {
+    pub(crate) fn ensure_assets_directory_exists(&self) -> anyhow::Result<()> {
         if self.as_path().join("Assets").exists() {
             Ok(())
         } else {
@@ -261,7 +261,7 @@ impl ProjectPath {
     }
 
     /// Checks if the directory contains a Unity project.
-    fn is_unity_project_directory(dir: impl AsRef<Path>) -> bool {
+    fn contains_unity_project(dir: impl AsRef<Path>) -> bool {
         dir.as_ref().join(VERSION_SUB_PATH).exists()
     }
 }

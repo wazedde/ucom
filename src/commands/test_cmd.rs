@@ -17,7 +17,7 @@ pub(crate) fn run_tests(arguments: TestArguments) -> anyhow::Result<()> {
     let project = ProjectPath::try_from(&arguments.project_dir)?;
     let project_unity_version = project.unity_version()?;
     let editor_exe = project_unity_version.editor_executable_path()?;
-    project.check_assets_directory_exists()?;
+    project.ensure_assets_directory_exists()?;
 
     let test_results = format!(
         "tests-{}-{}.xml",

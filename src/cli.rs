@@ -35,9 +35,9 @@ pub(crate) enum Action {
         #[arg(value_enum, default_value = "installed")]
         list_type: ListType,
 
-        /// Filters the Unity versions to list based on the pattern. For example, '2021' will list all 2021.x.y versions.
+        /// Filter Unity versions by prefix (e.g. '2021' shows all 2021.x.x versions)
         #[arg(short = 'u', long = "unity", value_name = "VERSION")]
-        version_pattern: Option<String>,
+        version_filter: Option<String>,
 
         /// Forces downloading release data from the Unity API.
         #[arg(short = 'f', long)]
@@ -47,7 +47,7 @@ pub(crate) enum Action {
     /// Installs the latest Unity version that matches the specified version range.
     #[command(visible_alias = "I")]
     Install {
-        /// The version of Unity to install. Can be a partial version like '2023.1' or a full version like '2021.1.0f1'.
+        /// The version of Unity to install. Can be a version prefix like '2023.1' or a full version like '2021.1.0f1'.
         #[arg(value_name = "VERSION")]
         version: String,
     },
@@ -134,8 +134,8 @@ pub(crate) struct OpenArguments {
     pub(crate) project_dir: PathBuf,
 
     /// Upgrades the project's Unity version.
-    /// A partial version like '2021' selects the latest-installed version within the 2021.x.y range.
-    /// If no version is specified, it defaults to the latest available version within the project's `major.minor` range.
+    /// If no version is specified, it upgrades to the latest available version within the project's `major.minor` range.
+    /// A version prefix like '2021' selects the latest-installed version within the 2021.x.y range.
     #[arg(short = 'U', long = "upgrade", value_name = "VERSION")]
     pub(crate) upgrade_version: Option<Option<String>>,
 

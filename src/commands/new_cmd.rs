@@ -9,7 +9,7 @@ use crate::cli_add::IncludedFile;
 use crate::cli_new::NewArguments;
 use crate::commands::term_stat::TermStat;
 use crate::commands::{add_file_to_project, println_b, INDENT, PERSISTENT_BUILD_SCRIPT_ROOT};
-use crate::unity::installed::VersionList;
+use crate::unity::installed::Installations;
 use crate::unity::*;
 
 /// Creates a new Unity project and optional Git repository in the given directory.
@@ -23,7 +23,7 @@ pub(crate) fn new_project(arguments: NewArguments) -> anyhow::Result<()> {
         ));
     }
 
-    let version = VersionList::latest(Some(&arguments.version_pattern))?;
+    let version = Installations::latest(Some(&arguments.version_pattern))?;
     let editor_exe = version.editor_executable_path()?;
 
     let mut cmd = Command::new(editor_exe);

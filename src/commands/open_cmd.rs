@@ -2,7 +2,7 @@ use std::process::Command;
 
 use crate::cli::*;
 use crate::commands::println_b;
-use crate::unity::installed::VersionList;
+use crate::unity::installed::Installations;
 use crate::unity::*;
 
 /// Opens the given Unity project in the Unity Editor.
@@ -12,16 +12,16 @@ pub(crate) fn open_project(arguments: OpenArguments) -> anyhow::Result<()> {
 
     let open_unity_version = match arguments.upgrade_version {
         // If a specific version is given, use that.
-        Some(Some(pattern)) => VersionList::latest(Some(&pattern)),
+        Some(Some(pattern)) => Installations::latest(Some(&pattern)),
         // Otherwise, use the latest version.
-        Some(None) => VersionList::latest(Some(&project_unity_version.minor_partial())),
+        Some(None) => Installations::latest(Some(&project_unity_version.major_minor())),
         // Otherwise, use the current version.
         None => Ok(project_unity_version),
     }?;
 
     let editor_exe = open_unity_version.editor_executable_path()?;
 
-    project.check_assets_directory_exists()?;
+    project.ensure_assets_directory_exists()?;
 
     // Build the command to execute.
     let mut cmd = Command::new(editor_exe);

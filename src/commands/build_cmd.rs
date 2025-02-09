@@ -48,10 +48,9 @@ pub(crate) fn build_project(arguments: BuildArguments) -> anyhow::Result<()> {
         TermStat::new_null_output()
     };
 
-    let (inject_build_script, cleanup_build_script) =
-        csharp_build_script_injection_hooks(&project, arguments.inject);
+    let hooks = csharp_build_script_injection_hooks(&project, arguments.inject);
 
-    inject_build_script()?;
+    (hooks.inject_build_script)()?;
 
     if log_path.exists() {
         fs::remove_file(&log_path)?;
@@ -63,7 +62,7 @@ pub(crate) fn build_project(arguments: BuildArguments) -> anyhow::Result<()> {
         wait_with_stdout(build_command)
     };
 
-    cleanup_build_script()?;
+    (hooks.cleanup_build_script)()?;
     drop(build_status);
 
     let (build_status, log_tag) = if build_result.is_ok() {
@@ -318,24 +317,44 @@ fn line_contains_error(line: &str) -> bool {
     error_prefixes.iter().any(|prefix| line.contains(prefix))
 }
 
-type ResultFn = Box<dyn FnOnce() -> anyhow::Result<()>>;
+type HookFn = Box<dyn FnOnce() -> anyhow::Result<()>>;
+
+fn no_op_hook() -> HookFn {
+    Box::new(|| Ok(()))
+}
+
+struct BuildHooks {
+    inject_build_script: HookFn,
+    cleanup_build_script: HookFn,
+}
+
+impl BuildHooks {
+    /// Creates a new `BuildHooks` instance with the specified hooks.
+    fn new(inject_build_script: HookFn, cleanup_build_script: HookFn) -> Self {
+        Self {
+            inject_build_script,
+            cleanup_build_script,
+        }
+    }
+
+    /// Returns a no-op `BuildHooks` instance.
+    fn no_op() -> Self {
+        Self::new(no_op_hook(), no_op_hook())
+    }
+}
 
 /// Creates actions that inject a script into the project before and after the build.
-fn csharp_build_script_injection_hooks(
-    project: &ProjectPath,
-    inject: InjectAction,
-) -> (ResultFn, ResultFn) {
+fn csharp_build_script_injection_hooks(project: &ProjectPath, inject: InjectAction) -> BuildHooks {
     let project_path = project.as_path();
 
     let persistent_script_exists = project_path
         .join(PERSISTENT_BUILD_SCRIPT_ROOT)
         .join(IncludedFile::Builder.data().filename)
         .exists();
-    let do_nothing: (ResultFn, ResultFn) = (Box::new(|| Ok(())), Box::new(|| Ok(())));
 
     match inject {
         // Build script is already present, no need to inject.
-        InjectAction::Auto if persistent_script_exists => do_nothing,
+        InjectAction::Auto if persistent_script_exists => BuildHooks::no_op(),
 
         // Build script is not present, inject it in a unique directory to avoid conflicts.
         InjectAction::Auto => {
@@ -345,7 +364,7 @@ fn csharp_build_script_injection_hooks(
             let closure_script_dir = PathBuf::from(&unique_dir_name).join("Editor");
             let closure_remove_dir = project_path.join(&unique_dir_name);
 
-            (
+            BuildHooks::new(
                 Box::new(|| {
                     add_file_to_project(
                         closure_project_dir,
@@ -358,14 +377,14 @@ fn csharp_build_script_injection_hooks(
         }
 
         // Build script is already present, no need to inject.
-        InjectAction::Persistent if persistent_script_exists => do_nothing,
+        InjectAction::Persistent if persistent_script_exists => BuildHooks::no_op(),
 
         // Build script is not present, inject it.
         InjectAction::Persistent => {
             let closure_project_dir = project_path.to_path_buf();
             let closure_script_dir = PathBuf::from(PERSISTENT_BUILD_SCRIPT_ROOT);
 
-            (
+            BuildHooks::new(
                 Box::new(|| {
                     add_file_to_project(
                         closure_project_dir,
@@ -373,12 +392,12 @@ fn csharp_build_script_injection_hooks(
                         IncludedFile::Builder,
                     )
                 }),
-                Box::new(|| Ok(())),
+                no_op_hook(),
             )
         }
 
         // No need to do anything.
-        InjectAction::Off => do_nothing,
+        InjectAction::Off => BuildHooks::no_op(),
     }
 }
 

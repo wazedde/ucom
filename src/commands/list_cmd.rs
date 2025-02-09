@@ -1,12 +1,11 @@
 use anyhow::anyhow;
 use crossterm::style::Stylize;
 use itertools::Itertools;
-use std::path::{Path, PathBuf};
 use yansi::Paint;
 
 use crate::cli::ListType;
 use crate::commands::{println_b, println_b_if};
-use crate::unity::installed::VersionList;
+use crate::unity::installed::{Installations, VersionList};
 use crate::unity::release_api::{
     get_latest_releases, load_cached_releases, Mode, Releases, SortedReleases,
 };
@@ -20,58 +19,44 @@ struct VersionInfoGroups<'a>(Vec<Vec1<VersionInfo<'a>>>);
 /// Lists installed Unity versions.
 pub(crate) fn list_versions(
     list_type: ListType,
-    partial_version: Option<&str>,
+    version_prefix: Option<&str>,
     mode: Mode,
 ) -> anyhow::Result<()> {
     return match list_type {
         ListType::Installed => {
-            let (install_dir, installed) = get_installed_versions(partial_version)?;
-            print_installed_versions(&install_dir, &installed, mode)
+            let installed = Installations::find(version_prefix)?;
+            print_installed_versions(&installed, mode)
         }
         ListType::Updates => {
-            let (install_dir, installed) = get_installed_versions(partial_version)?;
-            print_updates(&install_dir, &installed, mode)
+            let installed = Installations::find(version_prefix)?;
+            print_updates(&installed, mode)
         }
         ListType::Latest => {
-            let installed = get_optional_installed_versions(partial_version);
-            print_latest_versions(installed.as_deref(), partial_version, mode)
+            let installed = optionally_installed_versions(version_prefix);
+            print_latest_versions(installed.as_deref(), version_prefix, mode)
         }
         ListType::All => {
-            let installed = get_optional_installed_versions(partial_version);
-            print_available_versions(installed.as_deref(), partial_version, mode)
+            let installed: Option<Vec<Version>> = optionally_installed_versions(version_prefix);
+            print_available_versions(installed.as_deref(), version_prefix, mode)
         }
     };
 
-    fn get_optional_installed_versions(partial_version: Option<&str>) -> Option<Vec<Version>> {
-        VersionList::from_installations()
-            .and_then(|(_, versions)| versions.retain(partial_version))
-            .map(std::convert::Into::into)
+    fn optionally_installed_versions(version_prefix: Option<&str>) -> Option<Vec<Version>> {
+        Installations::find(version_prefix)
+            .map(|i| i.versions.into_vec())
             .ok()
-    }
-
-    fn get_installed_versions(
-        partial_version: Option<&str>,
-    ) -> anyhow::Result<(PathBuf, VersionList)> {
-        let (install_dir, versions) = VersionList::from_installations()?;
-        let installed = versions.retain(partial_version)?;
-        Ok((install_dir.into(), installed))
     }
 }
 
 /// Prints list of installed versions.
 /// ```
-/// Unity versions in: /Applications/Unity/Hub/Editor/ (*=suggested version)
-/// ┬─ 2022.3.51f1 - https://unity.com/releases/editor/whats-new/2022.3.51#notes
-/// └─ 2022.3.52f1 * https://unity.com/releases/editor/whats-new/2022.3.52#notes
-/// ┬─ 6000.0.24f1 - https://unity.com/releases/editor/whats-new/6000.0.24#notes
-/// ├─ 6000.0.25f1 - https://unity.com/releases/editor/whats-new/6000.0.25#notes
-/// └─ 6000.0.26f1 - https://unity.com/releases/editor/whats-new/6000.0.26#notes
+/// Unity versions in: /Applications/Unity/Hub/Editor/ (suggested: LTS 6000.0.36f1)
+/// ── 2022.3.57f1 - https://unity.com/releases/editor/whats-new/2022.3.57#notes
+/// ┬─ 6000.0.32f1 - https://unity.com/releases/editor/whats-new/6000.0.32#notes
+/// ├─ 6000.0.35f1 - https://unity.com/releases/editor/whats-new/6000.0.35#notes
+/// └─ 6000.0.36f1 * https://unity.com/releases/editor/whats-new/6000.0.36#notes
 /// ```
-fn print_installed_versions(
-    install_dir: &Path,
-    installed: &VersionList,
-    mode: Mode,
-) -> anyhow::Result<()> {
+fn print_installed_versions(installed: &Installations, mode: Mode) -> anyhow::Result<()> {
     let releases = if mode == Mode::Auto {
         load_cached_releases()?
     } else {
@@ -80,14 +65,14 @@ fn print_installed_versions(
 
     println_b!(
         "Unity versions in: {} {}",
-        install_dir.display(),
+        installed.install_dir.display(),
         suggested_version_string(&releases)
     );
 
     if releases.is_empty() {
-        print_basic_list(installed);
+        print_basic_list(&installed.versions);
     } else {
-        print_list_with_release_dates(installed, releases);
+        print_list_with_release_dates(&installed.versions, releases);
     }
 
     Ok(())
@@ -156,18 +141,17 @@ fn print_list_with_release_dates(installed: &VersionList, releases: Releases) {
 
 /// Prints list of installed versions and available updates.
 /// ```
-/// Updates for Unity versions in: /Applications/Unity/Hub/Editor/ (*=suggested version)
-/// ┬── LTS 2022.3.51f1
-/// └── LTS 2022.3.52f1 * Up to date
-/// ┬── LTS 6000.0.24f1
-/// ├── LTS 6000.0.25f1 - Update(s) available
-/// └── LTS 6000.0.26f1 - https://unity.com/releases/editor/whats-new/6000.0.26#notes > unityhub://6000.0.26f1/ccb7c73d2c02
+/// Updates for Unity versions in: /Applications/Unity/Hub/Editor/ (suggested: LTS 6000.0.36f1)
+/// ─── LTS 2022.3.57f1 (2025-01-29) - Up to date
+/// ┬── LTS 6000.0.32f1 (2024-12-19)
+/// ├── LTS 6000.0.35f1 (2025-01-22) - Update(s) available
+/// └── LTS 6000.0.36f1 (2025-01-28) * https://unity.com/releases/editor/whats-new/6000.0.36#notes
 /// ```
-fn print_updates(install_dir: &Path, installed: &VersionList, mode: Mode) -> anyhow::Result<()> {
+fn print_updates(installed: &Installations, mode: Mode) -> anyhow::Result<()> {
     let releases = get_latest_releases(mode)?;
     println_b!(
         "Updates for Unity versions in: {} {}",
-        install_dir.display(),
+        installed.install_dir.display(),
         suggested_version_string(&releases)
     );
 
@@ -175,7 +159,7 @@ fn print_updates(install_dir: &Path, installed: &VersionList, mode: Mode) -> any
         return Err(anyhow!("No update information available."));
     }
 
-    let version_groups = collect_update_info(installed, &releases);
+    let version_groups = collect_update_info(&installed.versions, &releases);
     let max_version_len = max_version_string_length(&version_groups);
 
     for group in version_groups.0 {
@@ -303,22 +287,20 @@ fn collect_update_info<'a>(
 /// Prints list of latest available Unity versions.
 /// ```
 /// ...
-/// ┬─ TECH 2021.1.28f1 > unityhub://2021.1.28f1/f3f9dc10f3dd
-/// ├─ TECH 2021.2.19f1 > unityhub://2021.2.19f1/602ecdbb2fb0
-/// └── LTS 2021.3.45f1 > unityhub://2021.3.45f1/0da89fac8e79
-/// ┬─ TECH 2022.1.24f1 > unityhub://2022.1.24f1/709dddfb713f
-/// ├─ TECH 2022.2.21f1 > unityhub://2022.2.21f1/4907324dc95b
-/// └── LTS 2022.3.52f1 - Installed: 2022.3.51f1, 2022.3.52f1
-/// ┬─ TECH 2023.1.20f1 > unityhub://2023.1.20f1/35a524b12060
-/// ├─ TECH 2023.2.20f1 > unityhub://2023.2.20f1/0e25a174756c
-/// └─ BETA 2023.3.0b10 > unityhub://2023.3.0b10/52ddac442a2c
-/// ┬── LTS 6000.0.26f1 - Installed: 6000.0.24f1, 6000.0.25f1 - update > unityhub://6000.0.26f1/ccb7c73d2c02
-/// └ ALPHA 6000.1.0a3  > unityhub://6000.1.0a3/26ee3f072390
+/// ┬─ TECH 2022.1.24f1 (2022-12-06)
+/// ├─ TECH 2022.2.21f1 (2023-05-24)
+/// └── LTS 2022.3.57f1 (2025-01-29) - Installed: 2022.3.57f1
+/// ┬─ TECH 2023.1.20f1 (2023-11-09)
+/// ├─ TECH 2023.2.20f1 (2024-04-25)
+/// └─ BETA 2023.3.0b10 (2024-03-05)
+/// ┬── LTS 6000.0.36f1 (2025-01-28) - Installed: 6000.0.32f1, 6000.0.35f1 - update available
+/// ├─ BETA 6000.1.0b4  (2025-01-28)
+/// └ ALPHA 6000.2.0a1  (2025-01-29)
 /// ...
 /// ```
 fn print_latest_versions(
     installed: Option<&[Version]>,
-    partial_version: Option<&str>,
+    version_prefix: Option<&str>,
     mode: Mode,
 ) -> anyhow::Result<()> {
     let releases = get_latest_releases(mode)?;
@@ -328,12 +310,12 @@ fn print_latest_versions(
     );
 
     // Get the latest version of each range.
-    let minor_releases = latest_minor_releases(&releases, partial_version);
+    let minor_releases = latest_minor_releases(&releases, version_prefix);
 
     if minor_releases.is_empty() {
         return Err(anyhow!(
             "No releases available that match `{}`",
-            partial_version.unwrap_or("*")
+            version_prefix.unwrap_or("*")
         ));
     }
 
@@ -408,21 +390,19 @@ fn fixed_version_string(version: Version, max_len: usize) -> String {
 /// ```
 /// Available releases
 /// ...
-/// ┬─ BETA 6000.0.0b11 - https://unity.com/releases/editor/beta/6000.0.0b11#notes > unityhub://6000.0.0b11/a707ca4efec4
-/// ├─ BETA 6000.0.0b12 - https://unity.com/releases/editor/beta/6000.0.0b12#notes > unityhub://6000.0.0b12/0ac662189661
-/// ├─ BETA 6000.0.0b13 - https://unity.com/releases/editor/beta/6000.0.0b13#notes > unityhub://6000.0.0b13/21aeb48b6ed2
-/// ├─ BETA 6000.0.0b15 - https://unity.com/releases/editor/beta/6000.0.0b15#notes > unityhub://6000.0.0b15/8008bc0c1b74
-/// ├─ BETA 6000.0.0b16 - https://unity.com/releases/editor/beta/6000.0.0b16#notes > unityhub://6000.0.0b16/1ddb887463a9
-/// ├─ TECH 6000.0.0f1  - https://unity.com/releases/editor/whats-new/6000.0.0#notes > unityhub://6000.0.0f1/4ff56b3ea44c
-/// ├─ TECH 6000.0.1f1  - https://unity.com/releases/editor/whats-new/6000.0.1#notes > unityhub://6000.0.1f1/d9cf669c6271
-/// ├─ TECH 6000.0.2f1  - https://unity.com/releases/editor/whats-new/6000.0.2#notes > unityhub://6000.0.2f1/c36be92430b9
-/// ├─ TECH 6000.0.3f1  - https://unity.com/releases/editor/whats-new/6000.0.3#notes > unityhub://6000.0.3f1/019aa96b6ed9
-/// ├─ TECH 6000.0.4f1  - https://unity.com/releases/editor/whats-new/6000.0.4#notes > unityhub://6000.0.4f1/b5d5d06b038a
+/// ┬─ BETA 6000.0.0b11 (2024-03-13) - https://unity.com/releases/editor/beta/6000.0.0b11#notes
+/// ├─ BETA 6000.0.0b12 (2024-03-19) - https://unity.com/releases/editor/beta/6000.0.0b12#notes
+/// ├─ BETA 6000.0.0b13 (2024-03-27) - https://unity.com/releases/editor/beta/6000.0.0b13#notes
+/// ├─ BETA 6000.0.0b15 (2024-04-13) - https://unity.com/releases/editor/beta/6000.0.0b15#notes
+/// ├─ BETA 6000.0.0b16 (2024-04-19) - https://unity.com/releases/editor/beta/6000.0.0b16#notes
+/// ├─ TECH 6000.0.0f1  (2024-04-29) - https://unity.com/releases/editor/whats-new/6000.0.0#notes
+/// ├─ TECH 6000.0.1f1  (2024-05-08) - https://unity.com/releases/editor/whats-new/6000.0.1#notes
+/// ├─ TECH 6000.0.2f1  (2024-05-14) - https://unity.com/releases/editor/whats-new/6000.0.2#notes
 /// ...
 /// ```
 fn print_available_versions(
     installed: Option<&[Version]>,
-    partial_version: Option<&str>,
+    version_prefix: Option<&str>,
     mode: Mode,
 ) -> anyhow::Result<()> {
     let releases = get_latest_releases(mode)?;
@@ -430,14 +410,14 @@ fn print_available_versions(
 
     let releases = releases
         .iter()
-        .filter(|r| partial_version.map_or(true, |p| r.version.to_string().starts_with(p)))
+        .filter(|r| version_prefix.map_or(true, |p| r.version.to_string().starts_with(p)))
         .collect_vec();
 
     let Ok(versions) = VersionList::from_vec(releases.iter().map(|r| r.version).collect_vec())
     else {
         return Err(anyhow!(
             "No releases available that match `{}`",
-            partial_version.unwrap_or("*")
+            version_prefix.unwrap_or("*")
         ));
     };
 
@@ -551,7 +531,7 @@ fn group_minor_versions(installed: &VersionList) -> VersionInfoGroups<'_> {
         .iter()
         .chunk_by(|v| (v.major, v.minor))
         .into_iter()
-        .flat_map(|(_, group)| build_version_group(group.collect_vec()))
+        .filter_map(|(_, group)| build_version_group(group.collect_vec()))
         .collect();
 
     VersionInfoGroups(version_groups)
@@ -581,14 +561,14 @@ fn build_version_group(versions: Vec<&Version>) -> Option<Vec1<VersionInfo<'_>>>
 
 fn latest_minor_releases<'a>(
     releases: &'a SortedReleases,
-    partial_version: Option<&str>,
+    version_prefix: Option<&str>,
 ) -> Vec<&'a ReleaseData> {
     releases
         .iter()
-        .filter(|r| partial_version.map_or(true, |p| r.version.to_string().starts_with(p)))
+        .filter(|r| version_prefix.map_or(true, |p| r.version.to_string().starts_with(p)))
         .chunk_by(|r| (r.version.major, r.version.minor))
         .into_iter()
-        .flat_map(|(_, group)| group.last()) // Get the latest version of each range.
+        .filter_map(|(_, group)| group.last()) // Get the latest version of each range.
         .collect()
 }
 

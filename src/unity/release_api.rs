@@ -134,7 +134,6 @@ where
 {
     // If list is empty, fetch as much as possible, otherwise fetch 5 at a time to make it faster.
     let fetch_all = releases.is_empty();
-
     let limit = if fetch_all { 25 } else { 5 };
 
     let mut fetched = 0;

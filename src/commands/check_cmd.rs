@@ -11,7 +11,7 @@ use crate::unity::release_api_data::ReleaseData;
 use crate::unity::*;
 
 /// Checks on the Unity website for updates to the version used by the project.
-pub(crate) fn check_updates(
+pub(crate) fn find_updates(
     project_dir: &Path,
     install_update: bool,
     create_report: bool,
@@ -20,9 +20,9 @@ pub(crate) fn check_updates(
     let project = ProjectPath::try_from(project_dir)?;
     let current_version = project.unity_version()?;
 
-    let (current_release, releases) = {
+    let updates = {
         let _status = TermStat::new("Checking", &format!("for updates to {current_version}"));
-        get_latest_releases_for(current_version, mode)?
+        find_available_updates(current_version, mode)?
     };
 
     if create_report {
@@ -33,11 +33,16 @@ pub(crate) fn check_updates(
     write_project_header(&project, create_report, &mut buf)?;
     writeln!(buf)?;
 
-    write_project_version(current_release, &releases, create_report, &mut buf)?;
+    write_project_version(
+        updates.current_release,
+        &updates.available_releases,
+        create_report,
+        &mut buf,
+    )?;
 
     if create_report {
         let download_status = TermStat::new("Downloading", "Unity release notes...");
-        for release in releases.iter() {
+        for release in updates.available_releases.iter() {
             download_status.reprint(
                 "Downloading",
                 &format!("Unity {} release notes...", release.version),
@@ -48,14 +53,14 @@ pub(crate) fn check_updates(
         drop(download_status);
         print!("{}", String::from_utf8(buf)?);
     } else {
-        if !releases.is_empty() {
+        if !updates.available_releases.is_empty() {
             writeln!(buf)?;
-            write_available_updates(&releases, &mut buf)?;
+            write_available_updates(&updates.available_releases, &mut buf)?;
         }
         print!("{}", String::from_utf8(buf)?);
     }
 
-    handle_newer_release_installation(install_update, &releases)
+    handle_newer_release_installation(install_update, &updates.available_releases)
 }
 
 fn handle_newer_release_installation(

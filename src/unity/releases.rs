@@ -38,7 +38,7 @@ pub(crate) enum ReleaseFilter {
 
 impl ReleaseFilter {
     /// Returns true if the version matches the filter.
-    const fn eval(&self, v: Version) -> bool {
+    const fn matches_version(&self, v: Version) -> bool {
         match self {
             Self::All => true,
             Self::Major { major } => v.major == *major,
@@ -47,25 +47,32 @@ impl ReleaseFilter {
     }
 }
 
-/// Returns the latest releases for a given version.
-pub(crate) fn get_latest_releases_for(
+pub(crate) struct ReleaseUpdates {
+    pub(crate) current_release: ReleaseData,
+    pub(crate) available_releases: SortedReleases,
+}
+
+pub(crate) fn find_available_updates(
     version: Version,
     mode: Mode,
-) -> anyhow::Result<(ReleaseData, SortedReleases)> {
+) -> anyhow::Result<ReleaseUpdates> {
     let releases = get_latest_releases(mode)?;
     let filter = ReleaseFilter::Minor {
         major: version.major,
         minor: version.minor,
     };
 
-    let mut releases = releases.filtered(|rd| filter.eval(rd.version));
+    let mut releases = releases.filtered(|rd| filter.matches_version(rd.version));
     let position = releases.iter().position(|rd| rd.version == version);
     let current = position
         .map(|index| releases.remove(index))
         .ok_or(anyhow::anyhow!("Version {} not found in releases", version))?;
     let updates = releases.filtered(|rd| rd.version > version);
 
-    Ok((current, updates))
+    Ok(ReleaseUpdates {
+        current_release: current,
+        available_releases: updates,
+    })
 }
 
 pub(crate) struct Url(String);

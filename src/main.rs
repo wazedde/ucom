@@ -35,15 +35,15 @@ fn main() -> anyhow::Result<()> {
     match command {
         Action::List {
             list_type,
-            version_pattern,
+            version_filter,
             force,
         } => {
             let mode = if force { Mode::Force } else { Mode::Auto };
-            list_versions(list_type, version_pattern.as_deref(), mode)
+            list_versions(list_type, version_filter.as_deref(), mode)
                 .with_context(|| color_error(&format!("Cannot list `{}`", list_type)))
         }
 
-        Action::Install { version } => install_partial_version(&version, Mode::Auto)
+        Action::Install { version } => install_latest_matching(&version, Mode::Auto)
             .with_context(|| color_error("Cannot install Unity version")),
 
         Action::Info {
@@ -58,7 +58,7 @@ fn main() -> anyhow::Result<()> {
             project_dir,
             install,
             report,
-        } => check_updates(&project_dir, install, report, Mode::Auto)
+        } => find_updates(&project_dir, install, report, Mode::Auto)
             .with_context(|| color_error("Cannot show Unity updates for project")),
 
         Action::Run(settings) => run_unity(settings).context(color_error("Cannot run Unity")),

@@ -3,11 +3,11 @@ use std::path::Path;
 use yansi::Paint;
 
 use crate::cli::PackagesInfoLevel;
-use crate::commands::{install_partial_version, println_b, INDENT};
+use crate::commands::{install_latest_matching, println_b, INDENT};
 use crate::unity::project::ProjectPath;
 use crate::unity::project::*;
 use crate::unity::release_api::Mode;
-use crate::unity::{release_notes_url, to_absolute_dir_path, Version};
+use crate::unity::{release_notes_url, resolve_absolute_dir_path, Version};
 
 /// Shows project information.
 pub(crate) fn project_info(
@@ -28,7 +28,7 @@ fn show_recursive_project_info(
     path: &Path,
     packages_level: PackagesInfoLevel,
 ) -> anyhow::Result<()> {
-    let path = to_absolute_dir_path(&path)?;
+    let path = resolve_absolute_dir_path(&path)?;
     println!("Searching for Unity projects in: {}", path.display(),);
 
     let mut directories = directory_walker(path);
@@ -55,7 +55,7 @@ fn show_project_info(
     if !version.is_editor_installed()? {
         println!();
         if install_unity {
-            install_partial_version(&version.to_string(), mode)?;
+            install_latest_matching(&version.to_string(), mode)?;
         } else {
             println!(
                 "Use the `{}` flag to install Unity version {}",

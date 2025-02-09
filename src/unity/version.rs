@@ -82,7 +82,7 @@ impl Version {
     }
 
     /// Returns the `major.minor` part of this version.
-    pub(crate) fn minor_partial(self) -> String {
+    pub(crate) fn major_minor(self) -> String {
         format!("{}.{}", self.major, self.minor)
     }
 

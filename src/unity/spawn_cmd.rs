@@ -111,7 +111,7 @@ pub(crate) fn spawn_and_forget(mut cmd: Command) -> Result<(), CommandError> {
         .stderr(Stdio::piped())
         .spawn()
         .map(|_| ())
-        .map_err(|e| e.into())
+        .map_err(std::convert::Into::into)
 }
 
 /// Spawns command and outputs to the console. Blocks until the command has finished.

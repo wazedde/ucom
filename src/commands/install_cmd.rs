@@ -2,15 +2,15 @@ use crate::unity::release_api::{get_latest_releases, Mode};
 use crate::unity::release_api_data::ReleaseData;
 use yansi::Paint;
 
-pub(crate) fn install_partial_version(partial_version: &str, mode: Mode) -> anyhow::Result<()> {
+pub(crate) fn install_latest_matching(version_prefix: &str, mode: Mode) -> anyhow::Result<()> {
     let releases = get_latest_releases(mode)?;
     let release = releases
         .iter()
-        .filter(|rd| rd.version.to_string().starts_with(partial_version))
+        .filter(|rd| rd.version.to_string().starts_with(version_prefix))
         .max_by(|a, b| a.version.cmp(&b.version))
         .ok_or(anyhow::anyhow!(
             "No version found that matches `{}`",
-            partial_version
+            version_prefix
         ))?;
 
     install_version(release)
