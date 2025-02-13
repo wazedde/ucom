@@ -2,16 +2,16 @@ use std::path::PathBuf;
 
 use anyhow::anyhow;
 
-use crate::cli_add::{AddArguments, ContentType, IncludedFile};
+use crate::cli_add::{AddArguments, AssetSource, UnityTemplateFile};
 use crate::commands::{add_file_to_project, PERSISTENT_BUILD_SCRIPT_ROOT};
 use crate::unity::project::ProjectPath;
 
 pub(crate) fn add_to_project(args: &AddArguments) -> anyhow::Result<()> {
     if args.display_content {
-        println!("{}", args.file.data().fetch_content()?);
+        println!("{}", args.template.as_asset().load_content()?);
         return Ok(());
     } else if args.display_url {
-        return if let ContentType::Url(url) = args.file.data().content {
+        return if let AssetSource::Remote(url) = args.template.as_asset().content {
             println!("{}", url);
             Ok(())
         } else {
@@ -21,17 +21,17 @@ pub(crate) fn add_to_project(args: &AddArguments) -> anyhow::Result<()> {
 
     let project = ProjectPath::try_from(&args.project_dir)?;
 
-    let destination_dir = match args.file {
-        IncludedFile::Builder | IncludedFile::BuilderMenu => {
+    let destination_dir = match args.template {
+        UnityTemplateFile::Builder | UnityTemplateFile::BuilderMenu => {
             PathBuf::from(PERSISTENT_BUILD_SCRIPT_ROOT)
         }
-        IncludedFile::GitIgnore | IncludedFile::GitAttributes => PathBuf::default(),
+        UnityTemplateFile::GitIgnore | UnityTemplateFile::GitAttributes => PathBuf::default(),
     };
 
     let full_path = project
         .as_path()
         .join(&destination_dir)
-        .join(args.file.data().filename);
+        .join(args.template.as_asset().filename);
 
     if full_path.exists() && !args.force {
         return Err(anyhow!(
@@ -40,11 +40,11 @@ pub(crate) fn add_to_project(args: &AddArguments) -> anyhow::Result<()> {
         ));
     }
 
-    if args.file == IncludedFile::BuilderMenu {
+    if args.template == UnityTemplateFile::BuilderMenu {
         // The build menu requires the builder script to be added as well.
         let temp_args = AddArguments {
             project_dir: args.project_dir.clone(),
-            file: IncludedFile::Builder,
+            template: UnityTemplateFile::Builder,
             force: args.force,
             display_content: false,
             display_url: false,
@@ -53,5 +53,5 @@ pub(crate) fn add_to_project(args: &AddArguments) -> anyhow::Result<()> {
         _ = add_to_project(&temp_args);
     }
 
-    add_file_to_project(project.as_path(), destination_dir, args.file)
+    add_file_to_project(project.as_path(), destination_dir, args.template)
 }

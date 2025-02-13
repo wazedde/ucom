@@ -8,9 +8,9 @@ use crate::unity::content_cache;
 
 #[derive(Args)]
 pub(crate) struct AddArguments {
-    /// The file to be added to the project.
+    /// The template file to be added to the project.
     #[arg(value_enum)]
-    pub(crate) file: IncludedFile,
+    pub(crate) template: UnityTemplateFile,
 
     /// Defines the project's directory.
     #[arg(
@@ -21,7 +21,7 @@ pub(crate) struct AddArguments {
     )]
     pub(crate) project_dir: PathBuf,
 
-    /// Overwrites existing files.
+    /// Overwrites existing template files.
     #[arg(
         short = 'f',
         long,
@@ -30,7 +30,7 @@ pub(crate) struct AddArguments {
     )]
     pub(crate) force: bool,
 
-    /// Displays the file's content to stdout instead of adding it.
+    /// Displays the template's content to stdout instead of adding it.
     #[arg(
         short = 'c',
         long,
@@ -39,7 +39,7 @@ pub(crate) struct AddArguments {
     )]
     pub(crate) display_content: bool,
 
-    /// Displays the file's source URL.
+    /// Displays the template's source URL.
     #[arg(
         short = 'u',
         long,
@@ -50,7 +50,7 @@ pub(crate) struct AddArguments {
 }
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, ValueEnum)]
-pub(crate) enum IncludedFile {
+pub(crate) enum UnityTemplateFile {
     /// A C# helper script that handles project building.
     Builder,
     /// A C# helper script that adds build commands to Unity's menu (also adds 'builder').
@@ -61,23 +61,23 @@ pub(crate) enum IncludedFile {
     GitAttributes,
 }
 
-pub(crate) struct FileData {
+pub(crate) struct TemplateAsset {
     pub(crate) filename: &'static str,
-    pub(crate) content: ContentType,
+    pub(crate) content: AssetSource,
 }
 
-pub(crate) enum ContentType {
+pub(crate) enum AssetSource {
     #[allow(dead_code)]
-    Included(&'static str),
+    Static(&'static str),
     #[allow(dead_code)]
-    Url(&'static str),
+    Remote(&'static str),
 }
 
-impl FileData {
-    pub(crate) fn fetch_content<'a>(&self) -> anyhow::Result<Cow<'a, str>> {
+impl TemplateAsset {
+    pub(crate) fn load_content<'a>(&self) -> anyhow::Result<Cow<'a, str>> {
         match self.content {
-            ContentType::Included(content) => Ok(Cow::Borrowed(content)),
-            ContentType::Url(url) => {
+            AssetSource::Static(content) => Ok(Cow::Borrowed(content)),
+            AssetSource::Remote(url) => {
                 let _ts =
                     StatusLine::new("Downloading", &format!("{} from {}...", self.filename, url));
                 Ok(Cow::Owned(content_cache::get_cached_content(url, false)?))
@@ -86,30 +86,30 @@ impl FileData {
     }
 }
 
-impl IncludedFile {
-    pub(crate) const fn data(self) -> FileData {
+impl UnityTemplateFile {
+    pub(crate) const fn as_asset(self) -> TemplateAsset {
         match self {
-            Self::Builder => FileData {
+            Self::Builder => TemplateAsset {
                 filename: "UnityBuilder.cs",
-                content: ContentType::Url(
+                content: AssetSource::Remote(
                     "https://gist.github.com/jakkovanhunen/b56a70509616b6ff3492a17ae670a5e7/raw",
                 ),
             },
-            Self::BuilderMenu => FileData {
+            Self::BuilderMenu => TemplateAsset {
                 filename: "EditorMenu.cs",
-                content: ContentType::Url(
+                content: AssetSource::Remote(
                     "https://gist.github.com/jakkovanhunen/a610aa5f675e3826de3b389ddba21319/raw",
                 ),
             },
-            Self::GitIgnore => FileData {
+            Self::GitIgnore => TemplateAsset {
                 filename: ".gitignore",
-                content: ContentType::Url(
+                content: AssetSource::Remote(
                     "https://gist.github.com/jakkovanhunen/5748353142783045c9bc353ed3a341e7/raw",
                 ),
             },
-            Self::GitAttributes => FileData {
+            Self::GitAttributes => TemplateAsset {
                 filename: ".gitattributes",
-                content: ContentType::Url(
+                content: AssetSource::Remote(
                     "https://gist.github.com/jakkovanhunen/68d2c0e0da4ebfdf9e094b5505c3f337/raw",
                 ),
             },

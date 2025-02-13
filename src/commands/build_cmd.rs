@@ -11,7 +11,7 @@ use itertools::Itertools;
 use path_absolutize::Absolutize;
 use uuid::Uuid;
 
-use crate::cli_add::IncludedFile;
+use crate::cli_add::UnityTemplateFile;
 use crate::cli_build::{BuildArguments, BuildMode, BuildOptions, BuildScriptTarget, InjectAction};
 use crate::commands::status_line::{print_status, Status, StatusLine};
 use crate::commands::{add_file_to_project, TimeDeltaExt, PERSISTENT_BUILD_SCRIPT_ROOT};
@@ -349,7 +349,7 @@ fn csharp_build_script_injection_hooks(project: &ProjectPath, inject: InjectActi
 
     let persistent_script_exists = project_path
         .join(PERSISTENT_BUILD_SCRIPT_ROOT)
-        .join(IncludedFile::Builder.data().filename)
+        .join(UnityTemplateFile::Builder.as_asset().filename)
         .exists();
 
     match inject {
@@ -369,7 +369,7 @@ fn csharp_build_script_injection_hooks(project: &ProjectPath, inject: InjectActi
                     add_file_to_project(
                         closure_project_dir,
                         closure_script_dir,
-                        IncludedFile::Builder,
+                        UnityTemplateFile::Builder,
                     )
                 }),
                 Box::new(|| cleanup_csharp_build_script(closure_remove_dir)),
@@ -389,7 +389,7 @@ fn csharp_build_script_injection_hooks(project: &ProjectPath, inject: InjectActi
                     add_file_to_project(
                         closure_project_dir,
                         closure_script_dir,
-                        IncludedFile::Builder,
+                        UnityTemplateFile::Builder,
                     )
                 }),
                 no_op_hook(),

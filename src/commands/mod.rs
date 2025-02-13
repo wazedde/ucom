@@ -4,7 +4,7 @@ use std::path::Path;
 use anyhow::anyhow;
 use chrono::TimeDelta;
 
-use crate::cli_add::IncludedFile;
+use crate::cli_add::UnityTemplateFile;
 pub(crate) use crate::commands::add_cmd::add_to_project;
 pub(crate) use crate::commands::build_cmd::build_project;
 pub(crate) use crate::commands::check_cmd::find_updates;
@@ -46,11 +46,11 @@ impl TimeDeltaExt for TimeDelta {
 pub(crate) fn add_file_to_project(
     project_root: impl AsRef<Path>,
     destination_dir: impl AsRef<Path>,
-    template_file: IncludedFile,
+    template_file: UnityTemplateFile,
 ) -> anyhow::Result<()> {
-    let template_data = template_file.data();
+    let template_data = template_file.as_asset();
     let file_path = destination_dir.as_ref().join(template_data.filename);
-    let content = template_data.fetch_content()?;
+    let content = template_data.load_content()?;
 
     create_file(project_root.as_ref().join(&file_path), &content)
         .inspect(|_| println!("Added to project: {}", file_path.display()))

@@ -5,7 +5,7 @@ use std::process::Command;
 use anyhow::{anyhow, Context};
 use path_absolutize::Absolutize;
 
-use crate::cli_add::IncludedFile;
+use crate::cli_add::UnityTemplateFile;
 use crate::cli_new::NewArguments;
 use crate::commands::status_line::StatusLine;
 use crate::commands::{add_file_to_project, println_b, INDENT, PERSISTENT_BUILD_SCRIPT_ROOT};
@@ -56,9 +56,9 @@ pub(crate) fn new_project(arguments: NewArguments) -> anyhow::Result<()> {
         let parent_dir = &PathBuf::from(PERSISTENT_BUILD_SCRIPT_ROOT);
 
         print!("{}", INDENT);
-        add_file_to_project(&project_dir, parent_dir, IncludedFile::Builder)?;
+        add_file_to_project(&project_dir, parent_dir, UnityTemplateFile::Builder)?;
         print!("{}", INDENT);
-        add_file_to_project(&project_dir, parent_dir, IncludedFile::BuilderMenu)?;
+        add_file_to_project(&project_dir, parent_dir, UnityTemplateFile::BuilderMenu)?;
     }
 
     if !arguments.no_git {
@@ -95,7 +95,11 @@ fn git_init(project_dir: impl AsRef<Path>, include_lfs: bool) -> anyhow::Result<
     }
 
     print!("{}", INDENT);
-    add_file_to_project(project_dir, PathBuf::default(), IncludedFile::GitIgnore)?;
+    add_file_to_project(
+        project_dir,
+        PathBuf::default(),
+        UnityTemplateFile::GitIgnore,
+    )?;
 
     if include_lfs {
         println!("Initializing Git LFS:");
@@ -115,7 +119,11 @@ fn git_init(project_dir: impl AsRef<Path>, include_lfs: bool) -> anyhow::Result<
         }
 
         print!("{}", INDENT);
-        add_file_to_project(project_dir, PathBuf::default(), IncludedFile::GitAttributes)?;
+        add_file_to_project(
+            project_dir,
+            PathBuf::default(),
+            UnityTemplateFile::GitAttributes,
+        )?;
     }
     Ok(())
 }
