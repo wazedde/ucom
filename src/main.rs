@@ -1,12 +1,12 @@
-use anyhow::Context;
-use clap::Parser;
-use yansi::Paint;
-
 use crate::cli::{Action, CacheAction, Cli};
 use crate::commands::test_cmd::run_tests;
 use crate::commands::*;
-use crate::unity::http_cache;
+use crate::unity::content_cache;
 use crate::unity::release_api::Mode;
+use anyhow::Context;
+use clap::Parser;
+use content_cache::{clear_cache, get_cache_dir, init_cache_from_env};
+use yansi::Paint;
 
 mod cli;
 mod cli_add;
@@ -29,8 +29,7 @@ fn main() -> anyhow::Result<()> {
         yansi::disable();
     }
 
-    http_cache::enable_cache_from_env()
-        .with_context(|| color_error("Cannot set cache from environment"))?;
+    init_cache_from_env().with_context(|| color_error("Cannot set cache from environment"))?;
 
     match command {
         Action::List {
@@ -86,21 +85,18 @@ fn main() -> anyhow::Result<()> {
         Action::Cache { action: command } => {
             match command {
                 CacheAction::Clear => {
-                    http_cache::clear();
-                    println!(
-                        "Cleared cache at: {}",
-                        http_cache::ucom_cache_dir().display()
-                    );
+                    clear_cache();
+                    println!("Cleared cache at: {}", get_cache_dir().display());
                 }
                 CacheAction::List => {
-                    let cache_dir = http_cache::ucom_cache_dir();
+                    let cache_dir = get_cache_dir();
                     if !cache_dir.exists() {
                         println!("No cache found at: {}", cache_dir.display());
                         return Ok(());
                     }
 
                     println!("Cached files at: {}", cache_dir.display());
-                    for file in http_cache::ucom_cache_dir().read_dir()? {
+                    for file in get_cache_dir().read_dir()? {
                         println!("{}{}", INDENT, file?.file_name().to_string_lossy());
                     }
                 }

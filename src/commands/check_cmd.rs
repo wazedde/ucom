@@ -221,7 +221,7 @@ fn write_available_updates(releases: &SortedReleases, buf: &mut Vec<u8>) -> anyh
 
 fn write_release_notes(buf: &mut Vec<u8>, release: &ReleaseData) -> anyhow::Result<()> {
     let url = &release.release_notes.url;
-    let body = http_cache::fetch_content(url, true)?;
+    let body = content_cache::get_cached_content(url, true)?;
 
     writeln!(buf)?;
     writeln!(buf, "## Release notes for [{}]({url})", release.version)?;

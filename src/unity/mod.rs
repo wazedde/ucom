@@ -9,7 +9,7 @@ pub(crate) use crate::unity::releases::*;
 pub(crate) use crate::unity::spawn_cmd::*;
 pub(crate) use crate::unity::version::*;
 
-pub(crate) mod http_cache;
+pub(crate) mod content_cache;
 pub(crate) mod installed;
 pub(crate) mod project;
 pub(crate) mod release_api;

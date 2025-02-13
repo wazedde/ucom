@@ -1,9 +1,10 @@
 use crate::commands::status_line::StatusLine;
-use crate::unity::http_cache::ucom_cache_dir;
+use crate::unity::content_cache::get_cache_dir;
 use crate::unity::release_api_data::{ReleaseData, ReleaseDataPage};
-use crate::unity::{http_cache, Version};
+use crate::unity::{content_cache, Version};
 use anyhow::Context;
 use chrono::{DateTime, Utc};
+use content_cache::{is_expired, update_timestamp};
 use itertools::Itertools;
 use serde::{Deserialize, Serialize};
 use serde_json::json;
@@ -186,7 +187,7 @@ fn load_release_info(path: &Path) -> anyhow::Result<Releases> {
 
 /// Loads the release info from the cache.
 pub(crate) fn load_cached_releases() -> anyhow::Result<Releases> {
-    let path = ucom_cache_dir().join(RELEASES_FILENAME);
+    let path = get_cache_dir().join(RELEASES_FILENAME);
     if path.exists() {
         load_release_info(&path)
     } else {
@@ -202,14 +203,14 @@ pub(crate) enum Mode {
 
 /// Downloads and caches the release info.
 pub(crate) fn get_latest_releases(mode: Mode) -> anyhow::Result<SortedReleases> {
-    let releases_path = ucom_cache_dir().join(RELEASES_FILENAME);
+    let releases_path = get_cache_dir().join(RELEASES_FILENAME);
     let mut releases = if mode == Mode::Auto {
         load_cached_releases()?
     } else {
         Releases::default()
     };
 
-    if mode == Mode::Auto && !http_cache::has_expired(&releases_path) {
+    if mode == Mode::Auto && !is_expired(&releases_path) {
         return Ok(SortedReleases::new(releases));
     }
 
@@ -223,14 +224,14 @@ pub(crate) fn get_latest_releases(mode: Mode) -> anyhow::Result<SortedReleases> 
         releases.last_updated = Utc::now();
         let sorted_releases = SortedReleases::new(releases);
 
-        create_dir_all(ucom_cache_dir())?;
+        create_dir_all(get_cache_dir())?;
         serde_json::to_writer(
             BufWriter::new(File::create(&releases_path)?),
             &json!(sorted_releases.0),
         )?;
         Ok(sorted_releases)
     } else {
-        http_cache::touch_timestamp(&releases_path)?;
+        update_timestamp(&releases_path)?;
         Ok(SortedReleases::new(releases))
     }
 }

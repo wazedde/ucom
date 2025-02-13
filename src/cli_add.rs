@@ -4,7 +4,7 @@ use std::path::PathBuf;
 use clap::{Args, ValueEnum};
 
 use crate::commands::status_line::StatusLine;
-use crate::unity::http_cache;
+use crate::unity::content_cache;
 
 #[derive(Args)]
 pub(crate) struct AddArguments {
@@ -80,7 +80,7 @@ impl FileData {
             ContentType::Url(url) => {
                 let _ts =
                     StatusLine::new("Downloading", &format!("{} from {}...", self.filename, url));
-                Ok(Cow::Owned(http_cache::fetch_content(url, false)?))
+                Ok(Cow::Owned(content_cache::get_cached_content(url, false)?))
             }
         }
     }
