@@ -3,7 +3,7 @@ use std::path::PathBuf;
 
 use clap::{Args, ValueEnum};
 
-use crate::commands::term_stat::TermStat;
+use crate::commands::status_line::StatusLine;
 use crate::unity::http_cache;
 
 #[derive(Args)]
@@ -79,7 +79,7 @@ impl FileData {
             ContentType::Included(content) => Ok(Cow::Borrowed(content)),
             ContentType::Url(url) => {
                 let _ts =
-                    TermStat::new("Downloading", &format!("{} from {}...", self.filename, url));
+                    StatusLine::new("Downloading", &format!("{} from {}...", self.filename, url));
                 Ok(Cow::Owned(http_cache::fetch_content(url, false)?))
             }
         }

@@ -1,4 +1,4 @@
-use crate::commands::term_stat::TermStat;
+use crate::commands::status_line::StatusLine;
 use crate::unity::http_cache::ucom_cache_dir;
 use crate::unity::release_api_data::{ReleaseData, ReleaseDataPage};
 use crate::unity::{http_cache, Version};
@@ -123,7 +123,6 @@ fn fetch_releases_page(limit: usize, offset: usize) -> anyhow::Result<ReleaseDat
 /// Because the API is very slow, we minimize the number of requests when looking for new releases
 /// by assuming there were no new releases if all releases in a page are already in the list.
 /// This is not perfect, but seems to be good enough for our use case.
-/// Note: checking if the latest release is already in the list is not sufficient, because in
 /// practice earlier releases can be added later.
 pub(crate) fn download_release_info<F>(
     releases: &mut Releases,
@@ -214,10 +213,10 @@ pub(crate) fn get_latest_releases(mode: Mode) -> anyhow::Result<SortedReleases> 
         return Ok(SortedReleases::new(releases));
     }
 
-    let download_status = TermStat::new("Downloading", "release data...");
+    let download_status = StatusLine::new("Downloading", "release data...");
     let fetch_count = download_release_info(&mut releases, |count, total| {
         let percentage = count as f64 / total as f64 * 100.0;
-        download_status.reprint("Downloading", &format!("release data ({:.2}%)", percentage));
+        download_status.update("Downloading", &format!("release data ({:.2}%)", percentage));
     })?;
 
     if fetch_count > 0 {

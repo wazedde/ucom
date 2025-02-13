@@ -25,7 +25,7 @@ mod new_cmd;
 mod open_cmd;
 mod run_cmd;
 
-pub(crate) mod term_stat;
+pub(crate) mod status_line;
 pub(crate) mod test_cmd;
 
 pub(crate) const PERSISTENT_BUILD_SCRIPT_ROOT: &str = "Assets/Plugins/Ucom/Editor";

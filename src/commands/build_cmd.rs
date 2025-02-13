@@ -13,7 +13,7 @@ use uuid::Uuid;
 
 use crate::cli_add::IncludedFile;
 use crate::cli_build::{BuildArguments, BuildMode, BuildOptions, BuildScriptTarget, InjectAction};
-use crate::commands::term_stat::{Status, TermStat};
+use crate::commands::status_line::{print_status, Status, StatusLine};
 use crate::commands::{add_file_to_project, TimeDeltaExt, PERSISTENT_BUILD_SCRIPT_ROOT};
 use crate::unity::*;
 
@@ -42,10 +42,10 @@ pub(crate) fn build_project(arguments: BuildArguments) -> anyhow::Result<()> {
     );
 
     let build_status = if arguments.quiet {
-        TermStat::new("Building", &build_text)
+        StatusLine::new("Building", &build_text)
     } else {
-        TermStat::println("Building", &build_text, Status::Info);
-        TermStat::new_null_output()
+        print_status("Building", &build_text, Status::Info);
+        StatusLine::new_silent()
     };
 
     let hooks = csharp_build_script_injection_hooks(&project, arguments.inject);
@@ -74,7 +74,7 @@ pub(crate) fn build_project(arguments: BuildArguments) -> anyhow::Result<()> {
         (Status::Error, "Failed")
     };
 
-    TermStat::println(
+    print_status(
         log_tag,
         &format!(
             "building Unity {unity_version} {} project in {}",
@@ -84,7 +84,7 @@ pub(crate) fn build_project(arguments: BuildArguments) -> anyhow::Result<()> {
         build_status,
     );
 
-    TermStat::println(
+    print_status(
         "Total time",
         &format!(
             "{:.2}s",
@@ -246,7 +246,7 @@ fn print_build_report(log_path: &Path, status: Status) {
             .take_while(|l| !l.is_empty()) // Read until empty line.
             .for_each(|l| {
                 if let Some((key, value)) = l.split_once(':') {
-                    TermStat::println(key.trim(), value.trim(), status);
+                    print_status(key.trim(), value.trim(), status);
                 } else {
                     println!("{l}");
                 }

@@ -6,7 +6,7 @@ use chrono::prelude::*;
 use yansi::{Paint, Style};
 
 use crate::cli_test::{ShowResults, TestArguments};
-use crate::commands::term_stat::{Status, TermStat};
+use crate::commands::status_line::{apply_status_style, print_status, Status, StatusLine};
 use crate::commands::TimeDeltaExt;
 use crate::nunit::{TestCase, TestResult, TestRun};
 use crate::unity::project::ProjectPath;
@@ -35,9 +35,9 @@ pub(crate) fn run_tests(arguments: TestArguments) -> anyhow::Result<()> {
 
     let tests_result = {
         let _status = if arguments.quiet {
-            TermStat::new_null_output()
+            StatusLine::new_silent()
         } else {
-            TermStat::new(
+            StatusLine::new(
                 "Running",
                 &format!(
                     "{} tests for project in {}",
@@ -87,7 +87,7 @@ fn print_results(
     output_path: &Path,
     status: Status,
 ) -> anyhow::Result<()> {
-    TermStat::println(
+    print_status(
         "Finished",
         &format!(
             "{} tests for project in {}; total time {:.2}s",
@@ -99,7 +99,7 @@ fn print_results(
     );
 
     let test_run = TestRun::from_file(output_path)?;
-    TermStat::println("Report", &output_path.to_string_lossy(), status);
+    print_status("Report", &output_path.to_string_lossy(), status);
 
     match arguments.show_results {
         ShowResults::Errors => {
@@ -130,7 +130,7 @@ fn print_results(
 
     println!(
         "Result: {}. {}",
-        TermStat::stylize(status.as_ref(), status),
+        apply_status_style(status.as_ref(), status),
         results,
     );
     Ok(())
@@ -193,7 +193,7 @@ fn print_test_cases<'a>(test_cases: impl Iterator<Item = &'a TestCase>) {
 
         println!(
             "{}: {}; finished in {:.2}s",
-            TermStat::stylize(tc.result.as_ref(), status),
+            apply_status_style(tc.result.as_ref(), status),
             tc.full_name.paint(name_style),
             tc.duration,
         );

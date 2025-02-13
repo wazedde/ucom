@@ -4,7 +4,7 @@ use std::path::Path;
 use yansi::Paint;
 
 use crate::commands::install_cmd::install_version;
-use crate::commands::term_stat::TermStat;
+use crate::commands::status_line::StatusLine;
 use crate::commands::{writeln_b, INDENT};
 use crate::unity::release_api::{Mode, SortedReleases};
 use crate::unity::release_api_data::ReleaseData;
@@ -21,7 +21,7 @@ pub(crate) fn find_updates(
     let current_version = project.unity_version()?;
 
     let updates = {
-        let _status = TermStat::new("Checking", &format!("for updates to {current_version}"));
+        let _status = StatusLine::new("Checking", &format!("for updates to {current_version}"));
         find_available_updates(current_version, mode)?
     };
 
@@ -41,9 +41,9 @@ pub(crate) fn find_updates(
     )?;
 
     if create_report {
-        let download_status = TermStat::new("Downloading", "Unity release notes...");
+        let download_status = StatusLine::new("Downloading", "Unity release notes...");
         for release in updates.available_releases.iter() {
-            download_status.reprint(
+            download_status.update(
                 "Downloading",
                 &format!("Unity {} release notes...", release.version),
             );

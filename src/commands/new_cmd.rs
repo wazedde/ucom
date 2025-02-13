@@ -7,7 +7,7 @@ use path_absolutize::Absolutize;
 
 use crate::cli_add::IncludedFile;
 use crate::cli_new::NewArguments;
-use crate::commands::term_stat::TermStat;
+use crate::commands::status_line::StatusLine;
 use crate::commands::{add_file_to_project, println_b, INDENT, PERSISTENT_BUILD_SCRIPT_ROOT};
 use crate::unity::installed::Installations;
 use crate::unity::*;
@@ -67,7 +67,7 @@ pub(crate) fn new_project(arguments: NewArguments) -> anyhow::Result<()> {
 
     match (arguments.wait, arguments.quit && !arguments.quiet) {
         (true, true) => {
-            let _status = TermStat::new("Creating", "project...");
+            let _status = StatusLine::new("Creating", "project...");
             wait_with_stdout(cmd)?;
         }
         (true, false) => wait_with_stdout(cmd)?,
