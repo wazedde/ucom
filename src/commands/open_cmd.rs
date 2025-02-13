@@ -2,7 +2,7 @@ use std::process::Command;
 
 use crate::cli::*;
 use crate::commands::println_b;
-use crate::unity::installed::Installations;
+use crate::unity::installations::Installations;
 use crate::unity::*;
 
 /// Opens the given Unity project in the Unity Editor.

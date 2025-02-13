@@ -9,7 +9,7 @@ use crate::cli_add::IncludedFile;
 use crate::cli_new::NewArguments;
 use crate::commands::status_line::StatusLine;
 use crate::commands::{add_file_to_project, println_b, INDENT, PERSISTENT_BUILD_SCRIPT_ROOT};
-use crate::unity::installed::Installations;
+use crate::unity::installations::Installations;
 use crate::unity::*;
 
 /// Creates a new Unity project and optional Git repository in the given directory.

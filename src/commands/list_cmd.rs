@@ -5,7 +5,7 @@ use yansi::Paint;
 
 use crate::cli::ListType;
 use crate::commands::{println_b, println_b_if};
-use crate::unity::installed::{Installations, VersionList};
+use crate::unity::installations::{Installations, VersionList};
 use crate::unity::release_api::{
     get_latest_releases, load_cached_releases, Mode, Releases, SortedReleases,
 };
