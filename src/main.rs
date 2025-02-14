@@ -71,11 +71,11 @@ fn main() -> anyhow::Result<()> {
         }
 
         Action::Build(settings) => {
-            build_project(settings).with_context(|| color_error("Cannot build project"))
+            build_project(&settings).with_context(|| color_error("Cannot build project"))
         }
 
         Action::Test(settings) => {
-            run_tests(settings).with_context(|| color_error("Cannot run tests"))
+            run_tests(&settings).with_context(|| color_error("Cannot run tests"))
         }
 
         Action::Add(arguments) => {

@@ -14,7 +14,7 @@ pub(crate) struct BuildArguments {
     pub(crate) project_dir: PathBuf,
 
     /// Sets the output directory for the build.
-    /// If omitted, the build is placed in <PROJECT_DIR>/Builds/<TYPE>/<TARGET>.
+    /// If omitted, the build is placed in `PROJECT_DIR>/Builds/<TYPE>/<TARGET>`.
     #[arg(
         short = 'o',
         long = "output",
@@ -81,7 +81,7 @@ pub(crate) struct BuildArguments {
     #[arg(num_args(0..), short = 'O', long, value_name = "OPTION", default_value = "none")]
     pub(crate) build_options: Vec<BuildOptions>,
 
-    /// A string to be passed directly to functions tagged with the UcomPreProcessBuild attribute.
+    /// A string to be passed directly to functions tagged with the `UcomPreProcessBuild` attribute.
     ///
     /// Use it to pass custom arguments to your own C# build scripts before the project is built,
     /// like e.g., a release, debug or test build tag or a version number.
@@ -251,7 +251,7 @@ pub(crate) enum BuildOptions {
     /// Show the built player.
     ShowBuiltPlayer = 8,
 
-    /// Build a compressed asset bundle that contains streamed Scenes loadable with the UnityWebRequest class.
+    /// Build a compressed asset bundle that contains streamed Scenes loadable with the `UnityWebRequest` class.
     BuildAdditionalStreamedScenes = 16, // 0x00000010
 
     /// Used when building Xcode (iOS) or Eclipse (Android) projects.
@@ -313,7 +313,7 @@ pub(crate) enum BuildOptions {
     /// Enables Deep Profiling support in the player.
     EnableDeepProfilingSupport = 268435456, // 0x10000000
 
-    /// Generates more information in the BuildReport.
+    /// Generates more information in the `BuildReport`.
     DetailedBuildReport = 536870912, // 0x20000000
 
     /// Enable Shader Livelink support.

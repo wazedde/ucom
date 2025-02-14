@@ -22,7 +22,7 @@ pub(crate) fn list_versions(
     version_prefix: Option<&str>,
     mode: Mode,
 ) -> anyhow::Result<()> {
-    return match list_type {
+    match list_type {
         ListType::Installed => {
             let installed = Installations::find(version_prefix)?;
             print_installed_versions(&installed, mode)
@@ -32,19 +32,13 @@ pub(crate) fn list_versions(
             print_updates(&installed, mode)
         }
         ListType::Latest => {
-            let installed = optionally_installed_versions(version_prefix);
-            print_latest_versions(installed.as_deref(), version_prefix, mode)
+            let installed = Installations::try_find(version_prefix);
+            print_latest_versions(installed.as_ref(), version_prefix, mode)
         }
         ListType::All => {
-            let installed: Option<Vec<Version>> = optionally_installed_versions(version_prefix);
-            print_available_versions(installed.as_deref(), version_prefix, mode)
+            let installed = Installations::try_find(version_prefix);
+            print_available_versions(installed.as_ref(), version_prefix, mode)
         }
-    };
-
-    fn optionally_installed_versions(version_prefix: Option<&str>) -> Option<Vec<Version>> {
-        Installations::find(version_prefix)
-            .map(|i| i.versions.into_vec())
-            .ok()
     }
 }
 
@@ -72,7 +66,7 @@ fn print_installed_versions(installed: &Installations, mode: Mode) -> anyhow::Re
     if releases.is_empty() {
         print_basic_list(&installed.versions);
     } else {
-        print_list_with_release_dates(&installed.versions, releases);
+        print_list_with_release_dates(&installed.versions, &releases);
     }
 
     Ok(())
@@ -101,7 +95,7 @@ fn print_basic_list(installed: &VersionList) {
     }
 }
 
-fn print_list_with_release_dates(installed: &VersionList, releases: Releases) {
+fn print_list_with_release_dates(installed: &VersionList, releases: &Releases) {
     let version_groups = group_minor_versions(installed);
     let max_len = max_version_string_length(&version_groups);
 
@@ -118,12 +112,11 @@ fn print_list_with_release_dates(installed: &VersionList, releases: Releases) {
 
             let rd = releases.iter().find(|p| p.version == info.version);
 
-            let release_date = rd
-                .map(|rd| rd.release_date.format("%Y-%m-%d").to_string())
-                .unwrap_or("----------".to_string());
+            let release_date = rd.map_or("----------".to_string(), |rd| {
+                rd.release_date.format("%Y-%m-%d").to_string()
+            });
 
-            let (fill, stream) =
-                fixed_stream_string(rd.map(|t| t.stream).unwrap_or(ReleaseStream::Other));
+            let (fill, stream) = fixed_stream_string(rd.map_or(ReleaseStream::Other, |t| t.stream));
             print!("{fill}");
 
             println_b_if!(
@@ -299,7 +292,7 @@ fn collect_update_info<'a>(
 /// ...
 /// ```
 fn print_latest_versions(
-    installed: Option<&[Version]>,
+    installed: Option<&Installations>,
     version_prefix: Option<&str>,
     mode: Mode,
 ) -> anyhow::Result<()> {
@@ -342,11 +335,14 @@ fn print_latest_versions(
 
         // Find all installed versions in the same range as the latest version.
         let installs_in_range = installed
-            .unwrap_or_default()
-            .iter()
-            .filter(|v| v.major == latest.version.major && v.minor == latest.version.minor)
-            .copied()
-            .collect_vec();
+            .map(|i| {
+                i.versions
+                    .iter()
+                    .filter(|v| v.major == latest.version.major && v.minor == latest.version.minor)
+                    .copied()
+                    .collect_vec()
+            })
+            .unwrap_or_default();
 
         if installs_in_range.is_empty() {
             // No installed versions in the range.
@@ -401,7 +397,7 @@ fn fixed_version_string(version: Version, max_len: usize) -> String {
 /// ...
 /// ```
 fn print_available_versions(
-    installed: Option<&[Version]>,
+    installed: Option<&Installations>,
     version_prefix: Option<&str>,
     mode: Mode,
 ) -> anyhow::Result<()> {
@@ -431,7 +427,8 @@ fn print_available_versions(
                 info.version == group.last().version,
             );
 
-            let is_installed = installed.is_some_and(|v| v.contains(&info.version));
+            let is_installed =
+                installed.is_some_and(|i| i.versions.as_ref().contains(&info.version));
 
             let release = releases
                 .iter()

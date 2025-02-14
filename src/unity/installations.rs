@@ -1,9 +1,8 @@
+use anyhow::{anyhow, Context};
+use itertools::Itertools;
 use std::borrow::Cow;
 use std::path::{Path, PathBuf};
 use std::{env, fs};
-
-use anyhow::{anyhow, Context};
-use itertools::Itertools;
 
 use crate::cli::ENV_EDITOR_DIR;
 use crate::unity::vec1::{Vec1, Vec1Err};
@@ -47,6 +46,11 @@ impl Installations {
             install_dir,
             versions,
         })
+    }
+
+    /// Returns a list of installed Unity versions or `None` if no versions are found.
+    pub(crate) fn try_find(version_prefix: Option<&str>) -> Option<Installations> {
+        Self::find(version_prefix).ok()
     }
 
     /// Returns the version of the latest-installed version that matches the given prefix.
@@ -150,6 +154,10 @@ impl VersionList {
 
     pub(crate) fn into_vec(self) -> Vec<Version> {
         self.versions.into_vec()
+    }
+    
+    pub(crate) fn iter(&self) -> impl Iterator<Item = &Version> {
+        self.versions.iter()
     }
 
     /// Returns a sorted list of installed Unity versions from the given directory or an error if no versions are found.

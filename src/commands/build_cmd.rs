@@ -20,7 +20,7 @@ use crate::unity::*;
 const AUTO_BUILD_SCRIPT_ROOT: &str = "Assets/Ucom";
 
 /// Runs the build command.
-pub(crate) fn build_project(arguments: BuildArguments) -> anyhow::Result<()> {
+pub(crate) fn build_project(arguments: &BuildArguments) -> anyhow::Result<()> {
     let start_time = Utc::now();
     let project = ProjectPath::try_from(&arguments.project_dir)?;
     let unity_version = project.unity_version()?;

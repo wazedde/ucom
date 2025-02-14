@@ -49,7 +49,7 @@ pub(crate) struct TestArguments {
     /// e.g. `categories "firstCategory;secondCategory"`.
     /// If using both `categories` and `tests`, then only test that matches both are run.
     /// This argument supports negation using '!'.
-    /// If using '!MyCategory' then no tests with the 'MyCategory' category will be included in the run.
+    /// If using `!MyCategory` then no tests with the `MyCategory` category will be included in the run.
     #[arg(long, value_name = "LIST")]
     pub(crate) categories: Option<String>,
 

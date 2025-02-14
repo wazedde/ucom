@@ -12,7 +12,7 @@ use crate::nunit::{TestCase, TestResult, TestRun};
 use crate::unity::project::ProjectPath;
 use crate::unity::{build_command_line, wait_with_stdout};
 
-pub(crate) fn run_tests(arguments: TestArguments) -> anyhow::Result<()> {
+pub(crate) fn run_tests(arguments: &TestArguments) -> anyhow::Result<()> {
     let start_time = Utc::now();
     let project = ProjectPath::try_from(&arguments.project_dir)?;
     let project_unity_version = project.unity_version()?;
@@ -69,7 +69,7 @@ pub(crate) fn run_tests(arguments: TestArguments) -> anyhow::Result<()> {
             Err(_) => Status::Error,
         };
 
-        print_results(&arguments, &start_time, &project, &output_path, status)?;
+        print_results(arguments, &start_time, &project, &output_path, status)?;
     }
 
     if tests_result.is_err() {
@@ -113,7 +113,7 @@ fn print_results(
         ShowResults::All => {
             print_test_cases(test_run.test_cases.iter());
         }
-        _ => {}
+        ShowResults::None => {}
     };
 
     println!();

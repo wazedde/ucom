@@ -34,7 +34,7 @@ pub(crate) fn find_updates(
     writeln!(buf)?;
 
     write_project_version(
-        updates.current_release,
+        &updates.current_release,
         &updates.available_releases,
         create_report,
         &mut buf,
@@ -125,7 +125,7 @@ fn write_project_header(
 }
 
 fn write_project_version(
-    release: ReleaseData,
+    release: &ReleaseData,
     updates: &SortedReleases,
     create_report: bool,
     buf: &mut Vec<u8>,

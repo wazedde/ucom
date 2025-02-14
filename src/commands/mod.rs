@@ -53,7 +53,7 @@ pub(crate) fn add_file_to_project(
     let content = template_data.load_content()?;
 
     create_file(project_root.as_ref().join(&file_path), &content)
-        .inspect(|_| println!("Added to project: {}", file_path.display()))
+        .inspect(|()| println!("Added to project: {}", file_path.display()))
         .inspect_err(|_| println!("Failed to add file to project: {}", file_path.display()))
 }
 
