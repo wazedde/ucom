@@ -33,23 +33,9 @@ impl<T> Vec1<T> {
         Self { inner }
     }
 
-    /// Creates a new non-empty list from a vector.
-    pub fn from_vec(value: Vec<T>) -> Result<Self, Vec1Err> {
-        if value.is_empty() {
-            Err(Vec1Err::VecIsEmpty)
-        } else {
-            Ok(Self { inner: value })
-        }
-    }
-
     /// Converts the list into a vector.
     pub fn into_vec(self) -> Vec<T> {
         self.inner
-    }
-
-    /// Returns the length of the list.
-    pub fn len(&self) -> usize {
-        self.inner.len()
     }
 
     /// Returns the first value.
@@ -61,7 +47,7 @@ impl<T> Vec1<T> {
     pub fn last(&self) -> &T {
         self.inner
             .last()
-            .expect("NonEmptyVec should never be empty")
+            .expect("Vec1 should never be empty")
     }
 
     /// Returns a mutable reference to the first value.
@@ -73,12 +59,7 @@ impl<T> Vec1<T> {
     pub fn last_mut(&mut self) -> &mut T {
         self.inner
             .last_mut()
-            .expect("NonEmptyVec should never be empty")
-    }
-
-    /// Returns a mutable iterator over the values.
-    pub fn iter_mut(&mut self) -> std::slice::IterMut<'_, T> {
-        self.inner.iter_mut()
+            .expect("Vec1 should never be empty")
     }
 
     /// Pushes a value to the end of the list.
@@ -110,7 +91,6 @@ impl<T> Vec1<T> {
 impl<T> TryFrom<Vec<T>> for Vec1<T> {
     type Error = Vec1Err;
 
-    /// Tries to create a non-empty list from a vector.
     fn try_from(value: Vec<T>) -> Result<Self, Self::Error> {
         if value.is_empty() {
             Err(Vec1Err::VecIsEmpty)
@@ -120,15 +100,14 @@ impl<T> TryFrom<Vec<T>> for Vec1<T> {
     }
 }
 
-#[allow(clippy::from_over_into)]
-impl<T> Into<Vec<T>> for Vec1<T> {
-    fn into(self) -> Vec<T> {
-        self.inner
+impl<T> From<Vec1<T>> for Vec<T> {
+    fn from(v: Vec1<T>) -> Vec<T> {
+        v.inner
     }
 }
 
-impl<T> AsRef<Vec<T>> for Vec1<T> {
-    fn as_ref(&self) -> &Vec<T> {
+impl<T> AsRef<[T]> for Vec1<T> {
+    fn as_ref(&self) -> &[T] {
         &self.inner
     }
 }

@@ -117,7 +117,7 @@ impl TryFrom<Vec<Version>> for VersionList {
     type Error = Vec1Err;
 
     fn try_from(value: Vec<Version>) -> Result<Self, Self::Error> {
-        match Vec1::from_vec(value) {
+        match Vec1::try_from(value) {
             Ok(mut versions) => {
                 versions.sort_unstable();
                 Ok(Self { versions })
@@ -143,7 +143,7 @@ impl AsRef<Vec1<Version>> for VersionList {
 #[allow(dead_code)]
 impl VersionList {
     pub(crate) fn from_vec(versions: Vec<Version>) -> Result<Self, Vec1Err> {
-        match Vec1::from_vec(versions) {
+        match Vec1::try_from(versions) {
             Ok(mut versions) => {
                 versions.sort_unstable();
                 Ok(Self { versions })
@@ -153,9 +153,9 @@ impl VersionList {
     }
 
     pub(crate) fn into_vec(self) -> Vec<Version> {
-        self.versions.into_vec()
+        self.versions.into()
     }
-    
+
     pub(crate) fn iter(&self) -> impl Iterator<Item = &Version> {
         self.versions.iter()
     }
@@ -176,7 +176,7 @@ impl VersionList {
             .sorted_unstable()
             .collect_vec();
 
-        match Vec1::from_vec(versions) {
+        match Vec1::try_from(versions) {
             Ok(versions) => Ok(Self { versions }),
             Err(_) => Err(anyhow!(
                 "No Unity installations found in `{}`",
@@ -202,7 +202,7 @@ impl VersionList {
         let mut versions = self.versions.into_vec();
         versions.retain(|v| v.to_string().starts_with(version_prefix));
 
-        match Vec1::from_vec(versions) {
+        match Vec1::try_from(versions) {
             Ok(versions) => Ok(Self { versions }),
             Err(_) => Err(anyhow!(
                 "No Unity installation was found that matches version `{version_prefix}`."

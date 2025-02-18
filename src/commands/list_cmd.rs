@@ -553,7 +553,7 @@ fn build_version_group(versions: Vec<&Version>) -> Option<Vec1<VersionInfo<'_>>>
         })
         .collect_vec();
 
-    Vec1::from_vec(infos).ok()
+    Vec1::try_from(infos).ok()
 }
 
 fn latest_minor_releases<'a>(
