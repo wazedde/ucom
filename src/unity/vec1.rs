@@ -33,7 +33,7 @@ impl<T> Vec1<T> {
         Self { inner }
     }
 
-    /// Converts the list into a vector.
+    /// Converts the list into a Vec.
     pub fn into_vec(self) -> Vec<T> {
         self.inner
     }
@@ -45,9 +45,7 @@ impl<T> Vec1<T> {
 
     /// Returns the last value.
     pub fn last(&self) -> &T {
-        self.inner
-            .last()
-            .expect("Vec1 should never be empty")
+        self.inner.last().expect("Vec1 should never be empty")
     }
 
     /// Returns a mutable reference to the first value.
@@ -57,9 +55,7 @@ impl<T> Vec1<T> {
 
     /// Returns a mutable reference to the last value.
     pub fn last_mut(&mut self) -> &mut T {
-        self.inner
-            .last_mut()
-            .expect("Vec1 should never be empty")
+        self.inner.last_mut().expect("Vec1 should never be empty")
     }
 
     /// Pushes a value to the end of the list.

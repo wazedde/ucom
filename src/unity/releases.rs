@@ -24,7 +24,7 @@ pub(crate) enum ReleaseStream {
     Other,
 }
 
-pub(crate) enum ReleaseFilter {
+pub(crate) enum ReleaseCriteria {
     /// Match all releases.
     #[allow(dead_code)]
     All,
@@ -36,9 +36,9 @@ pub(crate) enum ReleaseFilter {
     Minor { major: Major, minor: Minor },
 }
 
-impl ReleaseFilter {
+impl ReleaseCriteria {
     /// Returns true if the version matches the filter.
-    const fn matches_version(&self, v: Version) -> bool {
+    const fn is_version_match(&self, v: Version) -> bool {
         match self {
             Self::All => true,
             Self::Major { major } => v.major == *major,
@@ -57,17 +57,17 @@ pub(crate) fn find_available_updates(
     mode: Mode,
 ) -> anyhow::Result<ReleaseUpdates> {
     let releases = get_latest_releases(mode)?;
-    let filter = ReleaseFilter::Minor {
+    let criteria = ReleaseCriteria::Minor {
         major: version.major,
         minor: version.minor,
     };
 
-    let mut releases = releases.filtered(|rd| filter.matches_version(rd.version));
+    let mut releases = releases.filter(|rd| criteria.is_version_match(rd.version));
     let position = releases.iter().position(|rd| rd.version == version);
     let current = position
         .map(|index| releases.remove(index))
         .ok_or(anyhow::anyhow!("Version {} not found in releases", version))?;
-    let updates = releases.filtered(|rd| rd.version > version);
+    let updates = releases.filter(|rd| rd.version > version);
 
     Ok(ReleaseUpdates {
         current_release: current,

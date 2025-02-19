@@ -1,12 +1,12 @@
-use anyhow::{anyhow, Context};
-use itertools::Itertools;
-use std::borrow::Cow;
-use std::path::{Path, PathBuf};
-use std::{env, fs};
-
 use crate::cli::ENV_EDITOR_DIR;
 use crate::unity::vec1::{Vec1, Vec1Err};
 use crate::unity::Version;
+use anyhow::{anyhow, Context};
+use itertools::Itertools;
+use std::borrow::Cow;
+use std::ops::Deref;
+use std::path::{Path, PathBuf};
+use std::{env, fs};
 
 /// Sub path to the executable on macOS.
 #[cfg(target_os = "macos")]
@@ -55,7 +55,7 @@ impl Installations {
 
     /// Returns the version of the latest-installed version that matches the given prefix.
     pub(crate) fn latest(version_prefix: Option<&str>) -> anyhow::Result<Version> {
-        let version = VersionList::from_dir(Self::parent_dir()?)?
+        let version = *VersionList::from_dir(Self::parent_dir()?)?
             .filter_by_prefix(version_prefix)?
             .last();
         Ok(version)
@@ -113,51 +113,29 @@ pub(crate) struct VersionList {
     versions: Vec1<Version>,
 }
 
+impl Deref for VersionList {
+    type Target = Vec1<Version>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.versions
+    }
+}
+
 impl TryFrom<Vec<Version>> for VersionList {
     type Error = Vec1Err;
 
     fn try_from(value: Vec<Version>) -> Result<Self, Self::Error> {
-        match Vec1::try_from(value) {
-            Ok(mut versions) => {
-                versions.sort_unstable();
-                Ok(Self { versions })
-            }
-            Err(e) => Err(e),
-        }
-    }
-}
-
-#[allow(clippy::from_over_into)]
-impl Into<Vec<Version>> for VersionList {
-    fn into(self) -> Vec<Version> {
-        self.versions.into()
-    }
-}
-
-impl AsRef<Vec1<Version>> for VersionList {
-    fn as_ref(&self) -> &Vec1<Version> {
-        &self.versions
+        Vec1::try_from(value).map(|mut versions| {
+            versions.sort_unstable();
+            Self { versions }
+        })
     }
 }
 
 #[allow(dead_code)]
 impl VersionList {
-    pub(crate) fn from_vec(versions: Vec<Version>) -> Result<Self, Vec1Err> {
-        match Vec1::try_from(versions) {
-            Ok(mut versions) => {
-                versions.sort_unstable();
-                Ok(Self { versions })
-            }
-            Err(_) => Err(Vec1Err::VecIsEmpty),
-        }
-    }
-
     pub(crate) fn into_vec(self) -> Vec<Version> {
         self.versions.into()
-    }
-
-    pub(crate) fn iter(&self) -> impl Iterator<Item = &Version> {
-        self.versions.iter()
     }
 
     /// Returns a sorted list of installed Unity versions from the given directory or an error if no versions are found.
@@ -173,24 +151,14 @@ impl VersionList {
             .map(|de| de.path()) //
             .filter(|p| p.is_dir() && p.join(UNITY_EDITOR_EXE).exists())
             .filter_map(|p| p.file_name()?.to_string_lossy().parse::<Version>().ok())
-            .sorted_unstable()
             .collect_vec();
 
-        match Vec1::try_from(versions) {
-            Ok(versions) => Ok(Self { versions }),
-            Err(_) => Err(anyhow!(
+        VersionList::try_from(versions).map_err(|_| {
+            anyhow!(
                 "No Unity installations found in `{}`",
                 dir.as_ref().display()
-            )),
-        }
-    }
-
-    pub(crate) fn first(&self) -> Version {
-        *self.versions.first()
-    }
-
-    pub(crate) fn last(&self) -> Version {
-        *self.versions.last()
+            )
+        })
     }
 
     pub(crate) fn filter_by_prefix(self, version_prefix: Option<&str>) -> anyhow::Result<Self> {
@@ -202,11 +170,10 @@ impl VersionList {
         let mut versions = self.versions.into_vec();
         versions.retain(|v| v.to_string().starts_with(version_prefix));
 
-        match Vec1::try_from(versions) {
-            Ok(versions) => Ok(Self { versions }),
-            Err(_) => Err(anyhow!(
-                "No Unity installation was found that matches version `{version_prefix}`."
-            )),
-        }
+        Vec1::try_from(versions)
+            .map(|v| VersionList { versions: v })
+            .map_err(|_| {
+                anyhow!("No Unity installation was found that matches version `{version_prefix}`.")
+            })
     }
 }

@@ -25,19 +25,19 @@ pub(crate) fn list_versions(
     match list_type {
         ListType::Installed => {
             let installed = Installations::find(version_prefix)?;
-            print_installed_versions(&installed, mode)
+            display_installed_versions(&installed, mode)
         }
         ListType::Updates => {
             let installed = Installations::find(version_prefix)?;
-            print_updates(&installed, mode)
+            display_updates(&installed, mode)
         }
         ListType::Latest => {
             let installed = Installations::try_find(version_prefix);
-            print_latest_versions(installed.as_ref(), version_prefix, mode)
+            display_latest_versions(installed.as_ref(), version_prefix, mode)
         }
         ListType::All => {
             let installed = Installations::try_find(version_prefix);
-            print_available_versions(installed.as_ref(), version_prefix, mode)
+            display_available_versions(installed.as_ref(), version_prefix, mode)
         }
     }
 }
@@ -50,31 +50,31 @@ pub(crate) fn list_versions(
 /// ├─ 6000.0.35f1 - https://unity.com/releases/editor/whats-new/6000.0.35#notes
 /// └─ 6000.0.36f1 * https://unity.com/releases/editor/whats-new/6000.0.36#notes
 /// ```
-fn print_installed_versions(installed: &Installations, mode: Mode) -> anyhow::Result<()> {
+fn display_installed_versions(installed: &Installations, mode: Mode) -> anyhow::Result<()> {
     let releases = if mode == Mode::Auto {
         load_cached_releases()?
     } else {
-        get_latest_releases(Mode::Force)?.into_inner()
+        get_latest_releases(Mode::Force)?.into()
     };
 
     println_b!(
         "Unity versions in: {} {}",
         installed.install_dir.display(),
-        suggested_version_string(&releases)
+        format_suggested_version(&releases)
     );
 
     if releases.is_empty() {
-        print_basic_list(&installed.versions);
+        display_basic_list(&installed.versions);
     } else {
-        print_list_with_release_dates(&installed.versions, &releases);
+        display_list_with_release_dates(&installed.versions, &releases);
     }
 
     Ok(())
 }
 
-fn print_basic_list(installed: &VersionList) {
-    let version_groups = group_minor_versions(installed);
-    let max_len = max_version_string_length(&version_groups);
+fn display_basic_list(installed: &VersionList) {
+    let version_groups = group_versions_by_minor(installed);
+    let max_len = find_max_version_length(&version_groups);
 
     for group in version_groups.0 {
         for info in group.iter() {
@@ -95,9 +95,9 @@ fn print_basic_list(installed: &VersionList) {
     }
 }
 
-fn print_list_with_release_dates(installed: &VersionList, releases: &Releases) {
-    let version_groups = group_minor_versions(installed);
-    let max_len = max_version_string_length(&version_groups);
+fn display_list_with_release_dates(installed: &VersionList, releases: &Releases) {
+    let version_groups = group_versions_by_minor(installed);
+    let max_len = find_max_version_length(&version_groups);
 
     for group in version_groups.0 {
         for info in group.iter() {
@@ -116,8 +116,9 @@ fn print_list_with_release_dates(installed: &VersionList, releases: &Releases) {
                 rd.release_date.format("%Y-%m-%d").to_string()
             });
 
-            let (fill, stream) = fixed_stream_string(rd.map_or(ReleaseStream::Other, |t| t.stream));
-            print!("{fill}");
+            let (padding, stream) =
+                format_release_stream_with_padding(rd.map_or(ReleaseStream::Other, |rd| rd.stream));
+            print!("{padding}");
 
             println_b_if!(
                 is_suggested,
@@ -140,20 +141,20 @@ fn print_list_with_release_dates(installed: &VersionList, releases: &Releases) {
 /// ├── LTS 6000.0.35f1 (2025-01-22) - Update(s) available
 /// └── LTS 6000.0.36f1 (2025-01-28) * https://unity.com/releases/editor/whats-new/6000.0.36#notes
 /// ```
-fn print_updates(installed: &Installations, mode: Mode) -> anyhow::Result<()> {
+fn display_updates(installed: &Installations, mode: Mode) -> anyhow::Result<()> {
     let releases = get_latest_releases(mode)?;
     println_b!(
         "Updates for Unity versions in: {} {}",
         installed.install_dir.display(),
-        suggested_version_string(&releases)
+        format_suggested_version(&releases)
     );
 
     if releases.is_empty() {
         return Err(anyhow!("No update information available."));
     }
 
-    let version_groups = collect_update_info(&installed.versions, &releases);
-    let max_version_len = max_version_string_length(&version_groups);
+    let version_groups = collect_version_update_info(&installed.versions, &releases);
+    let max_version_len = find_max_version_length(&version_groups);
 
     for group in version_groups.0 {
         for info in group.iter() {
@@ -173,8 +174,8 @@ fn print_updates(installed: &Installations, mode: Mode) -> anyhow::Result<()> {
 
             let release_date = rd.release_date.format("%Y-%m-%d");
 
-            let (fill, stream) = fixed_stream_string(rd.stream);
-            print!("{fill}");
+            let (padding, stream) = format_release_stream_with_padding(rd.stream);
+            print!("{padding}");
 
             match &info.version_type {
                 VersionType::HasLaterInstalled => {
@@ -239,11 +240,11 @@ fn print_updates(installed: &Installations, mode: Mode) -> anyhow::Result<()> {
 
 /// Groups installed versions by `major.minor` version
 /// and collects update information for each installed version.
-fn collect_update_info<'a>(
+fn collect_version_update_info<'a>(
     installed: &'a VersionList,
     releases: &'a SortedReleases,
 ) -> VersionInfoGroups<'a> {
-    let mut version_groups = group_minor_versions(installed);
+    let mut version_groups = group_versions_by_minor(installed);
 
     // Add available updates to groups
     for group in &mut version_groups.0 {
@@ -291,7 +292,7 @@ fn collect_update_info<'a>(
 /// └ ALPHA 6000.2.0a1  (2025-01-29)
 /// ...
 /// ```
-fn print_latest_versions(
+fn display_latest_versions(
     installed: Option<&Installations>,
     version_prefix: Option<&str>,
     mode: Mode,
@@ -299,11 +300,11 @@ fn print_latest_versions(
     let releases = get_latest_releases(mode)?;
     println_b!(
         "Latest available minor releases {}",
-        suggested_version_string(&releases)
+        format_suggested_version(&releases)
     );
 
     // Get the latest version of each range.
-    let minor_releases = latest_minor_releases(&releases, version_prefix);
+    let minor_releases = collect_latest_minor_releases(&releases, version_prefix);
 
     if minor_releases.is_empty() {
         return Err(anyhow!(
@@ -346,20 +347,20 @@ fn print_latest_versions(
 
         if installs_in_range.is_empty() {
             // No installed versions in the range.
-            let (fill, stream) = fixed_stream_string(latest.stream);
-            print!("{fill}");
-            let version = fixed_version_string(latest.version, max_len);
+            let (padding, stream) = format_release_stream_with_padding(latest.stream);
+            print!("{padding}");
+            let version = format_version_with_padding(latest.version, max_len);
             let release_date = latest.release_date.format("%Y-%m-%d");
 
             println!("{} {} ({})", stream, version, release_date,);
         } else {
-            print_installs_line(latest, &installs_in_range, max_len);
+            display_installed_versions_line(latest, &installs_in_range, max_len);
         }
     }
     Ok(())
 }
 
-fn suggested_version_string(releases: &Releases) -> String {
+fn format_suggested_version(releases: &Releases) -> String {
     let suggested_version = releases.suggested_version;
     if let Some(suggested_version) = suggested_version {
         let stream = releases
@@ -372,13 +373,13 @@ fn suggested_version_string(releases: &Releases) -> String {
     }
 }
 
-fn fixed_stream_string(stream: ReleaseStream) -> (String, String) {
+fn format_release_stream_with_padding(stream: ReleaseStream) -> (String, String) {
     let stream = stream.to_string();
-    let line = "─".repeat(5 - stream.len());
-    (format!("{} ", line), stream)
+    let padding = "─".repeat(5 - stream.len());
+    (format!("{} ", padding), stream)
 }
 
-fn fixed_version_string(version: Version, max_len: usize) -> String {
+fn format_version_with_padding(version: Version, max_len: usize) -> String {
     format!("{:<max_len$}", version.to_string())
 }
 
@@ -396,20 +397,20 @@ fn fixed_version_string(version: Version, max_len: usize) -> String {
 /// ├─ TECH 6000.0.2f1  (2024-05-14) - https://unity.com/releases/editor/whats-new/6000.0.2#notes
 /// ...
 /// ```
-fn print_available_versions(
+fn display_available_versions(
     installed: Option<&Installations>,
     version_prefix: Option<&str>,
     mode: Mode,
 ) -> anyhow::Result<()> {
     let releases = get_latest_releases(mode)?;
-    println_b!("Available releases {}", suggested_version_string(&releases));
+    println_b!("Available releases {}", format_suggested_version(&releases));
 
     let releases = releases
         .iter()
         .filter(|r| version_prefix.map_or(true, |p| r.version.to_string().starts_with(p)))
         .collect_vec();
 
-    let Ok(versions) = VersionList::from_vec(releases.iter().map(|r| r.version).collect_vec())
+    let Ok(versions) = VersionList::try_from(releases.iter().map(|r| r.version).collect_vec())
     else {
         return Err(anyhow!(
             "No releases available that match `{}`",
@@ -417,8 +418,8 @@ fn print_available_versions(
         ));
     };
 
-    let version_groups = group_minor_versions(&versions);
-    let max_len = max_version_string_length(&version_groups);
+    let version_groups = group_versions_by_minor(&versions);
+    let max_len = find_max_version_length(&version_groups);
 
     for group in version_groups.0 {
         for info in group.iter() {
@@ -427,8 +428,7 @@ fn print_available_versions(
                 info.version == group.last().version,
             );
 
-            let is_installed =
-                installed.is_some_and(|i| i.versions.as_ref().contains(&info.version));
+            let is_installed = installed.is_some_and(|i| i.versions.contains(&info.version));
 
             let release = releases
                 .iter()
@@ -437,9 +437,9 @@ fn print_available_versions(
 
             let release_date = release.release_date.format("%Y-%m-%d");
 
-            let version = fixed_version_string(release.version, max_len);
-            let (fill, stream) = fixed_stream_string(release.stream);
-            print!("{fill}");
+            let version = format_version_with_padding(release.version, max_len);
+            let (padding, stream) = format_release_stream_with_padding(release.stream);
+            print!("{padding}");
 
             if is_installed {
                 println_b!(
@@ -463,7 +463,11 @@ fn print_available_versions(
     Ok(())
 }
 
-fn print_installs_line(latest: &ReleaseData, installed_in_range: &[Version], max_len: usize) {
+fn display_installed_versions_line(
+    latest: &ReleaseData,
+    installed_in_range: &[Version],
+    max_len: usize,
+) {
     let is_up_to_date = installed_in_range
         .last()
         .filter(|&v| v == &latest.version)
@@ -474,9 +478,9 @@ fn print_installs_line(latest: &ReleaseData, installed_in_range: &[Version], max
 
     let joined_versions = installed_in_range.iter().join(", ");
 
-    let (fill, stream) = fixed_stream_string(latest.stream);
-    print!("{fill}");
-    let version = fixed_version_string(latest.version, max_len);
+    let (padding, stream) = format_release_stream_with_padding(latest.stream);
+    print!("{padding}");
+    let version = format_version_with_padding(latest.version, max_len);
     let release_date = latest.release_date.format("%Y-%m-%d");
 
     if is_up_to_date {
@@ -511,7 +515,7 @@ enum VersionType<'a> {
 }
 
 /// Returns the max length of the version strings ih the groups.
-fn max_version_string_length(version_groups: &VersionInfoGroups<'_>) -> usize {
+fn find_max_version_length(version_groups: &VersionInfoGroups<'_>) -> usize {
     version_groups
         .0
         .iter()
@@ -522,19 +526,18 @@ fn max_version_string_length(version_groups: &VersionInfoGroups<'_>) -> usize {
 }
 
 /// Returns list of grouped versions that are in the same minor range.
-fn group_minor_versions(installed: &VersionList) -> VersionInfoGroups<'_> {
+fn group_versions_by_minor(installed: &VersionList) -> VersionInfoGroups<'_> {
     let version_groups = installed
-        .as_ref()
         .iter()
         .chunk_by(|v| (v.major, v.minor))
         .into_iter()
-        .filter_map(|(_, group)| build_version_group(group.collect_vec()))
+        .filter_map(|(_, group)| build_version_info_group(group.collect_vec()))
         .collect();
 
     VersionInfoGroups(version_groups)
 }
 
-fn build_version_group(versions: Vec<&Version>) -> Option<Vec1<VersionInfo<'_>>> {
+fn build_version_info_group(versions: Vec<&Version>) -> Option<Vec1<VersionInfo<'_>>> {
     let len = versions.len();
 
     let infos = versions
@@ -556,7 +559,7 @@ fn build_version_group(versions: Vec<&Version>) -> Option<Vec1<VersionInfo<'_>>>
     Vec1::try_from(infos).ok()
 }
 
-fn latest_minor_releases<'a>(
+fn collect_latest_minor_releases<'a>(
     releases: &'a SortedReleases,
     version_prefix: Option<&str>,
 ) -> Vec<&'a ReleaseData> {

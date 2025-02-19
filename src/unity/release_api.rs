@@ -28,6 +28,14 @@ pub(crate) struct Releases {
     releases: Vec<ReleaseData>,
 }
 
+impl Deref for Releases {
+    type Target = Vec<ReleaseData>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.releases
+    }
+}
+
 impl Releases {
     pub(crate) fn is_empty(&self) -> bool {
         self.releases.is_empty()
@@ -36,10 +44,6 @@ impl Releases {
     pub(crate) fn has_version(&self, version: Version) -> bool {
         // TODO: Use a HashSet for faster lookups
         self.releases.iter().any(|r| r.version == version)
-    }
-
-    pub(crate) fn iter(&self) -> impl Iterator<Item = &ReleaseData> {
-        self.releases.iter()
     }
 
     pub(crate) fn into_iter(self) -> impl Iterator<Item = ReleaseData> {
@@ -68,6 +72,12 @@ impl Deref for SortedReleases {
     }
 }
 
+impl From<SortedReleases> for Releases {
+    fn from(sorted: SortedReleases) -> Self {
+        sorted.0
+    }
+}
+
 // Sort list when creating struct
 #[allow(dead_code)]
 impl SortedReleases {
@@ -77,26 +87,15 @@ impl SortedReleases {
         SortedReleases(releases)
     }
 
-    pub(crate) fn into_inner(self) -> Releases {
-        self.0
-    }
-
-    pub(crate) fn iter(&self) -> impl Iterator<Item = &ReleaseData> {
-        self.0.iter()
-    }
-
     /// Returns filtered releases.
-    pub(crate) fn filtered<F>(self, predicate: F) -> Self
+    pub(crate) fn filter<F>(self, predicate: F) -> Self
     where
         F: Fn(&ReleaseData) -> bool,
     {
-        let last_updated = self.0.last_updated;
-        let suggested_version = self.0.suggested_version;
-        let releases = self.0.into_iter().filter(|r| predicate(r)).collect_vec();
         SortedReleases(Releases {
-            last_updated,
-            suggested_version,
-            releases,
+            last_updated: self.last_updated,
+            suggested_version: self.suggested_version,
+            releases: self.0.into_iter().filter(predicate).collect_vec(),
         })
     }
 
