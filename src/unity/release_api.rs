@@ -18,7 +18,7 @@ const RELEASES_FILENAME: &str = "releases_dataset.json";
 
 #[allow(dead_code)]
 #[derive(Debug, Serialize, Deserialize)]
-pub(crate) struct Releases {
+pub(crate) struct ReleaseCollection {
     #[serde(rename = "lastUpdated")]
     pub last_updated: DateTime<Utc>,
     #[serde(rename = "suggestedVersion")]
@@ -28,7 +28,7 @@ pub(crate) struct Releases {
     releases: Vec<ReleaseData>,
 }
 
-impl Deref for Releases {
+impl Deref for ReleaseCollection {
     type Target = Vec<ReleaseData>;
 
     fn deref(&self) -> &Self::Target {
@@ -36,14 +36,10 @@ impl Deref for Releases {
     }
 }
 
-impl Releases {
-    pub(crate) fn is_empty(&self) -> bool {
-        self.releases.is_empty()
-    }
-
+impl ReleaseCollection {
     pub(crate) fn has_version(&self, version: Version) -> bool {
         // TODO: Use a HashSet for faster lookups
-        self.releases.iter().any(|r| r.version == version)
+        self.iter().any(|r| r.version == version)
     }
 
     pub(crate) fn into_iter(self) -> impl Iterator<Item = ReleaseData> {
@@ -51,9 +47,9 @@ impl Releases {
     }
 }
 
-impl Default for Releases {
+impl Default for ReleaseCollection {
     fn default() -> Self {
-        Releases {
+        ReleaseCollection {
             last_updated: Utc::now(),
             suggested_version: None,
             releases: Vec::new(),
@@ -62,29 +58,29 @@ impl Default for Releases {
 }
 
 /// Wrapper around the releases that sorts the releases by version in ascending order.
-pub(crate) struct SortedReleases(Releases);
+pub(crate) struct SortedReleaseCollection(ReleaseCollection);
 
-impl Deref for SortedReleases {
-    type Target = Releases;
+impl Deref for SortedReleaseCollection {
+    type Target = ReleaseCollection;
 
     fn deref(&self) -> &Self::Target {
         &self.0
     }
 }
 
-impl From<SortedReleases> for Releases {
-    fn from(sorted: SortedReleases) -> Self {
+impl From<SortedReleaseCollection> for ReleaseCollection {
+    fn from(sorted: SortedReleaseCollection) -> Self {
         sorted.0
     }
 }
 
 // Sort list when creating struct
 #[allow(dead_code)]
-impl SortedReleases {
+impl SortedReleaseCollection {
     /// Sorts the releases by version in ascending order.
-    pub(crate) fn new(mut releases: Releases) -> Self {
-        releases.releases.sort_unstable_by_key(|r| r.version);
-        SortedReleases(releases)
+    pub(crate) fn new(mut collection: ReleaseCollection) -> Self {
+        collection.releases.sort_unstable_by_key(|r| r.version);
+        SortedReleaseCollection(collection)
     }
 
     /// Returns filtered releases.
@@ -92,7 +88,7 @@ impl SortedReleases {
     where
         F: Fn(&ReleaseData) -> bool,
     {
-        SortedReleases(Releases {
+        SortedReleaseCollection(ReleaseCollection {
             last_updated: self.last_updated,
             suggested_version: self.suggested_version,
             releases: self.0.into_iter().filter(predicate).collect_vec(),
@@ -125,7 +121,7 @@ fn fetch_releases_page(limit: usize, offset: usize) -> anyhow::Result<ReleaseDat
 /// This is not perfect, but seems to be good enough for our use case.
 /// practice earlier releases can be added later.
 pub(crate) fn download_release_info<F>(
-    releases: &mut Releases,
+    releases: &mut ReleaseCollection,
     callback: F,
 ) -> anyhow::Result<usize>
 where
@@ -177,20 +173,20 @@ where
 }
 
 /// Load release info from a file.
-fn load_release_info(path: &Path) -> anyhow::Result<Releases> {
+fn load_release_info(path: &Path) -> anyhow::Result<ReleaseCollection> {
     let file = File::open(path)?;
     let reader = BufReader::new(file);
-    let releases: Releases = serde_json::from_reader(reader)?;
+    let releases: ReleaseCollection = serde_json::from_reader(reader)?;
     Ok(releases)
 }
 
 /// Loads the release info from the cache.
-pub(crate) fn load_cached_releases() -> anyhow::Result<Releases> {
+pub(crate) fn load_cached_releases() -> anyhow::Result<ReleaseCollection> {
     let path = get_cache_dir().join(RELEASES_FILENAME);
     if path.exists() {
         load_release_info(&path)
     } else {
-        Ok(Releases::default())
+        Ok(ReleaseCollection::default())
     }
 }
 
@@ -201,16 +197,16 @@ pub(crate) enum Mode {
 }
 
 /// Downloads and caches the release info.
-pub(crate) fn get_latest_releases(mode: Mode) -> anyhow::Result<SortedReleases> {
+pub(crate) fn get_latest_releases(mode: Mode) -> anyhow::Result<SortedReleaseCollection> {
     let releases_path = get_cache_dir().join(RELEASES_FILENAME);
     let mut releases = if mode == Mode::Auto {
         load_cached_releases()?
     } else {
-        Releases::default()
+        ReleaseCollection::default()
     };
 
     if mode == Mode::Auto && !is_expired(&releases_path) {
-        return Ok(SortedReleases::new(releases));
+        return Ok(SortedReleaseCollection::new(releases));
     }
 
     let download_status = StatusLine::new("Downloading", "release data...");
@@ -221,7 +217,7 @@ pub(crate) fn get_latest_releases(mode: Mode) -> anyhow::Result<SortedReleases> 
 
     if fetch_count > 0 {
         releases.last_updated = Utc::now();
-        let sorted_releases = SortedReleases::new(releases);
+        let sorted_releases = SortedReleaseCollection::new(releases);
 
         create_dir_all(get_cache_dir())?;
         serde_json::to_writer(
@@ -231,6 +227,6 @@ pub(crate) fn get_latest_releases(mode: Mode) -> anyhow::Result<SortedReleases> 
         Ok(sorted_releases)
     } else {
         update_timestamp(&releases_path)?;
-        Ok(SortedReleases::new(releases))
+        Ok(SortedReleaseCollection::new(releases))
     }
 }

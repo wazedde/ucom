@@ -72,7 +72,7 @@ pub(crate) struct Version {
 
 impl Version {
     /// Returns the length of the string representation of this version.
-    pub(crate) fn len(self) -> usize {
+    pub(crate) fn string_length(self) -> usize {
         Self::count_digits(self.major.into())
             + Self::count_digits(self.minor.into())
             + Self::count_digits(self.patch.into())
@@ -82,7 +82,7 @@ impl Version {
     }
 
     /// Returns the `major.minor` part of this version.
-    pub(crate) fn major_minor(self) -> String {
+    pub(crate) fn major_minor_string(self) -> String {
         format!("{}.{}", self.major, self.minor)
     }
 
@@ -247,27 +247,27 @@ mod version_tests {
     #[test]
     fn test_len() {
         assert_eq!(
-            "5.102.5f123".parse::<Version>().unwrap().len(),
+            "5.102.5f123".parse::<Version>().unwrap().string_length(),
             "5.102.5f123".len()
         );
 
         assert_eq!(
-            "2021.2.14f1".parse::<Version>().unwrap().len(),
+            "2021.2.14f1".parse::<Version>().unwrap().string_length(),
             "2021.2.14f1".len()
         );
 
         assert_eq!(
-            "2019.1.1b1".parse::<Version>().unwrap().len(),
+            "2019.1.1b1".parse::<Version>().unwrap().string_length(),
             "2019.1.1b1".len()
         );
 
         assert_eq!(
-            "2020.1.1a3".parse::<Version>().unwrap().len(),
+            "2020.1.1a3".parse::<Version>().unwrap().string_length(),
             "2020.1.1a3".len()
         );
 
         assert_eq!(
-            "2022.2.1rc2".parse::<Version>().unwrap().len(),
+            "2022.2.1rc2".parse::<Version>().unwrap().string_length(),
             "2022.2.1rc2".len()
         );
     }

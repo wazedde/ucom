@@ -6,7 +6,7 @@ use yansi::Paint;
 use crate::commands::install_cmd::install_version;
 use crate::commands::status_line::StatusLine;
 use crate::commands::{writeln_b, INDENT};
-use crate::unity::release_api::{Mode, SortedReleases};
+use crate::unity::release_api::{Mode, SortedReleaseCollection};
 use crate::unity::release_api_data::ReleaseData;
 use crate::unity::*;
 
@@ -33,16 +33,11 @@ pub(crate) fn find_updates(
     write_project_header(&project, create_report, &mut buf)?;
     writeln!(buf)?;
 
-    write_project_version(
-        &updates.current_release,
-        &updates.available_releases,
-        create_report,
-        &mut buf,
-    )?;
+    write_project_version(&updates, create_report, &mut buf)?;
 
     if create_report {
         let download_status = StatusLine::new("Downloading", "Unity release notes...");
-        for release in updates.available_releases.iter() {
+        for release in updates.newer_releases.iter() {
             download_status.update(
                 "Downloading",
                 &format!("Unity {} release notes...", release.version),
@@ -53,19 +48,19 @@ pub(crate) fn find_updates(
         drop(download_status);
         print!("{}", String::from_utf8(buf)?);
     } else {
-        if !updates.available_releases.is_empty() {
+        if !updates.newer_releases.is_empty() {
             writeln!(buf)?;
-            write_available_updates(&updates.available_releases, &mut buf)?;
+            write_available_updates(&updates.newer_releases, &mut buf)?;
         }
         print!("{}", String::from_utf8(buf)?);
     }
 
-    handle_newer_release_installation(install_update, &updates.available_releases)
+    handle_newer_release_installation(install_update, &updates.newer_releases)
 }
 
 fn handle_newer_release_installation(
     install_update: bool,
-    releases: &SortedReleases,
+    releases: &SortedReleaseCollection,
 ) -> anyhow::Result<()> {
     if let Some(newer_release) = releases.iter().last() {
         let is_installed = newer_release.version.is_editor_installed()?;
@@ -125,18 +120,17 @@ fn write_project_header(
 }
 
 fn write_project_version(
-    release: &ReleaseData,
-    updates: &SortedReleases,
+    updates: &ReleaseUpdates,
     create_report: bool,
     buf: &mut Vec<u8>,
 ) -> anyhow::Result<()> {
-    let is_installed = release.version.is_editor_installed()?;
+    let is_installed = updates.current_release.version.is_editor_installed()?;
     write!(buf, "{}", "Unity editor: ".bold())?;
 
-    let version = match (is_installed, updates.is_empty()) {
+    let version = match (is_installed, updates.newer_releases.is_empty()) {
         (true, true) => {
             writeln!(buf, "{}", "installed, up to date".green().bold())?;
-            release.version.green()
+            updates.current_release.version.green()
         }
         (true, false) => {
             writeln!(
@@ -144,11 +138,11 @@ fn write_project_version(
                 "{}",
                 "installed, newer version available".yellow().bold()
             )?;
-            release.version.yellow()
+            updates.current_release.version.yellow()
         }
         (false, true) => {
             writeln!(buf, "{}", "not installed, up to date".red().bold())?;
-            release.version.red()
+            updates.current_release.version.red()
         }
         (false, false) => {
             writeln!(
@@ -156,7 +150,7 @@ fn write_project_version(
                 "{}",
                 "not installed, newer version available".red().bold()
             )?;
-            release.version.red()
+            updates.current_release.version.red()
         }
     };
 
@@ -169,7 +163,7 @@ fn write_project_version(
         "{}{} - {}",
         INDENT,
         version,
-        release_notes_url(release.version).bright_blue()
+        release_notes_url(updates.current_release.version).bright_blue()
     )?;
 
     if is_installed {
@@ -180,7 +174,7 @@ fn write_project_version(
         writeln!(
             buf,
             " > [install in Unity HUB]({})",
-            release.unity_hub_deep_link
+            updates.current_release.unity_hub_deep_link
         )?;
     } else {
         // The editor used by the project is not installed, and we're writing to the terminal.
@@ -190,11 +184,14 @@ fn write_project_version(
     Ok(())
 }
 
-fn write_available_updates(releases: &SortedReleases, buf: &mut Vec<u8>) -> anyhow::Result<()> {
+fn write_available_updates(
+    releases: &SortedReleaseCollection,
+    buf: &mut Vec<u8>,
+) -> anyhow::Result<()> {
     writeln_b!(buf, "Available update(s):")?;
     let max_len = releases
         .iter()
-        .map(|rd| rd.version.len())
+        .map(|rd| rd.version.string_length())
         .max()
         .ok_or(anyhow!("No releases"))?;
 

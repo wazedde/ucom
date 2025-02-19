@@ -109,15 +109,13 @@ impl Version {
 }
 
 /// A non-empty list of Unity versions, sorted from the oldest to the newest.
-pub(crate) struct VersionList {
-    versions: Vec1<Version>,
-}
+pub(crate) struct VersionList(Vec1<Version>);
 
 impl Deref for VersionList {
     type Target = Vec1<Version>;
 
     fn deref(&self) -> &Self::Target {
-        &self.versions
+        &self.0
     }
 }
 
@@ -127,7 +125,7 @@ impl TryFrom<Vec<Version>> for VersionList {
     fn try_from(value: Vec<Version>) -> Result<Self, Self::Error> {
         Vec1::try_from(value).map(|mut versions| {
             versions.sort_unstable();
-            Self { versions }
+            Self(versions)
         })
     }
 }
@@ -135,7 +133,7 @@ impl TryFrom<Vec<Version>> for VersionList {
 #[allow(dead_code)]
 impl VersionList {
     pub(crate) fn into_vec(self) -> Vec<Version> {
-        self.versions.into()
+        self.0.into()
     }
 
     /// Returns a sorted list of installed Unity versions from the given directory or an error if no versions are found.
@@ -167,13 +165,11 @@ impl VersionList {
             return Ok(self);
         };
 
-        let mut versions = self.versions.into_vec();
+        let mut versions = self.into_vec();
         versions.retain(|v| v.to_string().starts_with(version_prefix));
 
-        Vec1::try_from(versions)
-            .map(|v| VersionList { versions: v })
-            .map_err(|_| {
-                anyhow!("No Unity installation was found that matches version `{version_prefix}`.")
-            })
+        Vec1::try_from(versions).map(VersionList).map_err(|_| {
+            anyhow!("No Unity installation was found that matches version `{version_prefix}`.")
+        })
     }
 }

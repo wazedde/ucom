@@ -1,4 +1,4 @@
-use crate::unity::release_api::{get_latest_releases, Mode, SortedReleases};
+use crate::unity::release_api::{get_latest_releases, Mode, SortedReleaseCollection};
 use crate::unity::release_api_data::ReleaseData;
 use crate::unity::{BuildType, Major, Minor, Version};
 use serde::{Deserialize, Serialize};
@@ -49,7 +49,7 @@ impl ReleaseCriteria {
 
 pub(crate) struct ReleaseUpdates {
     pub(crate) current_release: ReleaseData,
-    pub(crate) available_releases: SortedReleases,
+    pub(crate) newer_releases: SortedReleaseCollection,
 }
 
 pub(crate) fn find_available_updates(
@@ -64,14 +64,14 @@ pub(crate) fn find_available_updates(
 
     let mut releases = releases.filter(|rd| criteria.is_version_match(rd.version));
     let position = releases.iter().position(|rd| rd.version == version);
-    let current = position
+    let current_release = position
         .map(|index| releases.remove(index))
         .ok_or(anyhow::anyhow!("Version {} not found in releases", version))?;
-    let updates = releases.filter(|rd| rd.version > version);
+    let newer_releases = releases.filter(|rd| rd.version > version);
 
     Ok(ReleaseUpdates {
-        current_release: current,
-        available_releases: updates,
+        current_release,
+        newer_releases,
     })
 }
 

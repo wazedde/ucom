@@ -1,13 +1,14 @@
 use anyhow::anyhow;
 use crossterm::style::Stylize;
 use itertools::Itertools;
+use std::ops::{Deref, DerefMut};
 use yansi::Paint;
 
 use crate::cli::ListType;
 use crate::commands::{println_b, println_b_if};
 use crate::unity::installations::{Installations, VersionList};
 use crate::unity::release_api::{
-    get_latest_releases, load_cached_releases, Mode, Releases, SortedReleases,
+    get_latest_releases, load_cached_releases, Mode, ReleaseCollection, SortedReleaseCollection,
 };
 use crate::unity::release_api_data::ReleaseData;
 use crate::unity::vec1::Vec1;
@@ -15,6 +16,20 @@ use crate::unity::*;
 
 /// Version info grouped by minor version.
 struct VersionInfoGroups<'a>(Vec<Vec1<VersionInfo<'a>>>);
+
+impl<'a> Deref for VersionInfoGroups<'a> {
+    type Target = Vec<Vec1<VersionInfo<'a>>>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl DerefMut for VersionInfoGroups<'_> {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.0
+    }
+}
 
 /// Lists installed Unity versions.
 pub(crate) fn list_versions(
@@ -76,7 +91,7 @@ fn display_basic_list(installed: &VersionList) {
     let version_groups = group_versions_by_minor(installed);
     let max_len = find_max_version_length(&version_groups);
 
-    for group in version_groups.0 {
+    for group in version_groups.iter() {
         for info in group.iter() {
             print_list_marker(
                 info.version == group.first().version,
@@ -95,11 +110,11 @@ fn display_basic_list(installed: &VersionList) {
     }
 }
 
-fn display_list_with_release_dates(installed: &VersionList, releases: &Releases) {
+fn display_list_with_release_dates(installed: &VersionList, releases: &ReleaseCollection) {
     let version_groups = group_versions_by_minor(installed);
     let max_len = find_max_version_length(&version_groups);
 
-    for group in version_groups.0 {
+    for group in version_groups.iter() {
         for info in group.iter() {
             print_slim_list_marker(
                 info.version == group.first().version,
@@ -156,7 +171,7 @@ fn display_updates(installed: &Installations, mode: Mode) -> anyhow::Result<()> 
     let version_groups = collect_version_update_info(&installed.versions, &releases);
     let max_version_len = find_max_version_length(&version_groups);
 
-    for group in version_groups.0 {
+    for group in version_groups.iter() {
         for info in group.iter() {
             print_slim_list_marker(
                 info.version == group.first().version,
@@ -242,12 +257,12 @@ fn display_updates(installed: &Installations, mode: Mode) -> anyhow::Result<()> 
 /// and collects update information for each installed version.
 fn collect_version_update_info<'a>(
     installed: &'a VersionList,
-    releases: &'a SortedReleases,
+    releases: &'a SortedReleaseCollection,
 ) -> VersionInfoGroups<'a> {
     let mut version_groups = group_versions_by_minor(installed);
 
     // Add available updates to groups
-    for group in &mut version_groups.0 {
+    for group in version_groups.iter_mut() {
         let latest_installed_version = group.last().version;
 
         let has_releases = releases.iter().any(|rd| {
@@ -315,7 +330,7 @@ fn display_latest_versions(
 
     let max_len = minor_releases
         .iter()
-        .map(|rd| rd.version.len())
+        .map(|rd| rd.version.string_length())
         .max()
         .unwrap_or(0);
 
@@ -360,7 +375,7 @@ fn display_latest_versions(
     Ok(())
 }
 
-fn format_suggested_version(releases: &Releases) -> String {
+fn format_suggested_version(releases: &ReleaseCollection) -> String {
     let suggested_version = releases.suggested_version;
     if let Some(suggested_version) = suggested_version {
         let stream = releases
@@ -421,7 +436,7 @@ fn display_available_versions(
     let version_groups = group_versions_by_minor(&versions);
     let max_len = find_max_version_length(&version_groups);
 
-    for group in version_groups.0 {
+    for group in version_groups.iter() {
         for info in group.iter() {
             print_slim_list_marker(
                 info.version == group.first().version,
@@ -517,10 +532,9 @@ enum VersionType<'a> {
 /// Returns the max length of the version strings ih the groups.
 fn find_max_version_length(version_groups: &VersionInfoGroups<'_>) -> usize {
     version_groups
-        .0
         .iter()
         .flat_map(|v| v.iter())
-        .map(|vi| vi.version.len())
+        .map(|vi| vi.version.string_length())
         .max()
         .unwrap_or(0)
 }
@@ -560,7 +574,7 @@ fn build_version_info_group(versions: Vec<&Version>) -> Option<Vec1<VersionInfo<
 }
 
 fn collect_latest_minor_releases<'a>(
-    releases: &'a SortedReleases,
+    releases: &'a SortedReleaseCollection,
     version_prefix: Option<&str>,
 ) -> Vec<&'a ReleaseData> {
     releases

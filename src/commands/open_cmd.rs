@@ -14,7 +14,7 @@ pub(crate) fn open_project(arguments: OpenArguments) -> anyhow::Result<()> {
         // If a specific version is given, use that.
         Some(Some(pattern)) => Installations::latest(Some(&pattern)),
         // Otherwise, use the latest version.
-        Some(None) => Installations::latest(Some(&project_unity_version.major_minor())),
+        Some(None) => Installations::latest(Some(&project_unity_version.major_minor_string())),
         // Otherwise, use the current version.
         None => Ok(project_unity_version),
     }?;
