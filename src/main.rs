@@ -57,7 +57,7 @@ fn main() -> anyhow::Result<()> {
             project_dir,
             install,
             report,
-        } => find_updates(&project_dir, install, report, Mode::Auto)
+        } => find_project_updates(&project_dir, install, report, Mode::Auto)
             .with_context(|| color_error("Cannot show Unity updates for project")),
 
         Action::Run(settings) => run_unity(settings).context(color_error("Cannot run Unity")),

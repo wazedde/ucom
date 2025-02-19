@@ -7,7 +7,7 @@ use chrono::TimeDelta;
 use crate::cli_add::UnityTemplateFile;
 pub(crate) use crate::commands::add_cmd::add_to_project;
 pub(crate) use crate::commands::build_cmd::build_project;
-pub(crate) use crate::commands::check_cmd::find_updates;
+pub(crate) use crate::commands::check_cmd::find_project_updates;
 pub(crate) use crate::commands::info_cmd::project_info;
 pub(crate) use crate::commands::install_cmd::install_latest_matching;
 pub(crate) use crate::commands::list_cmd::list_versions;
@@ -67,16 +67,6 @@ fn create_file(file_path: impl AsRef<Path>, content: &str) -> anyhow::Result<()>
     fs::write(file_path, content).map_err(Into::into)
 }
 
-/// Version of `writeln!` that writes bold text.
-macro_rules! writeln_b {
-    ($dst:expr $(, $fmt:expr $(, $arg:expr)*)?) => {{
-        use std::io::Write;
-        let formatted = format!($($fmt $(, $arg)*)?);
-        let bold_text = yansi::Paint::new(formatted).bold();
-        writeln!($dst, "{}", bold_text)
-    }};
-}
-
 /// Version of `println!` that writes bold text.
 macro_rules! println_b {
     ($($arg:tt)*) => {
@@ -97,4 +87,3 @@ macro_rules! println_b_if {
 
 pub(crate) use println_b;
 pub(crate) use println_b_if;
-pub(crate) use writeln_b;

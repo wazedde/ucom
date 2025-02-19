@@ -63,6 +63,7 @@ impl Installations {
 
     /// Returns the parent directory of the editor installations.
     fn parent_dir<'a>() -> anyhow::Result<Cow<'a, Path>> {
+        // TODO: Cache the result as a static variable as it will not change during the program's lifetime.
         // Try to get the directory from the environment variable.
         if let Some(path) = env::var_os(ENV_EDITOR_DIR) {
             // Use the directory set by the environment variable.

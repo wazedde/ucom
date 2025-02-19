@@ -1,17 +1,14 @@
 use anyhow::anyhow;
-use std::io::Write;
 use std::path::Path;
 use yansi::Paint;
 
 use crate::commands::install_cmd::install_version;
 use crate::commands::status_line::StatusLine;
-use crate::commands::{writeln_b, INDENT};
+use crate::commands::{println_b, INDENT};
 use crate::unity::release_api::{Mode, SortedReleaseCollection};
-use crate::unity::release_api_data::ReleaseData;
 use crate::unity::*;
 
-/// Checks on the Unity website for updates to the version used by the project.
-pub(crate) fn find_updates(
+pub(crate) fn find_project_updates(
     project_dir: &Path,
     install_update: bool,
     create_report: bool,
@@ -29,33 +26,45 @@ pub(crate) fn find_updates(
         yansi::disable();
     }
 
-    let mut buf = Vec::new();
-    write_project_header(&project, create_report, &mut buf)?;
-    writeln!(buf)?;
+    print_project_header(&project, create_report);
+    println!();
 
-    write_project_version(&updates, create_report, &mut buf)?;
+    print_project_version(&updates, create_report)?;
 
     if create_report {
-        let download_status = StatusLine::new("Downloading", "Unity release notes...");
-        for release in updates.newer_releases.iter() {
-            download_status.update(
-                "Downloading",
-                &format!("Unity {} release notes...", release.version),
-            );
-
-            write_release_notes(&mut buf, release)?;
-        }
-        drop(download_status);
-        print!("{}", String::from_utf8(buf)?);
-    } else {
-        if !updates.newer_releases.is_empty() {
-            writeln!(buf)?;
-            write_available_updates(&updates.newer_releases, &mut buf)?;
-        }
-        print!("{}", String::from_utf8(buf)?);
+        download_and_print_release_notes(&updates)?;
+    } else if !updates.newer_releases.is_empty() {
+        println!();
+        print_available_updates(&updates.newer_releases)?;
     }
 
-    handle_newer_release_installation(install_update, &updates.newer_releases)
+    if create_report {
+        Ok(())
+    } else {
+        handle_newer_release_installation(install_update, &updates.newer_releases)
+    }
+}
+
+fn download_and_print_release_notes(updates: &ReleaseUpdates) -> anyhow::Result<()> {
+    let download_status = StatusLine::new("Downloading", "Unity release notes...");
+    for release in updates.newer_releases.iter() {
+        download_status.update(
+            "Downloading",
+            &format!("Unity {} release notes...", release.version),
+        );
+
+        let url = &release.release_notes.url;
+        let body = content_cache::get_cached_content(url, true)?;
+
+        println!();
+        println!("## Release notes for [{}]({url})", release.version);
+        println!();
+        println!("[install in Unity HUB]({})", release.unity_hub_deep_link);
+
+        println!();
+        println!("{}", body);
+    }
+    Ok(())
 }
 
 fn handle_newer_release_installation(
@@ -85,110 +94,93 @@ fn handle_newer_release_installation(
     Ok(())
 }
 
-fn write_project_header(
-    project: &ProjectPath,
-    create_report: bool,
-    buf: &mut Vec<u8>,
-) -> anyhow::Result<()> {
+fn print_project_header(project: &ProjectPath, create_report: bool) {
     if create_report {
-        write!(buf, "# ")?;
+        print!("# ");
     }
 
-    writeln_b!(buf, "Unity updates for: {}", project.as_path().display())?;
+    println_b!("Unity updates for: `{}`", project.as_path().display());
 
     if create_report {
-        writeln!(buf)?;
+        println!();
     }
 
     match ProjectSettings::from_project(project) {
         Ok(ps) => {
-            writeln!(buf, "{}Product name:  {}", INDENT, ps.product_name.bold())?;
-            writeln!(buf, "{}Company name:  {}", INDENT, ps.company_name.bold())?;
-            writeln!(buf, "{}Version:       {}", INDENT, ps.bundle_version.bold())?;
+            println!("{}Product name:  {}", INDENT, ps.product_name.bold());
+            println!("{}Company name:  {}", INDENT, ps.company_name.bold());
+            println!("{}Version:       {}", INDENT, ps.bundle_version.bold());
         }
 
         Err(e) => {
-            writeln!(
-                buf,
+            println!(
                 "{INDENT}{}: {}",
                 "Could not read project settings".yellow(),
                 e.yellow()
-            )?;
+            );
         }
     }
-    Ok(())
 }
 
-fn write_project_version(
-    updates: &ReleaseUpdates,
-    create_report: bool,
-    buf: &mut Vec<u8>,
-) -> anyhow::Result<()> {
+fn print_project_version(updates: &ReleaseUpdates, create_report: bool) -> anyhow::Result<()> {
     let is_installed = updates.current_release.version.is_editor_installed()?;
-    write!(buf, "{}", "Unity editor: ".bold())?;
+    print!("{}", "Unity editor: ".bold());
 
     let version = match (is_installed, updates.newer_releases.is_empty()) {
         (true, true) => {
-            writeln!(buf, "{}", "installed, up to date".green().bold())?;
+            println!("{}", "installed, up to date".green().bold());
             updates.current_release.version.green()
         }
         (true, false) => {
-            writeln!(
-                buf,
+            println!(
                 "{}",
-                "installed, newer version available".yellow().bold()
-            )?;
+                "installed, newer version(s) available".yellow().bold()
+            );
             updates.current_release.version.yellow()
         }
         (false, true) => {
-            writeln!(buf, "{}", "not installed, up to date".red().bold())?;
+            println!("{}", "not installed, up to date".red().bold());
             updates.current_release.version.red()
         }
         (false, false) => {
-            writeln!(
-                buf,
+            println!(
                 "{}",
-                "not installed, newer version available".red().bold()
-            )?;
+                "not installed, newer version(s) available".red().bold()
+            );
             updates.current_release.version.red()
         }
     };
 
     if create_report {
-        writeln!(buf)?;
+        println!();
     }
 
-    write!(
-        buf,
+    print!(
         "{}{} - {}",
         INDENT,
         version,
         release_notes_url(updates.current_release.version).bright_blue()
-    )?;
+    );
 
     if is_installed {
         // The editor used by the project is installed, finish the line.
-        writeln!(buf)?;
+        println!();
     } else if create_report {
         // The editor used by the project is not installed, and we're writing to a file.
-        writeln!(
-            buf,
+        println!(
             " > [install in Unity HUB]({})",
             updates.current_release.unity_hub_deep_link
-        )?;
+        );
     } else {
         // The editor used by the project is not installed, and we're writing to the terminal.
-        writeln!(buf)?;
+        println!();
     }
 
     Ok(())
 }
 
-fn write_available_updates(
-    releases: &SortedReleaseCollection,
-    buf: &mut Vec<u8>,
-) -> anyhow::Result<()> {
-    writeln_b!(buf, "Available update(s):")?;
+fn print_available_updates(releases: &SortedReleaseCollection) -> anyhow::Result<()> {
+    println_b!("Available update(s):");
     let max_len = releases
         .iter()
         .map(|rd| rd.version.string_length())
@@ -198,39 +190,19 @@ fn write_available_updates(
     for release in releases.iter() {
         let release_date = release.release_date.format("%Y-%m-%d");
 
-        write!(
-            buf,
+        print!(
             "- {:<max_len$} ({}) - {}",
             release.version.to_string().blue().bold(),
             release_date,
             release_notes_url(release.version).bright_blue(),
-        )?;
+        );
 
         if release.version.is_editor_installed()? {
-            writeln!(buf, " > {}", "installed".bold())?;
+            println!(" > {}", "installed".bold());
         } else {
-            writeln!(buf)?;
+            println!();
         };
     }
-
-    Ok(())
-}
-
-fn write_release_notes(buf: &mut Vec<u8>, release: &ReleaseData) -> anyhow::Result<()> {
-    let url = &release.release_notes.url;
-    let body = content_cache::get_cached_content(url, true)?;
-
-    writeln!(buf)?;
-    writeln!(buf, "## Release notes for [{}]({url})", release.version)?;
-    writeln!(buf)?;
-    writeln!(
-        buf,
-        "[install in Unity HUB]({})",
-        release.unity_hub_deep_link
-    )?;
-
-    writeln!(buf)?;
-    writeln!(buf, "{}", body)?;
 
     Ok(())
 }
