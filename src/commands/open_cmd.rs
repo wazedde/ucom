@@ -12,9 +12,11 @@ pub(crate) fn open_project(arguments: OpenArguments) -> anyhow::Result<()> {
 
     let open_unity_version = match arguments.upgrade_version {
         // If a specific version is given, use that.
-        Some(Some(pattern)) => Installations::latest(Some(&pattern)),
+        Some(Some(pattern)) => Installations::latest_installed_version(Some(&pattern)),
         // Otherwise, use the latest version.
-        Some(None) => Installations::latest(Some(&project_unity_version.major_minor_string())),
+        Some(None) => Installations::latest_installed_version(Some(
+            &project_unity_version.major_minor_string(),
+        )),
         // Otherwise, use the current version.
         None => Ok(project_unity_version),
     }?;

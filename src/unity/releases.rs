@@ -66,7 +66,7 @@ pub(crate) fn find_available_updates(
     let position = releases.iter().position(|rd| rd.version == version);
     let current_release = position
         .map(|index| releases.remove(index))
-        .ok_or(anyhow::anyhow!("Version {} not found in releases", version))?;
+        .ok_or_else(|| anyhow::anyhow!("Version {} not found in releases", version))?;
     let newer_releases = releases.filter(|rd| rd.version > version);
 
     Ok(ReleaseUpdates {

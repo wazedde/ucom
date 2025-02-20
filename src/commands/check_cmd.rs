@@ -185,7 +185,7 @@ fn print_available_updates(releases: &SortedReleaseCollection) -> anyhow::Result
         .iter()
         .map(|rd| rd.version.string_length())
         .max()
-        .ok_or(anyhow!("No releases"))?;
+        .ok_or_else(|| anyhow!("No releases"))?;
 
     for release in releases.iter() {
         let release_date = release.release_date.format("%Y-%m-%d");

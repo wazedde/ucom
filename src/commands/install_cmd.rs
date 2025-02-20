@@ -7,11 +7,8 @@ pub(crate) fn install_latest_matching(version_prefix: &str, mode: Mode) -> anyho
     let release = releases
         .iter()
         .filter(|rd| rd.version.to_string().starts_with(version_prefix))
-        .max_by(|a, b| a.version.cmp(&b.version))
-        .ok_or(anyhow::anyhow!(
-            "No version found that matches `{}`",
-            version_prefix
-        ))?;
+        .max_by_key(|rd| rd.version)
+        .ok_or_else(|| anyhow::anyhow!("No version found that matches `{}`", version_prefix))?;
 
     install_version(release)
 }

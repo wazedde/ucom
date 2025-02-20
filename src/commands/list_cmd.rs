@@ -39,19 +39,19 @@ pub(crate) fn list_versions(
 ) -> anyhow::Result<()> {
     match list_type {
         ListType::Installed => {
-            let installed = Installations::find(version_prefix)?;
+            let installed = Installations::find_installations(version_prefix)?;
             display_installed_versions(&installed, mode)
         }
         ListType::Updates => {
-            let installed = Installations::find(version_prefix)?;
+            let installed = Installations::find_installations(version_prefix)?;
             display_updates(&installed, mode)
         }
         ListType::Latest => {
-            let installed = Installations::try_find(version_prefix);
+            let installed = Installations::try_find_installations(version_prefix);
             display_latest_versions(installed.as_ref(), version_prefix, mode)
         }
         ListType::All => {
-            let installed = Installations::try_find(version_prefix);
+            let installed = Installations::try_find_installations(version_prefix);
             display_available_versions(installed.as_ref(), version_prefix, mode)
         }
     }
@@ -331,8 +331,7 @@ fn display_latest_versions(
     let max_len = minor_releases
         .iter()
         .map(|rd| rd.version.string_length())
-        .max()
-        .unwrap_or(0);
+        .fold(0, std::cmp::max);
 
     let mut previous_major = None;
     let mut iter = minor_releases.iter().peekable();
@@ -529,14 +528,13 @@ enum VersionType<'a> {
     NoReleaseInfo,
 }
 
-/// Returns the max length of the version strings ih the groups.
+/// Returns the max length of the version strings in the groups.
 fn find_max_version_length(version_groups: &VersionInfoGroups<'_>) -> usize {
     version_groups
         .iter()
         .flat_map(|v| v.iter())
         .map(|vi| vi.version.string_length())
-        .max()
-        .unwrap_or(0)
+        .fold(0, std::cmp::max)
 }
 
 /// Returns list of grouped versions that are in the same minor range.

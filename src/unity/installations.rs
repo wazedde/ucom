@@ -39,8 +39,10 @@ pub(crate) struct Installations {
 
 impl Installations {
     /// Returns a list of installed Unity versions or an error if no versions are found.
-    pub(crate) fn find(version_prefix: Option<&str>) -> anyhow::Result<Installations> {
-        let install_dir = Self::parent_dir()?.into_owned();
+    pub(crate) fn find_installations(
+        version_prefix: Option<&str>,
+    ) -> anyhow::Result<Installations> {
+        let install_dir = Self::editor_parent_dir()?.into_owned();
         let versions = VersionList::from_dir(&install_dir)?.filter_by_prefix(version_prefix)?;
         Ok(Installations {
             install_dir,
@@ -49,20 +51,22 @@ impl Installations {
     }
 
     /// Returns a list of installed Unity versions or `None` if no versions are found.
-    pub(crate) fn try_find(version_prefix: Option<&str>) -> Option<Installations> {
-        Self::find(version_prefix).ok()
+    pub(crate) fn try_find_installations(version_prefix: Option<&str>) -> Option<Installations> {
+        Self::find_installations(version_prefix).ok()
     }
 
     /// Returns the version of the latest-installed version that matches the given prefix.
-    pub(crate) fn latest(version_prefix: Option<&str>) -> anyhow::Result<Version> {
-        let version = *VersionList::from_dir(Self::parent_dir()?)?
+    pub(crate) fn latest_installed_version(
+        version_prefix: Option<&str>,
+    ) -> anyhow::Result<Version> {
+        let version = *VersionList::from_dir(Self::editor_parent_dir()?)?
             .filter_by_prefix(version_prefix)?
             .last();
         Ok(version)
     }
 
     /// Returns the parent directory of the editor installations.
-    fn parent_dir<'a>() -> anyhow::Result<Cow<'a, Path>> {
+    fn editor_parent_dir<'a>() -> anyhow::Result<Cow<'a, Path>> {
         // TODO: Cache the result as a static variable as it will not change during the program's lifetime.
         // Try to get the directory from the environment variable.
         if let Some(path) = env::var_os(ENV_EDITOR_DIR) {
@@ -93,12 +97,14 @@ impl Installations {
 
 impl Version {
     pub(crate) fn is_editor_installed(self) -> anyhow::Result<bool> {
-        Ok(Installations::parent_dir()?.join(self.to_string()).exists())
+        Ok(Installations::editor_parent_dir()?
+            .join(self.to_string())
+            .exists())
     }
 
     /// Returns the path to the editor executable.
     pub(crate) fn editor_executable_path(self) -> anyhow::Result<PathBuf> {
-        let exe_path = Installations::parent_dir()?
+        let exe_path = Installations::editor_parent_dir()?
             .join(self.to_string())
             .join(UNITY_EDITOR_EXE);
         if exe_path.exists() {
