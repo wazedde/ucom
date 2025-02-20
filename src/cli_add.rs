@@ -80,7 +80,7 @@ impl TemplateAsset {
             AssetSource::Remote(url) => {
                 let _ts =
                     StatusLine::new("Downloading", &format!("{} from {}...", self.filename, url));
-                Ok(Cow::Owned(content_cache::get_cached_content(url, false)?))
+                Ok(Cow::Owned(content_cache::fetch_content(url, false)?))
             }
         }
     }

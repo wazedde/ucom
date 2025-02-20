@@ -23,10 +23,10 @@ pub(crate) fn directory_walker(
 }
 
 fn is_hidden_directory(entry: &DirEntry) -> bool {
-    match entry.file_name().to_str() {
-        Some(s) => s.starts_with('.'),
-        None => false,
-    }
+    entry
+        .file_name()
+        .to_str()
+        .is_some_and(|s| s.starts_with('.'))
 }
 
 #[derive(Deserialize, Debug)]

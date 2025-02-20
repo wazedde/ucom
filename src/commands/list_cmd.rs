@@ -8,7 +8,7 @@ use crate::cli::ListType;
 use crate::commands::{println_b, println_b_if};
 use crate::unity::installations::{Installations, VersionList};
 use crate::unity::release_api::{
-    Mode, ReleaseCollection, SortedReleaseCollection, get_latest_releases, load_cached_releases,
+    Mode, ReleaseCollection, SortedReleaseCollection, fetch_latest_releases, load_cached_releases,
 };
 use crate::unity::release_api_data::ReleaseData;
 use crate::unity::vec1::Vec1;
@@ -69,7 +69,7 @@ fn display_installed_versions(installed: &Installations, mode: Mode) -> anyhow::
     let releases = if mode == Mode::Auto {
         load_cached_releases()?
     } else {
-        get_latest_releases(Mode::Force)?.into()
+        fetch_latest_releases(Mode::Force)?.into()
     };
 
     println_b!(
@@ -157,7 +157,7 @@ fn display_list_with_release_dates(installed: &VersionList, releases: &ReleaseCo
 /// └── LTS 6000.0.36f1 (2025-01-28) * https://unity.com/releases/editor/whats-new/6000.0.36#notes
 /// ```
 fn display_updates(installed: &Installations, mode: Mode) -> anyhow::Result<()> {
-    let releases = get_latest_releases(mode)?;
+    let releases = fetch_latest_releases(mode)?;
     println_b!(
         "Updates for Unity versions in: {} {}",
         installed.install_dir.display(),
@@ -312,7 +312,7 @@ fn display_latest_versions(
     version_prefix: Option<&str>,
     mode: Mode,
 ) -> anyhow::Result<()> {
-    let releases = get_latest_releases(mode)?;
+    let releases = fetch_latest_releases(mode)?;
     println_b!(
         "Latest available minor releases {}",
         format_suggested_version(&releases)
@@ -416,7 +416,7 @@ fn display_available_versions(
     version_prefix: Option<&str>,
     mode: Mode,
 ) -> anyhow::Result<()> {
-    let releases = get_latest_releases(mode)?;
+    let releases = fetch_latest_releases(mode)?;
     println_b!("Available releases {}", format_suggested_version(&releases));
 
     let releases = releases

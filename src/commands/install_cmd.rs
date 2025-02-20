@@ -1,9 +1,9 @@
-use crate::unity::release_api::{Mode, get_latest_releases};
+use crate::unity::release_api::{Mode, fetch_latest_releases};
 use crate::unity::release_api_data::ReleaseData;
 use yansi::Paint;
 
 pub(crate) fn install_latest_matching(version_prefix: &str, mode: Mode) -> anyhow::Result<()> {
-    let releases = get_latest_releases(mode)?;
+    let releases = fetch_latest_releases(mode)?;
     let release = releases
         .iter()
         .filter(|rd| rd.version.to_string().starts_with(version_prefix))

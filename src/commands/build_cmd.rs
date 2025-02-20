@@ -26,8 +26,8 @@ pub(crate) fn build_project(arguments: &BuildArguments) -> anyhow::Result<()> {
     let unity_version = project.unity_version()?;
     let editor_path = unity_version.editor_executable_path()?;
 
-    let output_path = arguments.get_output_path(&project)?;
-    let log_path = arguments.get_full_log_path(&project)?;
+    let output_path = arguments.output_path(&project)?;
+    let log_path = arguments.full_log_path(&project)?;
 
     let build_command = arguments.create_cmd(&project, &editor_path, &output_path, &log_path);
 
@@ -104,7 +104,7 @@ impl BuildArguments {
 
     /// Returns the full path to the log file.
     /// By default, the project's `Logs` directory is used as destination.
-    fn get_full_log_path(&self, project: &ProjectPath) -> anyhow::Result<PathBuf> {
+    fn full_log_path(&self, project: &ProjectPath) -> anyhow::Result<PathBuf> {
         let log_file = match self.log_file.as_deref() {
             Some(path) => path.to_owned(),
             _ => format!("Build-{}.log", self.target).into(),
@@ -126,7 +126,7 @@ impl BuildArguments {
         Ok(path)
     }
 
-    fn get_output_path(&self, project: &ProjectPath) -> anyhow::Result<PathBuf> {
+    fn output_path(&self, project: &ProjectPath) -> anyhow::Result<PathBuf> {
         let output_dir = match &self.build_path {
             Some(path) => path.absolutize()?.into(),
             None => {
@@ -166,7 +166,7 @@ impl BuildArguments {
                 BuildScriptTarget::from(self.target).as_ref(),
             ]);
 
-        let build_options = self.get_build_option_flags();
+        let build_options = self.build_option_flags();
         if build_options != (BuildOptions::None as i32) {
             cmd.args(["--ucom-build-options", &build_options.to_string()]);
         }
@@ -196,7 +196,7 @@ impl BuildArguments {
         cmd
     }
 
-    fn get_build_option_flags(&self) -> i32 {
+    fn build_option_flags(&self) -> i32 {
         let mut option_flags = 0;
         if self.run_player {
             option_flags |= BuildOptions::AutoRunPlayer as i32;

@@ -264,13 +264,13 @@ struct TestCase {
 }
 
 impl TestCase {
-    fn get_text(&self) -> Option<String> {
+    fn text(&self) -> Option<String> {
         self.elements.iter().find_map(|e| match e {
             TestCaseElement::Text(s) => Some(s.clone()),
             _ => None,
         })
     }
-    fn get_failure(&self) -> Option<&Failure> {
+    fn failure(&self) -> Option<&Failure> {
         self.elements.iter().find_map(|e| match e {
             TestCaseElement::Failure(f) => Some(f),
             _ => None,
@@ -297,7 +297,7 @@ impl TestSuite {
 
 impl From<&TestCase> for nunit::TestCase {
     fn from(value: &TestCase) -> Self {
-        let failure = value.get_failure();
+        let failure = value.failure();
         nunit::TestCase {
             id: value.id,
             name: value.name.clone(),
@@ -307,12 +307,10 @@ impl From<&TestCase> for nunit::TestCase {
             duration: value.duration,
             start_time: value.start_time,
             end_time: value.end_time,
-            text: value.get_text().unwrap_or_default(),
-            failure_message: failure.and_then(Failure::get_message).unwrap_or_default(),
-            failure_stack_trace: failure
-                .and_then(Failure::get_stack_trace)
-                .unwrap_or_default(),
-            failure_text: failure.and_then(Failure::get_text).unwrap_or_default(),
+            text: value.text().unwrap_or_default(),
+            failure_message: failure.and_then(Failure::message).unwrap_or_default(),
+            failure_stack_trace: failure.and_then(Failure::stack_trace).unwrap_or_default(),
+            failure_text: failure.and_then(Failure::text).unwrap_or_default(),
         }
     }
 }
@@ -339,20 +337,20 @@ struct Failure {
 }
 
 impl Failure {
-    fn get_message(&self) -> Option<String> {
+    fn message(&self) -> Option<String> {
         self.elements.iter().find_map(|e| match e {
             FailureElement::Message(m) => Some(m.text.clone()),
             _ => None,
         })
     }
-    fn get_stack_trace(&self) -> Option<String> {
+    fn stack_trace(&self) -> Option<String> {
         self.elements.iter().find_map(|e| match e {
             FailureElement::StackTrace(st) => Some(st.text.clone()),
             _ => None,
         })
     }
 
-    fn get_text(&self) -> Option<String> {
+    fn text(&self) -> Option<String> {
         self.elements.iter().find_map(|e| match e {
             FailureElement::Text(s) => Some(s.clone()),
             _ => None,

@@ -1,4 +1,4 @@
-use crate::unity::release_api::{Mode, SortedReleaseCollection, get_latest_releases};
+use crate::unity::release_api::{Mode, SortedReleaseCollection, fetch_latest_releases};
 use crate::unity::release_api_data::ReleaseData;
 use crate::unity::{BuildType, Major, Minor, Version};
 use serde::{Deserialize, Serialize};
@@ -56,7 +56,7 @@ pub(crate) fn find_available_updates(
     version: Version,
     mode: Mode,
 ) -> anyhow::Result<ReleaseUpdates> {
-    let releases = get_latest_releases(mode)?;
+    let releases = fetch_latest_releases(mode)?;
     let criteria = ReleaseCriteria::Minor {
         major: version.major,
         minor: version.minor,

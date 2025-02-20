@@ -1,14 +1,14 @@
 use crate::commands::status_line::StatusLine;
-use crate::unity::content_cache::get_cache_dir;
+use crate::unity::content_cache::ucom_cache_dir;
 use crate::unity::release_api_data::{ReleaseData, ReleaseDataPage};
-use crate::unity::{Version, content_cache};
+use crate::unity::{content_cache, Version};
 use anyhow::Context;
 use chrono::{DateTime, Utc};
-use content_cache::{is_expired, update_timestamp};
+use content_cache::{is_cache_file_expired, touch_file};
 use itertools::Itertools;
 use serde::{Deserialize, Serialize};
 use serde_json::json;
-use std::fs::{File, create_dir_all};
+use std::fs::{create_dir_all, File};
 use std::io::{BufReader, BufWriter};
 use std::ops::Deref;
 use std::path::Path;
@@ -108,11 +108,11 @@ fn fetch_releases_page(limit: usize, offset: usize) -> anyhow::Result<ReleaseDat
         .query("offset", offset.to_string())
         .query("order", "RELEASE_DATE_DESC")
         .call()
-        .context("Failed to fetch release data")?
+        .context("Failed to fetch Unity release data")?
         .into_body()
         .into_reader();
 
-    serde_json::from_reader(body).context("Failed to parse release data")
+    serde_json::from_reader(body).context("Failed to parse Unity release data")
 }
 
 /// Download release information from the Unity Release API.
@@ -120,7 +120,7 @@ fn fetch_releases_page(limit: usize, offset: usize) -> anyhow::Result<ReleaseDat
 /// by assuming there were no new releases if all releases in a page are already in the list.
 /// This is not perfect, but seems to be good enough for our use case.
 /// practice earlier releases can be added later.
-pub(crate) fn download_release_info<F>(
+pub(crate) fn fetch_release_info<F>(
     releases: &mut ReleaseCollection,
     callback: F,
 ) -> anyhow::Result<usize>
@@ -182,7 +182,7 @@ fn load_release_info(path: &Path) -> anyhow::Result<ReleaseCollection> {
 
 /// Loads the release info from the cache.
 pub(crate) fn load_cached_releases() -> anyhow::Result<ReleaseCollection> {
-    let path = get_cache_dir().join(RELEASES_FILENAME);
+    let path = ucom_cache_dir().join(RELEASES_FILENAME);
     if path.exists() {
         load_release_info(&path)
     } else {
@@ -197,36 +197,39 @@ pub(crate) enum Mode {
 }
 
 /// Downloads and caches the release info.
-pub(crate) fn get_latest_releases(mode: Mode) -> anyhow::Result<SortedReleaseCollection> {
-    let releases_path = get_cache_dir().join(RELEASES_FILENAME);
+pub(crate) fn fetch_latest_releases(mode: Mode) -> anyhow::Result<SortedReleaseCollection> {
+    let releases_path = ucom_cache_dir().join(RELEASES_FILENAME);
     let mut releases = if mode == Mode::Auto {
         load_cached_releases()?
     } else {
         ReleaseCollection::default()
     };
 
-    if mode == Mode::Auto && !is_expired(&releases_path) {
+    if mode == Mode::Auto && !is_cache_file_expired(&releases_path) {
         return Ok(SortedReleaseCollection::new(releases));
     }
 
-    let download_status = StatusLine::new("Downloading", "release data...");
-    let fetch_count = download_release_info(&mut releases, |count, total| {
+    let download_status = StatusLine::new("Downloading", "Unity release data...");
+    let fetch_count = fetch_release_info(&mut releases, |count, total| {
         let percentage = count as f64 / total as f64 * 100.0;
-        download_status.update("Downloading", &format!("release data ({:.2}%)", percentage));
+        download_status.update(
+            "Downloading",
+            &format!("Unity release data ({:.0}%)", percentage),
+        );
     })?;
 
     if fetch_count > 0 {
         releases.last_updated = Utc::now();
         let sorted_releases = SortedReleaseCollection::new(releases);
 
-        create_dir_all(get_cache_dir())?;
+        create_dir_all(ucom_cache_dir())?;
         serde_json::to_writer(
             BufWriter::new(File::create(&releases_path)?),
             &json!(sorted_releases.0),
         )?;
         Ok(sorted_releases)
     } else {
-        update_timestamp(&releases_path)?;
+        touch_file(&releases_path)?;
         Ok(SortedReleaseCollection::new(releases))
     }
 }

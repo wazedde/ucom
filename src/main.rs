@@ -5,7 +5,7 @@ use crate::unity::content_cache;
 use crate::unity::release_api::Mode;
 use anyhow::Context;
 use clap::Parser;
-use content_cache::{clear_cache, get_cache_dir, init_cache_from_env};
+use content_cache::{configure_cache_from_environment, delete_cache_directory, ucom_cache_dir};
 use yansi::Paint;
 
 mod cli;
@@ -29,7 +29,8 @@ fn main() -> anyhow::Result<()> {
         yansi::disable();
     }
 
-    init_cache_from_env().with_context(|| color_error("Cannot set cache from environment"))?;
+    configure_cache_from_environment()
+        .with_context(|| color_error("Cannot set cache from environment"))?;
 
     match command {
         Action::List {
@@ -85,18 +86,18 @@ fn main() -> anyhow::Result<()> {
         Action::Cache { action: command } => {
             match command {
                 CacheAction::Clear => {
-                    clear_cache();
-                    println!("Cleared cache at: {}", get_cache_dir().display());
+                    delete_cache_directory();
+                    println!("Cleared cache at: {}", ucom_cache_dir().display());
                 }
                 CacheAction::List => {
-                    let cache_dir = get_cache_dir();
+                    let cache_dir = ucom_cache_dir();
                     if !cache_dir.exists() {
                         println!("No cache found at: {}", cache_dir.display());
                         return Ok(());
                     }
 
                     println!("Cached files at: {}", cache_dir.display());
-                    for file in get_cache_dir().read_dir()? {
+                    for file in ucom_cache_dir().read_dir()? {
                         println!("{}{}", INDENT, file?.file_name().to_string_lossy());
                     }
                 }

@@ -54,7 +54,7 @@ fn download_and_print_release_notes(updates: &ReleaseUpdates) -> anyhow::Result<
         );
 
         let url = &release.release_notes.url;
-        let body = content_cache::get_cached_content(url, true)?;
+        let body = content_cache::fetch_content(url, true)?;
 
         println!();
         println!("## Release notes for [{}]({url})", release.version);
