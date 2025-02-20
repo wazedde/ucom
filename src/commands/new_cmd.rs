@@ -2,13 +2,13 @@ use std::env;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
-use anyhow::{anyhow, Context};
+use anyhow::{Context, anyhow};
 use path_absolutize::Absolutize;
 
 use crate::cli_add::UnityTemplateFile;
 use crate::cli_new::NewArguments;
 use crate::commands::status_line::StatusLine;
-use crate::commands::{add_file_to_project, println_b, INDENT, PERSISTENT_BUILD_SCRIPT_ROOT};
+use crate::commands::{INDENT, PERSISTENT_BUILD_SCRIPT_ROOT, add_file_to_project, println_b};
 use crate::unity::installations::Installations;
 use crate::unity::*;
 

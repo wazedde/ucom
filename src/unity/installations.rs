@@ -1,7 +1,7 @@
 use crate::cli::ENV_EDITOR_DIR;
-use crate::unity::vec1::{Vec1, Vec1Err};
 use crate::unity::Version;
-use anyhow::{anyhow, Context};
+use crate::unity::vec1::{Vec1, Vec1Err};
+use anyhow::{Context, anyhow};
 use itertools::Itertools;
 use std::borrow::Cow;
 use std::ops::Deref;

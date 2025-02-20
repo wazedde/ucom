@@ -3,7 +3,7 @@ use std::path::PathBuf;
 use anyhow::anyhow;
 
 use crate::cli_add::{AddArguments, AssetSource, UnityTemplateFile};
-use crate::commands::{add_file_to_project, PERSISTENT_BUILD_SCRIPT_ROOT};
+use crate::commands::{PERSISTENT_BUILD_SCRIPT_ROOT, add_file_to_project};
 use crate::unity::project::ProjectPath;
 
 pub(crate) fn add_to_project(args: &AddArguments) -> anyhow::Result<()> {

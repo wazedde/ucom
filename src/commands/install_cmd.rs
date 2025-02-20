@@ -1,4 +1,4 @@
-use crate::unity::release_api::{get_latest_releases, Mode};
+use crate::unity::release_api::{Mode, get_latest_releases};
 use crate::unity::release_api_data::ReleaseData;
 use yansi::Paint;
 

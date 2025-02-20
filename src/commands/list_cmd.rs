@@ -8,7 +8,7 @@ use crate::cli::ListType;
 use crate::commands::{println_b, println_b_if};
 use crate::unity::installations::{Installations, VersionList};
 use crate::unity::release_api::{
-    get_latest_releases, load_cached_releases, Mode, ReleaseCollection, SortedReleaseCollection,
+    Mode, ReleaseCollection, SortedReleaseCollection, get_latest_releases, load_cached_releases,
 };
 use crate::unity::release_api_data::ReleaseData;
 use crate::unity::vec1::Vec1;
@@ -339,7 +339,7 @@ fn display_latest_versions(
     while let Some(latest) = iter.next() {
         let is_last_in_range = iter
             .peek()
-            .map_or(true, |v| v.version.major != latest.version.major);
+            .is_none_or(|v| v.version.major != latest.version.major);
 
         print_slim_list_marker(
             Some(latest.version.major) != previous_major,
@@ -421,7 +421,7 @@ fn display_available_versions(
 
     let releases = releases
         .iter()
-        .filter(|r| version_prefix.map_or(true, |p| r.version.to_string().starts_with(p)))
+        .filter(|r| version_prefix.is_none_or(|p| r.version.to_string().starts_with(p)))
         .collect_vec();
 
     let Ok(versions) = VersionList::try_from(releases.iter().map(|r| r.version).collect_vec())
@@ -577,7 +577,7 @@ fn collect_latest_minor_releases<'a>(
 ) -> Vec<&'a ReleaseData> {
     releases
         .iter()
-        .filter(|r| version_prefix.map_or(true, |p| r.version.to_string().starts_with(p)))
+        .filter(|r| version_prefix.is_none_or(|p| r.version.to_string().starts_with(p)))
         .chunk_by(|r| (r.version.major, r.version.minor))
         .into_iter()
         .filter_map(|(_, group)| group.last()) // Get the latest version of each range.

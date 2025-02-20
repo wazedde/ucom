@@ -1,8 +1,8 @@
-use std::io::{stdout, IsTerminal, Write};
+use std::io::{IsTerminal, Write, stdout};
 
+use crossterm::ExecutableCommand;
 use crossterm::cursor::{RestorePosition, SavePosition};
 use crossterm::terminal::{Clear, ClearType};
-use crossterm::ExecutableCommand;
 use strum::{AsRefStr, Display};
 use yansi::{Color, Paint, Painted, Style};
 

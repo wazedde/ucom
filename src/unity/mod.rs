@@ -1,7 +1,7 @@
 use std::borrow::Cow;
 use std::path::Path;
 
-use anyhow::{anyhow, Context};
+use anyhow::{Context, anyhow};
 use path_absolutize::Absolutize;
 
 pub(crate) use crate::unity::project::*;

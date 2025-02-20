@@ -175,9 +175,16 @@ impl ProjectSettings {
 
         match (product_name, company_name, bundle_version) {
             (Some(product_name), Some(company_name), Some(bundle_version)) => {
-                Ok(ProjectSettings { product_name, company_name, bundle_version })
+                let setting = ProjectSettings {
+                    product_name,
+                    company_name,
+                    bundle_version,
+                };
+                Ok(setting)
             }
-            _ => Err(anyhow!("Could not find `productName` or `companyName` or `bundleVersion` in `ProjectSettings/ProjectSettings.asset`")),
+            _ => Err(anyhow!(
+                "Could not find `productName` or `companyName` or `bundleVersion` in `ProjectSettings/ProjectSettings.asset`"
+            )),
         }
     }
 

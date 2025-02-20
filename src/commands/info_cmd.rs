@@ -3,11 +3,11 @@ use std::path::Path;
 use yansi::Paint;
 
 use crate::cli::PackagesInfoLevel;
-use crate::commands::{install_latest_matching, println_b, INDENT};
+use crate::commands::{INDENT, install_latest_matching, println_b};
 use crate::unity::project::ProjectPath;
 use crate::unity::project::*;
 use crate::unity::release_api::Mode;
-use crate::unity::{release_notes_url, resolve_absolute_dir_path, Version};
+use crate::unity::{Version, release_notes_url, resolve_absolute_dir_path};
 
 /// Shows project information.
 pub(crate) fn project_info(

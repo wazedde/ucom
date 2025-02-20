@@ -1,13 +1,13 @@
 use std::path::Path;
-use std::process::{exit, Command};
+use std::process::{Command, exit};
 
 use anyhow::anyhow;
 use chrono::prelude::*;
 use yansi::{Paint, Style};
 
 use crate::cli_test::{ShowResults, TestArguments};
-use crate::commands::status_line::{apply_status_style, print_status, Status, StatusLine};
 use crate::commands::TimeDeltaExt;
+use crate::commands::status_line::{Status, StatusLine, apply_status_style, print_status};
 use crate::nunit::{TestCase, TestResult, TestRun};
 use crate::unity::project::ProjectPath;
 use crate::unity::{build_command_line, wait_with_stdout};

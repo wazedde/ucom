@@ -1,5 +1,5 @@
-use serde::{de, Serialize, Serializer};
 use serde::{Deserialize, Deserializer};
+use serde::{Serialize, Serializer, de};
 use std::fmt;
 use std::fmt::{Display, Formatter};
 use std::str::FromStr;

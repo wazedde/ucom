@@ -1,4 +1,4 @@
-use crate::unity::release_api::{get_latest_releases, Mode, SortedReleaseCollection};
+use crate::unity::release_api::{Mode, SortedReleaseCollection, get_latest_releases};
 use crate::unity::release_api_data::ReleaseData;
 use crate::unity::{BuildType, Major, Minor, Version};
 use serde::{Deserialize, Serialize};

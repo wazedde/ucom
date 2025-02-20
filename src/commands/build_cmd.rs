@@ -13,8 +13,8 @@ use uuid::Uuid;
 
 use crate::cli_add::UnityTemplateFile;
 use crate::cli_build::{BuildArguments, BuildMode, BuildOptions, BuildScriptTarget, InjectAction};
-use crate::commands::status_line::{print_status, Status, StatusLine};
-use crate::commands::{add_file_to_project, TimeDeltaExt, PERSISTENT_BUILD_SCRIPT_ROOT};
+use crate::commands::status_line::{Status, StatusLine, print_status};
+use crate::commands::{PERSISTENT_BUILD_SCRIPT_ROOT, TimeDeltaExt, add_file_to_project};
 use crate::unity::*;
 
 const AUTO_BUILD_SCRIPT_ROOT: &str = "Assets/Ucom";

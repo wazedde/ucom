@@ -3,8 +3,8 @@ use std::fmt::{Display, Formatter};
 use std::io::Read;
 use std::path::Path;
 use std::process::{Command, Stdio};
-use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::Duration;
 use std::{fs, io, thread};
 

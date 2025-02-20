@@ -4,7 +4,7 @@ use yansi::Paint;
 
 use crate::commands::install_cmd::install_version;
 use crate::commands::status_line::StatusLine;
-use crate::commands::{println_b, INDENT};
+use crate::commands::{INDENT, println_b};
 use crate::unity::release_api::{Mode, SortedReleaseCollection};
 use crate::unity::*;
 
