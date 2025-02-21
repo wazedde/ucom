@@ -3,7 +3,7 @@ use std::path::Path;
 use yansi::Paint;
 
 use crate::cli::PackagesInfoLevel;
-use crate::commands::{INDENT, install_latest_matching, println_b};
+use crate::commands::{INDENT, install_latest_matching, println_bold};
 use crate::unity::project::ProjectPath;
 use crate::unity::project::*;
 use crate::unity::release_api::Mode;
@@ -73,7 +73,7 @@ fn print_project_info(
     packages_level: PackagesInfoLevel,
 ) -> anyhow::Result<Version> {
     let unity_version = project.unity_version()?;
-    println_b!("Project info for: {}", project.as_path().display());
+    println_bold!("Project info for: {}", project.as_path().display());
 
     match ProjectSettings::from_project(project) {
         Ok(ps) => {
@@ -155,7 +155,7 @@ fn print_project_packages(
             }
 
             println!();
-            println_b!(
+            println_bold!(
                 "Packages: {} (L=local, E=embedded, G=git, T=tarball, R=registry, B=builtin)",
                 package_level,
             );

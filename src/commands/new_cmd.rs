@@ -8,7 +8,7 @@ use path_absolutize::Absolutize;
 use crate::cli_add::UnityTemplateFile;
 use crate::cli_new::NewArguments;
 use crate::commands::status_line::StatusLine;
-use crate::commands::{INDENT, PERSISTENT_BUILD_SCRIPT_ROOT, add_file_to_project, println_b};
+use crate::commands::{INDENT, PERSISTENT_BUILD_SCRIPT_ROOT, add_file_to_project, println_bold};
 use crate::unity::installations::Installations;
 use crate::unity::*;
 
@@ -45,7 +45,7 @@ pub(crate) fn new_project(arguments: NewArguments) -> anyhow::Result<()> {
     }
 
     if !arguments.quiet {
-        println_b!(
+        println_bold!(
             "Create new Unity {} project in: {}",
             version,
             project_dir.display()

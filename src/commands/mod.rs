@@ -68,14 +68,14 @@ fn create_file(file_path: impl AsRef<Path>, content: &str) -> anyhow::Result<()>
 }
 
 /// Version of `println!` that writes bold text.
-macro_rules! println_b {
+macro_rules! println_bold {
     ($($arg:tt)*) => {
         println!("{}", yansi::Paint::new(format!($($arg)*)).bold());
     };
 }
 
 /// Version of `println!` that writes bold text if the given condition is true.
-macro_rules! println_b_if {
+macro_rules! println_conditional_bold {
     ($bold:expr, $fmt:expr $(, $arg:expr)*) => {{
         if $bold {
             println!("{}", yansi::Paint::new(format!($fmt $(, $arg)*)).bold());
@@ -85,5 +85,5 @@ macro_rules! println_b_if {
     }};
 }
 
-pub(crate) use println_b;
-pub(crate) use println_b_if;
+pub(crate) use println_bold;
+pub(crate) use println_conditional_bold;

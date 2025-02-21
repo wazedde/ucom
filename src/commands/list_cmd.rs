@@ -5,7 +5,7 @@ use std::ops::{Deref, DerefMut};
 use yansi::Paint;
 
 use crate::cli::ListType;
-use crate::commands::{println_b, println_b_if};
+use crate::commands::{println_bold, println_conditional_bold};
 use crate::unity::installations::{Installations, VersionList};
 use crate::unity::release_api::{
     Mode, ReleaseCollection, SortedReleaseCollection, fetch_latest_releases, load_cached_releases,
@@ -72,7 +72,7 @@ fn display_installed_versions(installed: &Installations, mode: Mode) -> anyhow::
         fetch_latest_releases(Mode::Force)?.into()
     };
 
-    println_b!(
+    println_bold!(
         "Unity versions in: {} {}",
         installed.install_dir.display(),
         format_suggested_version(&releases)
@@ -135,7 +135,7 @@ fn display_list_with_release_dates(installed: &VersionList, releases: &ReleaseCo
                 format_release_stream_with_padding(rd.map_or(ReleaseStream::Other, |rd| rd.stream));
             print!("{padding}");
 
-            println_b_if!(
+            println_conditional_bold!(
                 is_suggested,
                 "{} {} ({}) {} {}",
                 stream,
@@ -158,7 +158,7 @@ fn display_list_with_release_dates(installed: &VersionList, releases: &ReleaseCo
 /// ```
 fn display_updates(installed: &Installations, mode: Mode) -> anyhow::Result<()> {
     let releases = fetch_latest_releases(mode)?;
-    println_b!(
+    println_bold!(
         "Updates for Unity versions in: {} {}",
         installed.install_dir.display(),
         format_suggested_version(&releases)
@@ -194,7 +194,7 @@ fn display_updates(installed: &Installations, mode: Mode) -> anyhow::Result<()> 
 
             match &info.version_type {
                 VersionType::HasLaterInstalled => {
-                    println_b_if!(
+                    println_conditional_bold!(
                         is_suggested,
                         "{} {} ({})",
                         stream,
@@ -205,7 +205,7 @@ fn display_updates(installed: &Installations, mode: Mode) -> anyhow::Result<()> 
                 VersionType::LatestInstalled => {
                     let last_in_group = info.version == group.last().version;
                     if last_in_group {
-                        println_b_if!(
+                        println_conditional_bold!(
                             is_suggested,
                             "{} {} ({}) {} Up to date",
                             stream.green(),
@@ -214,7 +214,7 @@ fn display_updates(installed: &Installations, mode: Mode) -> anyhow::Result<()> 
                             separator
                         );
                     } else {
-                        println_b_if!(
+                        println_conditional_bold!(
                             is_suggested,
                             "{} {} ({}) {} Update(s) available",
                             stream.yellow(),
@@ -225,7 +225,7 @@ fn display_updates(installed: &Installations, mode: Mode) -> anyhow::Result<()> 
                     };
                 }
                 VersionType::UpdateToLatest(release_info) => {
-                    println_b_if!(
+                    println_conditional_bold!(
                         is_suggested,
                         "{} {} ({}) {} {}",
                         stream.blue(),
@@ -236,7 +236,7 @@ fn display_updates(installed: &Installations, mode: Mode) -> anyhow::Result<()> 
                     );
                 }
                 VersionType::NoReleaseInfo => {
-                    println_b_if!(
+                    println_conditional_bold!(
                         is_suggested,
                         "{} {} ({}) {} {}",
                         stream,
@@ -313,7 +313,7 @@ fn display_latest_versions(
     mode: Mode,
 ) -> anyhow::Result<()> {
     let releases = fetch_latest_releases(mode)?;
-    println_b!(
+    println_bold!(
         "Latest available minor releases {}",
         format_suggested_version(&releases)
     );
@@ -417,7 +417,7 @@ fn display_available_versions(
     mode: Mode,
 ) -> anyhow::Result<()> {
     let releases = fetch_latest_releases(mode)?;
-    println_b!("Available releases {}", format_suggested_version(&releases));
+    println_bold!("Available releases {}", format_suggested_version(&releases));
 
     let releases = releases
         .iter()
@@ -456,7 +456,7 @@ fn display_available_versions(
             print!("{padding}");
 
             if is_installed {
-                println_b!(
+                println_bold!(
                     "{} {} ({}) - {} > installed",
                     stream.green(),
                     version.green(),
@@ -498,7 +498,7 @@ fn display_installed_versions_line(
     let release_date = latest.release_date.format("%Y-%m-%d");
 
     if is_up_to_date {
-        println_b!(
+        println_bold!(
             "{} {} ({}) - Installed: {}",
             stream.green(),
             version.green(),
@@ -506,7 +506,7 @@ fn display_installed_versions_line(
             joined_versions
         );
     } else {
-        println_b!(
+        println_bold!(
             "{} {} ({}) - Installed: {} - update available",
             stream.blue(),
             version.blue(),

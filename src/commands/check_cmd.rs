@@ -4,7 +4,7 @@ use yansi::Paint;
 
 use crate::commands::install_cmd::install_version;
 use crate::commands::status_line::StatusLine;
-use crate::commands::{INDENT, println_b};
+use crate::commands::{INDENT, println_bold};
 use crate::unity::release_api::{Mode, SortedReleaseCollection};
 use crate::unity::*;
 
@@ -99,7 +99,7 @@ fn print_project_header(project: &ProjectPath, create_report: bool) {
         print!("# ");
     }
 
-    println_b!("Unity updates for: `{}`", project.as_path().display());
+    println_bold!("Unity updates for: `{}`", project.as_path().display());
 
     if create_report {
         println!();
@@ -180,7 +180,7 @@ fn print_project_version(updates: &ReleaseUpdates, create_report: bool) -> anyho
 }
 
 fn print_available_updates(releases: &SortedReleaseCollection) -> anyhow::Result<()> {
-    println_b!("Available update(s):");
+    println_bold!("Available update(s):");
     let max_len = releases
         .iter()
         .map(|rd| rd.version.as_str().len())
