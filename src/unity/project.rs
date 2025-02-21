@@ -239,14 +239,9 @@ impl ProjectPath {
         // Read the 1st line.
         _ = reader.read_line(&mut line)?;
 
-        line.starts_with("m_EditorVersion:")
-            .then_some(line)
-            .and_then(|l| {
-                l.split(':') // Split the line,
-                    .nth(1) // and return 2nd element.
-                    .map(str::trim)
-                    .and_then(|v| v.parse().ok())
-            })
+        line.split_once(':')
+            .filter(|(k, _)| k.trim() == "m_EditorVersion")
+            .and_then(|(_, v)| v.trim().parse().ok())
             .ok_or_else(|| {
                 anyhow!(
                     "Could not get project version from `{}`",
