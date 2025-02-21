@@ -29,7 +29,6 @@ pub(crate) fn add_to_project(args: &AddArguments) -> anyhow::Result<()> {
     };
 
     let full_path = project
-        .as_path()
         .join(&destination_dir)
         .join(args.template.as_asset().filename);
 
@@ -53,5 +52,5 @@ pub(crate) fn add_to_project(args: &AddArguments) -> anyhow::Result<()> {
         _ = add_to_project(&temp_args);
     }
 
-    add_file_to_project(project.as_path(), destination_dir, args.template)
+    add_file_to_project(project, destination_dir, args.template)
 }

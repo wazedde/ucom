@@ -99,7 +99,7 @@ fn print_project_header(project: &ProjectPath, create_report: bool) {
         print!("# ");
     }
 
-    println_bold!("Unity updates for: `{}`", project.as_path().display());
+    println_bold!("Unity updates for: `{}`", project.display());
 
     if create_report {
         println!();

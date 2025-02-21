@@ -1,6 +1,7 @@
 use std::collections::BTreeMap;
 use std::fs::File;
 use std::io::{BufRead, BufReader, Read};
+use std::ops::Deref;
 use std::path::{Path, PathBuf};
 
 use anyhow::anyhow;
@@ -107,8 +108,7 @@ impl Packages {
         const MANIFEST_FILE: &str = "Packages/manifest.json";
         const PACKAGES_LOCK_FILE: &str = "Packages/packages-lock.json";
 
-        let project_dir = project.as_path();
-        let manifest_path = project_dir.join(MANIFEST_FILE);
+        let manifest_path = project.join(MANIFEST_FILE);
 
         if !manifest_path.exists() {
             return Ok(PackagesAvailability::NoManifest);
@@ -121,7 +121,7 @@ impl Packages {
             return Ok(PackagesAvailability::LockFileDisabled);
         }
 
-        let lock_file_path = project_dir.join(PACKAGES_LOCK_FILE);
+        let lock_file_path = project.join(PACKAGES_LOCK_FILE);
         if !lock_file_path.exists() {
             return Ok(PackagesAvailability::NoLockFile);
         }
@@ -142,7 +142,7 @@ pub(crate) struct ProjectSettings {
 impl ProjectSettings {
     pub(crate) fn from_project(project: &ProjectPath) -> anyhow::Result<Self> {
         const SETTINGS_FILE: &str = "ProjectSettings/ProjectSettings.asset";
-        let file = File::open(project.as_path().join(SETTINGS_FILE))?;
+        let file = File::open(project.join(SETTINGS_FILE))?;
         Self::from_reader(BufReader::new(file))
     }
 
@@ -207,6 +207,20 @@ fn test_project_settings_deserialization() {
 /// Represents a valid path to a Unity project.
 pub(crate) struct ProjectPath(PathBuf);
 
+impl AsRef<Path> for ProjectPath {
+    fn as_ref(&self) -> &Path {
+        self.0.as_path()
+    }
+}
+
+impl Deref for ProjectPath {
+    type Target = Path;
+
+    fn deref(&self) -> &Self::Target {
+        self.0.as_path()
+    }
+}
+
 impl ProjectPath {
     /// Creates a new `ProjectPath` from the given directory.
     pub(crate) fn try_from(path: impl AsRef<Path>) -> anyhow::Result<Self> {
@@ -221,14 +235,9 @@ impl ProjectPath {
         }
     }
 
-    /// Returns the absolute path to the project directory.
-    pub(crate) fn as_path(&self) -> &Path {
-        self.0.as_path()
-    }
-
     /// Returns the Unity version for the project in the given directory.
     pub(crate) fn unity_version(&self) -> anyhow::Result<Version> {
-        let version_file = self.as_path().join(VERSION_SUB_PATH);
+        let version_file = self.join(VERSION_SUB_PATH);
         let mut reader = BufReader::new(File::open(&version_file)?);
 
         // ProjectVersion.txt looks like this:
@@ -252,12 +261,12 @@ impl ProjectPath {
 
     /// Checks if the project directory has an `Assets` directory.
     pub(crate) fn ensure_assets_directory_exists(&self) -> anyhow::Result<()> {
-        if self.as_path().join("Assets").exists() {
+        if self.join("Assets").exists() {
             Ok(())
         } else {
             Err(anyhow!(
                 "Unity project does not have an `Assets` directory: `{}`",
-                self.as_path().display()
+                self.display()
             ))
         }
     }

@@ -38,7 +38,7 @@ pub(crate) fn build_project(arguments: &BuildArguments) -> anyhow::Result<()> {
     let build_text = format!(
         "Unity {unity_version} {} project in {}",
         arguments.target,
-        project.as_path().display()
+        project.display()
     );
 
     let build_status = if arguments.quiet {
@@ -79,7 +79,7 @@ pub(crate) fn build_project(arguments: &BuildArguments) -> anyhow::Result<()> {
         &format!(
             "building Unity {unity_version} {} project in {}",
             arguments.target,
-            project.as_path().display()
+            project.display()
         ),
         build_status,
     );
@@ -117,7 +117,7 @@ impl BuildArguments {
         let path = if log_file == file_name {
             // Log filename without the path was given,
             // use the project's `Logs` directory as destination.
-            project.as_path().join("Logs").join(file_name)
+            project.join("Logs").join(file_name)
         } else {
             log_file
         };
@@ -132,17 +132,16 @@ impl BuildArguments {
             None => {
                 // If no build path is given, use <project>/Builds/<target>
                 project
-                    .as_path()
                     .join("Builds")
                     .join(self.output_type.as_ref())
                     .join(self.target.as_ref())
             }
         };
 
-        if project.as_path() == output_dir {
+        if project.as_ref() == output_dir {
             return Err(anyhow!(
                 "Output directory cannot be the same as the project directory: {}",
-                project.as_path().display()
+                project.display()
             ));
         }
         Ok(output_dir)
@@ -156,7 +155,7 @@ impl BuildArguments {
     ) -> Command {
         // Build the command to execute.
         let mut cmd = Command::new(editor_exe);
-        cmd.args(["-projectPath", &project.as_path().to_string_lossy()])
+        cmd.args(["-projectPath", &project.to_string_lossy()])
             .args(["-buildTarget", self.target.as_ref()])
             .args(["-logFile", &log_file.to_string_lossy()])
             .args(["-executeMethod", &self.build_function])
@@ -345,9 +344,7 @@ impl BuildHooks {
 
 /// Creates actions that inject a script into the project before and after the build.
 fn csharp_build_script_injection_hooks(project: &ProjectPath, inject: InjectAction) -> BuildHooks {
-    let project_path = project.as_path();
-
-    let persistent_script_exists = project_path
+    let persistent_script_exists = project
         .join(PERSISTENT_BUILD_SCRIPT_ROOT)
         .join(UnityTemplateFile::Builder.as_asset().filename)
         .exists();
@@ -360,9 +357,9 @@ fn csharp_build_script_injection_hooks(project: &ProjectPath, inject: InjectActi
         InjectAction::Auto => {
             let uuid = Uuid::new_v4();
             let unique_dir_name = format!("{AUTO_BUILD_SCRIPT_ROOT}-{uuid}");
-            let closure_project_dir = project_path.to_path_buf();
+            let closure_project_dir = project.to_path_buf();
             let closure_script_dir = PathBuf::from(&unique_dir_name).join("Editor");
-            let closure_remove_dir = project_path.join(&unique_dir_name);
+            let closure_remove_dir = project.join(&unique_dir_name);
 
             BuildHooks::new(
                 Box::new(|| {
@@ -381,7 +378,7 @@ fn csharp_build_script_injection_hooks(project: &ProjectPath, inject: InjectActi
 
         // Build script is not present, inject it.
         InjectAction::Persistent => {
-            let closure_project_dir = project_path.to_path_buf();
+            let closure_project_dir = project.to_path_buf();
             let closure_script_dir = PathBuf::from(PERSISTENT_BUILD_SCRIPT_ROOT);
 
             BuildHooks::new(

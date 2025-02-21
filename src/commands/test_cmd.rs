@@ -25,7 +25,7 @@ pub(crate) fn run_tests(arguments: &TestArguments) -> anyhow::Result<()> {
         Utc::now().format("%Y%m%d%H%M%S")
     );
 
-    let output_path = project.as_path().join(test_results);
+    let output_path = project.join(test_results);
     let test_command = arguments.build_cmd(&project, &editor_exe, &output_path);
 
     if arguments.dry_run {
@@ -42,7 +42,7 @@ pub(crate) fn run_tests(arguments: &TestArguments) -> anyhow::Result<()> {
                 &format!(
                     "{} tests for project in {}",
                     &arguments.platform,
-                    project.as_path().display()
+                    project.display()
                 ),
             )
         };
@@ -92,7 +92,7 @@ fn print_results(
         &format!(
             "{} tests for project in {}; total time {:.2}s",
             &arguments.platform,
-            project.as_path().display(),
+            project.display(),
             Utc::now().signed_duration_since(start_time).as_seconds()
         ),
         status,
@@ -140,7 +140,7 @@ impl TestArguments {
     fn build_cmd(&self, project: &ProjectPath, editor_exe: &Path, output_dir: &Path) -> Command {
         // Build the command to execute.
         let mut cmd = Command::new(editor_exe);
-        cmd.args(["-projectPath", &project.as_path().to_string_lossy()]);
+        cmd.args(["-projectPath", &project.to_string_lossy()]);
         cmd.arg("-runTests");
         cmd.args(["-testPlatform", self.platform.as_ref()]);
 

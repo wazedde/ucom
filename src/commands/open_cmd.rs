@@ -27,7 +27,7 @@ pub(crate) fn open_project(arguments: OpenArguments) -> anyhow::Result<()> {
 
     // Build the command to execute.
     let mut cmd = Command::new(editor_exe);
-    cmd.args(["-projectPath", &project.as_path().to_string_lossy()]);
+    cmd.args(["-projectPath", &project.to_string_lossy()]);
 
     if let Some(target) = arguments.target {
         cmd.args(["-buildTarget", target.as_ref()]);
@@ -48,7 +48,7 @@ pub(crate) fn open_project(arguments: OpenArguments) -> anyhow::Result<()> {
         println_bold!(
             "Open Unity {} project in: {}",
             open_unity_version,
-            project.as_path().display()
+            project.display()
         );
     }
 
