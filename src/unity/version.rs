@@ -1,10 +1,10 @@
 use serde::{Deserialize, Deserializer};
 use serde::{Serialize, Serializer, de};
+use std::cell::RefCell;
 use std::collections::HashMap;
 use std::fmt;
 use std::fmt::{Display, Formatter};
 use std::str::FromStr;
-use std::sync::{Mutex, OnceLock};
 use strum::Display;
 
 #[derive(Debug, Eq, PartialEq)]
@@ -73,6 +73,26 @@ pub(crate) struct Version {
 }
 
 impl Version {
+    /// Returns the `major.minor` part of this version.
+    pub(crate) fn major_minor_string(self) -> String {
+        format!("{}.{}", self.major, self.minor)
+    }
+
+    /// Returns the cached string representation of this version.
+    pub(crate) fn as_str(self) -> &'static str {
+        // Use a thread-local cache as usage is predominantly single-threaded. This avoids having to use a Mutex.
+        thread_local! {
+            static VERSION_STRINGS: RefCell<HashMap<Version, &'static str>> = RefCell::new(HashMap::new());
+        }
+
+        VERSION_STRINGS.with(|versions| {
+            let mut versions = versions.borrow_mut();
+            *versions
+                .entry(self)
+                .or_insert_with(|| Box::leak(self.format_string().into_boxed_str()))
+        })
+    }
+
     /// Returns the length of the string representation of this version.
     fn string_length(self) -> usize {
         Self::count_digits(self.major.into())
@@ -83,11 +103,6 @@ impl Version {
             + 2 // The 2 dots
     }
 
-    /// Returns the `major.minor` part of this version.
-    pub(crate) fn major_minor_string(self) -> String {
-        format!("{}.{}", self.major, self.minor)
-    }
-
     fn count_digits(number: usize) -> usize {
         match number {
             0..=9 => 1,
@@ -95,27 +110,23 @@ impl Version {
             100..=999 => 3,
             1000..=9999 => 4,
             10000..=99999 => 5,
-            _ => number.to_string().len(),
+            _ => number.to_string().len(), // Fallback that, in theory, is never used.
         }
     }
-    pub(crate) fn as_str(self) -> &'static str {
-        static VERSIONS: OnceLock<Mutex<HashMap<Version, &'static str>>> = OnceLock::new();
-        let versions = VERSIONS.get_or_init(|| Mutex::new(HashMap::new()));
 
-        let mut guard = versions.lock().unwrap();
-        guard.entry(self).or_insert_with(|| {
-            let capacity = self.string_length();
-            let mut s = String::with_capacity(capacity);
-            // major.minor.patch.build_type.build
-            s.push_str(&self.major.to_string());
-            s.push('.');
-            s.push_str(&self.minor.to_string());
-            s.push('.');
-            s.push_str(&self.patch.to_string());
-            s.push_str(self.build_type.as_short_str());
-            s.push_str(&self.build.to_string());
-            Box::leak(s.into_boxed_str())
-        })
+    /// Formats this version into a string.
+    fn format_string(self) -> String {
+        let capacity = self.string_length();
+        let mut s = String::with_capacity(capacity);
+        // major.minor.patch.build_type.build
+        s.push_str(&self.major.to_string());
+        s.push('.');
+        s.push_str(&self.minor.to_string());
+        s.push('.');
+        s.push_str(&self.patch.to_string());
+        s.push_str(self.build_type.as_short_str());
+        s.push_str(&self.build.to_string());
+        s
     }
 }
 
@@ -155,8 +166,7 @@ impl FromStr for Version {
 
 impl Display for Version {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-        let str = self.as_str();
-        write!(f, "{}", str)
+        write!(f, "{}", self.as_str())
     }
 }
 
@@ -175,7 +185,8 @@ impl Serialize for Version {
     where
         S: Serializer,
     {
-        serializer.serialize_str(&self.to_string())
+        // Don't use `as_str` here as it caches the string
+        serializer.serialize_str(&self.format_string())
     }
 }
 
