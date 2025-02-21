@@ -209,10 +209,10 @@ pub(crate) fn fetch_latest_releases(mode: Mode) -> anyhow::Result<SortedReleaseC
         return Ok(SortedReleaseCollection::new(releases));
     }
 
-    let download_status = StatusLine::new("Downloading", "Unity release data...");
+    let status = StatusLine::new("Downloading", "Unity release data...");
     let fetch_count = fetch_release_info(&mut releases, |count, total| {
         let percentage = count as f64 / total as f64 * 100.0;
-        download_status.update(
+        status.update(
             "Downloading",
             &format!("Unity release data ({:.0}%)", percentage),
         );

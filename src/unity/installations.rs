@@ -3,7 +3,6 @@ use crate::unity::Version;
 use crate::unity::vec1::{Vec1, Vec1Err};
 use anyhow::{Context, anyhow};
 use itertools::Itertools;
-use std::borrow::Cow;
 use std::ops::Deref;
 use std::path::{Path, PathBuf};
 use std::sync::OnceLock;
@@ -43,7 +42,7 @@ impl Installations {
     pub(crate) fn find_installations(
         version_prefix: Option<&str>,
     ) -> anyhow::Result<Installations> {
-        let install_dir = Self::editor_parent_dir()?.into_owned();
+        let install_dir = Self::editor_parent_dir()?.to_path_buf();
         let versions = VersionList::from_dir(&install_dir)?.filter_by_prefix(version_prefix)?;
         Ok(Installations {
             install_dir,
@@ -67,11 +66,11 @@ impl Installations {
     }
 
     /// Returns the parent directory of the editor installations.
-    fn editor_parent_dir<'a>() -> anyhow::Result<Cow<'a, Path>> {
+    fn editor_parent_dir() -> anyhow::Result<&'static Path> {
         static EDITOR_PARENT_DIR: OnceLock<PathBuf> = OnceLock::new();
 
         if let Some(path) = EDITOR_PARENT_DIR.get() {
-            return Ok(Cow::Borrowed(path));
+            return Ok(path);
         }
 
         // Try to get the directory from the environment variable.
@@ -105,7 +104,7 @@ impl Installations {
             .set(path)
             .map_err(|_| anyhow!("Failed to set EDITOR_PARENT_DIR"))?;
 
-        Ok(Cow::Borrowed(EDITOR_PARENT_DIR.get().unwrap()))
+        Ok(EDITOR_PARENT_DIR.get().unwrap())
     }
 }
 
@@ -121,6 +120,7 @@ impl Version {
         let exe_path = Installations::editor_parent_dir()?
             .join(self.as_str())
             .join(UNITY_EDITOR_EXE);
+
         if exe_path.exists() {
             Ok(exe_path)
         } else {
