@@ -1,14 +1,14 @@
 use crate::commands::status_line::StatusLine;
 use crate::unity::content_cache::ucom_cache_dir;
 use crate::unity::release_api_data::{ReleaseData, ReleaseDataPage};
-use crate::unity::{content_cache, Version};
+use crate::unity::{Version, content_cache};
 use anyhow::Context;
 use chrono::{DateTime, Utc};
 use content_cache::{is_cache_file_expired, touch_file};
 use itertools::Itertools;
 use serde::{Deserialize, Serialize};
 use serde_json::json;
-use std::fs::{create_dir_all, File};
+use std::fs::{File, create_dir_all};
 use std::io::{BufReader, BufWriter};
 use std::ops::Deref;
 use std::path::Path;
@@ -38,7 +38,7 @@ impl Deref for ReleaseCollection {
 
 impl ReleaseCollection {
     pub(crate) fn has_version(&self, version: Version) -> bool {
-        // TODO: Use a HashSet for faster lookups
+        // No need to cache hits as each check is done once during the lifetime of the program.
         self.iter().any(|r| r.version == version)
     }
 

@@ -98,7 +98,7 @@ fn display_basic_list(installed: &VersionList) {
                 info.version == group.last().version,
             );
             let separator = '-';
-            let version_str = info.version.to_string();
+            let version_str = info.version.as_str();
 
             println!(
                 " {:<max_len$} {} {}",
@@ -122,7 +122,7 @@ fn display_list_with_release_dates(installed: &VersionList, releases: &ReleaseCo
             );
 
             let is_suggested = Some(info.version) == releases.suggested_version;
-            let version_str = format!("{:<max_len$}", info.version.to_string());
+            let version_str = format!("{:<max_len$}", info.version.as_str());
             let separator = if is_suggested { '*' } else { '-' };
 
             let rd = releases.iter().find(|p| p.version == info.version);
@@ -179,7 +179,7 @@ fn display_updates(installed: &Installations, mode: Mode) -> anyhow::Result<()> 
             );
 
             let is_suggested = Some(info.version) == releases.suggested_version;
-            let version_str = format!("{:<max_version_len$}", info.version.to_string());
+            let version_str = format!("{:<max_version_len$}", info.version.as_str());
             let separator = if is_suggested { '*' } else { '-' };
 
             let rd = releases
@@ -330,7 +330,7 @@ fn display_latest_versions(
 
     let max_len = minor_releases
         .iter()
-        .map(|rd| rd.version.string_length())
+        .map(|rd| rd.version.as_str().len())
         .fold(0, std::cmp::max);
 
     let mut previous_major = None;
@@ -394,7 +394,7 @@ fn format_release_stream_with_padding(stream: ReleaseStream) -> (String, String)
 }
 
 fn format_version_with_padding(version: Version, max_len: usize) -> String {
-    format!("{:<max_len$}", version.to_string())
+    format!("{:<max_len$}", version.as_str())
 }
 
 /// Prints list of available Unity versions.
@@ -421,7 +421,7 @@ fn display_available_versions(
 
     let releases = releases
         .iter()
-        .filter(|r| version_prefix.is_none_or(|p| r.version.to_string().starts_with(p)))
+        .filter(|r| version_prefix.is_none_or(|p| r.version.as_str().starts_with(p)))
         .collect_vec();
 
     let Ok(versions) = VersionList::try_from(releases.iter().map(|r| r.version).collect_vec())
@@ -533,7 +533,7 @@ fn find_max_version_length(version_groups: &VersionInfoGroups<'_>) -> usize {
     version_groups
         .iter()
         .flat_map(|v| v.iter())
-        .map(|vi| vi.version.string_length())
+        .map(|vi| vi.version.as_str().len())
         .fold(0, std::cmp::max)
 }
 
@@ -577,7 +577,7 @@ fn collect_latest_minor_releases<'a>(
 ) -> Vec<&'a ReleaseData> {
     releases
         .iter()
-        .filter(|r| version_prefix.is_none_or(|p| r.version.to_string().starts_with(p)))
+        .filter(|r| version_prefix.is_none_or(|p| r.version.as_str().starts_with(p)))
         .chunk_by(|r| (r.version.major, r.version.minor))
         .into_iter()
         .filter_map(|(_, group)| group.last()) // Get the latest version of each range.

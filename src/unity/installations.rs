@@ -6,6 +6,7 @@ use itertools::Itertools;
 use std::borrow::Cow;
 use std::ops::Deref;
 use std::path::{Path, PathBuf};
+use std::sync::OnceLock;
 use std::{env, fs};
 
 /// Sub path to the executable on macOS.
@@ -67,45 +68,58 @@ impl Installations {
 
     /// Returns the parent directory of the editor installations.
     fn editor_parent_dir<'a>() -> anyhow::Result<Cow<'a, Path>> {
-        // TODO: Cache the result as a static variable as it will not change during the program's lifetime.
-        // Try to get the directory from the environment variable.
-        if let Some(path) = env::var_os(ENV_EDITOR_DIR) {
-            // Use the directory set by the environment variable.
-            let path = Path::new(&path);
-            // If the directory does not exist or is not a directory, return an error.
-            (path.exists() && path.is_dir())
-                .then(|| path.to_owned().into())
-                .ok_or_else(|| {
-                    let path = path.display();
-                    anyhow!(
-                        "Editor directory set by `{ENV_EDITOR_DIR}` is not a valid directory: `{path}`"
-                    )
-                })
-        } else {
-            // Use the default directory.
-            let path = Path::new(UNITY_EDITOR_DIR);
-            // If the default directory does not exist, return an error.
-            path.exists().then(|| path.into()).ok_or_else(|| {
-                let path = path.display();
-                anyhow!(
-                    "Set `{ENV_EDITOR_DIR}` to the editor directory, the default directory does not exist: `{path}`"
-                )
-            })
+        static EDITOR_PARENT_DIR: OnceLock<PathBuf> = OnceLock::new();
+
+        if let Some(path) = EDITOR_PARENT_DIR.get() {
+            return Ok(Cow::Borrowed(path));
         }
+
+        // Try to get the directory from the environment variable.
+        let path = match env::var_os(ENV_EDITOR_DIR) {
+            Some(path) => {
+                // Use the directory set by the environment variable.
+                let path = Path::new(&path);
+                // If the directory does not exist or is not a directory, return an error.
+                if !path.is_dir() {
+                    return Err(anyhow!(
+                        "Editor directory set by `{ENV_EDITOR_DIR}` is not a valid directory: `{}`",
+                        path.display()
+                    ));
+                }
+                path.to_owned()
+            }
+            None => {
+                // Use the default directory.
+                let path = Path::new(UNITY_EDITOR_DIR);
+                if !path.is_dir() {
+                    return Err(anyhow!(
+                        "Editor directory set by `{ENV_EDITOR_DIR}` is not a valid directory: `{}`",
+                        path.display()
+                    ));
+                }
+                path.to_owned()
+            }
+        };
+
+        EDITOR_PARENT_DIR
+            .set(path)
+            .map_err(|_| anyhow!("Failed to set EDITOR_PARENT_DIR"))?;
+
+        Ok(Cow::Borrowed(EDITOR_PARENT_DIR.get().unwrap()))
     }
 }
 
 impl Version {
     pub(crate) fn is_editor_installed(self) -> anyhow::Result<bool> {
         Ok(Installations::editor_parent_dir()?
-            .join(self.to_string())
+            .join(self.as_str())
             .exists())
     }
 
     /// Returns the path to the editor executable.
     pub(crate) fn editor_executable_path(self) -> anyhow::Result<PathBuf> {
         let exe_path = Installations::editor_parent_dir()?
-            .join(self.to_string())
+            .join(self.as_str())
             .join(UNITY_EDITOR_EXE);
         if exe_path.exists() {
             Ok(exe_path)
@@ -173,7 +187,7 @@ impl VersionList {
         };
 
         let mut versions = self.into_vec();
-        versions.retain(|v| v.to_string().starts_with(version_prefix));
+        versions.retain(|v| v.as_str().starts_with(version_prefix));
 
         Vec1::try_from(versions).map(VersionList).map_err(|_| {
             anyhow!("No Unity installation was found that matches version `{version_prefix}`.")

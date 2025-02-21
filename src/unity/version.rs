@@ -1,8 +1,10 @@
 use serde::{Deserialize, Deserializer};
 use serde::{Serialize, Serializer, de};
+use std::collections::HashMap;
 use std::fmt;
 use std::fmt::{Display, Formatter};
 use std::str::FromStr;
+use std::sync::{Mutex, OnceLock};
 use strum::Display;
 
 #[derive(Debug, Eq, PartialEq)]
@@ -16,7 +18,7 @@ impl fmt::Display for ParseError {
     }
 }
 
-#[derive(Display, Debug, Eq, PartialEq, Ord, PartialOrd, Copy, Clone)]
+#[derive(Display, Debug, Eq, PartialEq, Ord, PartialOrd, Copy, Clone, Hash)]
 pub(crate) enum BuildType {
     Alpha,
     Beta,
@@ -61,7 +63,7 @@ pub(crate) type Patch = u8;
 pub(crate) type BuildNumber = u8;
 
 /// The Unity version separated into its components.
-#[derive(Debug, Eq, PartialEq, Ord, PartialOrd, Copy, Clone)]
+#[derive(Debug, Eq, PartialEq, Ord, PartialOrd, Copy, Clone, Hash)]
 pub(crate) struct Version {
     pub(crate) major: Major,
     pub(crate) minor: Minor,
@@ -72,7 +74,7 @@ pub(crate) struct Version {
 
 impl Version {
     /// Returns the length of the string representation of this version.
-    pub(crate) fn string_length(self) -> usize {
+    fn string_length(self) -> usize {
         Self::count_digits(self.major.into())
             + Self::count_digits(self.minor.into())
             + Self::count_digits(self.patch.into())
@@ -95,6 +97,25 @@ impl Version {
             10000..=99999 => 5,
             _ => number.to_string().len(),
         }
+    }
+    pub(crate) fn as_str(self) -> &'static str {
+        static VERSIONS: OnceLock<Mutex<HashMap<Version, &'static str>>> = OnceLock::new();
+        let versions = VERSIONS.get_or_init(|| Mutex::new(HashMap::new()));
+
+        let mut guard = versions.lock().unwrap();
+        guard.entry(self).or_insert_with(|| {
+            let capacity = self.string_length();
+            let mut s = String::with_capacity(capacity);
+            // major.minor.patch.build_type.build
+            s.push_str(&self.major.to_string());
+            s.push('.');
+            s.push_str(&self.minor.to_string());
+            s.push('.');
+            s.push_str(&self.patch.to_string());
+            s.push_str(self.build_type.as_short_str());
+            s.push_str(&self.build.to_string());
+            Box::leak(s.into_boxed_str())
+        })
     }
 }
 
@@ -134,15 +155,8 @@ impl FromStr for Version {
 
 impl Display for Version {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-        write!(
-            f,
-            "{}.{}.{}{}{}",
-            self.major,
-            self.minor,
-            self.patch,
-            self.build_type.as_short_str(),
-            self.build
-        )
+        let str = self.as_str();
+        write!(f, "{}", str)
     }
 }
 

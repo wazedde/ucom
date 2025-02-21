@@ -183,7 +183,7 @@ fn print_available_updates(releases: &SortedReleaseCollection) -> anyhow::Result
     println_b!("Available update(s):");
     let max_len = releases
         .iter()
-        .map(|rd| rd.version.string_length())
+        .map(|rd| rd.version.as_str().len())
         .max()
         .ok_or_else(|| anyhow!("No releases"))?;
 
@@ -192,7 +192,7 @@ fn print_available_updates(releases: &SortedReleaseCollection) -> anyhow::Result
 
         print!(
             "- {:<max_len$} ({}) - {}",
-            release.version.to_string().blue().bold(),
+            release.version.as_str().blue().bold(),
             release_date,
             release_notes_url(release.version).bright_blue(),
         );
