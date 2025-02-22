@@ -3,12 +3,15 @@ use std::path::Path;
 use yansi::Paint;
 
 use crate::commands::install_cmd::install_version;
-use crate::commands::status_line::StatusLine;
 use crate::commands::{INDENT, println_bold};
 use crate::unity::release_api::{Mode, SortedReleaseCollection};
-use crate::unity::*;
+use crate::unity::{
+    ProjectPath, ProjectSettings, ReleaseUpdates, find_available_updates, release_notes_url,
+};
+use crate::utils::content_cache;
+use crate::utils::status_line::StatusLine;
 
-pub(crate) fn find_project_updates(
+pub fn find_project_updates(
     project_dir: &Path,
     install_update: bool,
     create_report: bool,
@@ -62,7 +65,7 @@ fn download_and_print_release_notes(updates: &ReleaseUpdates) -> anyhow::Result<
         println!("[install in Unity HUB]({})", release.unity_hub_deep_link);
 
         println!();
-        println!("{}", body);
+        println!("{body}");
     }
     Ok(())
 }

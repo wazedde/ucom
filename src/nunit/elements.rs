@@ -10,7 +10,7 @@ use crate::nunit::{TestResult, TestStats};
 
 #[derive(Debug, Deserialize, PartialEq)]
 #[serde(rename = "test-run")]
-pub(crate) struct TestRun {
+pub struct TestRun {
     #[serde(rename = "@id")]
     id: i32,
 
@@ -58,11 +58,11 @@ pub(crate) struct TestRun {
 }
 
 impl TestRun {
-    pub(crate) fn test_result(&self) -> TestResult {
+    pub fn test_result(&self) -> TestResult {
         self.result.as_str().into()
     }
 
-    pub(crate) fn stats(&self) -> TestStats {
+    pub fn stats(&self) -> TestStats {
         TestStats {
             id: self.id,
             test_case_count: self.test_case_count,
@@ -79,7 +79,7 @@ impl TestRun {
         }
     }
 
-    pub(crate) fn collect_test_cases(&self) -> Vec<nunit::TestCase> {
+    pub fn collect_test_cases(&self) -> Vec<nunit::TestCase> {
         let mut test_cases = Vec::new();
         for element in &self.elements {
             match element {
@@ -96,7 +96,7 @@ impl FromStr for TestRun {
     type Err = DeError;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        quick_xml::de::from_str::<TestRun>(s)
+        quick_xml::de::from_str::<Self>(s)
     }
 }
 
@@ -298,7 +298,7 @@ impl TestSuite {
 impl From<&TestCase> for nunit::TestCase {
     fn from(value: &TestCase) -> Self {
         let failure = value.failure();
-        nunit::TestCase {
+        Self {
             id: value.id,
             name: value.name.clone(),
             full_name: value.full_name.clone(),

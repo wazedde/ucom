@@ -6,13 +6,13 @@ use crate::cli_add::{AddArguments, AssetSource, UnityTemplateFile};
 use crate::commands::{PERSISTENT_BUILD_SCRIPT_ROOT, add_file_to_project};
 use crate::unity::project::ProjectPath;
 
-pub(crate) fn add_to_project(args: &AddArguments) -> anyhow::Result<()> {
+pub fn add_to_project(args: &AddArguments) -> anyhow::Result<()> {
     if args.display_content {
         println!("{}", args.template.as_asset().load_content()?);
         return Ok(());
     } else if args.display_url {
         return if let AssetSource::Remote(url) = args.template.as_asset().content {
-            println!("{}", url);
+            println!("{url}");
             Ok(())
         } else {
             Err(anyhow!("File does not have a URL source"))

@@ -3,14 +3,14 @@ use std::path::PathBuf;
 
 use clap::{Args, ValueEnum};
 
-use crate::commands::status_line::StatusLine;
-use crate::unity::content_cache;
+use crate::utils::content_cache;
+use crate::utils::status_line::StatusLine;
 
 #[derive(Args)]
-pub(crate) struct AddArguments {
+pub struct AddArguments {
     /// The template file to be added to the project.
     #[arg(value_enum)]
-    pub(crate) template: UnityTemplateFile,
+    pub template: UnityTemplateFile,
 
     /// Defines the project's directory.
     #[arg(
@@ -19,7 +19,7 @@ pub(crate) struct AddArguments {
         default_value = ".",
         conflicts_with = "display_content"
     )]
-    pub(crate) project_dir: PathBuf,
+    pub project_dir: PathBuf,
 
     /// Overwrites existing template files.
     #[arg(
@@ -28,7 +28,7 @@ pub(crate) struct AddArguments {
         conflicts_with = "display_content",
         conflicts_with = "display_url"
     )]
-    pub(crate) force: bool,
+    pub force: bool,
 
     /// Displays the template's content to stdout instead of adding it.
     #[arg(
@@ -37,7 +37,7 @@ pub(crate) struct AddArguments {
         conflicts_with = "force",
         conflicts_with = "display_url"
     )]
-    pub(crate) display_content: bool,
+    pub display_content: bool,
 
     /// Displays the template's source URL.
     #[arg(
@@ -46,11 +46,11 @@ pub(crate) struct AddArguments {
         conflicts_with = "force",
         conflicts_with = "display_content"
     )]
-    pub(crate) display_url: bool,
+    pub display_url: bool,
 }
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, ValueEnum)]
-pub(crate) enum UnityTemplateFile {
+pub enum UnityTemplateFile {
     /// A C# helper script that handles project building.
     Builder,
     /// A C# helper script that adds build commands to Unity's menu (also adds 'builder').
@@ -61,20 +61,19 @@ pub(crate) enum UnityTemplateFile {
     GitAttributes,
 }
 
-pub(crate) struct TemplateAsset {
-    pub(crate) filename: &'static str,
-    pub(crate) content: AssetSource,
+pub struct TemplateAsset {
+    pub filename: &'static str,
+    pub content: AssetSource,
 }
 
-pub(crate) enum AssetSource {
-    #[allow(dead_code)]
+#[allow(dead_code)]
+pub enum AssetSource {
     Static(&'static str),
-    #[allow(dead_code)]
     Remote(&'static str),
 }
 
 impl TemplateAsset {
-    pub(crate) fn load_content<'a>(&self) -> anyhow::Result<Cow<'a, str>> {
+    pub fn load_content<'a>(&self) -> anyhow::Result<Cow<'a, str>> {
         match self.content {
             AssetSource::Static(content) => Ok(Cow::Borrowed(content)),
             AssetSource::Remote(url) => {
@@ -88,7 +87,7 @@ impl TemplateAsset {
 }
 
 impl UnityTemplateFile {
-    pub(crate) const fn as_asset(self) -> TemplateAsset {
+    pub const fn as_asset(self) -> TemplateAsset {
         match self {
             Self::Builder => TemplateAsset {
                 filename: "UnityBuilder.cs",

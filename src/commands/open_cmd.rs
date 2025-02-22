@@ -1,12 +1,12 @@
 use std::process::Command;
 
-use crate::cli::*;
+use crate::cli::OpenArguments;
 use crate::commands::println_bold;
 use crate::unity::installations::Installations;
-use crate::unity::*;
+use crate::unity::{ProjectPath, build_command_line, spawn_and_forget, wait_with_stdout};
 
 /// Opens the given Unity project in the Unity Editor.
-pub(crate) fn open_project(arguments: OpenArguments) -> anyhow::Result<()> {
+pub fn open_project(arguments: OpenArguments) -> anyhow::Result<()> {
     let project = ProjectPath::try_from(&arguments.project_dir)?;
     let project_unity_version = project.unity_version()?;
 

@@ -4,14 +4,14 @@ use clap::{Args, ValueEnum};
 use strum::{AsRefStr, Display};
 
 #[derive(Args)]
-pub(crate) struct BuildArguments {
+pub struct BuildArguments {
     /// Specifies the target platform for the build.
     #[arg(value_enum, env = crate::cli::ENV_BUILD_TARGET)]
-    pub(crate) target: BuildOpenTarget,
+    pub target: BuildOpenTarget,
 
     /// Defines the project's directory.
     #[arg(value_name = "DIRECTORY", value_hint = clap::ValueHint::DirPath, default_value = ".")]
-    pub(crate) project_dir: PathBuf,
+    pub project_dir: PathBuf,
 
     /// Sets the output directory for the build.
     /// If omitted, the build is placed in `PROJECT_DIR>/Builds/<TYPE>/<TARGET>`.
@@ -21,7 +21,7 @@ pub(crate) struct BuildArguments {
         value_name = "DIRECTORY",
         value_hint = clap::ValueHint::FilePath
     )]
-    pub(crate) build_path: Option<PathBuf>,
+    pub build_path: Option<PathBuf>,
 
     /// Sets the output type for the build.
     ///
@@ -33,53 +33,53 @@ pub(crate) struct BuildArguments {
         value_name = "TYPE",
         default_value = "release"
     )]
-    pub(crate) output_type: BuildOutputType,
+    pub output_type: BuildOutputType,
 
     /// Run the built player.
     ///
     /// Same as `--build-options auto-run-player`.
     #[arg(short = 'r', long("run"))]
-    pub(crate) run_player: bool,
+    pub run_player: bool,
 
     /// Build a development version of the player.
     ///
     /// Same as `--build-options development`.
     #[arg(short = 'd', long("development"))]
-    pub(crate) development_build: bool,
+    pub development_build: bool,
 
     /// Show the built player.
     ///
     /// Same as `--build-options show-built-player`.
     #[arg(short = 'S', long("show"))]
-    pub(crate) show_built_player: bool,
+    pub show_built_player: bool,
 
     /// Allow script debuggers to attach to the player remotely.
     ///
     /// Same as `--build-options allow-debugging`.
     #[arg(short = 'D', long("debugging"))]
-    pub(crate) allow_debugging: bool,
+    pub allow_debugging: bool,
 
     /// Start the player with a connection to the profiler in the editor.
     ///
     /// Same as `--build-options connect-with-profiler`.
     #[arg(short = 'p', long("profiling"))]
-    pub(crate) connect_with_profiler: bool,
+    pub connect_with_profiler: bool,
 
     /// Enables Deep Profiling support in the player.
     ///
     /// Same as `--build-options enable-deep-profiling-support`.
     #[arg(short = 'P', long("deep-profiling"))]
-    pub(crate) deep_profiling: bool,
+    pub deep_profiling: bool,
 
     /// Sets the Player to connect to the Editor.
     ///
     /// Same as `--build-options connect-to-host`.
     #[arg(short = 'H', long("connect-host"))]
-    pub(crate) connect_to_host: bool,
+    pub connect_to_host: bool,
 
     /// Sets the build options. Multiple options can be combined by separating them with spaces.
     #[arg(num_args(0..), short = 'O', long, value_name = "OPTION", default_value = "none")]
-    pub(crate) build_options: Vec<BuildOptions>,
+    pub build_options: Vec<BuildOptions>,
 
     /// A string to be passed directly to functions tagged with the `UcomPreProcessBuild` attribute.
     ///
@@ -87,19 +87,19 @@ pub(crate) struct BuildArguments {
     /// like e.g., a release, debug or test build tag or a version number.
     /// This requires the use of ucom's injected build script as it passes the arguments through.
     #[arg(short = 'a', long, value_name = "STRING")]
-    pub(crate) build_args: Option<String>,
+    pub build_args: Option<String>,
 
     /// Removes directories from the output directory not needed for distribution.
     #[arg(short = 'C', long)]
-    pub(crate) clean: bool,
+    pub clean: bool,
 
     /// Determines the method of build script injection.
     #[arg(short = 'i', long, value_name = "METHOD", default_value = "auto")]
-    pub(crate) inject: InjectAction,
+    pub inject: InjectAction,
 
     /// Defines the build mode.
     #[arg(short = 'm', long, value_name = "MODE", default_value = "batch")]
-    pub(crate) mode: BuildMode,
+    pub mode: BuildMode,
 
     /// Specifies the static method in the Unity project used for building the project.
     #[arg(
@@ -108,27 +108,27 @@ pub(crate) struct BuildArguments {
         value_name = "FUNCTION",
         default_value = "Ucom.UnityBuilder.Build"
     )]
-    pub(crate) build_function: String,
+    pub build_function: String,
 
     /// Designates the log file for Unity's build output. By default, log is written to the project's `Logs` directory.
     #[arg(short = 'l', long, value_name = "FILE")]
-    pub(crate) log_file: Option<PathBuf>,
+    pub log_file: Option<PathBuf>,
 
     /// Suppresses build log output to stdout.
     #[arg(short = 'q', long)]
-    pub(crate) quiet: bool,
+    pub quiet: bool,
 
     /// Displays the command to be run without actually executing it.
     #[arg(short = 'n', long)]
-    pub(crate) dry_run: bool,
+    pub dry_run: bool,
 
     /// A list of arguments to be passed directly to Unity.
     #[arg(last = true, value_name = "UNITY_ARGS")]
-    pub(crate) args: Option<Vec<String>>,
+    pub args: Option<Vec<String>>,
 }
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, ValueEnum)]
-pub(crate) enum InjectAction {
+pub enum InjectAction {
     /// Inject a build script if none exists, and remove it post-build.
     Auto,
     /// Inject a build script into the project and retain it post-build.
@@ -138,7 +138,7 @@ pub(crate) enum InjectAction {
 }
 
 #[derive(Display, AsRefStr, Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, ValueEnum)]
-pub(crate) enum BuildOutputType {
+pub enum BuildOutputType {
     /// Build output is written to the `Builds/Release` directory.
     Release,
     /// Build output is written to the `Builds/Debug` directory.
@@ -146,7 +146,7 @@ pub(crate) enum BuildOutputType {
 }
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, ValueEnum)]
-pub(crate) enum BuildMode {
+pub enum BuildMode {
     /// Execute build in 'batch' mode and await completion.
     #[value(name = "batch")]
     Batch,
@@ -167,7 +167,7 @@ pub(crate) enum BuildMode {
 /// The build target to open the project with.
 #[derive(Display, AsRefStr, Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, ValueEnum)]
 #[allow(non_camel_case_types)]
-pub(crate) enum OpenTarget {
+pub enum OpenTarget {
     Standalone,
     #[value(name = "win32")]
     Win,
@@ -192,7 +192,7 @@ pub(crate) enum OpenTarget {
 /// The build target to open the project to build with.
 #[derive(Display, AsRefStr, Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, ValueEnum)]
 #[allow(non_camel_case_types)]
-pub(crate) enum BuildOpenTarget {
+pub enum BuildOpenTarget {
     #[value(name = "win32")]
     Win,
     #[value(name = "win64")]
@@ -212,7 +212,7 @@ pub(crate) enum BuildOpenTarget {
 /// The build target to pass to the Unity build script.
 #[derive(Display, AsRefStr, Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, ValueEnum)]
 #[allow(non_camel_case_types)]
-pub(crate) enum BuildScriptTarget {
+pub enum BuildScriptTarget {
     StandaloneOSX,
     StandaloneWindows,
     StandaloneWindows64,
@@ -238,7 +238,7 @@ impl From<BuildOpenTarget> for BuildScriptTarget {
 
 /// Building options. Multiple options can be combined.
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, ValueEnum)]
-pub(crate) enum BuildOptions {
+pub enum BuildOptions {
     /// Perform the specified build without any special settings or extra tasks.
     None = 0,
 

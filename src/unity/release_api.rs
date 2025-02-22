@@ -1,10 +1,10 @@
-use crate::commands::status_line::StatusLine;
-use crate::unity::content_cache::ucom_cache_dir;
+use crate::unity::Version;
 use crate::unity::release_api_data::{ReleaseData, ReleaseDataPage};
-use crate::unity::{Version, content_cache};
+use crate::utils::content_cache::ucom_cache_dir;
+use crate::utils::content_cache::{is_cache_file_expired, touch_file};
+use crate::utils::status_line::StatusLine;
 use anyhow::Context;
 use chrono::{DateTime, Utc};
-use content_cache::{is_cache_file_expired, touch_file};
 use itertools::Itertools;
 use serde::{Deserialize, Serialize};
 use serde_json::json;
@@ -12,13 +12,12 @@ use std::fs::{File, create_dir_all};
 use std::io::{BufReader, BufWriter};
 use std::ops::Deref;
 use std::path::Path;
-
 const RELEASES_API_URL: &str = "https://services.api.unity.com/unity/editor/release/v1/releases";
 const RELEASES_FILENAME: &str = "releases_dataset.json";
 
 #[allow(dead_code)]
 #[derive(Debug, Serialize, Deserialize)]
-pub(crate) struct ReleaseCollection {
+pub struct ReleaseCollection {
     #[serde(rename = "lastUpdated")]
     pub last_updated: DateTime<Utc>,
     #[serde(rename = "suggestedVersion")]
@@ -37,19 +36,19 @@ impl Deref for ReleaseCollection {
 }
 
 impl ReleaseCollection {
-    pub(crate) fn has_version(&self, version: Version) -> bool {
+    pub fn has_version(&self, version: Version) -> bool {
         // No need to cache hits as each check is done once during the lifetime of the program.
         self.iter().any(|r| r.version == version)
     }
 
-    pub(crate) fn into_iter(self) -> impl Iterator<Item = ReleaseData> {
+    pub fn into_iter(self) -> impl Iterator<Item = ReleaseData> {
         self.releases.into_iter()
     }
 }
 
 impl Default for ReleaseCollection {
     fn default() -> Self {
-        ReleaseCollection {
+        Self {
             last_updated: Utc::now(),
             suggested_version: None,
             releases: Vec::new(),
@@ -58,7 +57,7 @@ impl Default for ReleaseCollection {
 }
 
 /// Wrapper around the releases that sorts the releases by version in ascending order.
-pub(crate) struct SortedReleaseCollection(ReleaseCollection);
+pub struct SortedReleaseCollection(ReleaseCollection);
 
 impl Deref for SortedReleaseCollection {
     type Target = ReleaseCollection;
@@ -78,17 +77,17 @@ impl From<SortedReleaseCollection> for ReleaseCollection {
 #[allow(dead_code)]
 impl SortedReleaseCollection {
     /// Sorts the releases by version in ascending order.
-    pub(crate) fn new(mut collection: ReleaseCollection) -> Self {
+    pub fn new(mut collection: ReleaseCollection) -> Self {
         collection.releases.sort_unstable_by_key(|r| r.version);
-        SortedReleaseCollection(collection)
+        Self(collection)
     }
 
     /// Returns filtered releases.
-    pub(crate) fn filter<F>(self, predicate: F) -> Self
+    pub fn filter<F>(self, predicate: F) -> Self
     where
         F: Fn(&ReleaseData) -> bool,
     {
-        SortedReleaseCollection(ReleaseCollection {
+        Self(ReleaseCollection {
             last_updated: self.last_updated,
             suggested_version: self.suggested_version,
             releases: self.0.into_iter().filter(predicate).collect_vec(),
@@ -96,8 +95,62 @@ impl SortedReleaseCollection {
     }
 
     /// Removes and returns the release at the given index.
-    pub(crate) fn remove(&mut self, index: usize) -> ReleaseData {
+    pub fn remove(&mut self, index: usize) -> ReleaseData {
         self.0.releases.remove(index)
+    }
+}
+
+/// Loads the release info from the cache.
+pub fn load_cached_releases() -> anyhow::Result<ReleaseCollection> {
+    let path = ucom_cache_dir()?.join(RELEASES_FILENAME);
+    if path.exists() {
+        load_release_info(&path)
+    } else {
+        Ok(ReleaseCollection::default())
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Mode {
+    Auto,
+    Force,
+}
+
+/// Downloads and caches the release info.
+pub fn fetch_latest_releases(mode: Mode) -> anyhow::Result<SortedReleaseCollection> {
+    let releases_path = ucom_cache_dir()?.join(RELEASES_FILENAME);
+    let mut releases = if mode == Mode::Auto {
+        load_cached_releases()?
+    } else {
+        ReleaseCollection::default()
+    };
+
+    if mode == Mode::Auto && !is_cache_file_expired(&releases_path) {
+        return Ok(SortedReleaseCollection::new(releases));
+    }
+
+    let status = StatusLine::new("Downloading", "Unity release data...");
+    let fetch_count = fetch_release_info(&mut releases, |count, total| {
+        let percentage = count as f64 / total as f64 * 100.0;
+        status.update(
+            "Downloading",
+            &format!("Unity release data ({percentage:.0}%)"),
+        );
+    })?;
+
+    if fetch_count > 0 {
+        releases.last_updated = Utc::now();
+        let sorted_releases = SortedReleaseCollection::new(releases);
+
+        create_dir_all(ucom_cache_dir()?)?;
+        serde_json::to_writer(
+            BufWriter::new(File::create(&releases_path)?),
+            &json!(sorted_releases.0),
+        )?;
+        Ok(sorted_releases)
+    } else {
+        touch_file(&releases_path)?;
+        Ok(SortedReleaseCollection::new(releases))
     }
 }
 
@@ -120,10 +173,7 @@ fn fetch_releases_page(limit: usize, offset: usize) -> anyhow::Result<ReleaseDat
 /// by assuming there were no new releases if all releases in a page are already in the list.
 /// This is not perfect, but seems to be good enough for our use case.
 /// practice earlier releases can be added later.
-pub(crate) fn fetch_release_info<F>(
-    releases: &mut ReleaseCollection,
-    callback: F,
-) -> anyhow::Result<usize>
+fn fetch_release_info<F>(releases: &mut ReleaseCollection, callback: F) -> anyhow::Result<usize>
 where
     F: Fn(usize, usize),
 {
@@ -178,58 +228,4 @@ fn load_release_info(path: &Path) -> anyhow::Result<ReleaseCollection> {
     let reader = BufReader::new(file);
     let releases: ReleaseCollection = serde_json::from_reader(reader)?;
     Ok(releases)
-}
-
-/// Loads the release info from the cache.
-pub(crate) fn load_cached_releases() -> anyhow::Result<ReleaseCollection> {
-    let path = ucom_cache_dir().join(RELEASES_FILENAME);
-    if path.exists() {
-        load_release_info(&path)
-    } else {
-        Ok(ReleaseCollection::default())
-    }
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(crate) enum Mode {
-    Auto,
-    Force,
-}
-
-/// Downloads and caches the release info.
-pub(crate) fn fetch_latest_releases(mode: Mode) -> anyhow::Result<SortedReleaseCollection> {
-    let releases_path = ucom_cache_dir().join(RELEASES_FILENAME);
-    let mut releases = if mode == Mode::Auto {
-        load_cached_releases()?
-    } else {
-        ReleaseCollection::default()
-    };
-
-    if mode == Mode::Auto && !is_cache_file_expired(&releases_path) {
-        return Ok(SortedReleaseCollection::new(releases));
-    }
-
-    let status = StatusLine::new("Downloading", "Unity release data...");
-    let fetch_count = fetch_release_info(&mut releases, |count, total| {
-        let percentage = count as f64 / total as f64 * 100.0;
-        status.update(
-            "Downloading",
-            &format!("Unity release data ({:.0}%)", percentage),
-        );
-    })?;
-
-    if fetch_count > 0 {
-        releases.last_updated = Utc::now();
-        let sorted_releases = SortedReleaseCollection::new(releases);
-
-        create_dir_all(ucom_cache_dir())?;
-        serde_json::to_writer(
-            BufWriter::new(File::create(&releases_path)?),
-            &json!(sorted_releases.0),
-        )?;
-        Ok(sorted_releases)
-    } else {
-        touch_file(&releases_path)?;
-        Ok(SortedReleaseCollection::new(releases))
-    }
 }

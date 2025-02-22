@@ -3,10 +3,10 @@ use std::process::Command;
 use crate::cli_run::RunArguments;
 use crate::commands::println_bold;
 use crate::unity::installations::Installations;
-use crate::unity::*;
+use crate::unity::{build_command_line, spawn_and_forget, wait_with_stdout};
 
 /// Runs the Unity Editor with the given arguments.
-pub(crate) fn run_unity(arguments: RunArguments) -> anyhow::Result<()> {
+pub fn run_unity(arguments: RunArguments) -> anyhow::Result<()> {
     let unity_version = Installations::latest_installed_version(Some(&arguments.version_pattern))?;
     let editor_exe = unity_version.editor_executable_path()?;
 

@@ -2,7 +2,7 @@ use crate::unity::release_api::{Mode, fetch_latest_releases};
 use crate::unity::release_api_data::ReleaseData;
 use yansi::Paint;
 
-pub(crate) fn install_latest_matching(version_prefix: &str, mode: Mode) -> anyhow::Result<()> {
+pub fn install_latest_matching(version_prefix: &str, mode: Mode) -> anyhow::Result<()> {
     let releases = fetch_latest_releases(mode)?;
     let release = releases
         .iter()
@@ -13,7 +13,7 @@ pub(crate) fn install_latest_matching(version_prefix: &str, mode: Mode) -> anyho
     install_version(release)
 }
 
-pub(crate) fn install_version(release: &ReleaseData) -> anyhow::Result<()> {
+pub fn install_version(release: &ReleaseData) -> anyhow::Result<()> {
     if release.version.is_editor_installed()? {
         anyhow::bail!("Version {} is already installed", release.version);
     }

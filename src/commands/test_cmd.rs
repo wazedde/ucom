@@ -7,12 +7,12 @@ use yansi::{Paint, Style};
 
 use crate::cli_test::{ShowResults, TestArguments};
 use crate::commands::TimeDeltaExt;
-use crate::commands::status_line::{Status, StatusLine, apply_status_style, print_status};
 use crate::nunit::{TestCase, TestResult, TestRun};
 use crate::unity::project::ProjectPath;
 use crate::unity::{build_command_line, wait_with_stdout};
+use crate::utils::status_line::{MessageType, StatusLine};
 
-pub(crate) fn run_tests(arguments: &TestArguments) -> anyhow::Result<()> {
+pub fn run_tests(arguments: &TestArguments) -> anyhow::Result<()> {
     let start_time = Utc::now();
     let project = ProjectPath::try_from(&arguments.project_dir)?;
     let project_unity_version = project.unity_version()?;
@@ -65,8 +65,8 @@ pub(crate) fn run_tests(arguments: &TestArguments) -> anyhow::Result<()> {
 
     if !arguments.quiet {
         let status = match tests_result {
-            Ok(()) => Status::Ok,
-            Err(_) => Status::Error,
+            Ok(()) => MessageType::Ok,
+            Err(_) => MessageType::Error,
         };
 
         print_results(arguments, &start_time, &project, &output_path, status)?;
@@ -85,9 +85,9 @@ fn print_results(
     start_time: &DateTime<Utc>,
     project: &ProjectPath,
     output_path: &Path,
-    status: Status,
+    status: MessageType,
 ) -> anyhow::Result<()> {
-    print_status(
+    MessageType::print_line(
         "Finished",
         &format!(
             "{} tests for project in {}; total time {:.2}s",
@@ -99,7 +99,7 @@ fn print_results(
     );
 
     let test_run = TestRun::from_file(output_path)?;
-    print_status("Report", &output_path.to_string_lossy(), status);
+    MessageType::print_line("Report", &output_path.to_string_lossy(), status);
 
     match arguments.show_results {
         ShowResults::Errors => {
@@ -130,7 +130,7 @@ fn print_results(
 
     println!(
         "Result: {}. {}",
-        apply_status_style(status.as_ref(), status),
+        MessageType::format_text(status.as_ref(), status),
         results,
     );
     Ok(())
@@ -186,14 +186,14 @@ fn print_test_cases<'a>(test_cases: impl Iterator<Item = &'a TestCase>) {
 
     for tc in test_cases {
         let (name_style, status) = if tc.result == TestResult::Passed {
-            (Style::new(), Status::Ok)
+            (Style::new(), MessageType::Ok)
         } else {
-            (Style::new().red(), Status::Error)
+            (Style::new().red(), MessageType::Error)
         };
 
         println!(
             "{}: {}; finished in {:.2}s",
-            apply_status_style(tc.result.as_ref(), status),
+            MessageType::format_text(tc.result.as_ref(), status),
             tc.full_name.paint(name_style),
             tc.duration,
         );

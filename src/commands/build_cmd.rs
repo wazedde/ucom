@@ -13,14 +13,14 @@ use uuid::Uuid;
 
 use crate::cli_add::UnityTemplateFile;
 use crate::cli_build::{BuildArguments, BuildMode, BuildOptions, BuildScriptTarget, InjectAction};
-use crate::commands::status_line::{Status, StatusLine, print_status};
 use crate::commands::{PERSISTENT_BUILD_SCRIPT_ROOT, TimeDeltaExt, add_file_to_project};
-use crate::unity::*;
+use crate::unity::{ProjectPath, build_command_line, wait_with_log_output, wait_with_stdout};
+use crate::utils::status_line::{MessageType, StatusLine};
 
 const AUTO_BUILD_SCRIPT_ROOT: &str = "Assets/Ucom";
 
 /// Runs the build command.
-pub(crate) fn build_project(arguments: &BuildArguments) -> anyhow::Result<()> {
+pub fn build_project(arguments: &BuildArguments) -> anyhow::Result<()> {
     let start_time = Utc::now();
     let project = ProjectPath::try_from(&arguments.project_dir)?;
     let unity_version = project.unity_version()?;
@@ -44,7 +44,7 @@ pub(crate) fn build_project(arguments: &BuildArguments) -> anyhow::Result<()> {
     let build_status = if arguments.quiet {
         StatusLine::new("Building", &build_text)
     } else {
-        print_status("Building", &build_text, Status::Info);
+        MessageType::print_line("Building", &build_text, MessageType::Info);
         StatusLine::new_silent()
     };
 
@@ -69,12 +69,12 @@ pub(crate) fn build_project(arguments: &BuildArguments) -> anyhow::Result<()> {
         if arguments.clean {
             clean_output_directory(&output_path)?;
         }
-        (Status::Ok, "Succeeded")
+        (MessageType::Ok, "Succeeded")
     } else {
-        (Status::Error, "Failed")
+        (MessageType::Error, "Failed")
     };
 
-    print_status(
+    MessageType::print_line(
         log_tag,
         &format!(
             "building Unity {unity_version} {} project in {}",
@@ -84,7 +84,7 @@ pub(crate) fn build_project(arguments: &BuildArguments) -> anyhow::Result<()> {
         build_status,
     );
 
-    print_status(
+    MessageType::print_line(
         "Total time",
         &format!(
             "{:.2}s",
@@ -105,10 +105,10 @@ impl BuildArguments {
     /// Returns the full path to the log file.
     /// By default, the project's `Logs` directory is used as destination.
     fn full_log_path(&self, project: &ProjectPath) -> anyhow::Result<PathBuf> {
-        let log_file = match self.log_file.as_deref() {
-            Some(path) => path.to_owned(),
-            _ => format!("Build-{}.log", self.target).into(),
-        };
+        let log_file = self.log_file.as_deref().map_or_else(
+            || format!("Build-{}.log", self.target).into(),
+            std::borrow::ToOwned::to_owned,
+        );
 
         let file_name = log_file
             .file_name()
@@ -234,7 +234,7 @@ impl BuildArguments {
     }
 }
 
-fn print_build_report(log_path: &Path, status: Status) {
+fn print_build_report(log_path: &Path, status: MessageType) {
     if let Ok(file) = File::open(log_path) {
         // Iterate over lines from the build report in the log file.
         BufReader::new(file)
@@ -245,7 +245,7 @@ fn print_build_report(log_path: &Path, status: Status) {
             .take_while(|l| !l.is_empty()) // Read until empty line.
             .for_each(|l| {
                 if let Some((key, value)) = l.split_once(':') {
-                    print_status(key.trim(), value.trim(), status);
+                    MessageType::print_line(key.trim(), value.trim(), status);
                 } else {
                     println!("{l}");
                 }

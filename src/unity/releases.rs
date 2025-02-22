@@ -6,7 +6,7 @@ use std::fmt::{Display, Formatter};
 use strum::Display;
 
 #[derive(Display, Serialize, Deserialize, Debug, Eq, PartialEq, Ord, PartialOrd, Clone, Copy)]
-pub(crate) enum ReleaseStream {
+pub enum ReleaseStream {
     #[serde(rename = "LTS")]
     #[strum(serialize = "LTS")]
     Lts,
@@ -24,15 +24,13 @@ pub(crate) enum ReleaseStream {
     Other,
 }
 
-pub(crate) enum ReleaseCriteria {
+#[allow(dead_code)]
+pub enum ReleaseCriteria {
     /// Match all releases.
-    #[allow(dead_code)]
     All,
     /// Match releases on the major version.
-    #[allow(dead_code)]
     Major { major: Major },
     /// Match releases on the major and minor version.
-    #[allow(dead_code)]
     Minor { major: Major, minor: Minor },
 }
 
@@ -47,15 +45,12 @@ impl ReleaseCriteria {
     }
 }
 
-pub(crate) struct ReleaseUpdates {
-    pub(crate) current_release: ReleaseData,
-    pub(crate) newer_releases: SortedReleaseCollection,
+pub struct ReleaseUpdates {
+    pub current_release: ReleaseData,
+    pub newer_releases: SortedReleaseCollection,
 }
 
-pub(crate) fn find_available_updates(
-    version: Version,
-    mode: Mode,
-) -> anyhow::Result<ReleaseUpdates> {
+pub fn find_available_updates(version: Version, mode: Mode) -> anyhow::Result<ReleaseUpdates> {
     let releases = fetch_latest_releases(mode)?;
     let criteria = ReleaseCriteria::Minor {
         major: version.major,
@@ -75,7 +70,7 @@ pub(crate) fn find_available_updates(
     })
 }
 
-pub(crate) struct Url(String);
+pub struct Url(String);
 
 impl AsRef<str> for Url {
     fn as_ref(&self) -> &str {
@@ -89,7 +84,7 @@ impl Display for Url {
     }
 }
 
-pub(crate) fn release_notes_url(version: Version) -> Url {
+pub fn release_notes_url(version: Version) -> Url {
     match version.build_type {
         BuildType::Alpha => Url(format!(
             "https://unity.com/releases/editor/alpha/{version}#notes"

@@ -1,6 +1,6 @@
 use crate::cli::ENV_EDITOR_DIR;
 use crate::unity::Version;
-use crate::unity::vec1::{Vec1, Vec1Err};
+use crate::utils::vec1::{Vec1, Vec1Err};
 use anyhow::{Context, anyhow};
 use itertools::Itertools;
 use std::ops::Deref;
@@ -32,33 +32,29 @@ const UNITY_EDITOR_DIR: &str = r"C:\Program Files\Unity\Hub\Editor";
 #[cfg(not(any(target_os = "macos", target_os = "windows")))]
 const UNITY_EDITOR_DIR: &str = compile_error!("Unsupported platform");
 
-pub(crate) struct Installations {
-    pub(crate) install_dir: PathBuf,
-    pub(crate) versions: VersionList,
+pub struct Installations {
+    pub install_dir: PathBuf,
+    pub versions: VersionList,
 }
 
 impl Installations {
     /// Returns a list of installed Unity versions or an error if no versions are found.
-    pub(crate) fn find_installations(
-        version_prefix: Option<&str>,
-    ) -> anyhow::Result<Installations> {
+    pub fn find_installations(version_prefix: Option<&str>) -> anyhow::Result<Self> {
         let install_dir = Self::editor_parent_dir()?.to_path_buf();
         let versions = VersionList::from_dir(&install_dir)?.filter_by_prefix(version_prefix)?;
-        Ok(Installations {
+        Ok(Self {
             install_dir,
             versions,
         })
     }
 
     /// Returns a list of installed Unity versions or `None` if no versions are found.
-    pub(crate) fn try_find_installations(version_prefix: Option<&str>) -> Option<Installations> {
+    pub fn try_find_installations(version_prefix: Option<&str>) -> Option<Self> {
         Self::find_installations(version_prefix).ok()
     }
 
     /// Returns the version of the latest-installed version that matches the given prefix.
-    pub(crate) fn latest_installed_version(
-        version_prefix: Option<&str>,
-    ) -> anyhow::Result<Version> {
+    pub fn latest_installed_version(version_prefix: Option<&str>) -> anyhow::Result<Version> {
         let version = *VersionList::from_dir(Self::editor_parent_dir()?)?
             .filter_by_prefix(version_prefix)?
             .last();
@@ -74,30 +70,27 @@ impl Installations {
         }
 
         // Try to get the directory from the environment variable.
-        let path = match env::var_os(ENV_EDITOR_DIR) {
-            Some(path) => {
-                // Use the directory set by the environment variable.
-                let path = Path::new(&path);
-                // If the directory does not exist or is not a directory, return an error.
-                if !path.is_dir() {
-                    return Err(anyhow!(
-                        "Editor directory set by `{ENV_EDITOR_DIR}` is not a valid directory: `{}`",
-                        path.display()
-                    ));
-                }
-                path.to_owned()
+        let path = if let Some(path) = env::var_os(ENV_EDITOR_DIR) {
+            // Use the directory set by the environment variable.
+            let path = Path::new(&path);
+            // If the directory does not exist or is not a directory, return an error.
+            if !path.is_dir() {
+                return Err(anyhow!(
+                    "Editor directory set by `{ENV_EDITOR_DIR}` is not a valid directory: `{}`",
+                    path.display()
+                ));
             }
-            None => {
-                // Use the default directory.
-                let path = Path::new(UNITY_EDITOR_DIR);
-                if !path.is_dir() {
-                    return Err(anyhow!(
-                        "Editor directory set by `{ENV_EDITOR_DIR}` is not a valid directory: `{}`",
-                        path.display()
-                    ));
-                }
-                path.to_owned()
+            path.to_owned()
+        } else {
+            // Use the default directory.
+            let path = Path::new(UNITY_EDITOR_DIR);
+            if !path.is_dir() {
+                return Err(anyhow!(
+                    "Editor directory set by `{ENV_EDITOR_DIR}` is not a valid directory: `{}`",
+                    path.display()
+                ));
             }
+            path.to_owned()
         };
 
         EDITOR_PARENT_DIR
@@ -109,14 +102,14 @@ impl Installations {
 }
 
 impl Version {
-    pub(crate) fn is_editor_installed(self) -> anyhow::Result<bool> {
+    pub fn is_editor_installed(self) -> anyhow::Result<bool> {
         Ok(Installations::editor_parent_dir()?
             .join(self.as_str())
             .exists())
     }
 
     /// Returns the path to the editor executable.
-    pub(crate) fn editor_executable_path(self) -> anyhow::Result<PathBuf> {
+    pub fn editor_executable_path(self) -> anyhow::Result<PathBuf> {
         let exe_path = Installations::editor_parent_dir()?
             .join(self.as_str())
             .join(UNITY_EDITOR_EXE);
@@ -130,7 +123,7 @@ impl Version {
 }
 
 /// A non-empty list of Unity versions, sorted from the oldest to the newest.
-pub(crate) struct VersionList(Vec1<Version>);
+pub struct VersionList(Vec1<Version>);
 
 impl Deref for VersionList {
     type Target = Vec1<Version>;
@@ -143,17 +136,16 @@ impl Deref for VersionList {
 impl TryFrom<Vec<Version>> for VersionList {
     type Error = Vec1Err;
 
-    fn try_from(value: Vec<Version>) -> Result<Self, Self::Error> {
-        Vec1::try_from(value).map(|mut versions| {
+    fn try_from(versions: Vec<Version>) -> Result<Self, Self::Error> {
+        Vec1::try_from(versions).map(|mut versions| {
             versions.sort_unstable();
             Self(versions)
         })
     }
 }
 
-#[allow(dead_code)]
 impl VersionList {
-    pub(crate) fn into_vec(self) -> Vec<Version> {
+    pub fn into_vec(self) -> Vec<Version> {
         self.0.into()
     }
 
@@ -172,7 +164,7 @@ impl VersionList {
             .filter_map(|p| p.file_name()?.to_string_lossy().parse::<Version>().ok())
             .collect_vec();
 
-        VersionList::try_from(versions).map_err(|_| {
+        Self::try_from(versions).map_err(|_| {
             anyhow!(
                 "No Unity installations found in `{}`",
                 dir.as_ref().display()
@@ -180,7 +172,7 @@ impl VersionList {
         })
     }
 
-    pub(crate) fn filter_by_prefix(self, version_prefix: Option<&str>) -> anyhow::Result<Self> {
+    pub fn filter_by_prefix(self, version_prefix: Option<&str>) -> anyhow::Result<Self> {
         let Some(version_prefix) = version_prefix else {
             // No version to match, return the full list again.
             return Ok(self);

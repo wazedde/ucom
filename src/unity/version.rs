@@ -8,7 +8,7 @@ use std::str::FromStr;
 use strum::Display;
 
 #[derive(Debug, Eq, PartialEq)]
-pub(crate) struct ParseError;
+pub struct ParseError;
 
 impl std::error::Error for ParseError {}
 
@@ -19,7 +19,7 @@ impl fmt::Display for ParseError {
 }
 
 #[derive(Display, Debug, Eq, PartialEq, Ord, PartialOrd, Copy, Clone, Hash)]
-pub(crate) enum BuildType {
+pub enum BuildType {
     Alpha,
     Beta,
     ReleaseCandidate,
@@ -29,7 +29,7 @@ pub(crate) enum BuildType {
 
 impl BuildType {
     /// Returns the short name of the build type.
-    pub(crate) const fn as_short_str(&self) -> &str {
+    pub const fn as_short_str(&self) -> &str {
         match self {
             Self::Alpha => "a",
             Self::Beta => "b",
@@ -40,7 +40,7 @@ impl BuildType {
     }
 
     /// Returns the build type from a string.
-    pub(crate) fn from(s: &str) -> Option<Self> {
+    pub fn from(s: &str) -> Option<Self> {
         if s.contains('f') {
             Some(Self::Final)
         } else if s.contains('b') {
@@ -57,29 +57,29 @@ impl BuildType {
     }
 }
 
-pub(crate) type Major = u16;
-pub(crate) type Minor = u8;
-pub(crate) type Patch = u8;
-pub(crate) type BuildNumber = u8;
+pub type Major = u16;
+pub type Minor = u8;
+pub type Patch = u8;
+pub type BuildNumber = u8;
 
 /// The Unity version separated into its components.
 #[derive(Debug, Eq, PartialEq, Ord, PartialOrd, Copy, Clone, Hash)]
-pub(crate) struct Version {
-    pub(crate) major: Major,
-    pub(crate) minor: Minor,
-    pub(crate) patch: Patch,
-    pub(crate) build_type: BuildType,
-    pub(crate) build: BuildNumber,
+pub struct Version {
+    pub major: Major,
+    pub minor: Minor,
+    pub patch: Patch,
+    pub build_type: BuildType,
+    pub build: BuildNumber,
 }
 
 impl Version {
     /// Returns the `major.minor` part of this version.
-    pub(crate) fn major_minor_string(self) -> String {
+    pub fn major_minor_string(self) -> String {
         format!("{}.{}", self.major, self.minor)
     }
 
     /// Returns the cached string representation of this version.
-    pub(crate) fn as_str(self) -> &'static str {
+    pub fn as_str(self) -> &'static str {
         // Use a thread-local cache as usage is predominantly single-threaded. This avoids having to use a Mutex.
         thread_local! {
             static VERSION_STRINGS: RefCell<HashMap<Version, &'static str>> = RefCell::new(HashMap::new());
@@ -171,12 +171,12 @@ impl Display for Version {
 }
 
 impl<'de> Deserialize<'de> for Version {
-    fn deserialize<D>(deserializer: D) -> Result<Version, D::Error>
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
     where
         D: Deserializer<'de>,
     {
         let s = String::deserialize(deserializer)?;
-        Version::from_str(&s).map_err(de::Error::custom)
+        Self::from_str(&s).map_err(de::Error::custom)
     }
 }
 

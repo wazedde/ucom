@@ -5,15 +5,15 @@ use anyhow::anyhow;
 use chrono::TimeDelta;
 
 use crate::cli_add::UnityTemplateFile;
-pub(crate) use crate::commands::add_cmd::add_to_project;
-pub(crate) use crate::commands::build_cmd::build_project;
-pub(crate) use crate::commands::check_cmd::find_project_updates;
-pub(crate) use crate::commands::info_cmd::project_info;
-pub(crate) use crate::commands::install_cmd::install_latest_matching;
-pub(crate) use crate::commands::list_cmd::list_versions;
-pub(crate) use crate::commands::new_cmd::new_project;
-pub(crate) use crate::commands::open_cmd::open_project;
-pub(crate) use crate::commands::run_cmd::run_unity;
+pub use crate::commands::add_cmd::add_to_project;
+pub use crate::commands::build_cmd::build_project;
+pub use crate::commands::check_cmd::find_project_updates;
+pub use crate::commands::info_cmd::project_info;
+pub use crate::commands::install_cmd::install_latest_matching;
+pub use crate::commands::list_cmd::list_versions;
+pub use crate::commands::new_cmd::new_project;
+pub use crate::commands::open_cmd::open_project;
+pub use crate::commands::run_cmd::run_unity;
 
 mod add_cmd;
 mod build_cmd;
@@ -25,13 +25,12 @@ mod new_cmd;
 mod open_cmd;
 mod run_cmd;
 
-pub(crate) mod status_line;
-pub(crate) mod test_cmd;
+pub mod test_cmd;
 
-pub(crate) const PERSISTENT_BUILD_SCRIPT_ROOT: &str = "Assets/Plugins/Ucom/Editor";
-pub(crate) const INDENT: &str = "  ";
+pub const PERSISTENT_BUILD_SCRIPT_ROOT: &str = "Assets/Plugins/Ucom/Editor";
+pub const INDENT: &str = "  ";
 
-pub(crate) trait TimeDeltaExt {
+trait TimeDeltaExt {
     fn as_seconds(&self) -> f64;
 }
 
@@ -43,7 +42,7 @@ impl TimeDeltaExt for TimeDelta {
 }
 
 /// Adds the given file to the project.
-pub(crate) fn add_file_to_project(
+fn add_file_to_project(
     project_root: impl AsRef<Path>,
     destination_dir: impl AsRef<Path>,
     template_file: UnityTemplateFile,
@@ -85,5 +84,5 @@ macro_rules! println_conditional_bold {
     }};
 }
 
-pub(crate) use println_bold;
-pub(crate) use println_conditional_bold;
+use println_bold;
+use println_conditional_bold;

@@ -5,7 +5,7 @@ use std::path::{Path, PathBuf};
 use std::sync::OnceLock;
 use std::time::SystemTime;
 
-use anyhow::anyhow;
+use anyhow::{Context, anyhow};
 use chrono::{DateTime, Duration, TimeDelta, Utc};
 use dirs::cache_dir;
 
@@ -23,7 +23,7 @@ enum CacheState {
 }
 
 /// Gets the content of the given URL. Gets the content from the cache if it exists and is not too old.
-pub(crate) fn fetch_content(url: &str, check_for_remote_change: bool) -> anyhow::Result<String> {
+pub fn fetch_content(url: &str, check_for_remote_change: bool) -> anyhow::Result<String> {
     if !is_cache_enabled() {
         return ureq::get(url)
             .call()?
@@ -32,7 +32,7 @@ pub(crate) fn fetch_content(url: &str, check_for_remote_change: bool) -> anyhow:
             .map_err(anyhow::Error::msg);
     }
 
-    let cache_dir = ucom_cache_dir();
+    let cache_dir = ucom_cache_dir()?;
     let filename = cache_dir.join(sanitize_filename(url));
 
     match determine_cache_status(url, &filename, check_for_remote_change)? {
@@ -43,35 +43,37 @@ pub(crate) fn fetch_content(url: &str, check_for_remote_change: bool) -> anyhow:
 }
 
 /// Deletes the cache directory.
-pub(crate) fn delete_cache_directory() {
-    _ = fs::remove_dir_all(ucom_cache_dir());
+pub fn delete_cache_directory() {
+    if let Ok(dir) = ucom_cache_dir() {
+        let _ = fs::remove_dir_all(dir);
+    }
 }
 
 /// Sets whether the cache is enabled or not.
 /// This value can only be set once.
-pub(crate) fn set_cache_enabled(enabled: bool) -> anyhow::Result<()> {
+pub fn set_cache_enabled(enabled: bool) -> anyhow::Result<()> {
     CACHE_ENABLED
         .set(enabled)
         .map_err(|_| anyhow!("Failed to set CACHE_ENABLED"))
 }
 
 /// Sets whether the cache is enabled or not based on environment variable `UCOM_ENABLE_CACHE`.
-pub(crate) fn configure_cache_from_environment() -> anyhow::Result<()> {
+pub fn configure_cache_from_environment() -> anyhow::Result<()> {
     match env::var("UCOM_ENABLE_CACHE") {
         Ok(val) => set_cache_enabled(val == "true" || val == "1"),
-        Err(_) => Ok(()),
+        Err(_) => Ok(()), // environment variable not set
     }
 }
 
 /// Returns whether the cache is enabled or not.
-pub(crate) fn is_cache_enabled() -> bool {
+pub fn is_cache_enabled() -> bool {
     *CACHE_ENABLED.get().unwrap_or(&true)
 }
 
-pub(crate) fn ucom_cache_dir() -> PathBuf {
+pub fn ucom_cache_dir() -> anyhow::Result<PathBuf> {
     cache_dir()
-        .expect("unable to get cache directory")
-        .join("ucom")
+        .map(|p| p.join("ucom"))
+        .ok_or_else(|| anyhow!("Unable to get cache directory"))
 }
 
 /// Checks if the cached content is up-to-date.
@@ -84,7 +86,8 @@ fn determine_cache_status(
         let cached_time = cached.metadata()?.modified()?;
         let delta_time = Utc::now() - DateTime::<Utc>::from(cached_time);
 
-        if delta_time <= TimeDelta::try_seconds(CACHE_REFRESH_SECONDS).unwrap() {
+        if delta_time <= TimeDelta::try_seconds(CACHE_REFRESH_SECONDS).unwrap_or(TimeDelta::zero())
+        {
             // Local file is still new enough
             CacheState::Valid
         } else if check_for_remote_change && !is_remote_content_newer(url, &cached_time) {
@@ -102,7 +105,7 @@ fn determine_cache_status(
 }
 
 /// Returns whether the cached file is expired.
-pub(crate) fn is_cache_file_expired(path: &Path) -> bool {
+pub fn is_cache_file_expired(path: &Path) -> bool {
     let cached_time: DateTime<Utc> = match path.metadata().and_then(|m| m.modified()) {
         Ok(modified) => DateTime::<Utc>::from(modified),
         Err(_) => return true, // Cannot get modification time; consider expired
@@ -118,7 +121,7 @@ pub(crate) fn is_cache_file_expired(path: &Path) -> bool {
 }
 
 /// Touches the timestamp of the given file.
-pub(crate) fn touch_file(filename: &PathBuf) -> anyhow::Result<()> {
+pub fn touch_file(filename: &PathBuf) -> anyhow::Result<()> {
     // Update the local timestamp
     match fs::File::open(filename)?.set_modified(Utc::now().into()) {
         Ok(()) => Ok(()),
@@ -153,7 +156,7 @@ fn fetch_and_store_in_cache(
     cache_dir: &Path,
 ) -> anyhow::Result<String> {
     let content = ureq::get(url).call()?.into_body().read_to_string()?;
-    create_dir_all(cache_dir).expect("unable to create cache directory");
+    create_dir_all(cache_dir).context("Failed to create cache directory")?;
     fs::write(filename, &content)?;
     Ok(content)
 }

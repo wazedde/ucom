@@ -9,9 +9,9 @@ use std::time::Duration;
 use std::{fs, io, thread};
 
 #[derive(Debug)]
-pub(crate) struct CommandError {
-    pub(crate) exit_code: i32,
-    pub(crate) stderr: String,
+pub struct CommandError {
+    pub exit_code: i32,
+    pub stderr: String,
 }
 
 impl From<io::Error> for CommandError {
@@ -49,7 +49,7 @@ impl Display for CommandError {
 }
 
 /// Returns the full command line string.
-pub(crate) fn build_command_line(cmd: &Command) -> String {
+pub fn build_command_line(cmd: &Command) -> String {
     let mut line = cmd.get_program().to_string_lossy().to_string();
 
     // Handle spaces in the path.
@@ -77,7 +77,7 @@ pub(crate) fn build_command_line(cmd: &Command) -> String {
 }
 
 /// Spawns command and outputs Unity's log to the console. Blocks until the command has finished.
-pub(crate) fn wait_with_log_output(mut cmd: Command, log_file: &Path) -> Result<(), CommandError> {
+pub fn wait_with_log_output(mut cmd: Command, log_file: &Path) -> Result<(), CommandError> {
     let child = cmd.stdout(Stdio::piped()).stderr(Stdio::piped()).spawn()?;
 
     let build_finished = Arc::new(AtomicBool::new(false));
@@ -94,7 +94,7 @@ pub(crate) fn wait_with_log_output(mut cmd: Command, log_file: &Path) -> Result<
     // Wait for echo to finish.
     echo_runner.join().map_err(|e| CommandError {
         exit_code: -1,
-        stderr: format!("Echo runner thread panicked: {:?}", e),
+        stderr: format!("Echo runner thread panicked: {e:?}"),
     })??;
 
     let output = output?;
@@ -106,7 +106,7 @@ pub(crate) fn wait_with_log_output(mut cmd: Command, log_file: &Path) -> Result<
 }
 
 /// Spawns command and immediately returns without any output.
-pub(crate) fn spawn_and_forget(mut cmd: Command) -> Result<(), CommandError> {
+pub fn spawn_and_forget(mut cmd: Command) -> Result<(), CommandError> {
     cmd.stdout(Stdio::piped())
         .stderr(Stdio::piped())
         .spawn()
@@ -115,7 +115,7 @@ pub(crate) fn spawn_and_forget(mut cmd: Command) -> Result<(), CommandError> {
 }
 
 /// Spawns command and outputs to the console. Blocks until the command has finished.
-pub(crate) fn wait_with_stdout(mut cmd: Command) -> Result<(), CommandError> {
+pub fn wait_with_stdout(mut cmd: Command) -> Result<(), CommandError> {
     let child = cmd
         .stdout(Stdio::inherit())
         .stderr(Stdio::inherit())

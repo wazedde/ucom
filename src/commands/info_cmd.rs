@@ -5,12 +5,15 @@ use yansi::Paint;
 use crate::cli::PackagesInfoLevel;
 use crate::commands::{INDENT, install_latest_matching, println_bold};
 use crate::unity::project::ProjectPath;
-use crate::unity::project::*;
+use crate::unity::project::{
+    PackageInfo, PackageSource, Packages, PackagesAvailability, ProjectSettings, directory_walker,
+};
 use crate::unity::release_api::Mode;
-use crate::unity::{Version, release_notes_url, resolve_absolute_dir_path};
+use crate::unity::{Version, release_notes_url};
+use crate::utils;
 
 /// Shows project information.
-pub(crate) fn project_info(
+pub fn project_info(
     path: &Path,
     packages_level: PackagesInfoLevel,
     install_unity: bool,
@@ -28,7 +31,7 @@ fn show_recursive_project_info(
     path: &Path,
     packages_level: PackagesInfoLevel,
 ) -> anyhow::Result<()> {
-    let path = resolve_absolute_dir_path(&path)?;
+    let path = utils::resolve_absolute_dir_path(&path)?;
     println!("Searching for Unity projects in: {}", path.display(),);
 
     let mut directories = directory_walker(path);

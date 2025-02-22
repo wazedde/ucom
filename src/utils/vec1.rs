@@ -23,7 +23,6 @@ impl<T> Deref for Vec1<T> {
     }
 }
 
-#[allow(dead_code)]
 impl<T> Vec1<T> {
     /// Creates a new non-empty list.
     pub fn new(first: T) -> Self {
@@ -94,7 +93,7 @@ impl<T> TryFrom<Vec<T>> for Vec1<T> {
 }
 
 impl<T> From<Vec1<T>> for Vec<T> {
-    fn from(v: Vec1<T>) -> Vec<T> {
+    fn from(v: Vec1<T>) -> Self {
         v.0
     }
 }

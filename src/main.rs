@@ -1,11 +1,16 @@
 use crate::cli::{Action, CacheAction, Cli};
 use crate::commands::test_cmd::run_tests;
-use crate::commands::*;
-use crate::unity::content_cache;
+use crate::commands::{
+    INDENT, add_to_project, build_project, find_project_updates, install_latest_matching,
+    list_versions, new_project, open_project, project_info, run_unity,
+};
 use crate::unity::release_api::Mode;
 use anyhow::Context;
 use clap::Parser;
-use content_cache::{configure_cache_from_environment, delete_cache_directory, ucom_cache_dir};
+use std::fmt::Display;
+use utils::content_cache::{
+    configure_cache_from_environment, delete_cache_directory, ucom_cache_dir,
+};
 use yansi::Paint;
 
 mod cli;
@@ -17,6 +22,7 @@ mod cli_test;
 mod commands;
 mod nunit;
 mod unity;
+mod utils;
 
 fn main() -> anyhow::Result<()> {
     let cli = Cli::parse();
@@ -40,7 +46,7 @@ fn main() -> anyhow::Result<()> {
         } => {
             let mode = if force { Mode::Force } else { Mode::Auto };
             list_versions(list_type, version_filter.as_deref(), mode)
-                .with_context(|| color_error(&format!("Cannot list `{}`", list_type)))
+                .with_context(|| color_error(&format!("Cannot list `{list_type}`")).to_string())
         }
 
         Action::Install { version } => install_latest_matching(&version, Mode::Auto)
@@ -87,17 +93,17 @@ fn main() -> anyhow::Result<()> {
             match command {
                 CacheAction::Clear => {
                     delete_cache_directory();
-                    println!("Cleared cache at: {}", ucom_cache_dir().display());
+                    println!("Cleared cache at: {}", ucom_cache_dir()?.display());
                 }
                 CacheAction::List => {
-                    let cache_dir = ucom_cache_dir();
+                    let cache_dir = ucom_cache_dir()?;
                     if !cache_dir.exists() {
                         println!("No cache found at: {}", cache_dir.display());
                         return Ok(());
                     }
 
                     println!("Cached files at: {}", cache_dir.display());
-                    for file in ucom_cache_dir().read_dir()? {
+                    for file in ucom_cache_dir()?.read_dir()? {
                         println!("{}{}", INDENT, file?.file_name().to_string_lossy());
                     }
                 }
@@ -107,6 +113,6 @@ fn main() -> anyhow::Result<()> {
     }
 }
 
-fn color_error(message: &str) -> String {
-    message.red().bold().to_string()
+fn color_error(message: &str) -> impl Display {
+    message.red().bold()
 }

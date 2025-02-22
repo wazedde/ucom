@@ -9,25 +9,25 @@ use crate::cli_new::NewArguments;
 use crate::cli_run::RunArguments;
 use crate::cli_test::TestArguments;
 
-pub(crate) const ENV_EDITOR_DIR: &str = "UCOM_EDITOR_DIR";
-pub(crate) const ENV_BUILD_TARGET: &str = "UCOM_BUILD_TARGET";
-pub(crate) const ENV_PACKAGE_LEVEL: &str = "UCOM_PACKAGE_LEVEL";
+pub const ENV_EDITOR_DIR: &str = "UCOM_EDITOR_DIR";
+pub const ENV_BUILD_TARGET: &str = "UCOM_BUILD_TARGET";
+pub const ENV_PACKAGE_LEVEL: &str = "UCOM_PACKAGE_LEVEL";
 
 /// Unity Commander: A command-line interface for Unity projects.
 #[derive(clap::Parser)]
 #[command(author, version, about)]
 #[command(arg_required_else_help = true)]
-pub(crate) struct Cli {
+pub struct Cli {
     /// Disables colored output.
     #[arg(long, short = 'D')]
-    pub(crate) disable_color: bool,
+    pub disable_color: bool,
 
     #[command(subcommand)]
-    pub(crate) command: Option<Action>,
+    pub command: Option<Action>,
 }
 
 #[derive(clap::Subcommand)]
-pub(crate) enum Action {
+pub enum Action {
     /// Lists installed Unity versions.
     #[command(visible_alias = "l")]
     List {
@@ -128,44 +128,44 @@ pub(crate) enum Action {
 }
 
 #[derive(Args)]
-pub(crate) struct OpenArguments {
+pub struct OpenArguments {
     /// Specifies the project's directory.
     #[arg(value_name = "DIRECTORY", value_hint = clap::ValueHint::DirPath, default_value = ".")]
-    pub(crate) project_dir: PathBuf,
+    pub project_dir: PathBuf,
 
     /// Upgrades the project's Unity version.
     /// If no version is specified, it upgrades to the latest available version within the project's `major.minor` range.
     /// A version prefix like '2021' selects the latest-installed version within the 2021.x.y range.
     #[arg(short = 'U', long = "upgrade", value_name = "VERSION")]
-    pub(crate) upgrade_version: Option<Option<String>>,
+    pub upgrade_version: Option<Option<String>>,
 
     /// Determines the active build target to open the project with.
     #[arg(short = 't', long, value_name = "NAME")]
-    pub(crate) target: Option<OpenTarget>,
+    pub target: Option<OpenTarget>,
 
     /// Waits for the command to complete before proceeding.
     #[arg(short = 'w', long)]
-    pub(crate) wait: bool,
+    pub wait: bool,
 
     /// Closes the editor after opening the project.
     #[arg(short = 'Q', long)]
-    pub(crate) quit: bool,
+    pub quit: bool,
 
     /// Suppresses ucom messages.
     #[arg(short = 'q', long)]
-    pub(crate) quiet: bool,
+    pub quiet: bool,
 
     /// Shows the command to be run without actually executing it.
     #[arg(short = 'n', long)]
-    pub(crate) dry_run: bool,
+    pub dry_run: bool,
 
     /// A list of arguments to be passed directly to Unity.
     #[arg(last = true, value_name = "UNITY_ARGS")]
-    pub(crate) args: Option<Vec<String>>,
+    pub args: Option<Vec<String>>,
 }
 
 #[derive(Debug, Display, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, ValueEnum)]
-pub(crate) enum ListType {
+pub enum ListType {
     /// Lists the installed Unity versions.
     Installed,
     /// Displays installed Unity versions and checks for online updates.
@@ -177,7 +177,7 @@ pub(crate) enum ListType {
 }
 
 #[derive(Display, Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, ValueEnum)]
-pub(crate) enum PackagesInfoLevel {
+pub enum PackagesInfoLevel {
     /// No package information is displayed.
     #[value(name = "none")]
     #[strum(serialize = "none")]
@@ -200,7 +200,7 @@ pub(crate) enum PackagesInfoLevel {
 }
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, ValueEnum)]
-pub(crate) enum CacheAction {
+pub enum CacheAction {
     /// Removes all files from the cache.
     Clear,
     /// Displays a list of all currently cached files.

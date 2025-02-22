@@ -11,8 +11,8 @@ use crate::unity::release_api::{
     Mode, ReleaseCollection, SortedReleaseCollection, fetch_latest_releases, load_cached_releases,
 };
 use crate::unity::release_api_data::ReleaseData;
-use crate::unity::vec1::Vec1;
-use crate::unity::*;
+use crate::unity::{ReleaseStream, Version, release_notes_url};
+use crate::utils::vec1::Vec1;
 
 /// Version info grouped by minor version.
 struct VersionInfoGroups<'a>(Vec<Vec1<VersionInfo<'a>>>);
@@ -32,7 +32,7 @@ impl DerefMut for VersionInfoGroups<'_> {
 }
 
 /// Lists installed Unity versions.
-pub(crate) fn list_versions(
+pub fn list_versions(
     list_type: ListType,
     version_prefix: Option<&str>,
     mode: Mode,
@@ -366,7 +366,7 @@ fn display_latest_versions(
             let version = format_version_with_padding(latest.version, max_len);
             let release_date = latest.release_date.format("%Y-%m-%d");
 
-            println!("{} {} ({})", stream, version, release_date,);
+            println!("{stream} {version} ({release_date})",);
         } else {
             display_installed_versions_line(latest, &installs_in_range, max_len);
         }
@@ -375,22 +375,21 @@ fn display_latest_versions(
 }
 
 fn format_suggested_version(releases: &ReleaseCollection) -> String {
-    let suggested_version = releases.suggested_version;
-    if let Some(suggested_version) = suggested_version {
-        let stream = releases
-            .iter()
-            .find(|x| x.version == suggested_version)
-            .map_or(ReleaseStream::Other, |x| x.stream);
-        format!("(suggested: {} {})", stream, suggested_version)
-    } else {
-        String::new()
-    }
+    releases
+        .suggested_version
+        .map_or_else(String::new, |suggested_version| {
+            let stream = releases
+                .iter()
+                .find(|x| x.version == suggested_version)
+                .map_or(ReleaseStream::Other, |x| x.stream);
+            format!("(suggested: {stream} {suggested_version})")
+        })
 }
 
 fn format_release_stream_with_padding(stream: ReleaseStream) -> (String, String) {
     let stream = stream.to_string();
     let padding = "─".repeat(5 - stream.len());
-    (format!("{} ", padding), stream)
+    (format!("{padding} "), stream)
 }
 
 fn format_version_with_padding(version: Version, max_len: usize) -> String {
