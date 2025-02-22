@@ -41,9 +41,10 @@ impl<T> Vec1<T> {
 
     /// Returns the last value.
     pub fn last(&self) -> &T {
-        self.0.last().expect("Vec1 should never be empty")
+        self.0
+            .last()
+            .expect("Vec1 is guaranteed to be non-empty by construction")
     }
-
     /// Returns a mutable reference to the first value.
     pub fn first_mut(&mut self) -> &mut T {
         &mut self[0]
@@ -51,7 +52,9 @@ impl<T> Vec1<T> {
 
     /// Returns a mutable reference to the last value.
     pub fn last_mut(&mut self) -> &mut T {
-        self.0.last_mut().expect("Vec1 should never be empty")
+        self.0
+            .last_mut()
+            .expect("Vec1 is guaranteed to be non-empty by construction")
     }
 
     /// Pushes a value to the end of the list.

@@ -185,7 +185,7 @@ fn display_updates(installed: &Installations, mode: Mode) -> anyhow::Result<()> 
             let rd = releases
                 .iter()
                 .find(|p| p.version == info.version)
-                .expect("Could not find release info for version");
+                .expect("Guaranteed to exist");
 
             let release_date = rd.release_date.format("%Y-%m-%d");
 
@@ -446,7 +446,7 @@ fn display_available_versions(
             let release = releases
                 .iter()
                 .find(|p| p.version == info.version)
-                .expect("Could not find release info for version");
+                .expect("Guaranteed to exist");
 
             let release_date = release.release_date.format("%Y-%m-%d");
 

@@ -97,7 +97,9 @@ impl Installations {
             .set(path)
             .map_err(|_| anyhow!("Failed to set EDITOR_PARENT_DIR"))?;
 
-        Ok(EDITOR_PARENT_DIR.get().unwrap())
+        Ok(EDITOR_PARENT_DIR
+            .get()
+            .expect("EDITOR_PARENT_DIR was just initialized"))
     }
 }
 
