@@ -5,7 +5,7 @@ use std::path::{Path, PathBuf};
 use std::sync::OnceLock;
 use std::time::SystemTime;
 
-use anyhow::{Context, anyhow};
+use anyhow::{anyhow, Context};
 use chrono::{DateTime, Duration, TimeDelta, Utc};
 use dirs::cache_dir;
 
@@ -22,11 +22,20 @@ enum CacheState {
     RefreshNeeded,
 }
 
+#[derive(Eq, PartialEq)]
+pub enum RemoteChangeCheck {
+    /// Check if the remote content is newer than the local file.
+    Validate,
+    /// Do not check for remote changes.
+    Skip,
+}
+
 /// Gets the content of the given URL. Gets the content from the cache if it exists and is not too old.
-pub fn fetch_content(url: &str, check_for_remote_change: bool) -> anyhow::Result<String> {
+pub fn fetch_content(url: &str, change_check: RemoteChangeCheck) -> anyhow::Result<String> {
     if !is_cache_enabled() {
         return ureq::get(url)
-            .call()?
+            .call()
+            .with_context(|| format!("Failed to fetch {}", url))?
             .into_body()
             .read_to_string()
             .map_err(anyhow::Error::msg);
@@ -35,7 +44,7 @@ pub fn fetch_content(url: &str, check_for_remote_change: bool) -> anyhow::Result
     let cache_dir = ucom_cache_dir()?;
     let filename = cache_dir.join(sanitize_filename(url));
 
-    match determine_cache_status(url, &filename, check_for_remote_change)? {
+    match determine_cache_status(url, &filename, change_check)? {
         CacheState::Expired => fetch_and_store_in_cache(url, &filename, &cache_dir),
         CacheState::Valid => fs::read_to_string(&filename).map_err(anyhow::Error::msg),
         CacheState::RefreshNeeded => refresh_file_timestamp_and_read(&filename),
@@ -80,7 +89,7 @@ pub fn ucom_cache_dir() -> anyhow::Result<PathBuf> {
 fn determine_cache_status(
     url: &str,
     cached: &Path,
-    check_for_remote_change: bool,
+    change_check: RemoteChangeCheck,
 ) -> anyhow::Result<CacheState> {
     let state = if cached.exists() {
         let cached_time = cached.metadata()?.modified()?;
@@ -88,9 +97,11 @@ fn determine_cache_status(
 
         if delta_time <= TimeDelta::try_seconds(CACHE_REFRESH_SECONDS).unwrap_or(TimeDelta::zero())
         {
-            // Local file is still new enough
+            // Local file is still fresh enough
             CacheState::Valid
-        } else if check_for_remote_change && !is_remote_content_newer(url, &cached_time) {
+        } else if change_check == RemoteChangeCheck::Validate
+            && !is_remote_content_newer(url, &cached_time).unwrap_or(true)
+        {
             // Local file is newer than remote Last-Modified
             CacheState::RefreshNeeded
         } else {
@@ -121,7 +132,7 @@ pub fn is_cache_file_expired(path: &Path) -> bool {
 }
 
 /// Touches the timestamp of the given file.
-pub fn touch_file(filename: &PathBuf) -> anyhow::Result<()> {
+pub fn touch_file(filename: &Path) -> anyhow::Result<()> {
     // Update the local timestamp
     match fs::File::open(filename)?.set_modified(Utc::now().into()) {
         Ok(()) => Ok(()),
@@ -135,14 +146,13 @@ pub fn touch_file(filename: &PathBuf) -> anyhow::Result<()> {
     }
 }
 
-/// Checks if the page has been updated since the given time.
-fn is_remote_content_newer(url: &str, local_time: &SystemTime) -> bool {
-    if let Ok(server_utc) = fetch_last_modified_time(url) {
-        DateTime::<Utc>::from(*local_time) < server_utc
-    } else {
-        // Always update if we couldn't check
-        true
-    }
+/// Checks if the remote page has been updated since the given time.
+fn is_remote_content_newer(url: &str, local_time: &SystemTime) -> anyhow::Result<bool> {
+    let local_datetime = DateTime::<Utc>::from(*local_time);
+    let remote_datetime = fetch_last_modified_time(url)
+        .with_context(|| "Failed to determine if remote content is newer")?;
+
+    Ok(local_datetime < remote_datetime)
 }
 
 fn sanitize_filename(filename: &str) -> String {
@@ -161,11 +171,13 @@ fn fetch_and_store_in_cache(
     Ok(content)
 }
 
-fn refresh_file_timestamp_and_read(filename: &PathBuf) -> anyhow::Result<String> {
+fn refresh_file_timestamp_and_read(filename: &Path) -> anyhow::Result<String> {
+    const ERROR_ACCESS_DENIED: i32 = 5;
+
     // Update the local timestamp
     match fs::File::open(filename)?.set_modified(Utc::now().into()) {
         Ok(()) => fs::read_to_string(filename).map_err(anyhow::Error::msg),
-        Err(e) if e.raw_os_error() == Some(5) => {
+        Err(e) if e.raw_os_error() == Some(ERROR_ACCESS_DENIED) => {
             // If error is a permission error, do workaround by re-saving the file
             let content = fs::read_to_string(filename)?;
             fs::write(filename, &content)?;
@@ -176,12 +188,17 @@ fn refresh_file_timestamp_and_read(filename: &PathBuf) -> anyhow::Result<String>
 }
 
 fn fetch_last_modified_time(url: &str) -> anyhow::Result<DateTime<Utc>> {
-    let response = ureq::head(url).call()?;
-    let lm = response
+    let response = ureq::head(url)
+        .call()
+        .with_context(|| format!("Failed to fetch Last-Modified header from {}", url))?;
+
+    let last_modified_header = response
         .headers()
         .get("Last-Modified")
         .and_then(|s| s.to_str().ok())
         .ok_or_else(|| anyhow!("Last-Modified header not found in response from {}", url))?;
-    let time = DateTime::parse_from_rfc2822(lm)?.with_timezone(&Utc);
-    Ok(time)
+
+    DateTime::parse_from_rfc2822(last_modified_header)
+        .map(|t| t.with_timezone(&Utc))
+        .with_context(|| format!("Failed to parse Last-Modified header from {}", url))
 }

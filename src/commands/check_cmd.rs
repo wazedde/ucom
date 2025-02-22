@@ -9,6 +9,7 @@ use crate::unity::{
     ProjectPath, ProjectSettings, ReleaseUpdates, find_available_updates, release_notes_url,
 };
 use crate::utils::content_cache;
+use crate::utils::content_cache::RemoteChangeCheck;
 use crate::utils::status_line::StatusLine;
 
 pub fn find_project_updates(
@@ -57,7 +58,7 @@ fn download_and_print_release_notes(updates: &ReleaseUpdates) -> anyhow::Result<
         );
 
         let url = &release.release_notes.url;
-        let body = content_cache::fetch_content(url, true)?;
+        let body = content_cache::fetch_content(url, RemoteChangeCheck::Validate)?;
 
         println!();
         println!("## Release notes for [{}]({url})", release.version);

@@ -4,6 +4,7 @@ use std::path::PathBuf;
 use clap::{Args, ValueEnum};
 
 use crate::utils::content_cache;
+use crate::utils::content_cache::RemoteChangeCheck;
 use crate::utils::status_line::StatusLine;
 
 #[derive(Args)]
@@ -79,7 +80,8 @@ impl TemplateAsset {
             AssetSource::Remote(url) => {
                 let _status =
                     StatusLine::new("Downloading", &format!("{} from {}...", self.filename, url));
-                let content = Cow::Owned(content_cache::fetch_content(url, false)?);
+                let content =
+                    Cow::Owned(content_cache::fetch_content(url, RemoteChangeCheck::Skip)?);
                 Ok(content)
             }
         }
