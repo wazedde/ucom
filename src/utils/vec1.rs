@@ -1,6 +1,6 @@
 use std::ops::{Deref, DerefMut};
 
-#[derive(Debug)]
+#[derive(Debug, Eq, PartialEq)]
 pub enum Vec1Err {
     VecIsEmpty,
     CannotPopLastElement,
@@ -104,5 +104,65 @@ impl<T> From<Vec1<T>> for Vec<T> {
 impl<T> AsRef<[T]> for Vec1<T> {
     fn as_ref(&self) -> &[T] {
         &self.0
+    }
+}
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_new() {
+        let v = Vec1::new(1);
+        assert_eq!(v.first(), &1);
+        assert_eq!(v.len(), 1);
+    }
+
+    #[test]
+    fn test_push_pop() {
+        let mut v = Vec1::new(1);
+        v.push(2);
+        assert_eq!(v.last(), &2);
+        assert_eq!(v.pop(), Ok(2));
+        assert_eq!(v.pop(), Err(Vec1Err::CannotPopLastElement));
+    }
+
+    #[test]
+    fn test_try_from_vec() {
+        assert!(Vec1::try_from(Vec::<i32>::default()).is_err());
+        let v = Vec1::try_from(vec![1]).unwrap();
+        assert_eq!(v.first(), &1);
+    }
+
+    #[test]
+    fn test_extend() {
+        let mut v = Vec1::new(1);
+        v.extend(vec![2, 3]);
+        assert_eq!(v.as_ref(), &[1, 2, 3]);
+    }
+
+    #[test]
+    fn test_append() {
+        let mut v = Vec1::new(1);
+        let mut other = vec![2, 3];
+        v.append(&mut other);
+        assert_eq!(v.as_ref(), &[1, 2, 3]);
+    }
+
+    #[test]
+    fn test_last_mut() {
+        let mut v = Vec1::new(1);
+        v.push(2);
+        assert_eq!(v.last_mut(), &mut 2);
+        *v.last_mut() = 3;
+        assert_eq!(v.last_mut(), &mut 3);
+    }
+
+    #[test]
+    fn test_first_mut() {
+        let mut v = Vec1::new(1);
+        v.push(2);
+        assert_eq!(v.first_mut(), &mut 1);
+        *v.first_mut() = 3;
+        assert_eq!(v.first_mut(), &mut 3);
     }
 }
