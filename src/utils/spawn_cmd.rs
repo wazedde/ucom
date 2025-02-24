@@ -89,16 +89,16 @@ pub fn build_command_line(cmd: &Command) -> String {
 pub fn wait_with_log_output(mut cmd: Command, log_file: &Path) -> Result<(), CommandError> {
     let child = cmd.stdout(Stdio::piped()).stderr(Stdio::piped()).spawn()?;
 
-    let build_finished = Arc::new(AtomicBool::new(false));
+    let stop_monitoring = Arc::new(AtomicBool::new(false));
 
     let echo_runner = thread::spawn({
-        let build_finished = build_finished.clone();
+        let stop_monitoring = stop_monitoring.clone();
         let log_file = log_file.to_owned();
-        move || monitor_log_file(&log_file, Duration::from_millis(100), &build_finished)
+        move || monitor_log_file(&log_file, Duration::from_millis(100), &stop_monitoring)
     });
 
     let output = child.wait_with_output();
-    build_finished.store(true, Ordering::Release);
+    stop_monitoring.store(true, Ordering::Release);
 
     // Wait for echo to finish.
     echo_runner.join().map_err(|e| CommandError {
@@ -164,10 +164,19 @@ fn monitor_log_file(
         // Don't immediately exit if the file writer thread has finished to be able to read any last data.
         let should_stop = stop_logging.load(Ordering::Acquire);
 
-        if reader.read_to_string(&mut buffer).is_ok() && !buffer.is_empty() {
-            ended_with_newline = buffer.ends_with('\n');
-            print!("{buffer}");
-            buffer.clear();
+        match reader.read_to_string(&mut buffer) {
+            Ok(_) if !buffer.is_empty() => {
+                ended_with_newline = buffer.ends_with('\n');
+                print!("{buffer}");
+                buffer.clear();
+            }
+            Err(e) if e.kind() == io::ErrorKind::Interrupted => {
+                // Ignore interrupted errors.
+            }
+            Err(e) => {
+                return Err(e);
+            }
+            _ => {}
         }
 
         if should_stop {
