@@ -8,7 +8,12 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::Duration;
 use std::{fs, io, thread};
 
-#[derive(Debug)]
+//
+// Error implementation
+//
+
+/// Errors that can occur when working with a [`Command`].
+#[derive(Debug, Clone, Eq, PartialEq, Hash)]
 pub struct CommandError {
     pub exit_code: i32,
     pub stderr: String,
@@ -47,6 +52,10 @@ impl Display for CommandError {
         )
     }
 }
+
+//
+// Command spawning
+//
 
 /// Returns the full command line string.
 pub fn build_command_line(cmd: &Command) -> String {

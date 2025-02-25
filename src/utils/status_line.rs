@@ -6,6 +6,10 @@ use crossterm::terminal::{Clear, ClearType};
 use strum::{AsRefStr, Display};
 use yansi::{Color, Paint, Painted, Style};
 
+//
+// Status line
+//
+
 /// A status line that is only active if stdout is a terminal.
 /// Clears the status line when dropped.
 pub struct StatusLine {
@@ -13,6 +17,7 @@ pub struct StatusLine {
 }
 
 impl Drop for StatusLine {
+    /// Clears the status line when dropped.
     fn drop(&mut self) {
         if self.show_output {
             Self::clear_last_line();
@@ -26,7 +31,7 @@ impl StatusLine {
     pub fn new(tag: &str, msg: &str) -> Self {
         let show_output = stdout().is_terminal();
         if show_output {
-            Self::print_transient(tag, msg, MessageType::Info);
+            Self::print_updatable_line(tag, msg, MessageType::Info);
         }
         Self { show_output }
     }
@@ -36,16 +41,16 @@ impl StatusLine {
         Self { show_output: false }
     }
 
-    /// Reprints the status line with the given message.
+    /// Updates the status line with the given tag and message.
     pub fn update(&self, tag: &str, msg: &str) {
         if self.show_output {
             Self::clear_last_line();
-            Self::print_transient(tag, msg, MessageType::Info);
+            Self::print_updatable_line(tag, msg, MessageType::Info);
         }
     }
 
     /// Prints a status line with the given tag and message that is cleared.
-    fn print_transient(tag: &str, msg: &str, status: MessageType) {
+    fn print_updatable_line(tag: &str, msg: &str, status: MessageType) {
         _ = stdout().execute(SavePosition).and_then(|o| {
             print!("{:>12} {}", MessageType::format_text(tag, status), msg);
             o.execute(RestorePosition)?.flush()
@@ -57,6 +62,11 @@ impl StatusLine {
     }
 }
 
+//
+// Message type
+//
+
+/// The type of message to display.
 #[allow(dead_code)]
 #[derive(Display, AsRefStr, Debug, Clone, Copy, PartialEq, Eq)]
 pub enum MessageType {
@@ -68,7 +78,7 @@ pub enum MessageType {
 }
 
 impl MessageType {
-    /// Applies a style to the given string based on the status.
+    /// Applies a style to the given string based on the message type.
     pub fn format_text(s: &str, message_type: MessageType) -> Painted<&str> {
         let color = match message_type {
             Self::None => Style::new().bold(),

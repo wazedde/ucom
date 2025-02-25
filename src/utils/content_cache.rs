@@ -79,40 +79,11 @@ pub fn is_cache_enabled() -> bool {
     *CACHE_ENABLED.get().unwrap_or(&true)
 }
 
+/// Returns the cache directory for ucom.
 pub fn ucom_cache_dir() -> anyhow::Result<PathBuf> {
     cache_dir()
         .map(|p| p.join("ucom"))
         .ok_or_else(|| anyhow!("Unable to get cache directory"))
-}
-
-/// Checks if the cached content is up-to-date.
-fn determine_cache_status(
-    url: &str,
-    cached: &Path,
-    change_check: RemoteChangeCheck,
-) -> anyhow::Result<CacheState> {
-    let state = if cached.exists() {
-        let cached_time = cached.metadata()?.modified()?;
-        let delta_time = Utc::now() - DateTime::<Utc>::from(cached_time);
-
-        if delta_time <= TimeDelta::try_seconds(CACHE_REFRESH_SECONDS).unwrap_or(TimeDelta::zero())
-        {
-            // Local file is still fresh enough
-            CacheState::Valid
-        } else if change_check == RemoteChangeCheck::Validate
-            && !is_remote_content_newer(url, &cached_time).unwrap_or(true)
-        {
-            // Local file is newer than remote Last-Modified
-            CacheState::RefreshNeeded
-        } else {
-            // Local file is out of date
-            CacheState::Expired
-        }
-    } else {
-        // Has no cache file
-        CacheState::Expired
-    };
-    Ok(state)
 }
 
 /// Returns whether the cached file is expired.
@@ -146,9 +117,39 @@ pub fn touch_file(filename: &Path) -> anyhow::Result<()> {
     }
 }
 
+/// Checks if the cached content is up-to-date.
+fn determine_cache_status(
+    url: &str,
+    cached: &Path,
+    change_check: RemoteChangeCheck,
+) -> anyhow::Result<CacheState> {
+    let state = if cached.exists() {
+        let cached_time = cached.metadata()?.modified()?;
+        let delta_time = Utc::now() - DateTime::<Utc>::from(cached_time);
+
+        if delta_time <= TimeDelta::try_seconds(CACHE_REFRESH_SECONDS).unwrap_or(TimeDelta::zero())
+        {
+            // Local file is still fresh enough
+            CacheState::Valid
+        } else if change_check == RemoteChangeCheck::Validate
+            && !is_remote_content_newer(url, cached_time).unwrap_or(true)
+        {
+            // Local file is newer than remote Last-Modified
+            CacheState::RefreshNeeded
+        } else {
+            // Local file is out of date
+            CacheState::Expired
+        }
+    } else {
+        // Has no cache file
+        CacheState::Expired
+    };
+    Ok(state)
+}
+
 /// Checks if the remote page has been updated since the given time.
-fn is_remote_content_newer(url: &str, local_time: &SystemTime) -> anyhow::Result<bool> {
-    let local_datetime = DateTime::<Utc>::from(*local_time);
+fn is_remote_content_newer(url: &str, local_time: SystemTime) -> anyhow::Result<bool> {
+    let local_datetime = DateTime::<Utc>::from(local_time);
     let remote_datetime = fetch_last_modified_time(url)
         .with_context(|| "Failed to determine if remote content is newer")?;
 

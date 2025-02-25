@@ -8,34 +8,22 @@ use crate::cli::ListType;
 use crate::commands::{println_bold, println_conditional_bold};
 use crate::unity::installations::{Installations, VersionList};
 use crate::unity::release_api::{
-    Mode, ReleaseCollection, SortedReleaseCollection, fetch_latest_releases, load_cached_releases,
+    FetchMode, ReleaseCollection, SortedReleaseCollection, fetch_latest_releases,
+    load_cached_releases,
 };
 use crate::unity::release_api_data::ReleaseData;
 use crate::unity::{ReleaseStream, Version, release_notes_url};
 use crate::utils::vec1::Vec1;
 
-/// Version info grouped by minor version.
-struct VersionInfoGroups<'a>(Vec<Vec1<VersionInfo<'a>>>);
-
-impl<'a> Deref for VersionInfoGroups<'a> {
-    type Target = Vec<Vec1<VersionInfo<'a>>>;
-
-    fn deref(&self) -> &Self::Target {
-        &self.0
-    }
-}
-
-impl DerefMut for VersionInfoGroups<'_> {
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.0
-    }
-}
+//
+// List command entry point
+//
 
 /// Lists installed Unity versions.
 pub fn list_versions(
     list_type: ListType,
     version_prefix: Option<&str>,
-    mode: Mode,
+    mode: FetchMode,
 ) -> anyhow::Result<()> {
     match list_type {
         ListType::Installed => {
@@ -57,6 +45,10 @@ pub fn list_versions(
     }
 }
 
+//
+// Installed versions
+//
+
 /// Prints list of installed versions.
 /// ```
 /// Unity versions in: /Applications/Unity/Hub/Editor/ (suggested: LTS 6000.0.36f1)
@@ -65,11 +57,11 @@ pub fn list_versions(
 /// ├─ 6000.0.35f1 - https://unity.com/releases/editor/whats-new/6000.0.35#notes
 /// └─ 6000.0.36f1 * https://unity.com/releases/editor/whats-new/6000.0.36#notes
 /// ```
-fn display_installed_versions(installed: &Installations, mode: Mode) -> anyhow::Result<()> {
-    let releases = if mode == Mode::Auto {
+fn display_installed_versions(installed: &Installations, mode: FetchMode) -> anyhow::Result<()> {
+    let releases = if mode == FetchMode::Auto {
         load_cached_releases()?
     } else {
-        fetch_latest_releases(Mode::Force)?.into()
+        fetch_latest_releases(FetchMode::Force)?.into()
     };
 
     println_bold!(
@@ -148,6 +140,10 @@ fn display_list_with_release_dates(installed: &VersionList, releases: &ReleaseCo
     }
 }
 
+//
+// List updates
+//
+
 /// Prints list of installed versions and available updates.
 /// ```
 /// Updates for Unity versions in: /Applications/Unity/Hub/Editor/ (suggested: LTS 6000.0.36f1)
@@ -156,7 +152,7 @@ fn display_list_with_release_dates(installed: &VersionList, releases: &ReleaseCo
 /// ├── LTS 6000.0.35f1 (2025-01-22) - Update(s) available
 /// └── LTS 6000.0.36f1 (2025-01-28) * https://unity.com/releases/editor/whats-new/6000.0.36#notes
 /// ```
-fn display_updates(installed: &Installations, mode: Mode) -> anyhow::Result<()> {
+fn display_updates(installed: &Installations, mode: FetchMode) -> anyhow::Result<()> {
     let releases = fetch_latest_releases(mode)?;
     println_bold!(
         "Updates for Unity versions in: {} {}",
@@ -293,6 +289,10 @@ fn collect_version_update_info<'a>(
     version_groups
 }
 
+//
+// List latest versions
+//
+
 /// Prints list of latest available Unity versions.
 /// ```
 /// ...
@@ -310,7 +310,7 @@ fn collect_version_update_info<'a>(
 fn display_latest_versions(
     installed: Option<&Installations>,
     version_prefix: Option<&str>,
-    mode: Mode,
+    mode: FetchMode,
 ) -> anyhow::Result<()> {
     let releases = fetch_latest_releases(mode)?;
     println_bold!(
@@ -386,15 +386,9 @@ fn format_suggested_version(releases: &ReleaseCollection) -> String {
         })
 }
 
-fn format_release_stream_with_padding(stream: ReleaseStream) -> (String, String) {
-    let stream = stream.to_string();
-    let padding = "─".repeat(5 - stream.len());
-    (format!("{padding} "), stream)
-}
-
-fn format_version_with_padding(version: Version, max_len: usize) -> String {
-    format!("{:<max_len$}", version.as_str())
-}
+//
+// List all versions
+//
 
 /// Prints list of available Unity versions.
 /// ```
@@ -413,7 +407,7 @@ fn format_version_with_padding(version: Version, max_len: usize) -> String {
 fn display_available_versions(
     installed: Option<&Installations>,
     version_prefix: Option<&str>,
-    mode: Mode,
+    mode: FetchMode,
 ) -> anyhow::Result<()> {
     let releases = fetch_latest_releases(mode)?;
     println_bold!("Available releases {}", format_suggested_version(&releases));
@@ -515,6 +509,29 @@ fn display_installed_versions_line(
     };
 }
 
+//
+// Helpers
+//
+
+/// Version info grouped by minor version.
+struct VersionInfoGroups<'a>(Vec<Vec1<VersionInfo<'a>>>);
+
+impl<'a> Deref for VersionInfoGroups<'a> {
+    type Target = Vec<Vec1<VersionInfo<'a>>>;
+
+    /// Returns a reference to the inner list of version groups.
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl DerefMut for VersionInfoGroups<'_> {
+    /// Returns a mutable reference to the inner list of version groups.
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.0
+    }
+}
+
 struct VersionInfo<'a> {
     version: Version,
     version_type: VersionType<'a>,
@@ -525,6 +542,16 @@ enum VersionType<'a> {
     LatestInstalled,
     UpdateToLatest(&'a ReleaseData),
     NoReleaseInfo,
+}
+
+fn format_release_stream_with_padding(stream: ReleaseStream) -> (String, String) {
+    let stream = stream.to_string();
+    let padding = "─".repeat(5 - stream.len());
+    (format!("{padding} "), stream)
+}
+
+fn format_version_with_padding(version: Version, max_len: usize) -> String {
+    format!("{:<max_len$}", version.as_str())
 }
 
 /// Returns the max length of the version strings in the groups.

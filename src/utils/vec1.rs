@@ -1,24 +1,80 @@
+use std::error::Error;
+use std::fmt::{Display, Formatter};
 use std::ops::{Deref, DerefMut};
 
-#[derive(Debug, Eq, PartialEq)]
-pub enum Vec1Err {
-    VecIsEmpty,
+//
+// Error  implementation
+//
+
+/// Errors that can occur when working with a [`Vec1`].
+#[derive(Debug, Copy, Clone, Eq, PartialEq, Hash)]
+pub enum Vec1Error {
+    /// Attempted to create a [`Vec1`] from an empty Vec.
+    SourceVecIsEmpty,
+    /// Attempted to pop the last element from a [`Vec1`].
     CannotPopLastElement,
 }
 
-/// A non-empty list.
+impl Error for Vec1Error {}
+
+impl Display for Vec1Error {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Vec1Error::SourceVecIsEmpty => write!(f, "Source Vec is empty"),
+            Vec1Error::CannotPopLastElement => write!(f, "Cannot pop last element"),
+        }
+    }
+}
+
+//
+// Vec1 implementation
+//
+
+/// A non-empty list. This list is guaranteed to have at least one element.
 pub struct Vec1<T>(Vec<T>);
 
+impl<T> Deref for Vec1<T> {
+    type Target = [T];
+
+    /// Provides direct access to the underlying slice.
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
 impl<T> DerefMut for Vec1<T> {
+    /// Provides direct mutable access to the underlying slice.
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.0
     }
 }
 
-impl<T> Deref for Vec1<T> {
-    type Target = [T];
+impl<T> TryFrom<Vec<T>> for Vec1<T> {
+    type Error = Vec1Error;
 
-    fn deref(&self) -> &Self::Target {
+    /// Creates a [`Vec1`] from a [`Vec`].
+    ///
+    /// # Errors
+    /// Returns [`Vec1Error::SourceVecIsEmpty`] if the source Vec is empty.
+    fn try_from(source: Vec<T>) -> Result<Self, Self::Error> {
+        if source.is_empty() {
+            Err(Vec1Error::SourceVecIsEmpty)
+        } else {
+            Ok(Self(source))
+        }
+    }
+}
+
+impl<T> From<Vec1<T>> for Vec<T> {
+    /// Consumes the [`Vec1`] and returns the inner [`Vec`].
+    fn from(v: Vec1<T>) -> Self {
+        v.0
+    }
+}
+
+impl<T> AsRef<[T]> for Vec1<T> {
+    /// Provides a reference to the underlying slice.
+    fn as_ref(&self) -> &[T] {
         &self.0
     }
 }
@@ -29,7 +85,7 @@ impl<T> Vec1<T> {
         Self(vec![first])
     }
 
-    /// Converts the list into a Vec.
+    /// Consumes the list and returns the inner Vec.
     pub fn into_vec(self) -> Vec<T> {
         self.0
     }
@@ -45,6 +101,7 @@ impl<T> Vec1<T> {
             .last()
             .expect("Vec1 is guaranteed to be non-empty by construction")
     }
+
     /// Returns a mutable reference to the first value.
     pub fn first_mut(&mut self) -> &mut T {
         &mut self[0]
@@ -63,12 +120,17 @@ impl<T> Vec1<T> {
     }
 
     /// Pops the last value from the list.
-    /// Returns an error if attempting to pop the last value.
-    pub fn pop(&mut self) -> Result<T, Vec1Err> {
+    ///
+    /// # Errors
+    /// Returns [`Vec1Error::CannotPopLastElement`] if the list only contains one element.
+    pub fn pop(&mut self) -> Result<T, Vec1Error> {
         if self.len() == 1 {
-            Err(Vec1Err::CannotPopLastElement)
+            Err(Vec1Error::CannotPopLastElement)
         } else {
-            Ok(self.0.pop().unwrap())
+            Ok(self
+                .0
+                .pop()
+                .expect("Vec1 is guaranteed to be non-empty by construction"))
         }
     }
 
@@ -83,29 +145,10 @@ impl<T> Vec1<T> {
     }
 }
 
-impl<T> TryFrom<Vec<T>> for Vec1<T> {
-    type Error = Vec1Err;
+//
+// Tests
+//
 
-    fn try_from(value: Vec<T>) -> Result<Self, Self::Error> {
-        if value.is_empty() {
-            Err(Vec1Err::VecIsEmpty)
-        } else {
-            Ok(Self(value))
-        }
-    }
-}
-
-impl<T> From<Vec1<T>> for Vec<T> {
-    fn from(v: Vec1<T>) -> Self {
-        v.0
-    }
-}
-
-impl<T> AsRef<[T]> for Vec1<T> {
-    fn as_ref(&self) -> &[T] {
-        &self.0
-    }
-}
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -123,7 +166,7 @@ mod tests {
         v.push(2);
         assert_eq!(v.last(), &2);
         assert_eq!(v.pop(), Ok(2));
-        assert_eq!(v.pop(), Err(Vec1Err::CannotPopLastElement));
+        assert_eq!(v.pop(), Err(Vec1Error::CannotPopLastElement));
     }
 
     #[test]

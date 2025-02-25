@@ -12,10 +12,10 @@ use std::fs::{File, create_dir_all};
 use std::io::{BufReader, BufWriter};
 use std::ops::Deref;
 use std::path::Path;
+
 const RELEASES_API_URL: &str = "https://services.api.unity.com/unity/editor/release/v1/releases";
 const RELEASES_FILENAME: &str = "releases_dataset.json";
 
-#[allow(dead_code)]
 #[derive(Debug, Serialize, Deserialize)]
 pub struct ReleaseCollection {
     #[serde(rename = "lastUpdated")]
@@ -30,12 +30,14 @@ pub struct ReleaseCollection {
 impl Deref for ReleaseCollection {
     type Target = Vec<ReleaseData>;
 
+    /// Returns a reference to the inner list of releases.
     fn deref(&self) -> &Self::Target {
         &self.releases
     }
 }
 
 impl ReleaseCollection {
+    /// Returns if the collection has a release with the given version.
     pub fn has_version(&self, version: Version) -> bool {
         // No need to cache hits as each check is done once during the lifetime of the program.
         self.iter().any(|r| r.version == version)
@@ -62,6 +64,7 @@ pub struct SortedReleaseCollection(ReleaseCollection);
 impl Deref for SortedReleaseCollection {
     type Target = ReleaseCollection;
 
+    /// Returns a reference to the inner list of releases.
     fn deref(&self) -> &Self::Target {
         &self.0
     }
@@ -74,7 +77,6 @@ impl From<SortedReleaseCollection> for ReleaseCollection {
 }
 
 // Sort list when creating struct
-#[allow(dead_code)]
 impl SortedReleaseCollection {
     /// Sorts the releases by version in ascending order.
     pub fn new(mut collection: ReleaseCollection) -> Self {
@@ -110,22 +112,25 @@ pub fn load_cached_releases() -> anyhow::Result<ReleaseCollection> {
     }
 }
 
+/// Fetch mode for fetching releases.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum Mode {
+pub enum FetchMode {
+    /// Fetch only if the cache is expired.
     Auto,
+    /// Fetch regardless of the cache.
     Force,
 }
 
 /// Downloads and caches the release info.
-pub fn fetch_latest_releases(mode: Mode) -> anyhow::Result<SortedReleaseCollection> {
+pub fn fetch_latest_releases(mode: FetchMode) -> anyhow::Result<SortedReleaseCollection> {
     let releases_path = ucom_cache_dir()?.join(RELEASES_FILENAME);
-    let mut releases = if mode == Mode::Auto {
+    let mut releases = if mode == FetchMode::Auto {
         load_cached_releases()?
     } else {
         ReleaseCollection::default()
     };
 
-    if mode == Mode::Auto && !is_cache_file_expired(&releases_path) {
+    if mode == FetchMode::Auto && !is_cache_file_expired(&releases_path) {
         return Ok(SortedReleaseCollection::new(releases));
     }
 

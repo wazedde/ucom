@@ -98,6 +98,7 @@ pub fn build_project(arguments: &BuildArguments) -> anyhow::Result<()> {
 }
 
 impl BuildArguments {
+    /// Returns true if the log should be shown.
     fn show_log(&self) -> bool {
         !self.quiet && (self.mode == BuildMode::Batch || self.mode == BuildMode::BatchNoGraphics)
     }
@@ -126,6 +127,7 @@ impl BuildArguments {
         Ok(path)
     }
 
+    /// Returns the output path for the build.
     fn output_path(&self, project: &ProjectPath) -> anyhow::Result<PathBuf> {
         let output_dir = match &self.build_path {
             Some(path) => path.absolutize()?.into(),
@@ -146,6 +148,8 @@ impl BuildArguments {
         }
         Ok(output_dir)
     }
+
+    /// Creates the build command.
     fn create_cmd(
         &self,
         project: &ProjectPath,
@@ -304,7 +308,7 @@ fn collect_log_errors(log_file: &Path) -> anyhow::Error {
 
 /// Returns true if the given line is an error.
 fn line_contains_error(line: &str) -> bool {
-    let error_prefixes = &[
+    const ERROR_PREFIXES: &[&str] = &[
         "[Builder] Error:",
         "error CS",
         "Fatal Error",
@@ -313,15 +317,18 @@ fn line_contains_error(line: &str) -> bool {
         "BuildFailedException:",
     ];
 
-    error_prefixes.iter().any(|prefix| line.contains(prefix))
+    ERROR_PREFIXES.iter().any(|prefix| line.contains(prefix))
 }
 
+/// Represents a hook function that returns a result.
 type HookFn = Box<dyn FnOnce() -> anyhow::Result<()>>;
 
+/// Returns a no-op hook function.
 fn no_op_hook() -> HookFn {
     Box::new(|| Ok(()))
 }
 
+/// Represents the build hooks for injecting and cleaning up the build script.
 struct BuildHooks {
     inject_build_script: HookFn,
     cleanup_build_script: HookFn,

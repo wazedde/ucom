@@ -1,10 +1,12 @@
-use crate::unity::release_api::{Mode, SortedReleaseCollection, fetch_latest_releases};
+use crate::unity::release_api::{FetchMode, SortedReleaseCollection, fetch_latest_releases};
 use crate::unity::release_api_data::ReleaseData;
 use crate::unity::{BuildType, Major, Minor, Version};
 use serde::{Deserialize, Serialize};
 use std::fmt::{Display, Formatter};
+use std::ops::Deref;
 use strum::Display;
 
+/// The release stream.
 #[derive(Display, Serialize, Deserialize, Debug, Eq, PartialEq, Ord, PartialOrd, Clone, Copy)]
 pub enum ReleaseStream {
     #[serde(rename = "LTS")]
@@ -24,6 +26,7 @@ pub enum ReleaseStream {
     Other,
 }
 
+/// The release criteria used to filter releases.
 #[allow(dead_code)]
 pub enum ReleaseCriteria {
     /// Match all releases.
@@ -35,7 +38,7 @@ pub enum ReleaseCriteria {
 }
 
 impl ReleaseCriteria {
-    /// Returns true if the version matches the filter.
+    /// Returns true if the [`Version`] matches the criteria.
     const fn is_version_match(&self, v: Version) -> bool {
         match self {
             Self::All => true,
@@ -45,12 +48,14 @@ impl ReleaseCriteria {
     }
 }
 
+/// The current release and newer releases.
 pub struct ReleaseUpdates {
     pub current_release: ReleaseData,
     pub newer_releases: SortedReleaseCollection,
 }
 
-pub fn find_available_updates(version: Version, mode: Mode) -> anyhow::Result<ReleaseUpdates> {
+/// Finds the available updates for the given version.
+pub fn find_available_updates(version: Version, mode: FetchMode) -> anyhow::Result<ReleaseUpdates> {
     let releases = fetch_latest_releases(mode)?;
     let criteria = ReleaseCriteria::Minor {
         major: version.major,
@@ -70,7 +75,19 @@ pub fn find_available_updates(version: Version, mode: Mode) -> anyhow::Result<Re
     })
 }
 
+//
+// URL
+//
+
 pub struct Url(String);
+
+impl Deref for Url {
+    type Target = str;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
 
 impl AsRef<str> for Url {
     fn as_ref(&self) -> &str {
@@ -84,6 +101,7 @@ impl Display for Url {
     }
 }
 
+/// Returns the release notes URL for the given version.
 pub fn release_notes_url(version: Version) -> Url {
     match version.build_type {
         BuildType::Alpha => Url(format!(
@@ -103,6 +121,10 @@ pub fn release_notes_url(version: Version) -> Url {
         )),
     }
 }
+
+//
+// Tests
+//
 
 #[cfg(test)]
 mod releases_tests {

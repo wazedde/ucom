@@ -1,6 +1,6 @@
 use crate::cli::ENV_EDITOR_DIR;
 use crate::unity::Version;
-use crate::utils::vec1::{Vec1, Vec1Err};
+use crate::utils::vec1::{Vec1, Vec1Error};
 use anyhow::{Context, anyhow};
 use itertools::Itertools;
 use std::ops::Deref;
@@ -32,6 +32,83 @@ const UNITY_EDITOR_DIR: &str = r"C:\Program Files\Unity\Hub\Editor";
 #[cfg(not(any(target_os = "macos", target_os = "windows")))]
 const UNITY_EDITOR_DIR: &str = compile_error!("Unsupported platform");
 
+//
+// VersionList
+//
+
+/// A non-empty list of Unity versions, sorted from the oldest to the newest.
+pub struct VersionList(Vec1<Version>);
+
+impl Deref for VersionList {
+    type Target = Vec1<Version>;
+
+    /// Returns a reference to the inner [`Vec1`].
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl TryFrom<Vec<Version>> for VersionList {
+    type Error = Vec1Error;
+
+    /// Converts a vector of versions into a sorted list of versions.
+    fn try_from(versions: Vec<Version>) -> Result<Self, Self::Error> {
+        Vec1::try_from(versions).map(|mut versions| {
+            versions.sort_unstable();
+            Self(versions)
+        })
+    }
+}
+
+impl VersionList {
+    /// Converts the list into a [`Vec`].
+    pub fn into_vec(self) -> Vec<Version> {
+        self.0.into()
+    }
+
+    /// Returns a sorted list of installed Unity versions from the given directory or an error if no versions are found.
+    fn from_dir(dir: impl AsRef<Path>) -> anyhow::Result<Self> {
+        let versions = fs::read_dir(&dir)
+            .with_context(|| {
+                format!(
+                    "Cannot read available Unity editors in `{}`",
+                    dir.as_ref().display()
+                )
+            })?
+            .map_while(Result::ok)
+            .map(|de| de.path()) //
+            .filter(|p| p.is_dir() && p.join(UNITY_EDITOR_EXE).exists())
+            .filter_map(|p| p.file_name()?.to_string_lossy().parse::<Version>().ok())
+            .collect_vec();
+
+        Self::try_from(versions).map_err(|_| {
+            anyhow!(
+                "No Unity installations found in `{}`",
+                dir.as_ref().display()
+            )
+        })
+    }
+
+    pub fn filter_by_prefix(self, version_prefix: Option<&str>) -> anyhow::Result<Self> {
+        let Some(version_prefix) = version_prefix else {
+            // No version to match, return the full list again.
+            return Ok(self);
+        };
+
+        let mut versions = self.into_vec();
+        versions.retain(|v| v.as_str().starts_with(version_prefix));
+
+        Vec1::try_from(versions).map(VersionList).map_err(|_| {
+            anyhow!("No Unity installation was found that matches version `{version_prefix}`.")
+        })
+    }
+}
+
+//
+// Installations
+//
+
+/// The installed versions and the root directory they are installed in.
 pub struct Installations {
     pub install_dir: PathBuf,
     pub versions: VersionList,
@@ -104,6 +181,7 @@ impl Installations {
 }
 
 impl Version {
+    /// Returns true if the editor is installed.
     pub fn is_editor_installed(self) -> anyhow::Result<bool> {
         Ok(Installations::editor_parent_dir()?
             .join(self.as_str())
@@ -121,70 +199,5 @@ impl Version {
         } else {
             Err(anyhow!("Unity version is not installed: {self}"))
         }
-    }
-}
-
-/// A non-empty list of Unity versions, sorted from the oldest to the newest.
-pub struct VersionList(Vec1<Version>);
-
-impl Deref for VersionList {
-    type Target = Vec1<Version>;
-
-    fn deref(&self) -> &Self::Target {
-        &self.0
-    }
-}
-
-impl TryFrom<Vec<Version>> for VersionList {
-    type Error = Vec1Err;
-
-    fn try_from(versions: Vec<Version>) -> Result<Self, Self::Error> {
-        Vec1::try_from(versions).map(|mut versions| {
-            versions.sort_unstable();
-            Self(versions)
-        })
-    }
-}
-
-impl VersionList {
-    pub fn into_vec(self) -> Vec<Version> {
-        self.0.into()
-    }
-
-    /// Returns a sorted list of installed Unity versions from the given directory or an error if no versions are found.
-    fn from_dir(dir: impl AsRef<Path>) -> anyhow::Result<Self> {
-        let versions = fs::read_dir(&dir)
-            .with_context(|| {
-                format!(
-                    "Cannot read available Unity editors in `{}`",
-                    dir.as_ref().display()
-                )
-            })?
-            .map_while(Result::ok)
-            .map(|de| de.path()) //
-            .filter(|p| p.is_dir() && p.join(UNITY_EDITOR_EXE).exists())
-            .filter_map(|p| p.file_name()?.to_string_lossy().parse::<Version>().ok())
-            .collect_vec();
-
-        Self::try_from(versions).map_err(|_| {
-            anyhow!(
-                "No Unity installations found in `{}`",
-                dir.as_ref().display()
-            )
-        })
-    }
-
-    pub fn filter_by_prefix(self, version_prefix: Option<&str>) -> anyhow::Result<Self> {
-        let Some(version_prefix) = version_prefix else {
-            // No version to match, return the full list again.
-            return Ok(self);
-        };
-
-        let mut versions = self.into_vec();
-        versions.retain(|v| v.as_str().starts_with(version_prefix));
-
-        Vec1::try_from(versions).map(VersionList).map_err(|_| {
-            anyhow!("No Unity installation was found that matches version `{version_prefix}`.")
-        })
     }
 }

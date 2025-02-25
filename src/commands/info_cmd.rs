@@ -8,7 +8,7 @@ use crate::unity::project::ProjectPath;
 use crate::unity::project::{
     PackageInfo, PackageSource, Packages, PackagesAvailability, ProjectSettings, directory_walker,
 };
-use crate::unity::release_api::Mode;
+use crate::unity::release_api::FetchMode;
 use crate::unity::{Version, release_notes_url};
 use crate::utils;
 
@@ -18,7 +18,7 @@ pub fn project_info(
     packages_level: PackagesInfoLevel,
     install_unity: bool,
     recursive: bool,
-    mode: Mode,
+    mode: FetchMode,
 ) -> anyhow::Result<()> {
     if recursive {
         show_recursive_project_info(path, packages_level)
@@ -51,7 +51,7 @@ fn show_project_info(
     path: &Path,
     packages_level: PackagesInfoLevel,
     install_unity: bool,
-    mode: Mode,
+    mode: FetchMode,
 ) -> anyhow::Result<()> {
     let version = print_project_info(&ProjectPath::try_from(path)?, packages_level)?;
 

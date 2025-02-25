@@ -6,6 +6,7 @@ use strum::{AsRefStr, Display};
 mod elements;
 mod tests;
 
+/// Represents a parsed NUnit test run.
 #[derive(Debug, PartialEq)]
 pub struct TestRun {
     pub stats: TestStats,
@@ -23,6 +24,7 @@ impl TestRun {
     }
 }
 
+/// Represents the result of a test.
 #[derive(Display, AsRefStr, Copy, Clone, Debug, PartialEq, Eq)]
 pub enum TestResult {
     Passed,
@@ -35,6 +37,7 @@ pub enum TestResult {
 }
 
 impl From<&str> for TestResult {
+    /// Converts a string to a `TestResult`.
     fn from(s: &str) -> Self {
         match s {
             "Passed" => Self::Passed,
@@ -46,6 +49,7 @@ impl From<&str> for TestResult {
     }
 }
 
+/// Represents the statistics of a test run.
 #[derive(Debug, Clone, PartialEq)]
 pub struct TestStats {
     pub id: i32,
@@ -62,6 +66,7 @@ pub struct TestStats {
     pub duration: f64,
 }
 
+/// Represents a test case.
 #[derive(Debug, Clone, PartialEq)]
 pub struct TestCase {
     pub id: i32,

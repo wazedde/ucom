@@ -4,7 +4,7 @@ use crate::commands::{
     INDENT, add_to_project, build_project, find_project_updates, install_latest_matching,
     list_versions, new_project, open_project, project_info, run_unity,
 };
-use crate::unity::release_api::Mode;
+use crate::unity::release_api::FetchMode;
 use anyhow::Context;
 use clap::Parser;
 use std::fmt::Display;
@@ -44,12 +44,16 @@ fn main() -> anyhow::Result<()> {
             version_filter,
             force,
         } => {
-            let mode = if force { Mode::Force } else { Mode::Auto };
+            let mode = if force {
+                FetchMode::Force
+            } else {
+                FetchMode::Auto
+            };
             list_versions(list_type, version_filter.as_deref(), mode)
                 .with_context(|| color_error(&format!("Cannot list `{list_type}`")).to_string())
         }
 
-        Action::Install { version } => install_latest_matching(&version, Mode::Auto)
+        Action::Install { version } => install_latest_matching(&version, FetchMode::Auto)
             .with_context(|| color_error("Cannot install Unity version")),
 
         Action::Info {
@@ -57,14 +61,14 @@ fn main() -> anyhow::Result<()> {
             install,
             recursive,
             packages,
-        } => project_info(&project_dir, packages, install, recursive, Mode::Auto)
+        } => project_info(&project_dir, packages, install, recursive, FetchMode::Auto)
             .with_context(|| color_error("Cannot show project info")),
 
         Action::Check {
             project_dir,
             install,
             report,
-        } => find_project_updates(&project_dir, install, report, Mode::Auto)
+        } => find_project_updates(&project_dir, install, report, FetchMode::Auto)
             .with_context(|| color_error("Cannot show Unity updates for project")),
 
         Action::Run(settings) => run_unity(settings).context(color_error("Cannot run Unity")),

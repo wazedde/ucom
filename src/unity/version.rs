@@ -7,6 +7,11 @@ use std::fmt::{Display, Formatter};
 use std::str::FromStr;
 use strum::Display;
 
+//
+// Error  implementation
+//
+
+/// Errors that can occur when parsing a [`Version`].
 #[derive(Debug, Eq, PartialEq)]
 pub struct ParseError;
 
@@ -18,6 +23,20 @@ impl fmt::Display for ParseError {
     }
 }
 
+//
+// Type aliases for the version components.
+//
+
+pub type Major = u16;
+pub type Minor = u8;
+pub type Patch = u8;
+pub type BuildNumber = u8;
+
+//
+// Version components
+//
+
+/// The type of build.
 #[derive(Display, Debug, Eq, PartialEq, Ord, PartialOrd, Copy, Clone, Hash)]
 pub enum BuildType {
     Alpha,
@@ -27,8 +46,29 @@ pub enum BuildType {
     FinalPatch,
 }
 
+impl FromStr for BuildType {
+    type Err = ParseError;
+
+    /// Returns the [`BuildType`] from a string.
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        if s.contains('f') {
+            Ok(Self::Final)
+        } else if s.contains('b') {
+            Ok(Self::Beta)
+        } else if s.contains('a') {
+            Ok(Self::Alpha)
+        } else if s.contains("rc") {
+            Ok(Self::ReleaseCandidate)
+        } else if s.contains('p') {
+            Ok(Self::FinalPatch)
+        } else {
+            Err(ParseError)
+        }
+    }
+}
+
 impl BuildType {
-    /// Returns the short name of the build type.
+    /// Returns the short name of the [`BuildType`].
     pub const fn as_short_str(&self) -> &str {
         match self {
             Self::Alpha => "a",
@@ -38,29 +78,7 @@ impl BuildType {
             Self::FinalPatch => "p",
         }
     }
-
-    /// Returns the build type from a string.
-    pub fn from(s: &str) -> Option<Self> {
-        if s.contains('f') {
-            Some(Self::Final)
-        } else if s.contains('b') {
-            Some(Self::Beta)
-        } else if s.contains('a') {
-            Some(Self::Alpha)
-        } else if s.contains("rc") {
-            Some(Self::ReleaseCandidate)
-        } else if s.contains('p') {
-            Some(Self::FinalPatch)
-        } else {
-            None
-        }
-    }
 }
-
-pub type Major = u16;
-pub type Minor = u8;
-pub type Patch = u8;
-pub type BuildNumber = u8;
 
 /// The Unity version separated into its components.
 #[derive(Debug, Eq, PartialEq, Ord, PartialOrd, Copy, Clone, Hash)]
@@ -72,13 +90,76 @@ pub struct Version {
     pub build: BuildNumber,
 }
 
+impl FromStr for Version {
+    type Err = ParseError;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        let mut parts = s.split('.');
+
+        let major = parts
+            .next()
+            .and_then(|s| s.parse().ok())
+            .ok_or(ParseError)?;
+
+        let minor = parts
+            .next()
+            .and_then(|s| s.parse().ok())
+            .ok_or(ParseError)?;
+
+        let build_part = parts.next().ok_or(ParseError)?;
+        let build_type: BuildType = build_part.parse()?;
+
+        let (patch, build) = build_part
+            .split_once(build_type.as_short_str())
+            .and_then(|(l, r)| l.parse().ok().zip(r.parse().ok()))
+            .ok_or(ParseError)?;
+
+        Ok(Self {
+            major,
+            minor,
+            patch,
+            build_type,
+            build,
+        })
+    }
+}
+
+impl Display for Version {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.as_str())
+    }
+}
+
+impl<'de> Deserialize<'de> for Version {
+    /// Deserializes a [`Version`] from a string.
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        let s = String::deserialize(deserializer)?;
+        Self::from_str(&s).map_err(de::Error::custom)
+    }
+}
+
+impl Serialize for Version {
+    /// Serializes a [`Version`] to a string.
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        // Don't use `as_str` here as it caches the string
+        serializer.serialize_str(&self.format_string())
+    }
+}
+
 impl Version {
     /// Returns the `major.minor` part of this version.
     pub fn major_minor_string(self) -> String {
         format!("{}.{}", self.major, self.minor)
     }
 
-    /// Returns the cached string representation of this version.
+    /// Returns the string representation of this version.
+    /// This is cached for performance.
     pub fn as_str(self) -> &'static str {
         // Use a thread-local cache as usage is predominantly single-threaded. This avoids having to use a Mutex.
         thread_local! {
@@ -130,65 +211,9 @@ impl Version {
     }
 }
 
-impl FromStr for Version {
-    type Err = ParseError;
-
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        let mut parts = s.split('.');
-
-        let major = parts
-            .next()
-            .and_then(|s| s.parse().ok())
-            .ok_or(ParseError)?;
-
-        let minor = parts
-            .next()
-            .and_then(|s| s.parse().ok())
-            .ok_or(ParseError)?;
-
-        let build_part = parts.next().ok_or(ParseError)?;
-        let build_type = BuildType::from(build_part).ok_or(ParseError)?;
-
-        let (patch, build) = build_part
-            .split_once(build_type.as_short_str())
-            .and_then(|(l, r)| l.parse().ok().zip(r.parse().ok()))
-            .ok_or(ParseError)?;
-
-        Ok(Self {
-            major,
-            minor,
-            patch,
-            build_type,
-            build,
-        })
-    }
-}
-
-impl Display for Version {
-    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-        write!(f, "{}", self.as_str())
-    }
-}
-
-impl<'de> Deserialize<'de> for Version {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: Deserializer<'de>,
-    {
-        let s = String::deserialize(deserializer)?;
-        Self::from_str(&s).map_err(de::Error::custom)
-    }
-}
-
-impl Serialize for Version {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: Serializer,
-    {
-        // Don't use `as_str` here as it caches the string
-        serializer.serialize_str(&self.format_string())
-    }
-}
+//
+// Tests
+//
 
 #[cfg(test)]
 mod version_tests {

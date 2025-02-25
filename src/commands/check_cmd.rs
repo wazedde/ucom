@@ -4,7 +4,7 @@ use yansi::Paint;
 
 use crate::commands::install_cmd::install_version;
 use crate::commands::{INDENT, println_bold};
-use crate::unity::release_api::{Mode, SortedReleaseCollection};
+use crate::unity::release_api::{FetchMode, SortedReleaseCollection};
 use crate::unity::{
     ProjectPath, ProjectSettings, ReleaseUpdates, find_available_updates, release_notes_url,
 };
@@ -16,7 +16,7 @@ pub fn find_project_updates(
     project_dir: &Path,
     install_update: bool,
     create_report: bool,
-    mode: Mode,
+    mode: FetchMode,
 ) -> anyhow::Result<()> {
     let project = ProjectPath::try_from(project_dir)?;
     let current_version = project.unity_version()?;
