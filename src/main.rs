@@ -8,6 +8,7 @@ use crate::unity::release_api::FetchMode;
 use anyhow::Context;
 use clap::Parser;
 use std::fmt::Display;
+use std::io::IsTerminal;
 use utils::content_cache::{
     configure_cache_from_environment, delete_cache_directory, ucom_cache_dir,
 };
@@ -31,7 +32,7 @@ fn main() -> anyhow::Result<()> {
         return Ok(());
     };
 
-    if cli.disable_color {
+    if cli.disable_color || !std::io::stdout().is_terminal() {
         yansi::disable();
     }
 
