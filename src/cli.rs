@@ -23,13 +23,13 @@ pub struct Cli {
     pub disable_color: bool,
 
     #[command(subcommand)]
-    pub command: Option<Action>,
+    pub command: Option<Command>,
 }
 
 #[derive(clap::Subcommand)]
-pub enum Action {
+pub enum Command {
     /// List installed Unity versions
-    #[command(visible_alias = "l")]
+    #[command(visible_alias = "ls")]
     List {
         /// Specify what to list
         #[arg(value_enum, default_value = "installed")]
@@ -45,7 +45,7 @@ pub enum Action {
     },
 
     /// Install Unity version
-    #[command(visible_alias = "I")]
+    #[command()]
     Install {
         /// Version to install (prefix like '2023.1' or full version like '2021.1.0f1')
         #[arg(value_name = "VERSION")]
@@ -60,7 +60,7 @@ pub enum Action {
         project_dir: PathBuf,
 
         /// Install required Unity version if not present
-        #[arg(short = 'I', long)]
+        #[arg()]
         install: bool,
 
         /// Recursively search for Unity projects
@@ -89,7 +89,7 @@ pub enum Action {
     },
 
     /// Create new Unity project and Git repository
-    #[command(visible_alias = "n")]
+    #[command()]
     New(NewArguments),
 
     /// Open Unity project in the editor

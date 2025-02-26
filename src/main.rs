@@ -1,4 +1,4 @@
-use crate::cli::{Action, CacheAction, Cli};
+use crate::cli::{CacheAction, Cli, Command};
 use crate::commands::test_cmd::run_tests;
 use crate::commands::{
     INDENT, add_to_project, build_project, find_project_updates, install_latest_matching,
@@ -40,7 +40,7 @@ fn main() -> anyhow::Result<()> {
         .with_context(|| color_error("Cannot set cache from environment"))?;
 
     match command {
-        Action::List {
+        Command::List {
             list_type,
             version_filter,
             force,
@@ -54,10 +54,10 @@ fn main() -> anyhow::Result<()> {
                 .with_context(|| color_error(&format!("Cannot list `{list_type}`")).to_string())
         }
 
-        Action::Install { version } => install_latest_matching(&version, FetchMode::Auto)
+        Command::Install { version } => install_latest_matching(&version, FetchMode::Auto)
             .with_context(|| color_error("Cannot install Unity version")),
 
-        Action::Info {
+        Command::Info {
             project_dir,
             install,
             recursive,
@@ -65,36 +65,36 @@ fn main() -> anyhow::Result<()> {
         } => project_info(&project_dir, packages, install, recursive, FetchMode::Auto)
             .with_context(|| color_error("Cannot show project info")),
 
-        Action::Check {
+        Command::Check {
             project_dir,
             install,
             report,
         } => find_project_updates(&project_dir, install, report, FetchMode::Auto)
             .with_context(|| color_error("Cannot show Unity updates for project")),
 
-        Action::Run(settings) => run_unity(settings).context(color_error("Cannot run Unity")),
+        Command::Run(settings) => run_unity(settings).context(color_error("Cannot run Unity")),
 
-        Action::New(settings) => {
+        Command::New(settings) => {
             new_project(settings).with_context(|| color_error("Cannot create new Unity project"))
         }
 
-        Action::Open(settings) => {
+        Command::Open(settings) => {
             open_project(settings).with_context(|| color_error("Cannot open Unity project"))
         }
 
-        Action::Build(settings) => {
+        Command::Build(settings) => {
             build_project(&settings).with_context(|| color_error("Cannot build project"))
         }
 
-        Action::Test(settings) => {
+        Command::Test(settings) => {
             run_tests(&settings).with_context(|| color_error("Cannot run tests"))
         }
 
-        Action::Add(arguments) => {
+        Command::Add(arguments) => {
             add_to_project(&arguments).with_context(|| color_error("Cannot add file to project"))
         }
 
-        Action::Cache { action: command } => {
+        Command::Cache { action: command } => {
             match command {
                 CacheAction::Clear => {
                     delete_cache_directory();
