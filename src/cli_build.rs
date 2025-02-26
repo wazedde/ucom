@@ -5,16 +5,16 @@ use strum::{AsRefStr, Display};
 
 #[derive(Args)]
 pub struct BuildArguments {
-    /// Specifies the target platform for the build.
+    /// Target platform for build
     #[arg(value_enum, env = crate::cli::ENV_BUILD_TARGET)]
     pub target: BuildOpenTarget,
 
-    /// Defines the project's directory.
+    /// Project directory path
     #[arg(value_name = "DIRECTORY", value_hint = clap::ValueHint::DirPath, default_value = ".")]
     pub project_dir: PathBuf,
 
-    /// Sets the output directory for the build.
-    /// If omitted, the build is placed in `PROJECT_DIR>/Builds/<TYPE>/<TARGET>`.
+    /// Output directory for build
+    /// Default: <PROJECT_DIR>/Builds/<TYPE>/<TARGET>
     #[arg(
         short = 'o',
         long = "output",
@@ -23,10 +23,10 @@ pub struct BuildArguments {
     )]
     pub build_path: Option<PathBuf>,
 
-    /// Sets the output type for the build.
+    /// Output type for build directory naming
     ///
-    /// This is mainly a flag used in the output directory; it doesn't dictate the physical type of build.
-    /// Ignored if `--output` is set.
+    /// Used in output directory path structure
+    /// Ignored if --output is set
     #[arg(
         short = 't',
         long = "type",
@@ -35,73 +35,73 @@ pub struct BuildArguments {
     )]
     pub output_type: BuildOutputType,
 
-    /// Run the built player.
+    /// Run built player
     ///
-    /// Same as `--build-options auto-run-player`.
+    /// Same as --build-options auto-run-player
     #[arg(short = 'r', long("run"))]
     pub run_player: bool,
 
-    /// Build a development version of the player.
+    /// Build development version
     ///
-    /// Same as `--build-options development`.
+    /// Same as --build-options development
     #[arg(short = 'd', long("development"))]
     pub development_build: bool,
 
-    /// Show the built player.
+    /// Show built player
     ///
-    /// Same as `--build-options show-built-player`.
+    /// Same as --build-options show-built-player
     #[arg(short = 'S', long("show"))]
     pub show_built_player: bool,
 
-    /// Allow script debuggers to attach to the player remotely.
+    /// Allow remote script debugging
     ///
-    /// Same as `--build-options allow-debugging`.
+    /// Same as --build-options allow-debugging
     #[arg(short = 'D', long("debugging"))]
     pub allow_debugging: bool,
 
-    /// Start the player with a connection to the profiler in the editor.
+    /// Connect to editor profiler
     ///
-    /// Same as `--build-options connect-with-profiler`.
+    /// Same as --build-options connect-with-profiler
     #[arg(short = 'p', long("profiling"))]
     pub connect_with_profiler: bool,
 
-    /// Enables Deep Profiling support in the player.
+    /// Enable deep profiling support
     ///
-    /// Same as `--build-options enable-deep-profiling-support`.
+    /// Same as --build-options enable-deep-profiling-support
     #[arg(short = 'P', long("deep-profiling"))]
     pub deep_profiling: bool,
 
-    /// Sets the Player to connect to the Editor.
+    /// Connect player to editor
     ///
-    /// Same as `--build-options connect-to-host`.
+    /// Same as --build-options connect-to-host
     #[arg(short = 'H', long("connect-host"))]
     pub connect_to_host: bool,
 
-    /// Sets the build options. Multiple options can be combined by separating them with spaces.
+    /// Set Unity build options (space-separated)
     #[arg(num_args(0..), short = 'O', long, value_name = "OPTION", default_value = "none")]
     pub build_options: Vec<BuildOptions>,
 
-    /// A string to be passed directly to functions tagged with the `UcomPreProcessBuild` attribute.
+    /// Custom argument string for UcomPreProcessBuild
     ///
-    /// Use it to pass custom arguments to your own C# build scripts before the project is built,
-    /// like e.g., a release, debug or test build tag or a version number.
-    /// This requires the use of ucom's injected build script as it passes the arguments through.
+    /// Passed to functions with UcomPreProcessBuild attribute
+    /// Useful for version numbers or build configuration flags
+    /// Requires ucom's injected build script
     #[arg(short = 'a', long, value_name = "STRING")]
     pub build_args: Option<String>,
 
-    /// Removes directories from the output directory not needed for distribution.
+    /// Remove unused files from output directory
     #[arg(short = 'C', long)]
     pub clean: bool,
 
-    /// Determines the method of build script injection.
+    /// Build script injection method
     #[arg(short = 'i', long, value_name = "METHOD", default_value = "auto")]
     pub inject: InjectAction,
 
-    /// Defines the build mode.
+    /// Build mode
     #[arg(short = 'm', long, value_name = "MODE", default_value = "batch")]
     pub mode: BuildMode,
 
-    /// Specifies the static method in the Unity project used for building the project.
+    /// Static build method in project
     #[arg(
         short = 'f',
         long,
@@ -110,61 +110,62 @@ pub struct BuildArguments {
     )]
     pub build_function: String,
 
-    /// Designates the log file for Unity's build output. By default, log is written to the project's `Logs` directory.
+    /// Log file for Unity build output
+    /// Default: <PROJECT_DIR>/Logs directory
     #[arg(short = 'l', long, value_name = "FILE")]
     pub log_file: Option<PathBuf>,
 
-    /// Suppresses build log output to stdout.
+    /// Suppress build log output
     #[arg(short = 'q', long)]
     pub quiet: bool,
 
-    /// Displays the command to be run without actually executing it.
+    /// Show command without executing
     #[arg(short = 'n', long)]
     pub dry_run: bool,
 
-    /// A list of arguments to be passed directly to Unity.
+    /// Arguments to pass directly to Unity
     #[arg(last = true, value_name = "UNITY_ARGS")]
     pub args: Option<Vec<String>>,
 }
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, ValueEnum)]
 pub enum InjectAction {
-    /// Inject a build script if none exists, and remove it post-build.
+    /// Inject build script temporarily
     Auto,
-    /// Inject a build script into the project and retain it post-build.
+    /// Inject build script permanently
     Persistent,
-    /// Use the existing build script in the project, without any injection.
+    /// Use existing build script only
     Off,
 }
 
 #[derive(Display, AsRefStr, Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, ValueEnum)]
 pub enum BuildOutputType {
-    /// Build output is written to the `Builds/Release` directory.
+    /// Output to Builds/Release directory
     Release,
-    /// Build output is written to the `Builds/Debug` directory.
+    /// Output to Builds/Debug directory
     Debug,
 }
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, ValueEnum)]
 pub enum BuildMode {
-    /// Execute build in 'batch' mode and await completion.
+    /// Build in batch mode
     #[value(name = "batch")]
     Batch,
 
-    /// Execute build in 'batch' mode without utilizing the graphics device, and await completion.
+    /// Build in batch mode without graphics
     #[value(name = "batch-nogfx")]
     BatchNoGraphics,
 
-    /// Execute build within the editor and terminate post-build.
+    /// Build in editor and quit
     #[value(name = "editor-quit")]
     EditorQuit,
 
-    /// Execute build within the editor, keeping it open post-build. Useful for debugging.
+    /// Build in editor and stay open
     #[value(name = "editor")]
     Editor,
 }
 
-/// The build target to open the project with.
+/// Build target for Unity editor
 #[derive(Display, AsRefStr, Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, ValueEnum)]
 #[allow(non_camel_case_types)]
 pub enum OpenTarget {
@@ -189,7 +190,7 @@ pub enum OpenTarget {
     tvOS,
 }
 
-/// The build target to open the project to build with.
+/// Build target platform
 #[derive(Display, AsRefStr, Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, ValueEnum)]
 #[allow(non_camel_case_types)]
 pub enum BuildOpenTarget {
@@ -209,7 +210,7 @@ pub enum BuildOpenTarget {
     WebGL,
 }
 
-/// The build target to pass to the Unity build script.
+/// Target for Unity build script
 #[derive(Display, AsRefStr, Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, ValueEnum)]
 #[allow(non_camel_case_types)]
 pub enum BuildScriptTarget {
@@ -236,86 +237,81 @@ impl From<BuildOpenTarget> for BuildScriptTarget {
     }
 }
 
-/// Building options. Multiple options can be combined.
+/// Build options flags
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, ValueEnum)]
 pub enum BuildOptions {
-    /// Perform the specified build without any special settings or extra tasks.
+    /// Default build with no special settings
     None = 0,
 
-    /// Build a development version of the player.
+    /// Build development version
     Development = 1,
 
-    /// Run the built player.
+    /// Run built player
     AutoRunPlayer = 4,
 
-    /// Show the built player.
+    /// Show built player
     ShowBuiltPlayer = 8,
 
-    /// Build a compressed asset bundle that contains streamed Scenes loadable with the `UnityWebRequest` class.
+    /// Build compressed asset bundle with streamed scenes
     BuildAdditionalStreamedScenes = 16, // 0x00000010
 
-    /// Used when building Xcode (iOS) or Eclipse (Android) projects.
+    /// Used for Xcode (iOS) or Eclipse (Android) projects
     AcceptExternalModificationsToPlayer = 32, // 0x00000020
 
-    /// Clear all cached build results, resulting in a full rebuild of all scripts and all player data.
+    /// Force full rebuild of all scripts and player data
     CleanBuildCache = 128, // 0x00000080
 
-    /// Start the player with a connection to the profiler in the editor.
+    /// Connect to profiler in editor
     ConnectWithProfiler = 256, // 0x00000100
 
-    /// Allow script debuggers to attach to the player remotely.
+    /// Allow remote script debugging
     AllowDebugging = 512, // 0x00000200
 
-    /// Symlink sources when generating the project.
-    /// This is useful if you're changing source files inside the generated project
-    /// and want to bring the changes back into your Unity project or a package.
+    /// Symlink sources for project generation
     SymlinkSources = 1024, // 0x00000400
 
-    /// Don't compress the data when creating the asset bundle.
+    /// Skip asset bundle compression
     UncompressedAssetBundle = 2048, // 0x00000800
 
-    /// Sets the Player to connect to the Editor.
+    /// Connect player to editor
     ConnectToHost = 4096, // 0x00001000
 
-    /// Determines if the player should be using the custom connection ID.
+    /// Use custom connection ID
     CustomConnectionId = 8192, // 0x00002000
 
-    /// Only build the scripts in a Project.
+    /// Build only scripts
     BuildScriptsOnly = 3276, // 0x00008000
 
-    /// Patch a Development app package rather than completely rebuilding it.
-    /// Supported platforms: Android.
+    /// Patch Android development package
     PatchPackage = 65536, // 0x00010000
 
-    /// Use chunk-based LZ4 compression when building the Player.
+    /// Use LZ4 compression
     CompressWithLz4 = 262144, // 0x00040000
 
-    /// Use chunk-based LZ4 high-compression when building the Player.
+    /// Use LZ4 high-compression
     CompressWithLz4HC = 524288, // 0x00080000
 
-    /// Do not allow the build to succeed if any errors are reporting during it.
+    /// Fail build on any errors
     StrictMode = 2097152, // 0x00200000
 
-    /// Build will include Assemblies for testing.
+    /// Include test assemblies
     IncludeTestAssemblies = 4194304, // 0x00400000
 
-    /// Will force the buildGUID to all zeros.
+    /// Use zero GUID
     NoUniqueIdentifier = 8388608, // 0x00800000
 
-    /// Sets the Player to wait for player connection on player start.
+    /// Wait for player connection on start
     WaitForPlayerConnection = 33554432, // 0x02000000
 
-    /// Enables code coverage.
-    /// You can use this as a complimentary way of enabling code coverage on platforms that do not
-    /// support command line arguments.
+    /// Enable code coverage
     EnableCodeCoverage = 67108864, // 0x04000000
 
-    /// Enables Deep Profiling support in the player.
+    /// Enable deep profiling support
     EnableDeepProfilingSupport = 268435456, // 0x10000000
 
-    /// Generates more information in the `BuildReport`.
+    /// Generate detailed build report
     DetailedBuildReport = 536870912, // 0x20000000
 
-    /// Enable Shader Livelink support.
+    /// Enable shader livelink
     ShaderLivelinkSupport = 1073741824, // 0x40000000
 }

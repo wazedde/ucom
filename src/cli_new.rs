@@ -5,12 +5,11 @@ use clap::Args;
 
 #[derive(Args)]
 pub struct NewArguments {
-    /// Specifies the Unity version for the new project.
-    /// For example, '2021' uses the latest-installed 2021.x.y version.
+    /// Unity version for new project (e.g. '2021' uses latest 2021.x.y)
     #[arg(short = 'u', long = "unity", value_name = "VERSION")]
     pub version_pattern: String,
 
-    /// Defines the directory for creating the project. This directory should not pre-exist.
+    /// Target directory (must not exist)
     #[arg(
         required = true,
         value_name = "DIRECTORY",
@@ -18,42 +17,42 @@ pub struct NewArguments {
     )]
     pub project_dir: PathBuf,
 
-    /// Determines the active build target to open the project with.
+    /// Set active build target
     #[arg(short = 't', long, value_name = "NAME")]
     pub target: Option<OpenTarget>,
 
-    /// Adds a build menu script to the project.
+    /// Add build menu script to project
     ///
-    /// This will add both the `EditorMenu.cs` and `UnityBuilder.cs`
-    /// scripts to the project in the `Assets/Plugins/Ucom/Editor` directory.
+    /// Adds both EditorMenu.cs and UnityBuilder.cs scripts
+    /// to Assets/Plugins/Ucom/Editor directory
     #[arg(long)]
     pub add_builder_menu: bool,
 
-    /// Initializes LFS for the repository and includes a .gitattributes file with Unity-specific LFS settings.
+    /// Initialize Git LFS with Unity-specific attributes
     #[arg(long = "lfs")]
     pub include_lfs: bool,
 
-    /// Skips initialization of a new Git repository.
+    /// Skip Git repository initialization
     #[arg(long, conflicts_with = "include_lfs")]
     pub no_git: bool,
 
-    /// Waits for the command to complete before proceeding.
+    /// Wait for Unity to exit before returning
     #[arg(short = 'w', long)]
     pub wait: bool,
 
-    /// Closes the editor after the project creation.
+    /// Close editor after project creation
     #[arg(short = 'Q', long)]
     pub quit: bool,
 
-    /// Suppresses ucom messages.
+    /// Suppress messages
     #[arg(short = 'q', long)]
     pub quiet: bool,
 
-    /// Shows the command to be run without actually executing it.
+    /// Show command without executing
     #[arg(short = 'n', long)]
     pub dry_run: bool,
 
-    /// A list of arguments to be passed directly to Unity.
+    /// Arguments to pass directly to Unity
     #[arg(last = true, value_name = "UNITY_ARGS")]
     pub args: Option<Vec<String>>,
 }

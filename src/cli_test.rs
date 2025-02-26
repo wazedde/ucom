@@ -7,86 +7,78 @@ use crate::cli_build::OpenTarget;
 
 #[derive(Args)]
 pub struct TestArguments {
-    /// The platform to run tests on.
+    /// Platform to run tests on
     ///
-    /// The build target to open the project with is automatically determined by the platform.
-    /// E.g., `editmode` and `playmode' will open the project with the `standalone` build target
-    /// and `macos' will open the project with the `macos` build target.
-    /// If you want to override this, you can use the `--target` option.
+    /// Build target is automatically determined by platform.
+    /// 'editmode' and 'playmode' use 'standalone' build target
+    /// 'macos' uses 'macos' build target, etc.
+    /// Use --target to override this behavior.
     #[arg(value_enum)]
     pub platform: TestTarget,
 
-    /// Specifies the project's directory.
+    /// Project directory path
     #[arg(value_name = "DIRECTORY", value_hint = clap::ValueHint::DirPath, default_value = ".")]
     pub project_dir: PathBuf,
 
-    /// Determines the active build target to open the project with.
+    /// Set active build target
     ///
-    /// By default, the build target matches the specified test platform.
-    /// However, you can override this by specifying a different build target. For example to run
-    /// `editmode` tests using the `ios` build target.
+    /// Default build target matches test platform.
+    /// Override to run tests with different build target
+    /// (e.g., editmode tests with ios target)
     #[arg(short = 't', long, value_name = "NAME")]
     pub target: Option<OpenTarget>,
 
-    /// The type of test results to display.
+    /// Test results display level
     #[arg(short = 'r', long, value_name = "RESULTS", default_value = "all")]
     pub show_results: ShowResults,
 
-    /// Suppresses running Unity in batch mode.
+    /// Disable batch mode
     ///
-    /// Running tests in batch mode removes the need for manual user inputs, but it also disables
-    /// the graphics device and may cause some tests to fail.
+    /// Batch mode prevents manual inputs but disables graphics device
+    /// which may cause some tests to fail
     #[arg(long)]
     pub no_batch_mode: bool,
 
-    /// Don't save your current Project into the Unity launcher/hub history.
+    /// Skip adding project to Unity launcher/hub history
     #[arg(long)]
     pub forget_project_path: bool,
 
-    /// A semicolon-separated list of test categories to include in the run.
+    /// Filter by test categories
     ///
-    /// A semicolon separated list should be formatted as a string enclosed in quotation marks,
-    /// e.g. `categories "firstCategory;secondCategory"`.
-    /// If using both `categories` and `tests`, then only test that matches both are run.
-    /// This argument supports negation using '!'.
-    /// If using `!MyCategory` then no tests with the `MyCategory` category will be included in the run.
+    /// Use semicolon-separated list in quotes: "category1;category2"
+    /// Works with --tests to run only tests matching both filters
+    /// Use negation with ! prefix: "!excludedCategory"
     #[arg(long, value_name = "LIST")]
     pub categories: Option<String>,
 
-    /// A semicolon-separated list of test names to run,
-    /// or a regular expression pattern to match tests by their full name.
+    /// Filter by test names or regex pattern
     ///
-    /// A semicolon separated list should be formatted as a string enclosed in quotation marks,
-    /// e.g. `tests "Low;Medium"`.
-    /// This argument supports negation using '!'.
-    /// If using the test filter '!MyNamespace.Something.MyTest',
-    /// then all tests except that test will be run.
-    /// It is also possible to run a specific variation of a parameterized test like so:
-    /// `"ClassName\.MethodName\(Param1,Param2\)"`
+    /// Use semicolon-separated list in quotes: "Test1;Test2"
+    /// Supports negation with ! prefix: "!TestToExclude"
+    /// For parameterized tests: "ClassName\.MethodName\(Param1,Param2\)"
     #[arg(long, value_name = "LIST")]
     pub tests: Option<String>,
 
-    /// A semicolon-separated list of test assemblies to include in the run.
+    /// Filter by test assemblies
     ///
-    /// A semicolon separated list should be formatted as a string enclosed in quotation marks,
-    /// e.g. `assemblyNames "firstAssembly;secondAssembly"`.
+    /// Use semicolon-separated list in quotes: "Assembly1;Assembly2"
     #[arg(long, value_name = "LIST")]
     pub assemblies: Option<String>,
 
-    /// Suppresses ucom messages.
+    /// Suppress messages
     #[arg(short = 'q', long)]
     pub quiet: bool,
 
-    /// Shows the command to be run without actually executing it.
+    /// Show command without executing
     #[arg(short = 'n', long)]
     pub dry_run: bool,
 
-    /// A list of arguments to be passed directly to Unity.
+    /// Arguments to pass directly to Unity
     #[arg(last = true, value_name = "UNITY_ARGS")]
     pub args: Option<Vec<String>>,
 }
 
-/// The build target to open the project with.
+/// Build target for testing
 #[derive(Display, AsRefStr, Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, ValueEnum)]
 #[allow(non_camel_case_types)]
 pub enum TestTarget {
@@ -125,16 +117,16 @@ impl TestTarget {
     }
 }
 
-/// The type of test results to display.
+/// Result display level
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, ValueEnum)]
 pub enum ShowResults {
-    /// Display all results.
+    /// Display all results
     #[value(name = "all")]
     All,
-    /// Only display errors.
+    /// Display only errors
     #[value(name = "errors")]
     Errors,
-    /// Don't display any results.
+    /// Display no results
     #[value(name = "none")]
     None,
 }

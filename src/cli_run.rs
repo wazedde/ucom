@@ -2,23 +2,23 @@ use clap::Args;
 
 #[derive(Args)]
 pub struct RunArguments {
-    /// Specifies the Unity version to run. For example, '2021' runs the latest-installed 2021.x.y version.
+    /// Unity version to run (e.g. '2021' for latest 2021.x.y)
     #[arg(short = 'u', long = "unity", value_name = "VERSION")]
     pub version_pattern: String,
 
-    /// Waits for the command to complete before proceeding.
+    /// Wait for Unity to exit before returning
     #[arg(short = 'w', long)]
     pub wait: bool,
 
-    /// Suppresses ucom messages.
+    /// Suppress messages
     #[arg(short = 'q', long)]
     pub quiet: bool,
 
-    /// Displays the command to be run without actually executing it.
+    /// Show command without executing
     #[arg(short = 'n', long)]
     pub dry_run: bool,
 
-    /// A list of arguments to be passed directly to Unity.
+    /// Arguments to pass directly to Unity
     #[arg(last = true, value_name = "UNITY_ARGS", required = true)]
     pub args: Option<Vec<String>>,
 }

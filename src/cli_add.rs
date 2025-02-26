@@ -9,11 +9,11 @@ use crate::utils::status_line::StatusLine;
 
 #[derive(Args)]
 pub struct AddArguments {
-    /// The template file to be added to the project.
+    /// Template file to add to project
     #[arg(value_enum)]
     pub template: UnityTemplateFile,
 
-    /// Defines the project's directory.
+    /// Project directory path
     #[arg(
         value_name = "DIRECTORY",
         value_hint = clap::ValueHint::DirPath,
@@ -22,7 +22,7 @@ pub struct AddArguments {
     )]
     pub project_dir: PathBuf,
 
-    /// Overwrites existing template files.
+    /// Overwrite existing template files
     #[arg(
         short = 'f',
         long,
@@ -31,7 +31,7 @@ pub struct AddArguments {
     )]
     pub force: bool,
 
-    /// Displays the template's content to stdout instead of adding it.
+    /// Print template content to stdout
     #[arg(
         short = 'c',
         long,
@@ -40,7 +40,7 @@ pub struct AddArguments {
     )]
     pub display_content: bool,
 
-    /// Displays the template's source URL.
+    /// Print template source URL
     #[arg(
         short = 'u',
         long,
@@ -52,13 +52,13 @@ pub struct AddArguments {
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, ValueEnum)]
 pub enum UnityTemplateFile {
-    /// A C# helper script that handles project building.
+    /// C# helper script for project building
     Builder,
-    /// A C# helper script that adds build commands to Unity's menu (also adds 'builder').
+    /// C# helper script adding build commands to Unity menu (includes 'builder')
     BuilderMenu,
-    /// A Unity specific .gitignore file for newly created projects.
+    /// Unity-specific .gitignore file
     GitIgnore,
-    /// A Unity specific .gitattributes file for newly created projects.
+    /// Unity-specific .gitattributes file
     GitAttributes,
 }
 
