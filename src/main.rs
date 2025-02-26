@@ -32,7 +32,7 @@ fn main() -> anyhow::Result<()> {
         return Ok(());
     };
 
-    if cli.disable_color || !std::io::stdout().is_terminal() {
+    if cli.no_color || !std::io::stdout().is_terminal() {
         yansi::disable();
     }
 
