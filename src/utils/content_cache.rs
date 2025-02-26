@@ -104,11 +104,10 @@ pub fn is_cache_file_expired(path: &Path) -> bool {
 
 /// Touches the timestamp of the given file.
 pub fn touch_file(filename: &Path) -> anyhow::Result<()> {
-    // Update the local timestamp
     match fs::File::open(filename)?.set_modified(Utc::now().into()) {
         Ok(()) => Ok(()),
-        Err(e) if e.kind() == std::io::ErrorKind::PermissionDenied => {
-            // If error is a permission error, do workaround by re-saving the file
+        Err(e) if e.kind() == std::io::ErrorKind::PermissionDenied && cfg!(windows) => {
+            // Windows: Read and re-write file to bypass timestamp update restrictions
             let content = fs::read_to_string(filename)?;
             fs::write(filename, &content)?;
             Ok(())
