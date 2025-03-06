@@ -170,13 +170,7 @@ impl Installations {
             path.to_owned()
         };
 
-        EDITOR_PARENT_DIR
-            .set(path)
-            .map_err(|_| anyhow!("Failed to set EDITOR_PARENT_DIR"))?;
-
-        Ok(EDITOR_PARENT_DIR
-            .get()
-            .expect("EDITOR_PARENT_DIR was just initialized"))
+        Ok(EDITOR_PARENT_DIR.get_or_init(|| path))
     }
 }
 

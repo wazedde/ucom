@@ -46,6 +46,17 @@ impl ReleaseCollection {
     pub fn into_iter(self) -> impl Iterator<Item = ReleaseData> {
         self.releases.into_iter()
     }
+
+    pub fn find_by_version(&self, version: Version) -> Option<&ReleaseData> {
+        self.iter().find(|r| r.version == version)
+    }
+
+    /// Returns the release with the given version.
+    /// # Panics if the version is not found.
+    pub fn get_by_version(&self, version: Version) -> &ReleaseData {
+        self.find_by_version(version)
+            .unwrap_or_else(|| panic!("Release with version {version} not found in collection"))
+    }
 }
 
 impl Default for ReleaseCollection {
@@ -189,12 +200,11 @@ where
     let mut fetched = 0;
     let mut offset = 0;
     let mut total = usize::MAX;
-    let mut fetched_in_page;
 
     while offset < total {
         let page = fetch_releases_page(limit, offset)?;
         total = page.total;
-        fetched_in_page = 0;
+        let mut fetched_in_page = 0;
 
         if page.results.is_empty() {
             // No more releases to fetch

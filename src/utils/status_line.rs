@@ -79,7 +79,7 @@ pub enum MessageType {
 
 impl MessageType {
     /// Applies a style to the given string based on the message type.
-    pub fn format_text(s: &str, message_type: MessageType) -> Painted<&str> {
+    pub fn format_text(s: &str, message_type: Self) -> Painted<&str> {
         let color = match message_type {
             Self::None => Style::new().bold(),
             Self::Ok => Color::Green.bold(),
@@ -91,11 +91,7 @@ impl MessageType {
     }
 
     /// Prints a status line with the given tag and message.
-    pub fn print_line(tag: &str, msg: &str, message_type: MessageType) {
-        println!(
-            "{:>12} {}",
-            MessageType::format_text(tag, message_type),
-            msg
-        );
+    pub fn print_line(tag: &str, msg: &str, message_type: Self) {
+        println!("{:>12} {}", Self::format_text(tag, message_type), msg);
     }
 }

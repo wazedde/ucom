@@ -178,11 +178,7 @@ fn display_updates(installed: &Installations, mode: FetchMode) -> anyhow::Result
             let version_str = format!("{:<max_version_len$}", info.version.as_str());
             let separator = if is_suggested { '*' } else { '-' };
 
-            let rd = releases
-                .iter()
-                .find(|p| p.version == info.version)
-                .expect("Guaranteed to exist");
-
+            let rd = releases.get_by_version(info.version);
             let release_date = rd.release_date.format("%Y-%m-%d");
 
             let (padding, stream) = format_release_stream_with_padding(rd.stream);
@@ -412,10 +408,8 @@ fn display_available_versions(
     let releases = fetch_latest_releases(mode)?;
     println_bold!("Available releases {}", format_suggested_version(&releases));
 
-    let releases = releases
-        .iter()
-        .filter(|r| version_prefix.is_none_or(|p| r.version.as_str().starts_with(p)))
-        .collect_vec();
+    let releases =
+        releases.filter(|r| version_prefix.is_none_or(|p| r.version.as_str().starts_with(p)));
 
     let Ok(versions) = VersionList::try_from(releases.iter().map(|r| r.version).collect_vec())
     else {
@@ -436,12 +430,7 @@ fn display_available_versions(
             );
 
             let is_installed = installed.is_some_and(|i| i.versions.contains(&info.version));
-
-            let release = releases
-                .iter()
-                .find(|p| p.version == info.version)
-                .expect("Guaranteed to exist");
-
+            let release = releases.get_by_version(info.version);
             let release_date = release.release_date.format("%Y-%m-%d");
 
             let version = format_version_with_padding(release.version, max_len);

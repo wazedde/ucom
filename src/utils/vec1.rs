@@ -20,8 +20,8 @@ impl Error for Vec1Error {}
 impl Display for Vec1Error {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
-            Vec1Error::SourceVecIsEmpty => write!(f, "Source Vec is empty"),
-            Vec1Error::CannotPopLastElement => write!(f, "Cannot pop last element"),
+            Self::SourceVecIsEmpty => write!(f, "Source Vec is empty"),
+            Self::CannotPopLastElement => write!(f, "Cannot pop last element"),
         }
     }
 }
