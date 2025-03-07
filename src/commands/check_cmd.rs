@@ -14,7 +14,7 @@ use crate::utils::status_line::StatusLine;
 
 pub fn find_project_updates(
     project_dir: &Path,
-    install_update: bool,
+    install_latest: bool,
     create_report: bool,
     mode: FetchMode,
 ) -> anyhow::Result<()> {
@@ -45,7 +45,7 @@ pub fn find_project_updates(
     if create_report {
         Ok(())
     } else {
-        handle_newer_release_installation(install_update, &updates.newer_releases)
+        handle_newer_release_installation(install_latest, &updates.newer_releases)
     }
 }
 
@@ -72,12 +72,12 @@ fn download_and_print_release_notes(updates: &ReleaseUpdates) -> anyhow::Result<
 }
 
 fn handle_newer_release_installation(
-    install_update: bool,
+    install_latest: bool,
     releases: &SortedReleaseCollection,
 ) -> anyhow::Result<()> {
     if let Some(newer_release) = releases.iter().last() {
         let is_installed = newer_release.version.is_editor_installed()?;
-        match (is_installed, install_update) {
+        match (is_installed, install_latest) {
             (false, true) => {
                 // There is a newer version available, and the user wants to install it.
                 println!();
@@ -88,7 +88,7 @@ fn handle_newer_release_installation(
                 println!();
                 println!(
                     "Use the `{}` flag to install Unity version {}",
-                    "--install".bold(),
+                    "--install-latest".bold(),
                     newer_release.version.bold()
                 );
             }

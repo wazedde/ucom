@@ -60,8 +60,8 @@ pub enum Command {
         project_dir: PathBuf,
 
         /// Install required Unity version if not present
-        #[arg()]
-        install: bool,
+        #[arg(long)]
+        install_required: bool,
 
         /// Recursively search for Unity projects
         #[arg(short = 'R', long)]
@@ -80,8 +80,8 @@ pub enum Command {
         project_dir: PathBuf,
 
         /// Install latest Unity version if not present
-        #[arg(short = 'I', long)]
-        install: bool,
+        #[arg(long)]
+        install_latest: bool,
 
         /// Generate Markdown report of release notes
         #[arg(short = 'r', long)]

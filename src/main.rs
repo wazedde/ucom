@@ -59,17 +59,23 @@ fn main() -> anyhow::Result<()> {
 
         Command::Info {
             project_dir,
-            install,
+            install_required,
             recursive,
             packages,
-        } => project_info(&project_dir, packages, install, recursive, FetchMode::Auto)
-            .with_context(|| color_error("Cannot show project info")),
+        } => project_info(
+            &project_dir,
+            packages,
+            install_required,
+            recursive,
+            FetchMode::Auto,
+        )
+        .with_context(|| color_error("Cannot show project info")),
 
         Command::Check {
             project_dir,
-            install,
+            install_latest,
             report,
-        } => find_project_updates(&project_dir, install, report, FetchMode::Auto)
+        } => find_project_updates(&project_dir, install_latest, report, FetchMode::Auto)
             .with_context(|| color_error("Cannot show Unity updates for project")),
 
         Command::Run(settings) => run_unity(settings).context(color_error("Cannot run Unity")),

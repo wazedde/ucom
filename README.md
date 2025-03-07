@@ -129,7 +129,7 @@ Options:
 ```
 Display project information
 
-Usage: ucom info [OPTIONS] [DIRECTORY] [INSTALL]
+Usage: ucom info [OPTIONS] [DIRECTORY]
 
 Arguments:
   [DIRECTORY]
@@ -137,10 +137,10 @@ Arguments:
 
           [default: .]
 
-  [INSTALL]
+Options:
+      --install-required
           Install required Unity version if not present
 
-Options:
   -R, --recursive
           Recursively search for Unity projects
 
@@ -171,9 +171,9 @@ Arguments:
   [DIRECTORY]  Project directory path [default: .]
 
 Options:
-  -I, --install  Install latest Unity version if not present
-  -r, --report   Generate Markdown report of release notes
-  -h, --help     Print help
+      --install-latest  Install latest Unity version if not present
+  -r, --report          Generate Markdown report of release notes
+  -h, --help            Print help
 ```
 
 ## `ucom help new`

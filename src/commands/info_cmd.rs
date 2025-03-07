@@ -16,14 +16,14 @@ use crate::utils;
 pub fn project_info(
     path: &Path,
     packages_level: PackagesInfoLevel,
-    install_unity: bool,
+    install_required: bool,
     recursive: bool,
     mode: FetchMode,
 ) -> anyhow::Result<()> {
     if recursive {
         show_recursive_project_info(path, packages_level)
     } else {
-        show_project_info(path, packages_level, install_unity, mode)
+        show_project_info(path, packages_level, install_required, mode)
     }
 }
 
@@ -50,19 +50,19 @@ fn show_recursive_project_info(
 fn show_project_info(
     path: &Path,
     packages_level: PackagesInfoLevel,
-    install_unity: bool,
+    install_required: bool,
     mode: FetchMode,
 ) -> anyhow::Result<()> {
     let version = print_project_info(&ProjectPath::try_from(path)?, packages_level)?;
 
     if !version.is_editor_installed()? {
         println!();
-        if install_unity {
+        if install_required {
             install_latest_matching(version.as_str(), mode)?;
         } else {
             println!(
                 "Use the `{}` flag to install Unity version {}",
-                "--install".bold(),
+                "--install-required".bold(),
                 version.bold()
             );
         }
