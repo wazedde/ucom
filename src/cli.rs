@@ -131,7 +131,7 @@ pub struct OpenArguments {
     #[arg(value_name = "DIRECTORY", value_hint = clap::ValueHint::DirPath, default_value = ".")]
     pub project_dir: PathBuf,
 
-    /// Upgrade project's Unity version
+    /// Upgrade project's Unity version.
     /// If no version specified, uses latest in project's major.minor range.
     /// Version prefix like '2021' selects latest installed in that range.
     #[arg(short = 'U', long = "upgrade", value_name = "VERSION")]

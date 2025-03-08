@@ -238,7 +238,7 @@ Arguments:
   [UNITY_ARGS]...  Arguments to pass directly to Unity
 
 Options:
-  -U, --upgrade [<VERSION>]  Upgrade project's Unity version If no version specified, uses latest in project's
+  -U, --upgrade [<VERSION>]  Upgrade project's Unity version. If no version specified, uses latest in project's
                              major.minor range. Version prefix like '2021' selects latest installed in that range
   -t, --target <NAME>        Set active build target [possible values: standalone, win32, win64, macos, linux64, ios,
                              android, webgl, winstore, tvos]
@@ -273,7 +273,7 @@ Arguments:
 
 Options:
   -o, --output <DIRECTORY>
-          Output directory for build Default: <PROJECT_DIR>/Builds/<TYPE>/<TARGET>
+          Output directory for build [default: <PROJECT_DIR>/Builds/<TYPE>/<TARGET>]
 
   -t, --type <TYPE>
           Output type for build directory naming
@@ -389,7 +389,7 @@ Options:
           [default: Ucom.UnityBuilder.Build]
 
   -l, --log-file <FILE>
-          Log file for Unity build output Default: <PROJECT_DIR>/Logs directory
+          Log file for Unity build output [default: <PROJECT_DIR>/Logs directory]
 
   -q, --quiet
           Suppress build log output

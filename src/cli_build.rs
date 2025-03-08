@@ -14,7 +14,7 @@ pub struct BuildArguments {
     pub project_dir: PathBuf,
 
     /// Output directory for build
-    /// Default: <PROJECT_DIR>/Builds/<TYPE>/<TARGET>
+    /// [default: <PROJECT_DIR>/Builds/<TYPE>/<TARGET>]
     #[arg(
         short = 'o',
         long = "output",
@@ -38,43 +38,43 @@ pub struct BuildArguments {
     /// Run built player
     ///
     /// Same as --build-options auto-run-player
-    #[arg(short = 'r', long("run"))]
+    #[arg(short = 'r', long = "run")]
     pub run_player: bool,
 
     /// Build development version
     ///
     /// Same as --build-options development
-    #[arg(short = 'd', long("development"))]
+    #[arg(short = 'd', long = "development")]
     pub development_build: bool,
 
     /// Show built player
     ///
     /// Same as --build-options show-built-player
-    #[arg(short = 'S', long("show"))]
+    #[arg(short = 'S', long = "show")]
     pub show_built_player: bool,
 
     /// Allow remote script debugging
     ///
     /// Same as --build-options allow-debugging
-    #[arg(short = 'D', long("debugging"))]
+    #[arg(short = 'D', long = "debugging")]
     pub allow_debugging: bool,
 
     /// Connect to editor profiler
     ///
     /// Same as --build-options connect-with-profiler
-    #[arg(short = 'p', long("profiling"))]
+    #[arg(short = 'p', long = "profiling")]
     pub connect_with_profiler: bool,
 
     /// Enable deep profiling support
     ///
     /// Same as --build-options enable-deep-profiling-support
-    #[arg(short = 'P', long("deep-profiling"))]
+    #[arg(short = 'P', long = "deep-profiling")]
     pub deep_profiling: bool,
 
     /// Connect player to editor
     ///
     /// Same as --build-options connect-to-host
-    #[arg(short = 'H', long("connect-host"))]
+    #[arg(short = 'H', long = "connect-host")]
     pub connect_to_host: bool,
 
     /// Set Unity build options (space-separated)
@@ -111,7 +111,7 @@ pub struct BuildArguments {
     pub build_function: String,
 
     /// Log file for Unity build output
-    /// Default: <PROJECT_DIR>/Logs directory
+    /// [default: <PROJECT_DIR>/Logs directory]
     #[arg(short = 'l', long, value_name = "FILE")]
     pub log_file: Option<PathBuf>,
 

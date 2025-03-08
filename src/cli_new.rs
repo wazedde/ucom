@@ -23,8 +23,7 @@ pub struct NewArguments {
 
     /// Add build menu script to project
     ///
-    /// Adds both EditorMenu.cs and UnityBuilder.cs scripts
-    /// to Assets/Plugins/Ucom/Editor directory
+    /// Adds both EditorMenu.cs and UnityBuilder.cs scripts to Assets/Plugins/Ucom/Editor directory
     #[arg(long)]
     pub add_builder_menu: bool,
 
