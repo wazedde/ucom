@@ -1,7 +1,3 @@
-use itertools::Itertools;
-use std::path::Path;
-use yansi::Paint;
-
 use crate::cli::PackagesInfoLevel;
 use crate::commands::{INDENT, install_latest_matching, println_bold};
 use crate::unity::project::ProjectPath;
@@ -10,7 +6,11 @@ use crate::unity::project::{
 };
 use crate::unity::release_api::FetchMode;
 use crate::unity::{Version, release_notes_url};
-use crate::utils;
+use crate::{unity, utils};
+use itertools::Itertools;
+use std::path::Path;
+use unity::project::BuildProfiles;
+use yansi::Paint;
 
 /// Shows project information.
 pub fn project_info(
@@ -106,6 +106,16 @@ fn print_project_info(
         println!();
     } else {
         println!(" {}", "*not installed".red().bold());
+    }
+
+    // Print the available build profiles
+    let build_profiles = project.build_profiles(unity_version)?;
+    if let BuildProfiles::Found(profiles) = build_profiles {
+        println!();
+        println_bold!("Build profiles:");
+        for profile in profiles {
+            println!("{INDENT}{profile}");
+        }
     }
 
     if packages_level != PackagesInfoLevel::None {

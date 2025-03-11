@@ -5,6 +5,7 @@ use std::ops::Deref;
 use std::path::{Path, PathBuf};
 
 use anyhow::anyhow;
+use itertools::Itertools;
 use serde::Deserialize;
 use walkdir::{DirEntry, IntoIter, WalkDir};
 
@@ -271,8 +272,52 @@ impl ProjectPath {
         }
     }
 
+    /// Checks the project for build profiles.
+    /// TODO: Try to find profiles outside of the default `Assets/Settings/Build Profiles` directory.
+    pub fn build_profiles(&self, version: Version) -> anyhow::Result<BuildProfiles> {
+        if version.major < 6000 {
+            // Build profiles are supported in Unity 6.0 and later.
+            return Ok(BuildProfiles::NotSupported);
+        }
+
+        let path = self.join("Assets/Settings/Build Profiles");
+        if !path.exists() {
+            return Ok(BuildProfiles::NotFound);
+        }
+
+        let profiles = path
+            .read_dir()?
+            .flatten()
+            .filter_map(|entry| {
+                if !entry.file_type().is_ok_and(|ft| ft.is_file()) {
+                    return None;
+                }
+
+                entry
+                    .file_name()
+                    .into_string()
+                    .ok()?
+                    .strip_suffix(".asset")
+                    .map(String::from)
+            })
+            .sorted_by_key(|s| s.to_lowercase())
+            .collect_vec();
+
+        if profiles.is_empty() {
+            Ok(BuildProfiles::NotFound)
+        } else {
+            Ok(BuildProfiles::Found(profiles))
+        }
+    }
+
     /// Checks if the directory contains a Unity project.
     fn contains_unity_project(dir: impl AsRef<Path>) -> bool {
         dir.as_ref().join(VERSION_SUB_PATH).exists()
     }
+}
+
+pub enum BuildProfiles {
+    NotSupported,
+    NotFound,
+    Found(Vec<String>),
 }
