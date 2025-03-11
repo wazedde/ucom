@@ -9,7 +9,7 @@ use crate::unity::{Version, release_notes_url};
 use crate::{unity, utils};
 use itertools::Itertools;
 use std::path::Path;
-use unity::project::BuildProfiles;
+use unity::project::BuildProfilesStatus;
 use yansi::Paint;
 
 /// Shows project information.
@@ -110,7 +110,7 @@ fn print_project_info(
 
     // Print the available build profiles
     let build_profiles = project.build_profiles(unity_version)?;
-    if let BuildProfiles::Found(profiles) = build_profiles {
+    if let BuildProfilesStatus::Available(profiles) = build_profiles {
         println!();
         println_bold!("Build profiles:");
         for profile in profiles {

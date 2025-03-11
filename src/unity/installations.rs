@@ -76,7 +76,7 @@ impl VersionList {
                     dir.as_ref().display()
                 )
             })?
-            .map_while(Result::ok)
+            .flatten()
             .map(|de| de.path()) //
             .filter(|p| p.is_dir() && p.join(UNITY_EDITOR_EXE).exists())
             .filter_map(|p| p.file_name()?.to_string_lossy().parse::<Version>().ok())

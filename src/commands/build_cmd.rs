@@ -6,7 +6,6 @@ use std::process::Command;
 
 use anyhow::anyhow;
 use chrono::Utc;
-use indexmap::IndexSet;
 use itertools::Itertools;
 use path_absolutize::Absolutize;
 use uuid::Uuid;
@@ -259,7 +258,7 @@ fn print_build_report(log_path: &Path, status: MessageType) {
 
 fn clean_output_directory(path: &Path) -> anyhow::Result<()> {
     let to_delete = fs::read_dir(path)?
-        .map_while(Result::ok)
+        .flatten()
         .map(|de| de.path())
         .filter(|p| p.is_dir()) // Only directories.
         .filter(|p| {
@@ -283,24 +282,23 @@ fn collect_log_errors(log_file: &Path) -> anyhow::Error {
         return anyhow!("Failed to open log file: {}", log_file.display());
     };
 
-    let errors: IndexSet<_> = BufReader::new(log_file)
+    let errors = BufReader::new(log_file)
         .lines()
         .map_while(Result::ok)
         .filter(|l| line_contains_error(l))
         .unique()
-        .collect();
+        .collect_vec();
 
-    match errors.len() {
-        0 => anyhow!("No errors found in log"),
-        1 => anyhow!("{}", errors[0]),
+    match &errors[..] {
+        [] => anyhow!("No errors found in log"),
+        [single_error] => anyhow!("{}", single_error),
         _ => {
             let joined = errors
                 .iter()
                 .enumerate()
-                .fold(String::new(), |mut output, (i, error)| {
-                    output += &format!("{}: {}\n", i + 1, error);
-                    output
-                });
+                .map(|(i, error)| format!("{}: {}", i + 1, error))
+                .join("\n");
+
             anyhow!(joined)
         }
     }

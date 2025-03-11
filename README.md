@@ -1,7 +1,7 @@
 # Unity Commander
 
 `ucom` is a command line interface for Unity projects, written in Rust. It serves as an alternative to Unity Hub with
-additional features.
+additional features like building projects and running tests.
 
 ## Core Features
 
@@ -27,8 +27,10 @@ additional features.
 ### Advanced Examples
 
 - `ucom build android ~/Develop/MyProject --mode editor-quit` - Build Android for specific project and close editor
-- `ucom new ~/Develop/MyProject -u 2021.3` - Create new project with specific Unity version
-- `ucom open ~/Develop/MyProject -U 2021.3` - Open and upgrade project to newer Unity version
+- `ucom new ~/Develop/MyProject -u 2021.3.1` - Create new project with specific Unity version
+- `ucom open ~/Develop/MyProject -U 2021.3` - Open and upgrade project to latest Unity version in that range
+- `ucom info ~/Develop/MyProject --install-required` - Install Unity version if not present
+- `ucom check ~/Develop/MyProject --install-latest` - Install latest Unity version if not present
 
 ## Installation
 
@@ -39,7 +41,9 @@ additional features.
 
 ```bash
 # Clone repository
+git clone https://github.com/jakkovanhunen/ucom
 # Then run:
+cd ucom
 cargo build --release
 # Executable will be in target/release directory
 ```
@@ -49,7 +53,7 @@ cargo build --release
 The `build` command injects a [script](https://gist.github.com/jakkovanhunen/b56a70509616b6ff3492a17ae670a5e7) to handle
 platform builds. Use `--inject persistent` to retain this script after building.
 
-View the script with: `ucom template build-script`
+View the script with: `ucom add builder --display-content`
 
 ## Environment Variables
 

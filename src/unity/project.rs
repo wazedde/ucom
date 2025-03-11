@@ -274,25 +274,22 @@ impl ProjectPath {
 
     /// Checks the project for build profiles.
     /// TODO: Try to find profiles outside of the default `Assets/Settings/Build Profiles` directory.
-    pub fn build_profiles(&self, version: Version) -> anyhow::Result<BuildProfiles> {
+    pub fn build_profiles(&self, version: Version) -> anyhow::Result<BuildProfilesStatus> {
         if version.major < 6000 {
             // Build profiles are supported in Unity 6.0 and later.
-            return Ok(BuildProfiles::NotSupported);
+            return Ok(BuildProfilesStatus::NotSupported);
         }
 
         let path = self.join("Assets/Settings/Build Profiles");
         if !path.exists() {
-            return Ok(BuildProfiles::NotFound);
+            return Ok(BuildProfilesStatus::NotFound);
         }
 
         let profiles = path
             .read_dir()?
             .flatten()
+            .filter(|entry| entry.file_type().is_ok_and(|ft| ft.is_file()))
             .filter_map(|entry| {
-                if !entry.file_type().is_ok_and(|ft| ft.is_file()) {
-                    return None;
-                }
-
                 entry
                     .file_name()
                     .into_string()
@@ -304,9 +301,9 @@ impl ProjectPath {
             .collect_vec();
 
         if profiles.is_empty() {
-            Ok(BuildProfiles::NotFound)
+            Ok(BuildProfilesStatus::NotFound)
         } else {
-            Ok(BuildProfiles::Found(profiles))
+            Ok(BuildProfilesStatus::Available(profiles))
         }
     }
 
@@ -316,8 +313,11 @@ impl ProjectPath {
     }
 }
 
-pub enum BuildProfiles {
+pub enum BuildProfilesStatus {
+    /// Unity version does not support build profiles.
     NotSupported,
+    /// No build profiles found.
     NotFound,
-    Found(Vec<String>),
+    /// Build profiles found.
+    Available(Vec<String>),
 }
