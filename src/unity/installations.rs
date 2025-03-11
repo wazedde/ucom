@@ -208,8 +208,7 @@ impl Installations {
                 if Path::new(&path).is_dir() {
                     // The editor directory is set, but does not contain any installations.
                     anyhow!(
-                        "No Unity installations found in the editor directory `{}`. \
-                    Please set the `{ENV_EDITOR_DIR}` environment variable to the correct path.",
+                        "No Unity installations found in the editor directory `{}`. Please set the `{ENV_EDITOR_DIR}` environment variable to the correct path.",
                         path.to_string_lossy()
                     )
                 } else {
@@ -223,8 +222,7 @@ impl Installations {
             None => {
                 // The editor directory is not set and no installations were found.
                 anyhow!(
-                    "No Unity installations found in the default directory `{}`. \
-                Please set the `{ENV_EDITOR_DIR}` environment variable to the correct path.",
+                    "No Unity installations found in the default directory `{}`. Please set the `{ENV_EDITOR_DIR}` environment variable to the correct path.",
                     UNITY_EDITOR_DIR
                 )
             }

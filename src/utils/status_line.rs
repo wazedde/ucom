@@ -1,3 +1,4 @@
+use std::io;
 use std::io::{IsTerminal, Write, stdout};
 
 use crossterm::ExecutableCommand;
@@ -20,7 +21,7 @@ impl Drop for StatusLine {
     /// Clears the status line when dropped.
     fn drop(&mut self) {
         if self.show_output {
-            Self::clear_last_line();
+            Self::clear_last_line().ok();
         }
     }
 }
@@ -31,7 +32,7 @@ impl StatusLine {
     pub fn new(tag: &str, msg: &str) -> Self {
         let show_output = stdout().is_terminal();
         if show_output {
-            Self::print_updatable_line(tag, msg, MessageType::Info);
+            Self::print_updatable_line(tag, msg, MessageType::Info).ok();
         }
         Self { show_output }
     }
@@ -44,21 +45,23 @@ impl StatusLine {
     /// Updates the status line with the given tag and message.
     pub fn update(&self, tag: &str, msg: &str) {
         if self.show_output {
-            Self::clear_last_line();
-            Self::print_updatable_line(tag, msg, MessageType::Info);
+            Self::clear_last_line().ok();
+            Self::print_updatable_line(tag, msg, MessageType::Info).ok();
         }
     }
 
     /// Prints a status line with the given tag and message that is cleared.
-    fn print_updatable_line(tag: &str, msg: &str, status: MessageType) {
-        _ = stdout().execute(SavePosition).and_then(|o| {
+    fn print_updatable_line(tag: &str, msg: &str, status: MessageType) -> io::Result<()> {
+        stdout().execute(SavePosition).and_then(|o| {
             print!("{:>12} {}", MessageType::format_text(tag, status), msg);
             o.execute(RestorePosition)?.flush()
-        });
+        })
     }
 
-    fn clear_last_line() {
-        _ = stdout().execute(Clear(ClearType::FromCursorDown));
+    fn clear_last_line() -> io::Result<()> {
+        stdout()
+            .execute(Clear(ClearType::FromCursorDown))
+            .map(|_| ())
     }
 }
 

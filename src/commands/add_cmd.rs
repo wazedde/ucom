@@ -49,7 +49,7 @@ pub fn add_to_project(args: &AddArguments) -> anyhow::Result<()> {
             display_url: false,
         };
         // Ignore error if it fails to add the builder script.
-        _ = add_to_project(&temp_args);
+        add_to_project(&temp_args).ok();
     }
 
     add_file_to_project(project, destination_dir, args.template)

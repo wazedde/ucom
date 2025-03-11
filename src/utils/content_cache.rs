@@ -54,7 +54,7 @@ pub fn fetch_content(url: &str, change_check: RemoteChangeCheck) -> anyhow::Resu
 /// Deletes the cache directory.
 pub fn delete_cache_directory() {
     if let Ok(dir) = ucom_cache_dir() {
-        let _ = fs::remove_dir_all(dir);
+        fs::remove_dir_all(dir).ok();
     }
 }
 
@@ -103,17 +103,30 @@ pub fn is_cache_file_expired(path: &Path) -> bool {
 }
 
 /// Touches the timestamp of the given file.
-pub fn touch_file(filename: &Path) -> anyhow::Result<()> {
-    match fs::File::open(filename)?.set_modified(Utc::now().into()) {
-        Ok(()) => Ok(()),
-        Err(e) if e.kind() == std::io::ErrorKind::PermissionDenied && cfg!(windows) => {
-            // Windows: Read and re-write file to bypass timestamp update restrictions
-            let content = fs::read_to_string(filename)?;
-            fs::write(filename, &content)?;
-            Ok(())
-        }
-        Err(e) => Err(e.into()),
-    }
+pub fn touch_file(path: &Path) -> anyhow::Result<()> {
+    fs::File::open(path)?
+        .set_modified(SystemTime::now())
+        .or_else(|e| {
+            if is_timestamp_permission_error(&e) {
+                // Platform-specific workaround
+                let content = fs::read_to_string(path)?;
+                fs::write(path, &content)?;
+                Ok(())
+            } else {
+                Err(e)
+            }
+        })
+        .with_context(|| format!("Failed to update timestamp on {}", path.display()))
+}
+
+#[cfg(windows)]
+fn is_timestamp_permission_error(err: &std::io::Error) -> bool {
+    err.kind() == std::io::ErrorKind::PermissionDenied
+}
+
+#[cfg(not(windows))]
+fn is_timestamp_permission_error(_err: &std::io::Error) -> bool {
+    false
 }
 
 /// Checks if the cached content is up-to-date.
