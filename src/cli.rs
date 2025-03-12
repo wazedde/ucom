@@ -18,7 +18,7 @@ pub const ENV_PACKAGE_LEVEL: &str = "UCOM_PACKAGE_LEVEL";
 #[command(arg_required_else_help = true)]
 pub struct Cli {
     /// Suppress colored output
-    #[arg(long, short = 'D')]
+    #[arg(long, short = 'n')]
     pub no_color: bool,
 
     #[command(subcommand)]

@@ -1,5 +1,4 @@
 use anyhow::anyhow;
-use crossterm::style::Stylize;
 use itertools::Itertools;
 use std::ops::{Deref, DerefMut};
 use yansi::Paint;
