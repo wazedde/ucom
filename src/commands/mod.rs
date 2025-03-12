@@ -7,23 +7,23 @@ use chrono::TimeDelta;
 use crate::cli_add::UnityTemplateFile;
 pub use crate::commands::add_cmd::add_to_project;
 pub use crate::commands::build_cmd::build_project;
-pub use crate::commands::check_cmd::find_project_updates;
 pub use crate::commands::info_cmd::project_info;
 pub use crate::commands::install_cmd::install_latest_matching;
 pub use crate::commands::list_cmd::list_versions;
 pub use crate::commands::new_cmd::new_project;
 pub use crate::commands::open_cmd::open_project;
 pub use crate::commands::run_cmd::run_unity;
+pub use crate::commands::updates_cmd::find_project_updates;
 
 mod add_cmd;
 mod build_cmd;
-mod check_cmd;
 mod info_cmd;
 mod install_cmd;
 mod list_cmd;
 mod new_cmd;
 mod open_cmd;
 mod run_cmd;
+mod updates_cmd;
 
 pub mod test_cmd;
 

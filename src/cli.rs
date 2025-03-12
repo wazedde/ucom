@@ -71,9 +71,9 @@ pub enum Command {
         packages: PackagesInfoLevel,
     },
 
-    /// Check for Unity updates
-    #[command(visible_alias = "c")]
-    Check {
+    /// Check for available Unity version updates for project
+    #[command(visible_alias = "u")]
+    Updates {
         /// Project directory path
         #[arg(value_name = "DIRECTORY", value_hint = clap::ValueHint::DirPath, default_value = ".")]
         project_dir: PathBuf,

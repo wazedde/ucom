@@ -1,7 +1,7 @@
 # Unity Commander
 
 `ucom` is a command line interface for Unity projects, written in Rust. It serves as an alternative to Unity Hub with
-additional features like building projects and running tests.
+additional features like building projects and running tests. Inspired by cargo and dotnet CLI tools.
 
 ## Core Features
 
@@ -22,7 +22,7 @@ additional features like building projects and running tests.
 | `ucom build ios` | `ucom b ios` | Build iOS version in batch mode             |
 | `ucom list`      | `ucom ls`    | List all installed Unity versions           |
 | `ucom info`      | `ucom i`     | Show project information                    |
-| `ucom check`     | `ucom c`     | Check project for Unity updates             |
+| `ucom updates`   | `ucom u`     | Check project for Unity updates             |
 
 ### Advanced Examples
 
@@ -30,7 +30,7 @@ additional features like building projects and running tests.
 - `ucom new ~/Develop/MyProject -u 2021.3.1` - Create new project with specific Unity version
 - `ucom open ~/Develop/MyProject -U 2021.3` - Open and upgrade project to latest Unity version in that range
 - `ucom info ~/Develop/MyProject --install-required` - Install Unity version if not present
-- `ucom check ~/Develop/MyProject --install-latest` - Install latest Unity version if not present
+- `ucom updates ~/Develop/MyProject --install-latest` - Install latest Unity version if not present
 
 ## Installation
 
@@ -57,6 +57,8 @@ View the script with: `ucom add builder --display-content`
 
 ## Environment Variables
 
+The following environment variables can be used to set default values for commands:
+
 | Variable             | Purpose                               |
 |----------------------|---------------------------------------|
 | `UCOM_EDITOR_DIR`    | Path to editor installation directory |
@@ -66,7 +68,7 @@ View the script with: `ucom add builder --display-content`
 ## Limitations
 
 - macOS and Windows only
-- Requires default editor location (or `UCOM_EDITOR_DIR`)
+- Requires default editor location (or set `UCOM_EDITOR_DIR` environment variable)
 - Git required for `new` command
 - Cannot build projects that are already open
 - iOS builds don't build the exported Xcode project
@@ -82,7 +84,7 @@ Commands:
   list     List installed Unity versions [aliases: ls]
   install  Install Unity version
   info     Display project information [aliases: i]
-  check    Check for Unity updates [aliases: c]
+  updates  Check for available Unity version updates for project [aliases: u]
   new      Create new Unity project and Git repository
   open     Open Unity project in the editor [aliases: o]
   build    Build Unity project [aliases: b]
@@ -93,9 +95,9 @@ Commands:
   help     Print this message or the help of the given subcommand(s)
 
 Options:
-  -D, --disable-color  Disable colored output
-  -h, --help           Print help
-  -V, --version        Print version
+  -D, --no-color  Suppress colored output
+  -h, --help      Print help
+  -V, --version   Print version
 ```
 
 ## `ucom help list`
@@ -164,12 +166,12 @@ Options:
           Print help (see a summary with '-h')
 ```
 
-## `ucom help check`
+## `ucom help updates`
 
 ```
-Check for Unity updates
+Check for available Unity version updates for project
 
-Usage: ucom check [OPTIONS] [DIRECTORY]
+Usage: ucom updates [OPTIONS] [DIRECTORY]
 
 Arguments:
   [DIRECTORY]  Project directory path [default: .]
@@ -481,24 +483,6 @@ Options:
 
   -h, --help
           Print help (see a summary with '-h')
-```
-
-## `ucom help run`
-
-```
-Run Unity with specified arguments
-
-Usage: ucom run [OPTIONS] --unity <VERSION> -- <UNITY_ARGS>...
-
-Arguments:
-  <UNITY_ARGS>...  Arguments to pass directly to Unity
-
-Options:
-  -u, --unity <VERSION>  Unity version to run (e.g. '2021' for latest 2021.x.y)
-  -w, --wait             Wait for Unity to exit before returning
-  -q, --quiet            Suppress messages
-  -n, --dry-run          Show command without executing
-  -h, --help             Print help
 ```
 
 ## `ucom help add`

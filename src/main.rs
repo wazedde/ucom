@@ -71,7 +71,7 @@ fn main() -> anyhow::Result<()> {
         )
         .with_context(|| color_error("Cannot show project info")),
 
-        Command::Check {
+        Command::Updates {
             project_dir,
             install_latest,
             report,
