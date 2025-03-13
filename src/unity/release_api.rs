@@ -10,7 +10,6 @@ use serde::{Deserialize, Serialize};
 use serde_json::json;
 use std::fs::{File, create_dir_all};
 use std::io::{BufReader, BufWriter};
-use std::ops::Deref;
 use std::path::Path;
 
 const RELEASES_API_URL: &str = "https://services.api.unity.com/unity/editor/release/v1/releases";
@@ -27,35 +26,12 @@ pub struct ReleaseCollection {
     releases: Vec<ReleaseData>,
 }
 
-impl Deref for ReleaseCollection {
-    type Target = Vec<ReleaseData>;
+impl IntoIterator for ReleaseCollection {
+    type Item = ReleaseData;
+    type IntoIter = std::vec::IntoIter<ReleaseData>;
 
-    /// Returns a reference to the inner list of releases.
-    fn deref(&self) -> &Self::Target {
-        &self.releases
-    }
-}
-
-impl ReleaseCollection {
-    /// Returns if the collection has a release with the given version.
-    pub fn has_version(&self, version: Version) -> bool {
-        // No need to cache hits as each check is done once during the lifetime of the program.
-        self.iter().any(|r| r.version == version)
-    }
-
-    pub fn into_iter(self) -> impl Iterator<Item = ReleaseData> {
+    fn into_iter(self) -> Self::IntoIter {
         self.releases.into_iter()
-    }
-
-    pub fn find_by_version(&self, version: Version) -> Option<&ReleaseData> {
-        self.iter().find(|r| r.version == version)
-    }
-
-    /// Returns the release with the given version.
-    /// # Panics if the version is not found.
-    pub fn get_by_version(&self, version: Version) -> &ReleaseData {
-        self.find_by_version(version)
-            .unwrap_or_else(|| panic!("Release with version {version} not found in collection"))
     }
 }
 
@@ -69,14 +45,38 @@ impl Default for ReleaseCollection {
     }
 }
 
+impl ReleaseCollection {
+    /// Returns if the collection has a release with the given version.
+    pub fn has_version(&self, version: Version) -> bool {
+        // No need to cache hits as each check is done once during the lifetime of the program.
+        self.iter().any(|r| r.version == version)
+    }
+
+    pub fn find_by_version(&self, version: Version) -> Option<&ReleaseData> {
+        self.iter().find(|r| r.version == version)
+    }
+
+    /// Returns the release with the given version.
+    /// # Panics if the version is not found.
+    pub fn get_by_version(&self, version: Version) -> &ReleaseData {
+        self.find_by_version(version)
+            .unwrap_or_else(|| panic!("Release with version {version} not found in collection"))
+    }
+
+    pub fn iter(&self) -> impl Iterator<Item = &ReleaseData> {
+        self.releases.iter()
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.releases.is_empty()
+    }
+}
+
 /// Wrapper around the releases that sorts the releases by version in ascending order.
 pub struct SortedReleaseCollection(ReleaseCollection);
 
-impl Deref for SortedReleaseCollection {
-    type Target = ReleaseCollection;
-
-    /// Returns a reference to the inner list of releases.
-    fn deref(&self) -> &Self::Target {
+impl AsRef<ReleaseCollection> for SortedReleaseCollection {
+    fn as_ref(&self) -> &ReleaseCollection {
         &self.0
     }
 }
@@ -101,15 +101,36 @@ impl SortedReleaseCollection {
         F: Fn(&ReleaseData) -> bool,
     {
         Self(ReleaseCollection {
-            last_updated: self.last_updated,
-            suggested_version: self.suggested_version,
+            last_updated: self.last_updated(),
+            suggested_version: self.suggested_version(),
             releases: self.0.into_iter().filter(predicate).collect_vec(),
         })
+    }
+
+    pub fn last_updated(&self) -> DateTime<Utc> {
+        self.0.last_updated
+    }
+
+    pub fn suggested_version(&self) -> Option<Version> {
+        self.0.suggested_version
     }
 
     /// Removes and returns the release at the given index.
     pub fn remove(&mut self, index: usize) -> ReleaseData {
         self.0.releases.remove(index)
+    }
+
+    pub fn iter(&self) -> impl Iterator<Item = &ReleaseData> {
+        self.0.iter()
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.0.is_empty()
+    }
+
+    /// Returns the release with the given version.
+    pub fn get_by_version(&self, version: Version) -> &ReleaseData {
+        self.0.get_by_version(version)
     }
 }
 

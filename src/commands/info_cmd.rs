@@ -2,7 +2,8 @@ use crate::cli::PackagesInfoLevel;
 use crate::commands::{INDENT, install_latest_matching, println_bold};
 use crate::unity::project::ProjectPath;
 use crate::unity::project::{
-    PackageInfo, PackageSource, Packages, PackagesAvailability, ProjectSettings, directory_walker,
+    PackageInfo, PackageSource, Packages, PackagesAvailability, ProjectSettings,
+    walk_visible_directories,
 };
 use crate::unity::release_api::FetchMode;
 use crate::unity::{Version, release_notes_url};
@@ -34,7 +35,7 @@ fn show_recursive_project_info(
     let path = utils::resolve_absolute_dir_path(&path)?;
     println!("Searching for Unity projects in: {}", path.display(),);
 
-    let mut directories = directory_walker(path);
+    let mut directories = walk_visible_directories(path, 5);
     while let Some(Ok(entry)) = directories.next() {
         if let Ok(path) = ProjectPath::try_from(entry.path()) {
             println!();

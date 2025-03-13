@@ -14,12 +14,13 @@ use crate::utils;
 
 const VERSION_SUB_PATH: &str = "ProjectSettings/ProjectVersion.txt";
 
-/// Returns all directories in and including `root` that are not hidden.
-pub fn directory_walker(
+/// Returns an iterator over all directories in and including `root` that are not hidden.
+pub fn walk_visible_directories(
     root: impl AsRef<Path>,
+    max_depth: usize,
 ) -> walkdir::FilterEntry<IntoIter, fn(&DirEntry) -> bool> {
     WalkDir::new(root)
-        .max_depth(5)
+        .max_depth(max_depth)
         .into_iter()
         .filter_entry(|e| e.file_type().is_dir() && !is_hidden_directory(e))
 }

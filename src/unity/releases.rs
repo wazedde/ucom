@@ -3,7 +3,6 @@ use crate::unity::release_api_data::ReleaseData;
 use crate::unity::{BuildType, Major, Minor, Version};
 use serde::{Deserialize, Serialize};
 use std::fmt::{Display, Formatter};
-use std::ops::Deref;
 use strum::Display;
 
 /// The release stream.
@@ -80,14 +79,6 @@ pub fn find_available_updates(version: Version, mode: FetchMode) -> anyhow::Resu
 //
 
 pub struct Url(String);
-
-impl Deref for Url {
-    type Target = str;
-
-    fn deref(&self) -> &Self::Target {
-        &self.0
-    }
-}
 
 impl AsRef<str> for Url {
     fn as_ref(&self) -> &str {

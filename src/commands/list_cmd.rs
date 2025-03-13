@@ -1,6 +1,5 @@
 use anyhow::anyhow;
 use itertools::Itertools;
-use std::ops::{Deref, DerefMut};
 use yansi::Paint;
 
 use crate::cli::ListType;
@@ -156,7 +155,7 @@ fn display_updates(installed: &Installations, mode: FetchMode) -> anyhow::Result
     println_bold!(
         "Updates for Unity versions in: {} {}",
         installed.install_dir.display(),
-        format_suggested_version(&releases)
+        format_suggested_version(releases.as_ref())
     );
 
     if releases.is_empty() {
@@ -173,7 +172,7 @@ fn display_updates(installed: &Installations, mode: FetchMode) -> anyhow::Result
                 info.version == group.last().version,
             );
 
-            let is_suggested = Some(info.version) == releases.suggested_version;
+            let is_suggested = Some(info.version) == releases.suggested_version();
             let version_str = format!("{:<max_version_len$}", info.version.as_str());
             let separator = if is_suggested { '*' } else { '-' };
 
@@ -310,7 +309,7 @@ fn display_latest_versions(
     let releases = fetch_latest_releases(mode)?;
     println_bold!(
         "Latest available minor releases {}",
-        format_suggested_version(&releases)
+        format_suggested_version(releases.as_ref())
     );
 
     // Get the latest version of each range.
@@ -405,7 +404,10 @@ fn display_available_versions(
     mode: FetchMode,
 ) -> anyhow::Result<()> {
     let releases = fetch_latest_releases(mode)?;
-    println_bold!("Available releases {}", format_suggested_version(&releases));
+    println_bold!(
+        "Available releases {}",
+        format_suggested_version(releases.as_ref())
+    );
 
     let releases =
         releases.filter(|r| version_prefix.is_none_or(|p| r.version.as_str().starts_with(p)));
@@ -504,19 +506,13 @@ fn display_installed_versions_line(
 /// Version info grouped by minor version.
 struct VersionInfoGroups<'a>(Vec<Vec1<VersionInfo<'a>>>);
 
-impl<'a> Deref for VersionInfoGroups<'a> {
-    type Target = Vec<Vec1<VersionInfo<'a>>>;
-
-    /// Returns a reference to the inner list of version groups.
-    fn deref(&self) -> &Self::Target {
-        &self.0
+impl<'a> VersionInfoGroups<'a> {
+    pub fn iter(&self) -> impl Iterator<Item = &Vec1<VersionInfo<'a>>> {
+        self.0.iter()
     }
-}
 
-impl DerefMut for VersionInfoGroups<'_> {
-    /// Returns a mutable reference to the inner list of version groups.
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.0
+    pub fn iter_mut(&mut self) -> impl Iterator<Item = &mut Vec1<VersionInfo<'a>>> {
+        self.0.iter_mut()
     }
 }
 

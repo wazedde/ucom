@@ -43,7 +43,6 @@ pub struct VersionList(Vec1<Version>);
 impl Deref for VersionList {
     type Target = Vec1<Version>;
 
-    /// Returns a reference to the inner [`Vec1`].
     fn deref(&self) -> &Self::Target {
         &self.0
     }
