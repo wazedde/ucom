@@ -249,7 +249,7 @@ impl ProjectPath {
 
         let mut line = String::new();
         // Read the 1st line.
-        _ = reader.read_line(&mut line)?;
+        reader.read_line(&mut line)?;
 
         line.split_once(':')
             .filter(|(k, _)| k.trim() == "m_EditorVersion")

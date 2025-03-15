@@ -9,29 +9,31 @@ use std::{env, fs};
 
 const ENV_EDITOR_DIR: &str = "UCOM_EDITOR_DIR";
 
-/// Sub path to the executable on macOS.
-#[cfg(target_os = "macos")]
-const UNITY_EDITOR_EXE: &str = "Unity.app/Contents/MacOS/Unity";
+mod platform {
+    /// Sub path to the executable on macOS.
+    #[cfg(target_os = "macos")]
+    pub const UNITY_EDITOR_EXE: &str = "Unity.app/Contents/MacOS/Unity";
 
-/// Sub path to the executable on Windows.
-#[cfg(target_os = "windows")]
-const UNITY_EDITOR_EXE: &str = r"Editor\Unity.exe";
+    /// Sub path to the executable on Windows.
+    #[cfg(target_os = "windows")]
+    pub const UNITY_EDITOR_EXE: &str = r"Editor\Unity.exe";
 
-/// Other target platforms are not supported.
-#[cfg(not(any(target_os = "macos", target_os = "windows")))]
-const UNITY_EDITOR_EXE: &str = compile_error!("Unsupported platform");
+    /// Other target platforms are not supported.
+    #[cfg(not(any(target_os = "macos", target_os = "windows")))]
+    pub const UNITY_EDITOR_EXE: &str = compile_error!("Unsupported platform");
 
-/// Parent directory of editor installations on macOS.
-#[cfg(target_os = "macos")]
-const UNITY_EDITOR_DIR: &str = "/Applications/Unity/Hub/Editor/";
+    /// Parent directory of editor installations on macOS.
+    #[cfg(target_os = "macos")]
+    pub const UNITY_EDITOR_DIR: &str = "/Applications/Unity/Hub/Editor/";
 
-/// Parent directory of editor installations on Windows.
-#[cfg(target_os = "windows")]
-const UNITY_EDITOR_DIR: &str = r"C:\Program Files\Unity\Hub\Editor";
+    /// Parent directory of editor installations on Windows.
+    #[cfg(target_os = "windows")]
+    pub const UNITY_EDITOR_DIR: &str = r"C:\Program Files\Unity\Hub\Editor";
 
-/// Other target platforms are not supported.
-#[cfg(not(any(target_os = "macos", target_os = "windows")))]
-const UNITY_EDITOR_DIR: &str = compile_error!("Unsupported platform");
+    /// Other target platforms are not supported.
+    #[cfg(not(any(target_os = "macos", target_os = "windows")))]
+    pub const UNITY_EDITOR_DIR: &str = compile_error!("Unsupported platform");
+}
 
 //
 // VersionList
@@ -77,7 +79,7 @@ impl VersionList {
             })?
             .flatten()
             .map(|de| de.path()) //
-            .filter(|p| p.is_dir() && p.join(UNITY_EDITOR_EXE).exists())
+            .filter(|p| p.is_dir() && p.join(platform::UNITY_EDITOR_EXE).exists())
             .filter_map(|p| p.file_name()?.to_string_lossy().parse::<Version>().ok())
             .collect_vec();
 
@@ -170,10 +172,11 @@ impl Installations {
             path.to_owned()
         } else {
             // Use the default directory.
-            let path = Path::new(UNITY_EDITOR_DIR);
+            let path = Path::new(platform::UNITY_EDITOR_DIR);
             if !path.is_dir() {
                 return Err(anyhow!(
-                    "The default editor directory `{UNITY_EDITOR_DIR}` is not a valid directory`"
+                    "The default editor directory `{}` is not a valid directory`",
+                    platform::UNITY_EDITOR_DIR
                 ));
             }
             path.to_owned()
@@ -187,10 +190,9 @@ impl Installations {
         if dir
             .read_dir()
             .with_context(|| format!("Cannot read editor directory `{}`", dir.display()))?
-            .any(|entry| {
-                entry
-                    .as_ref()
-                    .map(|e| e.path().join(UNITY_EDITOR_EXE).exists())
+            .any(|e| {
+                e.as_ref()
+                    .map(|de| de.path().join(platform::UNITY_EDITOR_EXE).exists())
                     .unwrap_or(false)
             })
         {
@@ -222,7 +224,7 @@ impl Installations {
                 // The editor directory is not set and no installations were found.
                 anyhow!(
                     "No Unity installations found in the default directory `{}`. Please set the `{ENV_EDITOR_DIR}` environment variable to the correct path.",
-                    UNITY_EDITOR_DIR
+                    platform::UNITY_EDITOR_DIR
                 )
             }
         }
@@ -241,7 +243,7 @@ impl Version {
     pub fn editor_executable_path(self) -> anyhow::Result<PathBuf> {
         let exe_path = Installations::editor_parent_dir()?
             .join(self.as_str())
-            .join(UNITY_EDITOR_EXE);
+            .join(platform::UNITY_EDITOR_EXE);
 
         if exe_path.exists() {
             Ok(exe_path)

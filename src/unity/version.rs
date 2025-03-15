@@ -94,6 +94,7 @@ impl FromStr for Version {
     type Err = ParseError;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
+        // version format: major.minor.patch.build_type.build
         let mut parts = s.split('.');
 
         let major = parts

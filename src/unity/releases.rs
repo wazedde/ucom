@@ -64,7 +64,7 @@ pub fn find_available_updates(version: Version, mode: FetchMode) -> anyhow::Resu
     let mut releases = releases.filter(|rd| criteria.is_version_match(rd.version));
     let position = releases.iter().position(|rd| rd.version == version);
     let current_release = position
-        .map(|index| releases.remove(index))
+        .map(|i| releases.remove(i))
         .ok_or_else(|| anyhow::anyhow!("Version {} not found in releases", version))?;
     let newer_releases = releases.filter(|rd| rd.version > version);
 
