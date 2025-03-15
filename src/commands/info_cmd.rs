@@ -115,7 +115,7 @@ fn print_project_info(
         println!();
         println_bold!("Build profiles:");
         for profile in profiles {
-            println!("{INDENT}{profile}");
+            println!("{INDENT}{}", profile.display());
         }
     }
 

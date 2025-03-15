@@ -41,15 +41,16 @@ pub fn add_to_project(args: &AddArguments) -> anyhow::Result<()> {
 
     if args.template == UnityTemplateFile::BuilderMenu {
         // The build menu requires the builder script to be added as well.
-        let temp_args = AddArguments {
-            project_dir: args.project_dir.clone(),
-            template: UnityTemplateFile::Builder,
-            force: args.force,
-            display_content: false,
-            display_url: false,
-        };
-        // Ignore error if it fails to add the builder script.
-        add_to_project(&temp_args).ok();
+        let builder_script = UnityTemplateFile::Builder.as_asset();
+        let builder_script_path = project.join(&destination_dir).join(builder_script.filename);
+        if builder_script_path.exists() {
+            println!(
+                "Builder script already exists, not adding: {}",
+                builder_script_path.display()
+            );
+        } else {
+            add_file_to_project(&project, &destination_dir, UnityTemplateFile::Builder)?;
+        }
     }
 
     add_file_to_project(project, destination_dir, args.template)

@@ -22,7 +22,7 @@ pub fn walk_visible_directories(
     WalkDir::new(root)
         .max_depth(max_depth)
         .into_iter()
-        .filter_entry(|e| e.file_type().is_dir() && !is_hidden_directory(e))
+        .filter_entry(|de| de.file_type().is_dir() && !is_hidden_directory(de))
 }
 
 fn is_hidden_directory(entry: &DirEntry) -> bool {
@@ -209,12 +209,6 @@ fn test_project_settings_deserialization() {
 /// Represents a valid path to a Unity project.
 pub struct ProjectPath(PathBuf);
 
-impl AsRef<Path> for ProjectPath {
-    fn as_ref(&self) -> &Path {
-        self.0.as_path()
-    }
-}
-
 impl Deref for ProjectPath {
     type Target = Path;
 
@@ -223,8 +217,15 @@ impl Deref for ProjectPath {
     }
 }
 
+impl AsRef<Path> for ProjectPath {
+    fn as_ref(&self) -> &Path {
+        self.0.deref()
+    }
+}
+
 impl ProjectPath {
     /// Creates a new `ProjectPath` from the given directory.
+    /// Fails if the directory does not contain a Unity project.
     pub fn try_from(path: impl AsRef<Path>) -> anyhow::Result<Self> {
         let path = utils::resolve_absolute_dir_path(&path)?;
         if Self::contains_unity_project(&path) {
@@ -281,24 +282,19 @@ impl ProjectPath {
             return Ok(BuildProfilesStatus::NotSupported);
         }
 
-        let path = self.join("Assets/Settings/Build Profiles");
+        const PROFILES_PATH: &str = "Assets/Settings/Build Profiles";
+        let path = self.join(PROFILES_PATH);
         if !path.exists() {
             return Ok(BuildProfilesStatus::NotFound);
         }
 
         let profiles = path
             .read_dir()?
-            .flatten()
-            .filter(|entry| entry.file_type().is_ok_and(|ft| ft.is_file()))
-            .filter_map(|entry| {
-                entry
-                    .file_name()
-                    .into_string()
-                    .ok()?
-                    .strip_suffix(".asset")
-                    .map(String::from)
-            })
-            .sorted_by_key(|s| s.to_lowercase())
+            .filter_map(Result::ok)
+            .filter(|de| de.file_type().is_ok_and(|ft| ft.is_file()))
+            .filter(|de| de.path().extension().and_then(|ext| ext.to_str()) == Some("asset"))
+            .map(|de| Path::new(PROFILES_PATH).join(de.file_name()))
+            .sorted_by_key(|p| p.to_string_lossy().to_lowercase())
             .collect_vec();
 
         if profiles.is_empty() {
@@ -320,5 +316,5 @@ pub enum BuildProfilesStatus {
     /// No build profiles found.
     NotFound,
     /// Build profiles found.
-    Available(Vec<String>),
+    Available(Vec<PathBuf>),
 }

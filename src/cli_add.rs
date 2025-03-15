@@ -80,9 +80,8 @@ impl TemplateAsset {
             AssetSource::Remote(url) => {
                 let _status =
                     StatusLine::new("Downloading", &format!("{} from {}...", self.filename, url));
-                let content =
-                    Cow::Owned(content_cache::fetch_content(url, RemoteChangeCheck::Skip)?);
-                Ok(content)
+                let content = content_cache::fetch_content(url, RemoteChangeCheck::Skip)?;
+                Ok(Cow::Owned(content))
             }
         }
     }
