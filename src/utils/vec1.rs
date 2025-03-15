@@ -15,6 +15,8 @@ pub enum Vec1Error {
     CannotPopLastElement,
 }
 
+const GUARANTEE_NON_EMPTY: &str = "Vec1 is guaranteed to be non-empty by construction";
+
 impl Error for Vec1Error {}
 
 impl Display for Vec1Error {
@@ -36,14 +38,12 @@ pub struct Vec1<T>(Vec<T>);
 impl<T> Deref for Vec1<T> {
     type Target = [T];
 
-    /// Provides direct access to the underlying slice.
     fn deref(&self) -> &Self::Target {
         &self.0
     }
 }
 
 impl<T> DerefMut for Vec1<T> {
-    /// Provides direct mutable access to the underlying slice.
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.0
     }
@@ -66,7 +66,7 @@ impl<T> TryFrom<Vec<T>> for Vec1<T> {
 }
 
 impl<T> From<Vec1<T>> for Vec<T> {
-    /// Consumes the [`Vec1`] and returns the inner [`Vec`].
+    /// Converts a [`Vec1`] into a [`Vec`].
     fn from(v: Vec1<T>) -> Self {
         v.0
     }
@@ -85,33 +85,24 @@ impl<T> Vec1<T> {
         Self(vec![first])
     }
 
-    /// Consumes the list and returns the inner Vec.
-    pub fn into_vec(self) -> Vec<T> {
-        self.0
-    }
-
     /// Returns the first value.
     pub fn first(&self) -> &T {
-        &self[0]
+        self.0.first().expect(GUARANTEE_NON_EMPTY)
     }
 
     /// Returns the last value.
     pub fn last(&self) -> &T {
-        self.0
-            .last()
-            .expect("Vec1 is guaranteed to be non-empty by construction")
+        self.0.last().expect(GUARANTEE_NON_EMPTY)
     }
 
     /// Returns a mutable reference to the first value.
     pub fn first_mut(&mut self) -> &mut T {
-        &mut self[0]
+        self.0.first_mut().expect(GUARANTEE_NON_EMPTY)
     }
 
     /// Returns a mutable reference to the last value.
     pub fn last_mut(&mut self) -> &mut T {
-        self.0
-            .last_mut()
-            .expect("Vec1 is guaranteed to be non-empty by construction")
+        self.0.last_mut().expect(GUARANTEE_NON_EMPTY)
     }
 
     /// Pushes a value to the end of the list.
@@ -127,10 +118,7 @@ impl<T> Vec1<T> {
         if self.len() == 1 {
             Err(Vec1Error::CannotPopLastElement)
         } else {
-            Ok(self
-                .0
-                .pop()
-                .expect("Vec1 is guaranteed to be non-empty by construction"))
+            Ok(self.0.pop().expect(GUARANTEE_NON_EMPTY))
         }
     }
 
