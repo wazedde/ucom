@@ -3,7 +3,10 @@ use itertools::Itertools;
 use yansi::Paint;
 
 use crate::cli::ListType;
-use crate::commands::{println_bold, println_conditional_bold};
+use crate::commands::{
+    MARK_BULLET, MARK_NO_INFO, MARK_UP_TO_DATE, MARK_UPDATE_TO_LATEST, MARK_UPDATES_AVAILABLE,
+    println_bold, println_conditional_bold,
+};
 use crate::unity::installations::{Installations, VersionList};
 use crate::unity::release_api::{
     FetchMode, ReleaseCollection, SortedReleaseCollection, fetch_latest_releases,
@@ -113,7 +116,11 @@ fn display_list_with_release_dates(installed: &VersionList, releases: &ReleaseCo
 
             let is_suggested = Some(info.version) == releases.suggested_version;
             let version_str = format!("{:<max_len$}", info.version.as_str());
-            let separator = if is_suggested { '✓' } else { '-' };
+            let separator = if is_suggested {
+                MARK_UP_TO_DATE
+            } else {
+                MARK_BULLET
+            };
 
             let rd = releases.iter().find(|p| p.version == info.version);
 
@@ -200,7 +207,7 @@ fn display_updates(installed: &Installations, mode: FetchMode) -> anyhow::Result
                             stream.green(),
                             version_str.green(),
                             release_date,
-                            "✓"
+                            MARK_UP_TO_DATE
                         );
                     } else {
                         println_conditional_bold!(
@@ -209,7 +216,7 @@ fn display_updates(installed: &Installations, mode: FetchMode) -> anyhow::Result
                             stream.yellow(),
                             version_str.yellow(),
                             release_date,
-                            "!"
+                            MARK_UPDATES_AVAILABLE
                         );
                     };
                 }
@@ -220,7 +227,7 @@ fn display_updates(installed: &Installations, mode: FetchMode) -> anyhow::Result
                         stream.blue(),
                         version_str.blue(),
                         release_date,
-                        ">",
+                        MARK_UPDATE_TO_LATEST,
                         release_notes_url(release_info.version).bright_blue()
                     );
                 }
@@ -231,7 +238,7 @@ fn display_updates(installed: &Installations, mode: FetchMode) -> anyhow::Result
                         stream,
                         version_str,
                         release_date,
-                        "?",
+                        MARK_NO_INFO,
                         format!("No {} update info available", info.version.build_type,)
                             .bright_black()
                     );
@@ -481,18 +488,20 @@ fn display_installed_versions_line(
 
     if is_up_to_date {
         println_bold!(
-            "{} {} ({}) ✓ Installed: {}",
+            "{} {} ({}) {} Installed: {}",
             stream.green(),
             version.green(),
             release_date,
+            MARK_UP_TO_DATE,
             joined_versions
         );
     } else {
         println_bold!(
-            "{} {} ({}) ! Installed: {} - update available",
+            "{} {} ({}) {} Installed: {} - update available",
             stream.blue(),
             version.blue(),
             release_date,
+            MARK_UPDATES_AVAILABLE,
             joined_versions
         );
     };

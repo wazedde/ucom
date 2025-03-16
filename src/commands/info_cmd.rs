@@ -1,5 +1,7 @@
 use crate::cli::PackagesInfoLevel;
-use crate::commands::{INDENT, install_latest_matching, println_bold};
+use crate::commands::{
+    INDENT, MARK_AVAILABLE, MARK_UNAVAILABLE, install_latest_matching, println_bold,
+};
 use crate::unity::project::ProjectPath;
 use crate::unity::project::{
     PackageInfo, PackageSource, Packages, PackagesAvailability, ProjectSettings,
@@ -96,9 +98,9 @@ fn print_project_info(
     }
 
     let installed_marker = if unity_version.is_editor_installed()? {
-        "✓".green().bold()
+        MARK_AVAILABLE.green().bold()
     } else {
-        "✗".red().bold()
+        MARK_UNAVAILABLE.red().bold()
     };
 
     print!(

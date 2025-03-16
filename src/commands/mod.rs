@@ -29,6 +29,13 @@ pub mod test_cmd;
 
 pub const PERSISTENT_BUILD_SCRIPT_ROOT: &str = "Assets/Plugins/Ucom/Editor";
 pub const INDENT: &str = "  ";
+pub const MARK_UP_TO_DATE: char = '✓';
+pub const MARK_UPDATES_AVAILABLE: char = '!';
+pub const MARK_UPDATE_TO_LATEST: char = '>';
+pub const MARK_NO_INFO: char = '?';
+pub const MARK_BULLET: char = '-';
+pub const MARK_AVAILABLE: char = 'ℹ';
+pub const MARK_UNAVAILABLE: char = '✗';
 
 trait TimeDeltaExt {
     fn as_seconds(&self) -> f64;

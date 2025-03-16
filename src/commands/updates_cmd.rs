@@ -3,7 +3,7 @@ use std::path::Path;
 use yansi::Paint;
 
 use crate::commands::install_cmd::install_version;
-use crate::commands::{INDENT, println_bold};
+use crate::commands::{INDENT, MARK_AVAILABLE, MARK_UNAVAILABLE, println_bold};
 use crate::unity::release_api::{FetchMode, SortedReleaseCollection};
 use crate::unity::{
     ProjectPath, ProjectSettings, ReleaseUpdates, find_available_updates, release_notes_url,
@@ -154,9 +154,9 @@ fn print_project_version(updates: &ReleaseUpdates, create_report: bool) -> anyho
     }
 
     let installed_marker = if is_installed {
-        "✓".green()
+        MARK_AVAILABLE.green()
     } else {
-        "✗".red()
+        MARK_UNAVAILABLE.red()
     };
 
     print!(
