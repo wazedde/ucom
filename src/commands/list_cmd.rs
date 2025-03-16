@@ -113,7 +113,7 @@ fn display_list_with_release_dates(installed: &VersionList, releases: &ReleaseCo
 
             let is_suggested = Some(info.version) == releases.suggested_version;
             let version_str = format!("{:<max_len$}", info.version.as_str());
-            let separator = if is_suggested { '*' } else { '-' };
+            let separator = if is_suggested { '✓' } else { '-' };
 
             let rd = releases.iter().find(|p| p.version == info.version);
 
@@ -174,7 +174,6 @@ fn display_updates(installed: &Installations, mode: FetchMode) -> anyhow::Result
 
             let is_suggested = Some(info.version) == releases.suggested_version();
             let version_str = format!("{:<max_version_len$}", info.version.as_str());
-            let separator = if is_suggested { '*' } else { '-' };
 
             let rd = releases.get_by_version(info.version);
             let release_date = rd.release_date.format("%Y-%m-%d");
@@ -201,7 +200,7 @@ fn display_updates(installed: &Installations, mode: FetchMode) -> anyhow::Result
                             stream.green(),
                             version_str.green(),
                             release_date,
-                            separator
+                            "✓"
                         );
                     } else {
                         println_conditional_bold!(
@@ -210,7 +209,7 @@ fn display_updates(installed: &Installations, mode: FetchMode) -> anyhow::Result
                             stream.yellow(),
                             version_str.yellow(),
                             release_date,
-                            separator
+                            "!"
                         );
                     };
                 }
@@ -221,7 +220,7 @@ fn display_updates(installed: &Installations, mode: FetchMode) -> anyhow::Result
                         stream.blue(),
                         version_str.blue(),
                         release_date,
-                        separator,
+                        ">",
                         release_notes_url(release_info.version).bright_blue()
                     );
                 }
@@ -232,7 +231,7 @@ fn display_updates(installed: &Installations, mode: FetchMode) -> anyhow::Result
                         stream,
                         version_str,
                         release_date,
-                        separator,
+                        "?",
                         format!("No {} update info available", info.version.build_type,)
                             .bright_black()
                     );
@@ -482,7 +481,7 @@ fn display_installed_versions_line(
 
     if is_up_to_date {
         println_bold!(
-            "{} {} ({}) - Installed: {}",
+            "{} {} ({}) ✓ Installed: {}",
             stream.green(),
             version.green(),
             release_date,
@@ -490,7 +489,7 @@ fn display_installed_versions_line(
         );
     } else {
         println_bold!(
-            "{} {} ({}) - Installed: {} - update available",
+            "{} {} ({}) ! Installed: {} - update available",
             stream.blue(),
             version.blue(),
             release_date,
