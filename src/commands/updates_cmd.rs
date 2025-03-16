@@ -128,29 +128,23 @@ fn print_project_header(project: &ProjectPath, create_report: bool) {
 
 fn print_project_version(updates: &ReleaseUpdates, create_report: bool) -> anyhow::Result<()> {
     let is_installed = updates.current_release.version.is_editor_installed()?;
-    print!("{}", "Unity editor: ".bold());
+    print!("{}", "Unity editor status: ".bold());
 
     let version = match (is_installed, updates.newer_releases.is_empty()) {
         (true, true) => {
-            println!("{}", "installed, up to date".green().bold());
+            println!("{}", "installed (latest version)".green().bold());
             updates.current_release.version.green()
         }
         (true, false) => {
-            println!(
-                "{}",
-                "installed, newer version(s) available".yellow().bold()
-            );
+            println!("{}", "installed (update available)".yellow().bold());
             updates.current_release.version.yellow()
         }
         (false, true) => {
-            println!("{}", "not installed, up to date".red().bold());
+            println!("{}", "not installed (latest version)".red().bold());
             updates.current_release.version.red()
         }
         (false, false) => {
-            println!(
-                "{}",
-                "not installed, newer version(s) available".red().bold()
-            );
+            println!("{}", "not installed (outdated version)".red().bold());
             updates.current_release.version.red()
         }
     };
@@ -159,11 +153,19 @@ fn print_project_version(updates: &ReleaseUpdates, create_report: bool) -> anyho
         println!();
     }
 
+    let installed_marker = if is_installed {
+        "✓".green()
+    } else {
+        "✗".red()
+    };
+
     print!(
-        "{}{} - {}",
-        INDENT,
+        "{}{}{} ({}) - {}",
+        installed_marker,
+        " ".repeat(INDENT.len() - 1),
         version,
-        release_notes_url(updates.current_release.version).bright_blue()
+        updates.current_release.release_date.format("%Y-%m-%d"),
+        release_notes_url(updates.current_release.version).bright_blue(),
     );
 
     if is_installed {

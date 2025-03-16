@@ -95,8 +95,16 @@ fn print_project_info(
         }
     }
 
+    let installed_marker = if unity_version.is_editor_installed()? {
+        "✓".green().bold()
+    } else {
+        "✗".red().bold()
+    };
+
     print!(
-        "{INDENT}Unity version: {} - {}",
+        "{}{}Unity version: {} - {}",
+        installed_marker,
+        " ".repeat(INDENT.len() - 1),
         unity_version.bold(),
         release_notes_url(unity_version).bright_blue()
     );
@@ -104,9 +112,9 @@ fn print_project_info(
     let installed = unity_version.is_editor_installed()?;
 
     if installed {
-        println!();
+        println!(" {}", "(installed)".green().bold());
     } else {
-        println!(" {}", "*not installed".red().bold());
+        println!(" {}", "(not installed)".red().bold());
     }
 
     // Print the available build profiles

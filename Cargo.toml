@@ -7,11 +7,8 @@ readme = "README.md"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [profile.release]
-lto = true
+lto = "thin"
 strip = true
-
-[lints.rust]
-rust_2018_idioms = "warn"
 
 [lints.clippy]
 trivially_copy_pass_by_ref = "warn"
