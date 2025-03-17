@@ -13,33 +13,33 @@ use std::{fs, io, thread};
 //
 
 /// Errors that can occur when working with a [`Command`].
-#[derive(Debug, Clone, Eq, PartialEq, Hash)]
+#[derive(Debug)]
 pub struct CommandError {
     pub exit_code: i32,
     pub stderr: String,
 }
 
-impl From<io::Error> for CommandError {
-    fn from(value: io::Error) -> Self {
-        Self {
-            exit_code: -1,
-            stderr: value.to_string(),
-        }
-    }
-}
+impl Error for CommandError {}
 
 impl From<std::process::Output> for CommandError {
-    fn from(value: std::process::Output) -> Self {
-        Self {
-            exit_code: value.status.code().unwrap_or(-1),
-            stderr: String::from_utf8(value.stderr).unwrap_or_default(),
-        }
+    fn from(output: std::process::Output) -> Self {
+        let exit_code = output.status.code().unwrap_or(-1);
+        let stderr = String::from_utf8(output.stderr).unwrap_or_else(|e| {
+            // If the output is not valid UTF-8 convert it.
+            // TODO: Unfortunately, this rechecks the UTF-8 validity. Atm there is no stable function to avoid this.
+            String::from_utf8_lossy(e.as_bytes()).into_owned()
+        });
+
+        Self { exit_code, stderr }
     }
 }
 
-impl Error for CommandError {
-    fn source(&self) -> Option<&(dyn Error + 'static)> {
-        Some(self)
+impl From<io::Error> for CommandError {
+    fn from(err: io::Error) -> Self {
+        Self {
+            exit_code: -1,
+            stderr: err.to_string(),
+        }
     }
 }
 

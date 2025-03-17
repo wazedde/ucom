@@ -7,7 +7,7 @@ use std::ops::{Deref, DerefMut};
 //
 
 /// Errors that can occur when working with a [`Vec1`].
-#[derive(Debug, Copy, Clone, Eq, PartialEq, Hash)]
+#[derive(Debug, PartialEq)]
 pub enum Vec1Error {
     /// Attempted to create a [`Vec1`] from an empty Vec.
     SourceVecIsEmpty,

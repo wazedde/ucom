@@ -80,15 +80,12 @@ impl TestRun {
     }
 
     pub fn collect_test_cases(&self) -> Vec<nunit::TestCase> {
-        let mut test_cases = Vec::new();
+        let mut cases = Vec::new();
         for element in &self.elements {
-            match element {
-                TestRunElement::TestSuite(ts) => {
-                    ts.collect_test_cases(&mut test_cases);
-                }
-            }
+            let TestRunElement::TestSuite(ts) = element;
+            ts.add_test_cases_to(&mut cases);
         }
-        test_cases
+        cases
     }
 }
 
@@ -279,7 +276,7 @@ impl TestCase {
 }
 
 impl TestSuite {
-    fn collect_test_cases(&self, test_cases: &mut Vec<nunit::TestCase>) {
+    fn add_test_cases_to(&self, test_cases: &mut Vec<nunit::TestCase>) {
         for element in &self.elements {
             match element {
                 TestSuiteElement::TestCase(tc) => {
@@ -287,7 +284,7 @@ impl TestSuite {
                     test_cases.push(tc);
                 }
                 TestSuiteElement::TestSuite(ts) => {
-                    ts.collect_test_cases(test_cases);
+                    ts.add_test_cases_to(test_cases);
                 }
                 _ => continue,
             }
@@ -300,9 +297,9 @@ impl From<&TestCase> for nunit::TestCase {
         let failure = value.failure();
         Self {
             id: value.id,
-            name: value.name.clone(),
-            full_name: value.full_name.clone(),
-            run_state: value.run_state.clone(),
+            name: value.name.to_owned(),
+            full_name: value.full_name.to_owned(),
+            run_state: value.run_state.to_owned(),
             result: value.result.as_str().into(),
             duration: value.duration,
             start_time: value.start_time,
