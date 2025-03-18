@@ -1,4 +1,4 @@
-use crate::unity::release_api::{FetchMode, SortedReleaseCollection, fetch_latest_releases};
+use crate::unity::release_api::{FetchMode, SortedReleases, fetch_latest_releases};
 use crate::unity::release_api_data::ReleaseData;
 use crate::unity::{BuildType, Major, Minor, Version};
 use serde::{Deserialize, Serialize};
@@ -50,7 +50,7 @@ impl ReleaseCriteria {
 /// The current release and newer releases.
 pub struct ReleaseUpdates {
     pub current_release: ReleaseData,
-    pub newer_releases: SortedReleaseCollection,
+    pub newer_releases: SortedReleases,
 }
 
 /// Finds the available updates for the given version.

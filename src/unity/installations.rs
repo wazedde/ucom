@@ -36,13 +36,13 @@ mod platform {
 }
 
 //
-// VersionList
+// SortedVersions
 //
 
 /// A non-empty list of Unity versions, sorted from the oldest to the newest.
-pub struct VersionList(Vec1<Version>);
+pub struct SortedVersions(Vec1<Version>);
 
-impl Deref for VersionList {
+impl Deref for SortedVersions {
     type Target = Vec1<Version>;
 
     fn deref(&self) -> &Self::Target {
@@ -50,7 +50,7 @@ impl Deref for VersionList {
     }
 }
 
-impl TryFrom<Vec<Version>> for VersionList {
+impl TryFrom<Vec<Version>> for SortedVersions {
     type Error = Vec1Error;
 
     /// Converts a vector of versions into a sorted list of versions.
@@ -62,7 +62,7 @@ impl TryFrom<Vec<Version>> for VersionList {
     }
 }
 
-impl VersionList {
+impl SortedVersions {
     /// Converts the list into a [`Vec`].
     pub fn into_vec(self) -> Vec<Version> {
         self.0.into()
@@ -100,7 +100,7 @@ impl VersionList {
         let mut versions = self.into_vec();
         versions.retain(|v| v.as_str().starts_with(version_prefix));
 
-        Vec1::try_from(versions).map(VersionList).map_err(|_| {
+        Vec1::try_from(versions).map(SortedVersions).map_err(|_| {
             anyhow!("No Unity installation was found that matches version `{version_prefix}`.")
         })
     }
@@ -113,14 +113,14 @@ impl VersionList {
 /// The installed versions and the root directory they are installed in.
 pub struct Installations {
     pub install_dir: PathBuf,
-    pub versions: VersionList,
+    pub versions: SortedVersions,
 }
 
 impl Installations {
     /// Returns a list of installed Unity versions or an error if no versions are found.
     pub fn find_installations(version_prefix: Option<&str>) -> anyhow::Result<Self> {
         let install_dir = Self::editor_parent_dir()?.to_path_buf();
-        let versions = VersionList::from_dir(&install_dir)?.filter_by_prefix(version_prefix)?;
+        let versions = SortedVersions::from_dir(&install_dir)?.filter_by_prefix(version_prefix)?;
         Ok(Self {
             install_dir,
             versions,
@@ -134,7 +134,7 @@ impl Installations {
 
     /// Returns the version of the latest-installed version that matches the given prefix.
     pub fn latest_installed_version(version_prefix: Option<&str>) -> anyhow::Result<Version> {
-        let version = *VersionList::from_dir(Self::editor_parent_dir()?)?
+        let version = *SortedVersions::from_dir(Self::editor_parent_dir()?)?
             .filter_by_prefix(version_prefix)?
             .last();
         Ok(version)

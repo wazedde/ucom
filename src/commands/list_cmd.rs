@@ -7,10 +7,9 @@ use crate::commands::{
     MARK_BULLET, MARK_NO_INFO, MARK_UP_TO_DATE, MARK_UPDATE_TO_LATEST, MARK_UPDATES_AVAILABLE,
     println_bold, println_conditional_bold,
 };
-use crate::unity::installations::{Installations, VersionList};
+use crate::unity::installations::{Installations, SortedVersions};
 use crate::unity::release_api::{
-    FetchMode, ReleaseCollection, SortedReleaseCollection, fetch_latest_releases,
-    load_cached_releases,
+    FetchMode, Releases, SortedReleases, fetch_latest_releases, load_cached_releases,
 };
 use crate::unity::release_api_data::ReleaseData;
 use crate::unity::{ReleaseStream, Version, release_notes_url};
@@ -80,7 +79,7 @@ fn display_installed_versions(installed: &Installations, mode: FetchMode) -> any
     Ok(())
 }
 
-fn display_basic_list(installed: &[Version]) {
+fn display_basic_list(installed: &SortedVersions) {
     let version_groups = group_versions_by_minor(installed);
     let max_len = find_max_version_length(&version_groups);
 
@@ -103,7 +102,7 @@ fn display_basic_list(installed: &[Version]) {
     }
 }
 
-fn display_list_with_release_dates(installed: &[Version], releases: &ReleaseCollection) {
+fn display_list_with_release_dates(installed: &SortedVersions, releases: &Releases) {
     let version_groups = group_versions_by_minor(installed);
     let max_len = find_max_version_length(&version_groups);
 
@@ -252,8 +251,8 @@ fn display_updates(installed: &Installations, mode: FetchMode) -> anyhow::Result
 /// Groups installed versions by `major.minor` version
 /// and collects update information for each installed version.
 fn collect_version_update_info<'a>(
-    installed: &'a VersionList,
-    releases: &'a SortedReleaseCollection,
+    installed: &'a SortedVersions,
+    releases: &'a SortedReleases,
 ) -> VersionInfoGroups<'a> {
     let mut version_groups = group_versions_by_minor(installed);
 
@@ -374,7 +373,7 @@ fn display_latest_versions(
     Ok(())
 }
 
-fn format_suggested_version(releases: &ReleaseCollection) -> String {
+fn format_suggested_version(releases: &Releases) -> String {
     releases
         .suggested_version
         .map_or_else(String::new, |suggested_version| {
@@ -418,7 +417,7 @@ fn display_available_versions(
     let releases =
         releases.filter(|r| version_prefix.is_none_or(|p| r.version.as_str().starts_with(p)));
 
-    let Ok(versions) = VersionList::try_from(releases.iter().map(|r| r.version).collect_vec())
+    let Ok(versions) = SortedVersions::try_from(releases.iter().map(|r| r.version).collect_vec())
     else {
         return Err(anyhow!(
             "No releases available that match `{}`",
@@ -556,18 +555,20 @@ fn find_max_version_length(version_groups: &VersionInfoGroups<'_>) -> usize {
 }
 
 /// Returns list of grouped versions that are in the same minor range.
-fn group_versions_by_minor(installed: &[Version]) -> VersionInfoGroups<'_> {
+fn group_versions_by_minor(installed: &SortedVersions) -> VersionInfoGroups<'_> {
     let version_groups = installed
         .iter()
         .chunk_by(|v| (v.major, v.minor))
         .into_iter()
-        .filter_map(|(_, group)| build_version_info_group(group))
+        .filter_map(|(_, group)| create_version_info_group(group))
         .collect();
 
     VersionInfoGroups(version_groups)
 }
 
-fn build_version_info_group<'a, I>(versions: I) -> Option<Vec1<VersionInfo<'a>>>
+/// Creates a version info group from the given versions.
+/// Returns `None` if the group is empty.
+fn create_version_info_group<'a, I>(versions: I) -> Option<Vec1<VersionInfo<'a>>>
 where
     I: Iterator<Item = &'a Version>,
 {
@@ -591,7 +592,7 @@ where
 }
 
 fn collect_latest_minor_releases<'a>(
-    releases: &'a SortedReleaseCollection,
+    releases: &'a SortedReleases,
     version_prefix: Option<&str>,
 ) -> Vec<&'a ReleaseData> {
     releases

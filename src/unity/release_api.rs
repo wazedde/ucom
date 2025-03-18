@@ -16,7 +16,7 @@ const RELEASES_API_URL: &str = "https://services.api.unity.com/unity/editor/rele
 const RELEASES_FILENAME: &str = "releases_dataset.json";
 
 #[derive(Debug, Serialize, Deserialize)]
-pub struct ReleaseCollection {
+pub struct Releases {
     #[serde(rename = "lastUpdated")]
     pub last_updated: DateTime<Utc>,
     #[serde(rename = "suggestedVersion")]
@@ -26,7 +26,7 @@ pub struct ReleaseCollection {
     releases: Vec<ReleaseData>,
 }
 
-impl IntoIterator for ReleaseCollection {
+impl IntoIterator for Releases {
     type Item = ReleaseData;
     type IntoIter = std::vec::IntoIter<ReleaseData>;
 
@@ -35,7 +35,7 @@ impl IntoIterator for ReleaseCollection {
     }
 }
 
-impl Default for ReleaseCollection {
+impl Default for Releases {
     fn default() -> Self {
         Self {
             last_updated: Utc::now(),
@@ -45,7 +45,7 @@ impl Default for ReleaseCollection {
     }
 }
 
-impl ReleaseCollection {
+impl Releases {
     /// Returns if the collection has a release with the given version.
     pub fn has_version(&self, version: Version) -> bool {
         // No need to cache hits as each check is done once during the lifetime of the program.
@@ -73,24 +73,24 @@ impl ReleaseCollection {
 }
 
 /// Wrapper around the releases that sorts the releases by version in ascending order.
-pub struct SortedReleaseCollection(ReleaseCollection);
+pub struct SortedReleases(Releases);
 
-impl AsRef<ReleaseCollection> for SortedReleaseCollection {
-    fn as_ref(&self) -> &ReleaseCollection {
+impl AsRef<Releases> for SortedReleases {
+    fn as_ref(&self) -> &Releases {
         &self.0
     }
 }
 
-impl From<SortedReleaseCollection> for ReleaseCollection {
-    fn from(sorted: SortedReleaseCollection) -> Self {
+impl From<SortedReleases> for Releases {
+    fn from(sorted: SortedReleases) -> Self {
         sorted.0
     }
 }
 
 // Sort list when creating struct
-impl SortedReleaseCollection {
+impl SortedReleases {
     /// Sorts the releases by version in ascending order.
-    pub fn new(mut collection: ReleaseCollection) -> Self {
+    pub fn new(mut collection: Releases) -> Self {
         collection.releases.sort_unstable_by_key(|r| r.version);
         Self(collection)
     }
@@ -100,7 +100,7 @@ impl SortedReleaseCollection {
     where
         F: Fn(&ReleaseData) -> bool,
     {
-        Self(ReleaseCollection {
+        Self(Releases {
             last_updated: self.last_updated(),
             suggested_version: self.suggested_version(),
             releases: self.0.into_iter().filter(predicate).collect_vec(),
@@ -135,12 +135,12 @@ impl SortedReleaseCollection {
 }
 
 /// Loads the release info from the cache.
-pub fn load_cached_releases() -> anyhow::Result<ReleaseCollection> {
+pub fn load_cached_releases() -> anyhow::Result<Releases> {
     let path = ucom_cache_dir()?.join(RELEASES_FILENAME);
     if path.exists() {
         load_release_info(&path)
     } else {
-        Ok(ReleaseCollection::default())
+        Ok(Releases::default())
     }
 }
 
@@ -154,16 +154,16 @@ pub enum FetchMode {
 }
 
 /// Downloads and caches the release info.
-pub fn fetch_latest_releases(mode: FetchMode) -> anyhow::Result<SortedReleaseCollection> {
+pub fn fetch_latest_releases(mode: FetchMode) -> anyhow::Result<SortedReleases> {
     let releases_path = ucom_cache_dir()?.join(RELEASES_FILENAME);
     let mut releases = if mode == FetchMode::Auto {
         load_cached_releases()?
     } else {
-        ReleaseCollection::default()
+        Releases::default()
     };
 
     if mode == FetchMode::Auto && !is_cache_file_expired(&releases_path) {
-        return Ok(SortedReleaseCollection::new(releases));
+        return Ok(SortedReleases::new(releases));
     }
 
     let status = StatusLine::new("Downloading", "Unity release data...");
@@ -177,7 +177,7 @@ pub fn fetch_latest_releases(mode: FetchMode) -> anyhow::Result<SortedReleaseCol
 
     if fetch_count > 0 {
         releases.last_updated = Utc::now();
-        let sorted_releases = SortedReleaseCollection::new(releases);
+        let sorted_releases = SortedReleases::new(releases);
 
         create_dir_all(ucom_cache_dir()?)?;
         serde_json::to_writer(
@@ -187,7 +187,7 @@ pub fn fetch_latest_releases(mode: FetchMode) -> anyhow::Result<SortedReleaseCol
         Ok(sorted_releases)
     } else {
         touch_file(&releases_path)?;
-        Ok(SortedReleaseCollection::new(releases))
+        Ok(SortedReleases::new(releases))
     }
 }
 
@@ -210,7 +210,7 @@ fn fetch_releases_page(limit: usize, offset: usize) -> anyhow::Result<ReleaseDat
 /// by assuming there were no new releases if all releases in a page are already in the list.
 /// This is not perfect, but seems to be good enough for our use case.
 /// practice earlier releases can be added later.
-fn fetch_release_info<F>(releases: &mut ReleaseCollection, callback: F) -> anyhow::Result<usize>
+fn fetch_release_info<F>(releases: &mut Releases, callback: F) -> anyhow::Result<usize>
 where
     F: Fn(usize, usize),
 {
@@ -259,9 +259,9 @@ where
 }
 
 /// Load release info from a file.
-fn load_release_info(path: &Path) -> anyhow::Result<ReleaseCollection> {
+fn load_release_info(path: &Path) -> anyhow::Result<Releases> {
     let file = File::open(path)?;
     let reader = BufReader::new(file);
-    let releases: ReleaseCollection = serde_json::from_reader(reader)?;
+    let releases: Releases = serde_json::from_reader(reader)?;
     Ok(releases)
 }

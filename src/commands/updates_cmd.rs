@@ -4,7 +4,7 @@ use yansi::Paint;
 
 use crate::commands::install_cmd::install_version;
 use crate::commands::{INDENT, MARK_AVAILABLE, MARK_UNAVAILABLE, println_bold};
-use crate::unity::release_api::{FetchMode, SortedReleaseCollection};
+use crate::unity::release_api::{FetchMode, SortedReleases};
 use crate::unity::{
     ProjectPath, ProjectSettings, ReleaseUpdates, find_available_updates, release_notes_url,
 };
@@ -73,7 +73,7 @@ fn download_and_print_release_notes(updates: &ReleaseUpdates) -> anyhow::Result<
 
 fn handle_newer_release_installation(
     install_latest: bool,
-    releases: &SortedReleaseCollection,
+    releases: &SortedReleases,
 ) -> anyhow::Result<()> {
     if let Some(newer_release) = releases.iter().last() {
         let is_installed = newer_release.version.is_editor_installed()?;
@@ -185,7 +185,7 @@ fn print_project_version(updates: &ReleaseUpdates, create_report: bool) -> anyho
     Ok(())
 }
 
-fn print_available_updates(releases: &SortedReleaseCollection) -> anyhow::Result<()> {
+fn print_available_updates(releases: &SortedReleases) -> anyhow::Result<()> {
     println_bold!("Available update(s):");
     let max_len = releases
         .iter()
