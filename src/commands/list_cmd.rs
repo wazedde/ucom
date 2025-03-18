@@ -1,5 +1,6 @@
 use anyhow::anyhow;
 use itertools::Itertools;
+use std::cmp;
 use yansi::Paint;
 
 use crate::cli::ListType;
@@ -127,10 +128,9 @@ fn display_list_with_release_dates(installed: &SortedVersions, releases: &Releas
                 rd.release_date.format("%Y-%m-%d").to_string()
             });
 
-            let (padding, stream) =
-                format_release_stream_with_padding(rd.map_or(ReleaseStream::Other, |rd| rd.stream));
-            print!("{padding}");
+            let stream = rd.map_or(ReleaseStream::Other, |rd| rd.stream).to_string();
 
+            print!("{}", stream_padding(&stream));
             println_conditional_bold!(
                 is_suggested,
                 "{} {} ({}) {} {}",
@@ -184,8 +184,9 @@ fn display_updates(installed: &Installations, mode: FetchMode) -> anyhow::Result
             let rd = releases.get_by_version(info.version);
             let release_date = rd.release_date.format("%Y-%m-%d");
 
-            let (padding, stream) = format_release_stream_with_padding(rd.stream);
-            print!("{padding}");
+            let stream = rd.stream.to_string();
+
+            print!("{}", stream_padding(&stream));
 
             match &info.version_type {
                 VersionType::HasLaterInstalled => {
@@ -360,8 +361,10 @@ fn display_latest_versions(
 
         if installs_in_range.is_empty() {
             // No installed versions in the range.
-            let (padding, stream) = format_release_stream_with_padding(latest.stream);
-            print!("{padding}");
+            let stream = latest.stream.to_string();
+
+            print!("{}", stream_padding(&stream));
+
             let version = format_version_with_padding(latest.version, max_len);
             let release_date = latest.release_date.format("%Y-%m-%d");
 
@@ -440,8 +443,9 @@ fn display_available_versions(
             let release_date = release.release_date.format("%Y-%m-%d");
 
             let version = format_version_with_padding(release.version, max_len);
-            let (padding, stream) = format_release_stream_with_padding(release.stream);
-            print!("{padding}");
+            let stream = release.stream.to_string();
+
+            print!("{}", stream_padding(&stream));
 
             if is_installed {
                 println_bold!(
@@ -480,10 +484,11 @@ fn display_installed_versions_line(
 
     let joined_versions = installed_in_range.iter().join(", ");
 
-    let (padding, stream) = format_release_stream_with_padding(latest.stream);
-    print!("{padding}");
+    let stream = latest.stream.to_string();
     let version = format_version_with_padding(latest.version, max_len);
     let release_date = latest.release_date.format("%Y-%m-%d");
+
+    print!("{}", stream_padding(&stream));
 
     if is_up_to_date {
         println_bold!(
@@ -535,10 +540,10 @@ enum VersionType<'a> {
     NoReleaseInfo,
 }
 
-fn format_release_stream_with_padding(stream: ReleaseStream) -> (String, String) {
-    let stream = stream.to_string();
-    let padding = "─".repeat(5 - stream.len());
-    (format!("{padding} "), stream)
+fn stream_padding(stream: &str) -> String {
+    let len = cmp::min(stream.len(), 5);
+    let padding = "─".repeat(5 - len);
+    format!("{padding} ")
 }
 
 fn format_version_with_padding(version: Version, max_len: usize) -> String {
