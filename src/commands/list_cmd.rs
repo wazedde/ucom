@@ -80,7 +80,7 @@ fn display_installed_versions(installed: &Installations, mode: FetchMode) -> any
     Ok(())
 }
 
-fn display_basic_list(installed: &VersionList) {
+fn display_basic_list(installed: &[Version]) {
     let version_groups = group_versions_by_minor(installed);
     let max_len = find_max_version_length(&version_groups);
 
@@ -103,7 +103,7 @@ fn display_basic_list(installed: &VersionList) {
     }
 }
 
-fn display_list_with_release_dates(installed: &VersionList, releases: &ReleaseCollection) {
+fn display_list_with_release_dates(installed: &[Version], releases: &ReleaseCollection) {
     let version_groups = group_versions_by_minor(installed);
     let max_len = find_max_version_length(&version_groups);
 
@@ -556,35 +556,36 @@ fn find_max_version_length(version_groups: &VersionInfoGroups<'_>) -> usize {
 }
 
 /// Returns list of grouped versions that are in the same minor range.
-fn group_versions_by_minor(installed: &VersionList) -> VersionInfoGroups<'_> {
+fn group_versions_by_minor(installed: &[Version]) -> VersionInfoGroups<'_> {
     let version_groups = installed
         .iter()
         .chunk_by(|v| (v.major, v.minor))
         .into_iter()
-        .filter_map(|(_, group)| build_version_info_group(group.collect_vec()))
+        .filter_map(|(_, group)| build_version_info_group(group))
         .collect();
 
     VersionInfoGroups(version_groups)
 }
 
-fn build_version_info_group(versions: Vec<&Version>) -> Option<Vec1<VersionInfo<'_>>> {
-    let len = versions.len();
+fn build_version_info_group<'a, I>(versions: I) -> Option<Vec1<VersionInfo<'a>>>
+where
+    I: Iterator<Item = &'a Version>,
+{
+    let mut peekable = versions.peekable();
+    let mut infos = Vec::new();
 
-    let infos = versions
-        .into_iter()
-        .enumerate()
-        .map(|(i, &version)| {
-            let version_type = if i == len - 1 {
-                VersionType::LatestInstalled
-            } else {
-                VersionType::HasLaterInstalled
-            };
-            VersionInfo {
-                version,
-                version_type,
-            }
-        })
-        .collect_vec();
+    while let Some(&version) = peekable.next() {
+        let version_type = if peekable.peek().is_none() {
+            VersionType::LatestInstalled
+        } else {
+            VersionType::HasLaterInstalled
+        };
+
+        infos.push(VersionInfo {
+            version,
+            version_type,
+        });
+    }
 
     Vec1::try_from(infos).ok()
 }
