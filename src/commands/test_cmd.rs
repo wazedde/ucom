@@ -184,8 +184,8 @@ fn print_test_cases<'a>(test_cases: impl Iterator<Item = &'a TestCase>) {
         println!();
     }
 
-    for tc in test_cases {
-        let (name_style, status) = if tc.result == TestResult::Passed {
+    for test_case in test_cases {
+        let (name_style, status) = if test_case.result == TestResult::Passed {
             (Style::new(), MessageType::Ok)
         } else {
             (Style::new().red(), MessageType::Error)
@@ -193,9 +193,9 @@ fn print_test_cases<'a>(test_cases: impl Iterator<Item = &'a TestCase>) {
 
         println!(
             "{}: {}; finished in {:.2}s",
-            MessageType::format_text(tc.result.as_ref(), status),
-            tc.full_name.paint(name_style),
-            tc.duration,
+            MessageType::format_text(test_case.result.as_ref(), status),
+            test_case.full_name.paint(name_style),
+            test_case.duration,
         );
     }
 }

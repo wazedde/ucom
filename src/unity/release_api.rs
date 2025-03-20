@@ -5,7 +5,6 @@ use crate::utils::content_cache::{is_cache_file_expired, touch_file};
 use crate::utils::status_line::StatusLine;
 use anyhow::Context;
 use chrono::{DateTime, Utc};
-use itertools::Itertools;
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 use std::fs::{File, create_dir_all};
@@ -95,20 +94,12 @@ impl SortedReleases {
         Self(collection)
     }
 
-    /// Returns filtered releases.
-    pub fn filter<F>(self, predicate: F) -> Self
+    /// Removes all releases that do not match the given predicate.
+    pub fn retain<F>(&mut self, predicate: F)
     where
         F: Fn(&ReleaseData) -> bool,
     {
-        Self(Releases {
-            last_updated: self.last_updated(),
-            suggested_version: self.suggested_version(),
-            releases: self.0.into_iter().filter(predicate).collect_vec(),
-        })
-    }
-
-    pub fn last_updated(&self) -> DateTime<Utc> {
-        self.0.last_updated
+        self.0.releases.retain(predicate);
     }
 
     pub fn suggested_version(&self) -> Option<Version> {

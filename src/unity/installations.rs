@@ -100,7 +100,8 @@ impl SortedVersions {
         let mut versions = self.into_vec();
         versions.retain(|v| v.as_str().starts_with(version_prefix));
 
-        Vec1::try_from(versions).map(SortedVersions).map_err(|_| {
+        // No need to sort again, since the list is already sorted.
+        Vec1::try_from(versions).map(Self).map_err(|_| {
             anyhow!("No Unity installation was found that matches version `{version_prefix}`.")
         })
     }
@@ -190,8 +191,8 @@ impl Installations {
         if dir
             .read_dir()
             .with_context(|| format!("Cannot read editor directory `{}`", dir.display()))?
-            .any(|e| {
-                e.as_ref()
+            .any(|de| {
+                de.as_ref()
                     .map(|de| de.path().join(platform::UNITY_EDITOR_EXE).exists())
                     .unwrap_or(false)
             })

@@ -252,7 +252,7 @@ impl ProjectPath {
         reader.read_line(&mut line)?;
 
         line.split_once(':')
-            .filter(|(k, _)| k.trim() == "m_EditorVersion")
+            .filter(|(l, _)| l.trim() == "m_EditorVersion")
             .and_then(|(_, v)| v.trim().parse().ok())
             .ok_or_else(|| {
                 anyhow!(

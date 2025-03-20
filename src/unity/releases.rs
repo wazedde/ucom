@@ -1,6 +1,6 @@
 use crate::unity::release_api::{FetchMode, SortedReleases, fetch_latest_releases};
 use crate::unity::release_api_data::ReleaseData;
-use crate::unity::{BuildType, Major, Minor, Version};
+use crate::unity::{BuildType, Version};
 use serde::{Deserialize, Serialize};
 use std::fmt::{Display, Formatter};
 use strum::Display;
@@ -25,28 +25,6 @@ pub enum ReleaseStream {
     Other,
 }
 
-/// The release criteria used to filter releases.
-#[allow(dead_code)]
-pub enum ReleaseCriteria {
-    /// Match all releases.
-    All,
-    /// Match releases on the major version.
-    Major { major: Major },
-    /// Match releases on the major and minor version.
-    Minor { major: Major, minor: Minor },
-}
-
-impl ReleaseCriteria {
-    /// Returns true if the [`Version`] matches the criteria.
-    const fn is_version_match(&self, v: Version) -> bool {
-        match self {
-            Self::All => true,
-            Self::Major { major } => v.major == *major,
-            Self::Minor { major, minor } => v.major == *major && v.minor == *minor,
-        }
-    }
-}
-
 /// The current release and newer releases.
 pub struct ReleaseUpdates {
     pub current_release: ReleaseData,
@@ -55,22 +33,23 @@ pub struct ReleaseUpdates {
 
 /// Finds the available updates for the given version.
 pub fn find_available_updates(version: Version, mode: FetchMode) -> anyhow::Result<ReleaseUpdates> {
-    let releases = fetch_latest_releases(mode)?;
-    let criteria = ReleaseCriteria::Minor {
-        major: version.major,
-        minor: version.minor,
-    };
+    let mut releases = fetch_latest_releases(mode)?;
 
-    let mut releases = releases.filter(|rd| criteria.is_version_match(rd.version));
-    let position = releases.iter().position(|rd| rd.version == version);
-    let current_release = position
-        .map(|i| releases.remove(i))
+    releases.retain(|rd| {
+        rd.version.major == version.major
+            && rd.version.minor == version.minor
+            && rd.version >= version
+    });
+
+    let index = releases
+        .iter()
+        .position(|rd| rd.version == version)
         .ok_or_else(|| anyhow::anyhow!("Version {} not found in releases", version))?;
-    let newer_releases = releases.filter(|rd| rd.version > version);
+    let current_release = releases.remove(index);
 
     Ok(ReleaseUpdates {
         current_release,
-        newer_releases,
+        newer_releases: releases,
     })
 }
 

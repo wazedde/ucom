@@ -382,8 +382,8 @@ fn format_suggested_version(releases: &Releases) -> String {
         .map_or_else(String::new, |suggested_version| {
             let stream = releases
                 .iter()
-                .find(|x| x.version == suggested_version)
-                .map_or(ReleaseStream::Other, |x| x.stream);
+                .find(|rd| rd.version == suggested_version)
+                .map_or(ReleaseStream::Other, |rd| rd.stream);
             format!("(suggested: {stream} {suggested_version})")
         })
 }
@@ -411,16 +411,17 @@ fn display_available_versions(
     version_prefix: Option<&str>,
     mode: FetchMode,
 ) -> anyhow::Result<()> {
-    let releases = fetch_latest_releases(mode)?;
+    let mut releases = fetch_latest_releases(mode)?;
     println_bold!(
         "Available releases {}",
         format_suggested_version(releases.as_ref())
     );
 
-    let releases =
-        releases.filter(|r| version_prefix.is_none_or(|p| r.version.as_str().starts_with(p)));
+    if let Some(prefix) = version_prefix {
+        releases.retain(|rd| rd.version.as_str().starts_with(prefix));
+    }
 
-    let Ok(versions) = SortedVersions::try_from(releases.iter().map(|r| r.version).collect_vec())
+    let Ok(versions) = SortedVersions::try_from(releases.iter().map(|rd| rd.version).collect_vec())
     else {
         return Err(anyhow!(
             "No releases available that match `{}`",
@@ -441,7 +442,6 @@ fn display_available_versions(
             let is_installed = installed.is_some_and(|i| i.versions.contains(&info.version));
             let release = releases.get_by_version(info.version);
             let release_date = release.release_date.format("%Y-%m-%d");
-
             let version = format_version_with_padding(release.version, max_len);
             let stream = release.stream.to_string();
 
@@ -602,8 +602,8 @@ fn collect_latest_minor_releases<'a>(
 ) -> Vec<&'a ReleaseData> {
     releases
         .iter()
-        .filter(|r| version_prefix.is_none_or(|p| r.version.as_str().starts_with(p)))
-        .chunk_by(|r| (r.version.major, r.version.minor))
+        .filter(|rd| version_prefix.is_none_or(|p| rd.version.as_str().starts_with(p)))
+        .chunk_by(|rd| (rd.version.major, rd.version.minor))
         .into_iter()
         .filter_map(|(_, group)| group.last()) // Get the latest version of each range.
         .collect()
