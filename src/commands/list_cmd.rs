@@ -91,7 +91,7 @@ fn display_basic_list(installed: &SortedVersions) {
                 info.version == group.last().version,
             );
             let separator = '-';
-            let version_str = info.version.as_str();
+            let version_str = info.version.to_interned_str();
 
             println!(
                 " {:<max_len$} {} {}",
@@ -115,7 +115,7 @@ fn display_list_with_release_dates(installed: &SortedVersions, releases: &Releas
             );
 
             let is_suggested = Some(info.version) == releases.suggested_version;
-            let version_str = format!("{:<max_len$}", info.version.as_str());
+            let version_str = format!("{:<max_len$}", info.version.to_interned_str());
             let separator = if is_suggested {
                 MARK_UP_TO_DATE
             } else {
@@ -179,7 +179,7 @@ fn display_updates(installed: &Installations, mode: FetchMode) -> anyhow::Result
             );
 
             let is_suggested = Some(info.version) == releases.suggested_version();
-            let version_str = format!("{:<max_version_len$}", info.version.as_str());
+            let version_str = format!("{:<max_version_len$}", info.version.to_interned_str());
 
             let rd = releases.get_by_version(info.version);
             let release_date = rd.release_date.format("%Y-%m-%d");
@@ -330,7 +330,7 @@ fn display_latest_versions(
 
     let max_len = minor_releases
         .iter()
-        .map(|rd| rd.version.as_str().len())
+        .map(|rd| rd.version.to_interned_str().len())
         .fold(0, std::cmp::max);
 
     let mut previous_major = None;
@@ -418,7 +418,7 @@ fn display_available_versions(
     );
 
     if let Some(prefix) = version_prefix {
-        releases.retain(|rd| rd.version.as_str().starts_with(prefix));
+        releases.retain(|rd| rd.version.to_interned_str().starts_with(prefix));
     }
 
     let Ok(versions) = SortedVersions::try_from(releases.iter().map(|rd| rd.version).collect_vec())
@@ -547,7 +547,7 @@ fn stream_padding(stream: &str) -> String {
 }
 
 fn format_version_with_padding(version: Version, max_len: usize) -> String {
-    format!("{:<max_len$}", version.as_str())
+    format!("{:<max_len$}", version.to_interned_str())
 }
 
 /// Returns the max length of the version strings in the groups.
@@ -555,7 +555,7 @@ fn find_max_version_length(version_groups: &VersionInfoGroups<'_>) -> usize {
     version_groups
         .iter()
         .flat_map(|v| v.iter())
-        .map(|vi| vi.version.as_str().len())
+        .map(|vi| vi.version.to_interned_str().len())
         .fold(0, std::cmp::max)
 }
 
@@ -602,7 +602,7 @@ fn collect_latest_minor_releases<'a>(
 ) -> Vec<&'a ReleaseData> {
     releases
         .iter()
-        .filter(|rd| version_prefix.is_none_or(|p| rd.version.as_str().starts_with(p)))
+        .filter(|rd| version_prefix.is_none_or(|p| rd.version.to_interned_str().starts_with(p)))
         .chunk_by(|rd| (rd.version.major, rd.version.minor))
         .into_iter()
         .filter_map(|(_, group)| group.last()) // Get the latest version of each range.

@@ -98,7 +98,7 @@ impl SortedVersions {
         };
 
         let mut versions = self.into_vec();
-        versions.retain(|v| v.as_str().starts_with(version_prefix));
+        versions.retain(|v| v.to_interned_str().starts_with(version_prefix));
 
         // No need to sort again, since the list is already sorted.
         Vec1::try_from(versions).map(Self).map_err(|_| {
@@ -236,14 +236,14 @@ impl Version {
     /// Returns true if the editor is installed.
     pub fn is_editor_installed(self) -> anyhow::Result<bool> {
         Ok(Installations::editor_parent_dir()?
-            .join(self.as_str())
+            .join(self.to_interned_str())
             .exists())
     }
 
     /// Returns the path to the editor executable.
     pub fn editor_executable_path(self) -> anyhow::Result<PathBuf> {
         let exe_path = Installations::editor_parent_dir()?
-            .join(self.as_str())
+            .join(self.to_interned_str())
             .join(platform::UNITY_EDITOR_EXE);
 
         if exe_path.exists() {

@@ -6,7 +6,7 @@ pub fn install_latest_matching(version_prefix: &str, mode: FetchMode) -> anyhow:
     let releases = fetch_latest_releases(mode)?;
     let release = releases
         .iter()
-        .filter(|rd| rd.version.as_str().starts_with(version_prefix))
+        .filter(|rd| rd.version.to_interned_str().starts_with(version_prefix))
         .max_by_key(|rd| rd.version)
         .ok_or_else(|| anyhow::anyhow!("No version found that matches `{}`", version_prefix))?;
 

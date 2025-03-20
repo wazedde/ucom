@@ -61,7 +61,7 @@ fn show_project_info(
     if !version.is_editor_installed()? {
         println!();
         if install_required {
-            install_latest_matching(version.as_str(), mode)?;
+            install_latest_matching(version.to_interned_str(), mode)?;
         } else {
             println!(
                 "Use the `{}` flag to install Unity version {}",

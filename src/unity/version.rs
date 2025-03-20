@@ -127,7 +127,7 @@ impl FromStr for Version {
 
 impl Display for Version {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-        write!(f, "{}", self.as_str())
+        write!(f, "{}", self.to_interned_str())
     }
 }
 
@@ -148,7 +148,6 @@ impl Serialize for Version {
     where
         S: Serializer,
     {
-        // Don't use `as_str` here as it caches the string
         serializer.serialize_str(&self.format_string())
     }
 }
@@ -161,7 +160,7 @@ impl Version {
 
     /// Returns the string representation of this version.
     /// This is cached for performance.
-    pub fn as_str(self) -> &'static str {
+    pub fn to_interned_str(self) -> &'static str {
         // Use a thread-local cache as usage is predominantly single-threaded. This avoids having to use a Mutex.
         thread_local! {
             static VERSION_STRINGS: RefCell<HashMap<Version, &'static str>> = RefCell::new(HashMap::new());
