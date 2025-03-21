@@ -158,40 +158,57 @@ impl Version {
         format!("{}.{}", self.major, self.minor)
     }
 
-    /// Returns the string representation of this version.
-    /// This is cached for performance.
+    /// Returns the version as a static string.
     pub fn to_interned_str(self) -> &'static str {
         // Use a thread-local cache as usage is predominantly single-threaded. This avoids having to use a Mutex.
         thread_local! {
-            static VERSION_STRINGS: RefCell<HashMap<Version, &'static str>> = RefCell::new(HashMap::new());
+            static VERSION_STRINGS: RefCell<HashMap<Version, &'static str>> = RefCell::new(HashMap::with_capacity(100));
         }
 
         VERSION_STRINGS.with(|versions| {
-            let mut versions = versions.borrow_mut();
-            *versions
+            // Avoid borrow_mut if we already have a cached version.
+            let borrow = versions.borrow();
+            if let Some(&cached) = borrow.get(&self) {
+                return cached;
+            }
+            drop(borrow);
+
+            // If we don't have a cached version, insert it.
+            let mut borrow = versions.borrow_mut();
+            *borrow
                 .entry(self)
                 .or_insert_with(|| Box::leak(self.format_string().into_boxed_str()))
         })
     }
 
     /// Returns the length of the string representation of this version.
-    fn string_length(self) -> usize {
-        Self::count_digits(self.major.into())
-            + Self::count_digits(self.minor.into())
-            + Self::count_digits(self.patch.into())
+    const fn string_length(self) -> usize {
+        Self::count_digits(self.major as usize)
+            + Self::count_digits(self.minor as usize)
+            + Self::count_digits(self.patch as usize)
             + self.build_type.as_short_str().len()
-            + Self::count_digits(self.build.into())
+            + Self::count_digits(self.build as usize)
             + 2 // The 2 dots
     }
 
-    fn count_digits(number: usize) -> usize {
+    const fn count_digits(number: usize) -> usize {
         match number {
             0..=9 => 1,
             10..=99 => 2,
             100..=999 => 3,
             1000..=9999 => 4,
             10000..=99999 => 5,
-            _ => number.to_string().len(), // Fallback that, in theory, is never used.
+            100000..=999999 => 6,
+            _ => {
+                // Fall back to a loop for larger numbers (this is rare in Unity versions)
+                let mut count = 0;
+                let mut n = number;
+                while n > 0 {
+                    count += 1;
+                    n /= 10;
+                }
+                count
+            }
         }
     }
 
