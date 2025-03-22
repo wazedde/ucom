@@ -54,14 +54,14 @@ pub struct TestArguments {
     /// Filter by test names or regex pattern
     ///
     /// Use semicolon-separated list in quotes: "Test1;Test2"
-    /// Supports negation with ! prefix: "!TestToExclude"
-    /// For parameterized tests: "ClassName\.MethodName\(Param1,Param2\)"
+    /// Supports negation with ! prefix: `!TestToExclude`
+    /// For parameterized tests: `ClassName\.MethodName\(Param1,Param2\)`
     #[arg(long, value_name = "LIST")]
     pub tests: Option<String>,
 
     /// Filter by test assemblies
     ///
-    /// Use semicolon-separated list in quotes: "Assembly1;Assembly2"
+    /// Use semicolon-separated list in quotes: `Assembly1;Assembly2`
     #[arg(long, value_name = "LIST")]
     pub assemblies: Option<String>,
 

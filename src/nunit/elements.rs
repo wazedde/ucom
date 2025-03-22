@@ -297,9 +297,9 @@ impl From<&TestCase> for nunit::TestCase {
         let failure = value.failure();
         Self {
             id: value.id,
-            name: value.name.to_owned(),
-            full_name: value.full_name.to_owned(),
-            run_state: value.run_state.to_owned(),
+            name: value.name.clone(),
+            full_name: value.full_name.clone(),
+            run_state: value.run_state.clone(),
             result: value.result.as_str().into(),
             duration: value.duration,
             start_time: value.start_time,

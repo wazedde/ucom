@@ -35,7 +35,7 @@ pub fn fetch_content(url: &str, change_check: RemoteChangeCheck) -> anyhow::Resu
     if !is_cache_enabled() {
         return ureq::get(url)
             .call()
-            .with_context(|| format!("Failed to fetch {}", url))?
+            .with_context(|| format!("Failed to fetch {url}"))?
             .into_body()
             .read_to_string()
             .map_err(anyhow::Error::msg);
@@ -203,15 +203,15 @@ fn refresh_file_timestamp_and_read(filename: &Path) -> anyhow::Result<String> {
 fn fetch_last_modified_time(url: &str) -> anyhow::Result<DateTime<Utc>> {
     let response = ureq::head(url)
         .call()
-        .with_context(|| format!("Failed to fetch Last-Modified header from {}", url))?;
+        .with_context(|| format!("Failed to fetch Last-Modified header from {url}"))?;
 
     let last_modified_header = response
         .headers()
         .get("Last-Modified")
         .and_then(|s| s.to_str().ok())
-        .ok_or_else(|| anyhow!("Last-Modified header not found in response from {}", url))?;
+        .ok_or_else(|| anyhow!("Last-Modified header not found in response from {url}"))?;
 
     DateTime::parse_from_rfc2822(last_modified_header)
         .map(|t| t.with_timezone(&Utc))
-        .with_context(|| format!("Failed to parse Last-Modified header from {}", url))
+        .with_context(|| format!("Failed to parse Last-Modified header from {url}"))
 }

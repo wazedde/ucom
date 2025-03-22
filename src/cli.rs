@@ -115,7 +115,7 @@ pub enum Command {
     /// By default, cached files expire after one hour.
     /// The system will re-download required files after this timeout.
     ///
-    /// Control caching with UCOM_ENABLE_CACHE environment variable.
+    /// Control caching with `UCOM_ENABLE_CACHE` environment variable.
     /// Set to 'false' to disable caching and always download fresh data.
     #[command()]
     Cache {

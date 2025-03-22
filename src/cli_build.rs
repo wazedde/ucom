@@ -81,9 +81,9 @@ pub struct BuildArguments {
     #[arg(num_args(0..), short = 'O', long, value_name = "OPTION", default_value = "none")]
     pub build_options: Vec<BuildOptions>,
 
-    /// Custom argument string for UcomPreProcessBuild
+    /// Custom argument string for `UcomPreProcessBuild`
     ///
-    /// Passed to functions with UcomPreProcessBuild attribute
+    /// Passed to functions with `UcomPreProcessBuild` attribute
     /// Useful for version numbers or build configuration flags
     /// Requires ucom's injected build script
     #[arg(short = 'a', long, value_name = "STRING")]

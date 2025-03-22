@@ -277,12 +277,13 @@ impl ProjectPath {
     /// Checks the project for build profiles.
     /// TODO: Try to find profiles outside of the default `Assets/Settings/Build Profiles` directory.
     pub fn build_profiles(&self, version: Version) -> anyhow::Result<BuildProfilesStatus> {
+        const PROFILES_PATH: &str = "Assets/Settings/Build Profiles";
+
         if version.major < 6000 {
             // Build profiles are supported in Unity 6.0 and later.
             return Ok(BuildProfilesStatus::NotSupported);
         }
 
-        const PROFILES_PATH: &str = "Assets/Settings/Build Profiles";
         let path = self.join(PROFILES_PATH);
         if !path.exists() {
             return Ok(BuildProfilesStatus::NotFound);
