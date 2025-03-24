@@ -200,7 +200,6 @@ fn fetch_releases_page(limit: usize, offset: usize) -> anyhow::Result<ReleaseDat
 /// Because the API is very slow, we minimize the number of requests when looking for new releases
 /// by assuming there were no new releases if all releases in a page are already in the list.
 /// This is not perfect, but seems to be good enough for our use case.
-/// practice earlier releases can be added later.
 fn fetch_release_info<F>(releases: &mut Releases, callback: F) -> anyhow::Result<usize>
 where
     F: Fn(usize, usize),
