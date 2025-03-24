@@ -34,7 +34,7 @@ pub const MARK_UPDATES_AVAILABLE: char = '!';
 pub const MARK_UPDATE_TO_LATEST: char = '>';
 pub const MARK_NO_INFO: char = '?';
 pub const MARK_BULLET: char = '-';
-pub const MARK_AVAILABLE: char = 'ℹ';
+pub const MARK_AVAILABLE: char = '✓';
 pub const MARK_UNAVAILABLE: char = '✗';
 
 trait TimeDeltaExt {
