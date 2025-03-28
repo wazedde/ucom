@@ -4,6 +4,7 @@ use crate::cli::OpenArguments;
 use crate::commands::println_bold;
 use crate::unity::installations::Installations;
 use crate::unity::{ProjectPath, build_command_line, spawn_and_forget, wait_with_stdout};
+use crate::utils::path_ext::PlatformConsistentPathExt;
 
 /// Opens the given Unity project in the Unity Editor.
 pub fn open_project(arguments: OpenArguments) -> anyhow::Result<()> {
@@ -15,7 +16,7 @@ pub fn open_project(arguments: OpenArguments) -> anyhow::Result<()> {
         Some(Some(pattern)) => Installations::latest_installed_version(Some(&pattern)),
         // Otherwise, use the latest version.
         Some(None) => Installations::latest_installed_version(Some(
-            &project_unity_version.major_minor_string(),
+            &project_unity_version.to_major_minor_string(),
         )),
         // Otherwise, use the current version.
         None => Ok(project_unity_version),
@@ -48,7 +49,7 @@ pub fn open_project(arguments: OpenArguments) -> anyhow::Result<()> {
         println_bold!(
             "Open Unity {} project in: {}",
             open_unity_version,
-            project.display()
+            project.normalized_display()
         );
     }
 

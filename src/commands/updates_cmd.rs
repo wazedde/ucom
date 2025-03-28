@@ -10,6 +10,7 @@ use crate::unity::{
 };
 use crate::utils::content_cache;
 use crate::utils::content_cache::RemoteChangeCheck;
+use crate::utils::path_ext::PlatformConsistentPathExt;
 use crate::utils::status_line::StatusLine;
 
 pub fn find_project_updates(
@@ -103,7 +104,7 @@ fn print_project_header(project: &ProjectPath, create_report: bool) {
         print!("# ");
     }
 
-    println_bold!("Unity updates for: `{}`", project.display());
+    println_bold!("Unity updates for: `{}`", project.normalized_display());
 
     if create_report {
         println!();

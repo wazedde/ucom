@@ -5,6 +5,7 @@ use anyhow::anyhow;
 use crate::cli_add::{AddArguments, AssetSource, UnityTemplateFile};
 use crate::commands::{PERSISTENT_BUILD_SCRIPT_ROOT, add_file_to_project};
 use crate::unity::project::ProjectPath;
+use crate::utils::path_ext::PlatformConsistentPathExt;
 
 pub fn add_to_project(args: &AddArguments) -> anyhow::Result<()> {
     if args.display_content {
@@ -35,7 +36,7 @@ pub fn add_to_project(args: &AddArguments) -> anyhow::Result<()> {
     if full_path.exists() && !args.force {
         return Err(anyhow!(
             "File already exists, add '--force' to overwrite: {}",
-            full_path.display()
+            full_path.normalized_display()
         ));
     }
 
@@ -46,7 +47,7 @@ pub fn add_to_project(args: &AddArguments) -> anyhow::Result<()> {
         if builder_script_path.exists() {
             println!(
                 "Builder script already exists, not adding: {}",
-                builder_script_path.display()
+                builder_script_path.normalized_display()
             );
         } else {
             add_file_to_project(&project, &destination_dir, UnityTemplateFile::Builder)?;

@@ -5,6 +5,7 @@ use std::path::{Path, PathBuf};
 use std::sync::OnceLock;
 use std::time::SystemTime;
 
+use crate::utils::path_ext::PlatformConsistentPathExt;
 use anyhow::{Context, anyhow};
 use chrono::{DateTime, Duration, TimeDelta, Utc};
 use dirs::cache_dir;
@@ -116,7 +117,12 @@ pub fn touch_file(path: &Path) -> anyhow::Result<()> {
                 Err(e)
             }
         })
-        .with_context(|| format!("Failed to update timestamp on {}", path.display()))
+        .with_context(|| {
+            format!(
+                "Failed to update timestamp on {}",
+                path.normalized_display()
+            )
+        })
 }
 
 #[cfg(windows)]

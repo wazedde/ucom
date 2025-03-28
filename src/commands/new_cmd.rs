@@ -10,6 +10,7 @@ use crate::cli_new::NewArguments;
 use crate::commands::{INDENT, PERSISTENT_BUILD_SCRIPT_ROOT, add_file_to_project, println_bold};
 use crate::unity::installations::Installations;
 use crate::unity::{build_command_line, spawn_and_forget, wait_with_stdout};
+use crate::utils::path_ext::PlatformConsistentPathExt;
 use crate::utils::status_line::StatusLine;
 
 /// Creates a new Unity project and optional Git repository in the given directory.
@@ -19,7 +20,7 @@ pub fn new_project(arguments: NewArguments) -> anyhow::Result<()> {
     if project_dir.exists() {
         return Err(anyhow!(
             "Directory already exists: {}",
-            project_dir.display()
+            project_dir.normalized_display()
         ));
     }
 
@@ -48,7 +49,7 @@ pub fn new_project(arguments: NewArguments) -> anyhow::Result<()> {
         println_bold!(
             "Create new Unity {} project in: {}",
             version,
-            project_dir.display()
+            project_dir.normalized_display()
         );
     }
 

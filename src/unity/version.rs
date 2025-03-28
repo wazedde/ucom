@@ -69,7 +69,7 @@ impl FromStr for BuildType {
 
 impl BuildType {
     /// Returns the short name of the [`BuildType`].
-    pub const fn as_short_str(&self) -> &str {
+    pub const fn to_short_str(self) -> &'static str {
         match self {
             Self::Alpha => "a",
             Self::Beta => "b",
@@ -111,7 +111,7 @@ impl FromStr for Version {
         let build_type: BuildType = build_part.parse()?;
 
         let (patch, build) = build_part
-            .split_once(build_type.as_short_str())
+            .split_once(build_type.to_short_str())
             .and_then(|(l, r)| l.parse().ok().zip(r.parse().ok()))
             .ok_or(ParseError)?;
 
@@ -148,13 +148,13 @@ impl Serialize for Version {
     where
         S: Serializer,
     {
-        serializer.serialize_str(&self.format_string())
+        serializer.serialize_str(&self.format_version())
     }
 }
 
 impl Version {
     /// Returns the `major.minor` part of this version.
-    pub fn major_minor_string(self) -> String {
+    pub fn to_major_minor_string(self) -> String {
         format!("{}.{}", self.major, self.minor)
     }
 
@@ -177,16 +177,16 @@ impl Version {
             let mut borrow = versions.borrow_mut();
             *borrow
                 .entry(self)
-                .or_insert_with(|| Box::leak(self.format_string().into_boxed_str()))
+                .or_insert_with(|| Box::leak(self.format_version().into_boxed_str()))
         })
     }
 
     /// Returns the length of the string representation of this version.
-    const fn string_length(self) -> usize {
+    const fn format_len(self) -> usize {
         Self::count_digits(self.major as usize)
             + Self::count_digits(self.minor as usize)
             + Self::count_digits(self.patch as usize)
-            + self.build_type.as_short_str().len()
+            + self.build_type.to_short_str().len()
             + Self::count_digits(self.build as usize)
             + 2 // The 2 dots
     }
@@ -213,8 +213,8 @@ impl Version {
     }
 
     /// Formats this version into a string.
-    fn format_string(self) -> String {
-        let capacity = self.string_length();
+    fn format_version(self) -> String {
+        let capacity = self.format_len();
         let mut s = String::with_capacity(capacity);
         // major.minor.patch.build_type.build
         s.push_str(&self.major.to_string());
@@ -222,7 +222,7 @@ impl Version {
         s.push_str(&self.minor.to_string());
         s.push('.');
         s.push_str(&self.patch.to_string());
-        s.push_str(self.build_type.as_short_str());
+        s.push_str(self.build_type.to_short_str());
         s.push_str(&self.build.to_string());
         s
     }
@@ -314,27 +314,27 @@ mod version_tests {
     #[test]
     fn test_len() {
         assert_eq!(
-            "5.102.5f123".parse::<Version>().unwrap().string_length(),
+            "5.102.5f123".parse::<Version>().unwrap().format_len(),
             "5.102.5f123".len()
         );
 
         assert_eq!(
-            "2021.2.14f1".parse::<Version>().unwrap().string_length(),
+            "2021.2.14f1".parse::<Version>().unwrap().format_len(),
             "2021.2.14f1".len()
         );
 
         assert_eq!(
-            "2019.1.1b1".parse::<Version>().unwrap().string_length(),
+            "2019.1.1b1".parse::<Version>().unwrap().format_len(),
             "2019.1.1b1".len()
         );
 
         assert_eq!(
-            "2020.1.1a3".parse::<Version>().unwrap().string_length(),
+            "2020.1.1a3".parse::<Version>().unwrap().format_len(),
             "2020.1.1a3".len()
         );
 
         assert_eq!(
-            "2022.2.1rc2".parse::<Version>().unwrap().string_length(),
+            "2022.2.1rc2".parse::<Version>().unwrap().format_len(),
             "2022.2.1rc2".len()
         );
     }

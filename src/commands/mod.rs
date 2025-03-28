@@ -59,15 +59,20 @@ fn add_file_to_project(
     let content = template_data.load_content()?;
 
     create_file(project_root.as_ref().join(&file_path), &content)
-        .inspect(|()| println!("Added to project: {}", file_path.display()))
-        .inspect_err(|_| println!("Failed to add file to project: {}", file_path.display()))
+        .inspect(|()| println!("Added to project: {}", file_path.normalized_display()))
+        .inspect_err(|_| {
+            println!(
+                "Failed to add file to project: {}",
+                file_path.normalized_display()
+            )
+        })
 }
 
 fn create_file(file_path: impl AsRef<Path>, content: &str) -> anyhow::Result<()> {
     let file_path = file_path.as_ref();
     let parent_dir = file_path
         .parent()
-        .ok_or_else(|| anyhow!("Invalid file path: {}", file_path.display()))?;
+        .ok_or_else(|| anyhow!("Invalid file path: {}", file_path.normalized_display()))?;
 
     fs::create_dir_all(parent_dir)?;
     fs::write(file_path, content).map_err(Into::into)
@@ -91,5 +96,6 @@ macro_rules! println_conditional_bold {
     }};
 }
 
+use crate::utils::path_ext::PlatformConsistentPathExt;
 use println_bold;
 use println_conditional_bold;

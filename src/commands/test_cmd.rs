@@ -10,6 +10,7 @@ use crate::commands::TimeDeltaExt;
 use crate::nunit::{TestCase, TestResult, TestRun};
 use crate::unity::project::ProjectPath;
 use crate::unity::{build_command_line, wait_with_stdout};
+use crate::utils::path_ext::PlatformConsistentPathExt;
 use crate::utils::status_line::{MessageType, StatusLine};
 
 pub fn run_tests(arguments: &TestArguments) -> anyhow::Result<()> {
@@ -42,7 +43,7 @@ pub fn run_tests(arguments: &TestArguments) -> anyhow::Result<()> {
                 &format!(
                     "{} tests for project in {}",
                     &arguments.platform,
-                    project.display()
+                    project.normalized_display()
                 ),
             )
         };
@@ -92,7 +93,7 @@ fn print_results(
         &format!(
             "{} tests for project in {}; total time {:.2}s",
             &arguments.platform,
-            project.display(),
+            project.normalized_display(),
             Utc::now().signed_duration_since(start_time).as_seconds()
         ),
         status,

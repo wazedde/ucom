@@ -13,6 +13,7 @@ pub enum Vec1Error {
     SourceVecIsEmpty,
     /// Attempted to pop the last element from a [`Vec1`].
     CannotPopLastElement,
+    CannotRemoveLastElement,
 }
 
 const GUARANTEE_NON_EMPTY: &str = "Vec1 is guaranteed to be non-empty by construction";
@@ -24,6 +25,7 @@ impl Display for Vec1Error {
         match self {
             Self::SourceVecIsEmpty => write!(f, "Source Vec is empty"),
             Self::CannotPopLastElement => write!(f, "Cannot pop last element"),
+            Self::CannotRemoveLastElement => write!(f, "Cannot remove last element"),
         }
     }
 }
@@ -33,6 +35,7 @@ impl Display for Vec1Error {
 //
 
 /// A non-empty list. This list is guaranteed to have at least one element.
+#[derive(Debug, PartialEq, Eq)]
 pub struct Vec1<T>(Vec<T>);
 
 impl<T> Deref for Vec1<T> {
@@ -46,6 +49,20 @@ impl<T> Deref for Vec1<T> {
 impl<T> DerefMut for Vec1<T> {
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.0
+    }
+}
+
+impl<T> AsRef<[T]> for Vec1<T> {
+    /// Provides a reference to the underlying slice.
+    fn as_ref(&self) -> &[T] {
+        &self.0
+    }
+}
+
+impl<T> From<Vec1<T>> for Vec<T> {
+    /// Converts a [`Vec1`] into a [`Vec`].
+    fn from(v: Vec1<T>) -> Self {
+        v.0
     }
 }
 
@@ -65,17 +82,9 @@ impl<T> TryFrom<Vec<T>> for Vec1<T> {
     }
 }
 
-impl<T> From<Vec1<T>> for Vec<T> {
-    /// Converts a [`Vec1`] into a [`Vec`].
-    fn from(v: Vec1<T>) -> Self {
-        v.0
-    }
-}
-
-impl<T> AsRef<[T]> for Vec1<T> {
-    /// Provides a reference to the underlying slice.
-    fn as_ref(&self) -> &[T] {
-        &self.0
+impl<T> Extend<T> for Vec1<T> {
+    fn extend<I: IntoIterator<Item = T>>(&mut self, iter: I) {
+        self.0.extend(iter);
     }
 }
 
@@ -122,14 +131,20 @@ impl<T> Vec1<T> {
         }
     }
 
+    /// Removes the value at the given index.
+    ///
+    /// # Errors
+    /// Returns [`Vec1Error::CannotRemoveLastElement`] if the list only contains one element.
+    pub fn remove(&mut self, index: usize) -> Result<T, Vec1Error> {
+        if self.len() == 1 {
+            return Err(Vec1Error::CannotRemoveLastElement);
+        }
+        Ok(self.0.remove(index))
+    }
+
     /// Appends the values from the other list.
     pub fn append(&mut self, other: &mut Vec<T>) {
         self.0.append(other);
-    }
-
-    /// Extends the list with the values from the other list.
-    pub fn extend(&mut self, other: Vec<T>) {
-        self.0.extend(other);
     }
 }
 
@@ -158,8 +173,19 @@ mod tests {
     }
 
     #[test]
+    fn test_remove() {
+        let mut v = Vec1::try_from(vec![1, 2, 3]).unwrap();
+        assert_eq!(v.remove(0), Ok(1));
+        assert_eq!(v.remove(0), Ok(2));
+        assert_eq!(v.remove(0), Err(Vec1Error::CannotRemoveLastElement));
+    }
+
+    #[test]
     fn test_try_from_vec() {
-        assert!(Vec1::try_from(Vec::<i32>::default()).is_err());
+        assert_eq!(
+            Vec1::try_from(Vec::<i32>::default()),
+            Err(Vec1Error::SourceVecIsEmpty)
+        );
         let v = Vec1::try_from(vec![1]).unwrap();
         assert_eq!(v.first(), &1);
     }

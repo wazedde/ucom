@@ -14,6 +14,7 @@ use crate::cli_add::UnityTemplateFile;
 use crate::cli_build::{BuildArguments, BuildMode, BuildOptions, BuildScriptTarget, InjectAction};
 use crate::commands::{PERSISTENT_BUILD_SCRIPT_ROOT, TimeDeltaExt, add_file_to_project};
 use crate::unity::{ProjectPath, build_command_line, wait_with_log_output, wait_with_stdout};
+use crate::utils::path_ext::PlatformConsistentPathExt;
 use crate::utils::status_line::{MessageType, StatusLine};
 
 const AUTO_BUILD_SCRIPT_ROOT: &str = "Assets/Ucom";
@@ -37,7 +38,7 @@ pub fn build_project(arguments: &BuildArguments) -> anyhow::Result<()> {
     let build_text = format!(
         "Unity {unity_version} {} project in {}",
         arguments.target,
-        project.display()
+        project.normalized_display()
     );
 
     let build_status = if arguments.quiet {
@@ -78,7 +79,7 @@ pub fn build_project(arguments: &BuildArguments) -> anyhow::Result<()> {
         &format!(
             "building Unity {unity_version} {} project in {}",
             arguments.target,
-            project.display()
+            project.normalized_display()
         ),
         build_status,
     );
@@ -112,7 +113,7 @@ impl BuildArguments {
 
         let file_name = log_file
             .file_name()
-            .ok_or_else(|| anyhow!("Invalid log file name: {}", log_file.display()))?;
+            .ok_or_else(|| anyhow!("Invalid log file name: {}", log_file.normalized_display()))?;
 
         let path = if log_file == file_name {
             // Log filename without the path was given,
@@ -142,7 +143,7 @@ impl BuildArguments {
         if project.as_ref() == output_dir {
             return Err(anyhow!(
                 "Output directory cannot be the same as the project directory: {}",
-                project.display()
+                project.normalized_display()
             ));
         }
         Ok(output_dir)
@@ -268,9 +269,9 @@ fn clean_output_directory(path: &Path) -> anyhow::Result<()> {
         });
 
     for dir in to_delete {
-        println!("Removing directory: {}", dir.display());
+        println!("Removing directory: {}", dir.normalized_display());
         fs::remove_dir_all(&dir)
-            .map_err(|_| anyhow!("Could not remove directory: {}", dir.display()))?;
+            .map_err(|_| anyhow!("Could not remove directory: {}", dir.normalized_display()))?;
     }
 
     Ok(())
@@ -279,7 +280,7 @@ fn clean_output_directory(path: &Path) -> anyhow::Result<()> {
 /// Returns errors from the given log file as one collected Err.
 fn collect_log_errors(log_file: &Path) -> anyhow::Error {
     let Ok(log_file) = File::open(log_file) else {
-        return anyhow!("Failed to open log file: {}", log_file.display());
+        return anyhow!("Failed to open log file: {}", log_file.normalized_display());
     };
 
     let errors = BufReader::new(log_file)
@@ -412,18 +413,22 @@ fn cleanup_csharp_build_script(parent_dir: impl AsRef<Path>) -> anyhow::Result<(
 
     println!(
         "Removing temporary ucom build script: {}",
-        parent_dir.display()
+        parent_dir.normalized_display()
     );
 
     // Remove the directory where the build script is located.
-    fs::remove_dir_all(parent_dir)
-        .map_err(|_| anyhow!("Could not remove directory: {}", parent_dir.display()))?;
+    fs::remove_dir_all(parent_dir).map_err(|_| {
+        anyhow!(
+            "Could not remove directory: {}",
+            parent_dir.normalized_display()
+        )
+    })?;
 
     // Remove the .meta file.
     let meta_file = parent_dir.with_extension("meta");
     if meta_file.exists() {
         fs::remove_file(&meta_file)
-            .map_err(|_| anyhow!("Could not remove: {}", meta_file.display()))?;
+            .map_err(|_| anyhow!("Could not remove: {}", meta_file.normalized_display()))?;
     }
 
     Ok(())

@@ -9,6 +9,7 @@ use crate::unity::project::{
 };
 use crate::unity::release_api::FetchMode;
 use crate::unity::{Version, release_notes_url};
+use crate::utils::path_ext::PlatformConsistentPathExt;
 use crate::{unity, utils};
 use itertools::Itertools;
 use std::path::Path;
@@ -35,7 +36,10 @@ fn show_recursive_project_info(
     packages_level: PackagesInfoLevel,
 ) -> anyhow::Result<()> {
     let path = utils::resolve_absolute_dir_path(&path)?;
-    println!("Searching for Unity projects in: {}", path.display(),);
+    println!(
+        "Searching for Unity projects in: {}",
+        path.normalized_display()
+    );
 
     let mut directories = walk_visible_directories(path, 5);
     while let Some(Ok(entry)) = directories.next() {
@@ -79,7 +83,7 @@ fn print_project_info(
     packages_level: PackagesInfoLevel,
 ) -> anyhow::Result<Version> {
     let unity_version = project.unity_version()?;
-    println_bold!("Project info for: {}", project.display());
+    println_bold!("Project info for: {}", project.normalized_display());
 
     match ProjectSettings::from_project(project) {
         Ok(ps) => {
@@ -125,7 +129,7 @@ fn print_project_info(
         println!();
         println_bold!("Build profiles:");
         for profile in profiles {
-            println!("{INDENT}{}", profile.display());
+            println!("{INDENT}{}", profile.normalized_display());
         }
     }
 
@@ -171,7 +175,7 @@ fn print_project_packages(
                 .dependencies
                 .iter()
                 .filter(|(name, package)| package_level.is_allowed(name, package))
-                .sorted_by(|(_, pi1), (_, pi2)| pi1.source.cmp(&pi2.source))
+                .sorted_unstable_by(|(_, pi1), (_, pi2)| pi1.source.cmp(&pi2.source))
                 .peekable();
 
             if packages.peek().is_none() {

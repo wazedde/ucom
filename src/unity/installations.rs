@@ -1,10 +1,11 @@
 use crate::unity::Version;
+use crate::utils::path_ext::PlatformConsistentPathExt;
 use crate::utils::vec1::{Vec1, Vec1Error};
 use anyhow::{Context, anyhow};
 use itertools::Itertools;
 use std::ops::Deref;
 use std::path::{Path, PathBuf};
-use std::sync::OnceLock;
+use std::sync::LazyLock;
 use std::{env, fs};
 
 const ENV_EDITOR_DIR: &str = "UCOM_EDITOR_DIR";
@@ -74,7 +75,7 @@ impl SortedVersions {
             .with_context(|| {
                 format!(
                     "Cannot read available Unity editors in `{}`",
-                    dir.as_ref().display()
+                    dir.as_ref().normalized_display()
                 )
             })?
             .flatten()
@@ -86,7 +87,7 @@ impl SortedVersions {
         Self::try_from(versions).map_err(|_| {
             anyhow!(
                 "No Unity installations found in `{}`",
-                dir.as_ref().display()
+                dir.as_ref().normalized_display()
             )
         })
     }
@@ -143,63 +144,67 @@ impl Installations {
 
     /// Returns the parent directory of the editor installations.
     fn editor_parent_dir() -> anyhow::Result<&'static Path> {
-        static EDITOR_PARENT_DIR: OnceLock<PathBuf> = OnceLock::new();
+        static EDITOR_PARENT_DIR: LazyLock<anyhow::Result<PathBuf>> = LazyLock::new(|| {
+            let path = Installations::resolve_unity_editor_directory()?;
+            Installations::verify_directory_contains_unity_installations(&path)?;
+            Ok(path)
+        });
 
-        if let Some(path) = EDITOR_PARENT_DIR.get() {
-            return Ok(path);
-        }
-
-        if let Ok(path) = Self::resolve_unity_editor_directory() {
-            Self::verify_directory_contains_unity_installations(&path)?;
-            Ok(EDITOR_PARENT_DIR.get_or_init(|| path))
-        } else {
-            Err(Self::create_unity_installation_not_found_error())
+        match EDITOR_PARENT_DIR.as_deref() {
+            Ok(path) => Ok(path),
+            Err(..) => Err(Self::create_unity_installation_not_found_error()),
         }
     }
 
     /// Resolves the Unity editor directory from the environment variable or the default path.
     fn resolve_unity_editor_directory() -> anyhow::Result<PathBuf> {
         // Try to get the directory from the environment variable.
-        let path = if let Some(path) = env::var_os(ENV_EDITOR_DIR) {
-            // Use the directory set by the environment variable.
-            let path = Path::new(&path);
-            // If the directory does not exist or is not a directory, return an error.
-            if !path.is_dir() {
-                return Err(anyhow!(
-                    "Editor directory set by `{ENV_EDITOR_DIR}` is not a valid directory: `{}`",
-                    path.display()
-                ));
+        match env::var_os(ENV_EDITOR_DIR) {
+            Some(path) => {
+                // Use the directory set by the environment variable.
+                let path = Path::new(&path);
+                // If the directory does not exist or is not a directory, return an error.
+                if !path.is_dir() {
+                    return Err(anyhow!(
+                        "Editor directory set by `{ENV_EDITOR_DIR}` is not a valid directory: `{}`",
+                        path.normalized_display()
+                    ));
+                }
+                Ok(path.to_owned())
             }
-            path.to_owned()
-        } else {
-            // Use the default directory.
-            let path = Path::new(platform::UNITY_EDITOR_DIR);
-            if !path.is_dir() {
-                return Err(anyhow!(
-                    "The default editor directory `{}` is not a valid directory`",
-                    platform::UNITY_EDITOR_DIR
-                ));
+            None => {
+                // Use the default directory.
+                let path = Path::new(platform::UNITY_EDITOR_DIR);
+                if !path.is_dir() {
+                    return Err(anyhow!(
+                        "The default editor directory `{}` is not a valid directory`",
+                        platform::UNITY_EDITOR_DIR
+                    ));
+                }
+                Ok(path.to_owned())
             }
-            path.to_owned()
-        };
-        Ok(path)
+        }
     }
 
     /// Check if the directory contains Unity installations.
     fn verify_directory_contains_unity_installations(dir: impl AsRef<Path>) -> anyhow::Result<()> {
         let dir = dir.as_ref();
-        if dir
+        let has_installations = dir
             .read_dir()
-            .with_context(|| format!("Cannot read editor directory `{}`", dir.display()))?
-            .any(|de| {
-                de.as_ref()
-                    .map(|de| de.path().join(platform::UNITY_EDITOR_EXE).exists())
-                    .unwrap_or(false)
-            })
-        {
-            return Ok(());
+            .with_context(|| {
+                format!(
+                    "Cannot read editor directory `{}`",
+                    dir.normalized_display()
+                )
+            })?
+            .filter_map(Result::ok)
+            .any(|de| de.path().join(platform::UNITY_EDITOR_EXE).exists());
+
+        if has_installations {
+            Ok(())
+        } else {
+            Err(Self::create_unity_installation_not_found_error())
         }
-        Err(Self::create_unity_installation_not_found_error())
     }
 
     /// Creates an error indicating that no Unity installations were found.

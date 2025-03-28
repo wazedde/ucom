@@ -14,6 +14,7 @@ use crate::unity::release_api::{
 };
 use crate::unity::release_api_data::ReleaseData;
 use crate::unity::{ReleaseStream, Version, release_notes_url};
+use crate::utils::path_ext::PlatformConsistentPathExt;
 use crate::utils::vec1::Vec1;
 
 //
@@ -67,7 +68,7 @@ fn display_installed_versions(installed: &Installations, mode: FetchMode) -> any
 
     println_bold!(
         "Unity versions in: {} {}",
-        installed.install_dir.display(),
+        installed.install_dir.normalized_display(),
         format_suggested_version(&releases)
     );
 
@@ -160,7 +161,7 @@ fn display_updates(installed: &Installations, mode: FetchMode) -> anyhow::Result
     let releases = fetch_latest_releases(mode)?;
     println_bold!(
         "Updates for Unity versions in: {} {}",
-        installed.install_dir.display(),
+        installed.install_dir.normalized_display(),
         format_suggested_version(releases.as_ref())
     );
 

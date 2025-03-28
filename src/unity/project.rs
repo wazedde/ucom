@@ -11,6 +11,7 @@ use walkdir::{DirEntry, IntoIter, WalkDir};
 
 use crate::unity::Version;
 use crate::utils;
+use crate::utils::path_ext::PlatformConsistentPathExt;
 
 const VERSION_SUB_PATH: &str = "ProjectSettings/ProjectVersion.txt";
 
@@ -149,7 +150,7 @@ impl ProjectSettings {
     }
 
     /// Reads the project settings from a reader.
-    /// Uses basic, hand rolled, parsing because ProjectSettings.asset
+    /// Uses basic, hand rolled, parsing because `ProjectSettings.asset`
     /// is non-standard yaml that isn't fully supported by yaml crates.
     fn from_reader<R: Read + BufRead>(reader: R) -> anyhow::Result<Self> {
         let mut product_name: Option<_> = None;
@@ -233,7 +234,7 @@ impl ProjectPath {
         } else {
             Err(anyhow!(
                 "Path does not contain a Unity project: {}",
-                path.display()
+                path.normalized_display()
             ))
         }
     }
@@ -257,7 +258,7 @@ impl ProjectPath {
             .ok_or_else(|| {
                 anyhow!(
                     "Could not get project version from `{}`",
-                    version_file.display()
+                    version_file.normalized_display()
                 )
             })
     }
@@ -269,7 +270,7 @@ impl ProjectPath {
         } else {
             Err(anyhow!(
                 "Unity project does not have an `Assets` directory: `{}`",
-                self.display()
+                self.normalized_display()
             ))
         }
     }
@@ -277,25 +278,32 @@ impl ProjectPath {
     /// Checks the project for build profiles.
     /// TODO: Try to find profiles outside of the default `Assets/Settings/Build Profiles` directory.
     pub fn build_profiles(&self, version: Version) -> anyhow::Result<BuildProfilesStatus> {
-        const PROFILES_PATH: &str = "Assets/Settings/Build Profiles";
-
         if version.major < 6000 {
             // Build profiles are supported in Unity 6.0 and later.
             return Ok(BuildProfilesStatus::NotSupported);
         }
 
-        let path = self.join(PROFILES_PATH);
-        if !path.exists() {
+        let profiles_path = Path::new("Assets/Settings/Build Profiles");
+        let full_path = self.join(profiles_path);
+
+        if !full_path.exists() {
             return Ok(BuildProfilesStatus::NotFound);
         }
 
-        let profiles = path
+        let profiles = full_path
             .read_dir()?
             .filter_map(Result::ok)
             .filter(|de| de.file_type().is_ok_and(|ft| ft.is_file()))
             .filter(|de| de.path().extension().and_then(|ext| ext.to_str()) == Some("asset"))
-            .map(|de| Path::new(PROFILES_PATH).join(de.file_name()))
-            .sorted_by_key(|p| p.to_string_lossy().to_lowercase())
+            .map(|de| profiles_path.join(de.file_name()))
+            .sorted_unstable_by(|a, b| {
+                // Compare paths case-insensitively.
+                let a = a.to_string_lossy();
+                let b = b.to_string_lossy();
+                a.chars()
+                    .flat_map(char::to_lowercase)
+                    .cmp(b.chars().flat_map(char::to_lowercase))
+            })
             .collect_vec();
 
         if profiles.is_empty() {
