@@ -160,7 +160,7 @@ pub fn fetch_latest_releases(mode: FetchMode) -> anyhow::Result<SortedReleases> 
     let status = StatusLine::new("Downloading", "Unity release data...");
     let fetch_count = fetch_release_info(&mut releases, |count, total| {
         let percentage = count as f64 / total as f64 * 100.0;
-        status.update(
+        status.update_line(
             "Downloading",
             &format!("Unity release data ({percentage:.0}%)"),
         );

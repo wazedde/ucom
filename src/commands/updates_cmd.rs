@@ -53,7 +53,7 @@ pub fn find_project_updates(
 fn download_and_print_release_notes(updates: &ReleaseUpdates) -> anyhow::Result<()> {
     let status = StatusLine::new("Downloading", "Unity release notes...");
     for release in updates.newer_releases.iter() {
-        status.update(
+        status.update_line(
             "Downloading",
             &format!("Unity {} release notes...", release.version),
         );
