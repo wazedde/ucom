@@ -196,9 +196,9 @@ impl Version {
             0..=9 => 1,
             10..=99 => 2,
             100..=999 => 3,
-            1000..=9999 => 4,
-            10000..=99999 => 5,
-            100000..=999999 => 6,
+            1_000..=9_999 => 4,
+            10_000..=99_999 => 5,
+            100_000..=999_999 => 6,
             _ => {
                 // Fall back to a loop for larger numbers (this is rare in Unity versions)
                 let mut count = 0;

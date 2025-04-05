@@ -220,7 +220,7 @@ impl Deref for ProjectPath {
 
 impl AsRef<Path> for ProjectPath {
     fn as_ref(&self) -> &Path {
-        self.0.deref()
+        &self.0
     }
 }
 
@@ -230,7 +230,7 @@ impl ProjectPath {
     pub fn try_from(path: impl AsRef<Path>) -> anyhow::Result<Self> {
         let path = utils::resolve_absolute_dir_path(&path)?;
         if Self::contains_unity_project(&path) {
-            Ok(Self(path.as_ref().to_path_buf()))
+            Ok(Self(path.to_path_buf()))
         } else {
             Err(anyhow!(
                 "Path does not contain a Unity project: {}",

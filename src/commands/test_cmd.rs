@@ -115,7 +115,7 @@ fn print_results(
             print_test_cases(test_run.test_cases.iter());
         }
         ShowResults::None => {}
-    };
+    }
 
     println!();
     let results = format!(

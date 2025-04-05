@@ -286,7 +286,7 @@ impl TestSuite {
                 TestSuiteElement::TestSuite(ts) => {
                     ts.add_test_cases_to(test_cases);
                 }
-                _ => continue,
+                _ => { /* Ignore other elements */ }
             }
         }
     }

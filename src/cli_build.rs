@@ -259,59 +259,59 @@ pub enum BuildOptions {
     AcceptExternalModificationsToPlayer = 32, // 0x00000020
 
     /// Force full rebuild of all scripts and player data
-    CleanBuildCache = 128, // 0x00000080
+    CleanBuildCache = 0x0000_0080,
 
     /// Connect to profiler in editor
-    ConnectWithProfiler = 256, // 0x00000100
+    ConnectWithProfiler = 0x0000_0100,
 
     /// Allow remote script debugging
-    AllowDebugging = 512, // 0x00000200
+    AllowDebugging = 0x0000_0200,
 
     /// Symlink sources for project generation
-    SymlinkSources = 1024, // 0x00000400
+    SymlinkSources = 0x0000_0400,
 
     /// Skip asset bundle compression
-    UncompressedAssetBundle = 2048, // 0x00000800
+    UncompressedAssetBundle = 0x0000_0800,
 
     /// Connect player to editor
-    ConnectToHost = 4096, // 0x00001000
+    ConnectToHost = 0x0000_1000,
 
     /// Use custom connection ID
-    CustomConnectionId = 8192, // 0x00002000
+    CustomConnectionId = 0x0000_2000,
 
     /// Build only scripts
-    BuildScriptsOnly = 3276, // 0x00008000
+    BuildScriptsOnly = 0x0000_8000,
 
     /// Patch Android development package
-    PatchPackage = 65536, // 0x00010000
+    PatchPackage = 0x0001_0000,
 
     /// Use LZ4 compression
-    CompressWithLz4 = 262144, // 0x00040000
+    CompressWithLz4 = 0x0004_0000,
 
     /// Use LZ4 high-compression
-    CompressWithLz4HC = 524288, // 0x00080000
+    CompressWithLz4HC = 0x0008_0000,
 
     /// Fail build on any errors
-    StrictMode = 2097152, // 0x00200000
+    StrictMode = 0x0020_0000,
 
     /// Include test assemblies
-    IncludeTestAssemblies = 4194304, // 0x00400000
+    IncludeTestAssemblies = 0x0040_0000,
 
     /// Use zero GUID
-    NoUniqueIdentifier = 8388608, // 0x00800000
+    NoUniqueIdentifier = 0x0080_0000,
 
     /// Wait for player connection on start
-    WaitForPlayerConnection = 33554432, // 0x02000000
+    WaitForPlayerConnection = 0x0200_0000,
 
     /// Enable code coverage
-    EnableCodeCoverage = 67108864, // 0x04000000
+    EnableCodeCoverage = 0x0400_0000,
 
     /// Enable deep profiling support
-    EnableDeepProfilingSupport = 268435456, // 0x10000000
+    EnableDeepProfilingSupport = 0x1000_0000,
 
     /// Generate detailed build report
-    DetailedBuildReport = 536870912, // 0x20000000
+    DetailedBuildReport = 0x2000_0000,
 
     /// Enable shader livelink
-    ShaderLivelinkSupport = 1073741824, // 0x40000000
+    ShaderLivelinkSupport = 0x4000_0000,
 }

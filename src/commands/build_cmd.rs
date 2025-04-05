@@ -357,7 +357,9 @@ fn csharp_build_script_injection_hooks(project: &ProjectPath, inject: InjectActi
 
     match inject {
         // Build script is already present, no need to inject.
-        InjectAction::Auto if persistent_script_exists => BuildHooks::no_op(),
+        InjectAction::Auto | InjectAction::Persistent if persistent_script_exists => {
+            BuildHooks::no_op()
+        }
 
         // Build script is not present, inject it in a unique directory to avoid conflicts.
         InjectAction::Auto => {
@@ -380,8 +382,6 @@ fn csharp_build_script_injection_hooks(project: &ProjectPath, inject: InjectActi
         }
 
         // Build script is already present, no need to inject.
-        InjectAction::Persistent if persistent_script_exists => BuildHooks::no_op(),
-
         // Build script is not present, inject it.
         InjectAction::Persistent => {
             let closure_project_dir = project.to_path_buf();

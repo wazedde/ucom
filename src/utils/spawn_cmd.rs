@@ -77,7 +77,9 @@ pub fn build_command_line(cmd: &Command) -> String {
         let arg = arg.to_string_lossy();
         // Handle spaces in arguments.
         if arg.contains(char::is_whitespace) {
-            line.push_str(&format!("\"{arg}\""));
+            line.push('\"');
+            line.push_str(&arg);
+            line.push('\"');
         } else {
             line.push_str(&arg);
         }

@@ -64,7 +64,7 @@ fn add_file_to_project(
             println!(
                 "Failed to add file to project: {}",
                 file_path.normalized_display()
-            )
+            );
         })
 }
 

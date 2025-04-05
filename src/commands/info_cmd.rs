@@ -135,7 +135,7 @@ fn print_project_info(
 
     if packages_level != PackagesInfoLevel::None {
         print_project_packages(project, packages_level)?;
-    };
+    }
 
     Ok(unity_version)
 }

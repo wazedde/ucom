@@ -59,18 +59,15 @@ pub fn delete_cache_directory() {
     }
 }
 
-/// Sets whether the cache is enabled or not.
-/// This value can only be set once.
-pub fn set_cache_enabled(enabled: bool) -> anyhow::Result<()> {
-    CACHE_ENABLED
-        .set(enabled)
-        .map_err(|_| anyhow!("Failed to set CACHE_ENABLED"))
-}
-
 /// Sets whether the cache is enabled or not based on environment variable `UCOM_ENABLE_CACHE`.
 pub fn configure_cache_from_environment() -> anyhow::Result<()> {
     match env::var("UCOM_ENABLE_CACHE") {
-        Ok(val) => set_cache_enabled(val == "true" || val == "1"),
+        Ok(val) => {
+            let enabled = val == "true" || val == "1";
+            CACHE_ENABLED
+                .set(enabled)
+                .map_err(|_| anyhow!("Failed to set CACHE_ENABLED"))
+        }
         Err(_) => Ok(()), // environment variable not set
     }
 }

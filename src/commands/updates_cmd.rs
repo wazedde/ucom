@@ -208,7 +208,7 @@ fn print_available_updates(releases: &SortedReleases) -> anyhow::Result<()> {
             println!(" > {}", "installed".bold());
         } else {
             println!();
-        };
+        }
     }
 
     Ok(())

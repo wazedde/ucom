@@ -219,7 +219,7 @@ fn display_updates(installed: &Installations, mode: FetchMode) -> anyhow::Result
                             release_date,
                             MARK_UPDATES_AVAILABLE
                         );
-                    };
+                    }
                 }
                 VersionType::UpdateToLatest(release_info) => {
                     println_conditional_bold!(
@@ -244,7 +244,7 @@ fn display_updates(installed: &Installations, mode: FetchMode) -> anyhow::Result
                             .bright_black()
                     );
                 }
-            };
+            }
         }
     }
     Ok(())
@@ -509,7 +509,7 @@ fn display_installed_versions_line(
             MARK_UPDATES_AVAILABLE,
             joined_versions
         );
-    };
+    }
 }
 
 //

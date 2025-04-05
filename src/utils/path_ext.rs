@@ -29,19 +29,15 @@ pub trait PlatformConsistentPathExt {
     /// println!("{}", p.normalized_display());
     /// ```
     fn normalized_display(&self) -> impl Display + '_ {
-        struct PathDisplay<'a> {
-            path: Cow<'a, Path>,
-        }
+        struct PathDisplay<'a>(Cow<'a, Path>);
 
         impl Display for PathDisplay<'_> {
             fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-                self.path.display().fmt(f)
+                self.0.display().fmt(f)
             }
         }
 
-        PathDisplay {
-            path: self.normalized(),
-        }
+        PathDisplay(self.normalized())
     }
 }
 
