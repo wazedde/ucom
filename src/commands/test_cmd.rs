@@ -40,7 +40,7 @@ pub fn run_tests(arguments: &TestArguments) -> anyhow::Result<()> {
         } else {
             StatusLine::new(
                 "Running",
-                &format!(
+                format!(
                     "{} tests for project in {}",
                     &arguments.platform,
                     project.normalized_display()
@@ -90,7 +90,7 @@ fn print_results(
 ) -> anyhow::Result<()> {
     MessageType::print_line(
         "Finished",
-        &format!(
+        format!(
             "{} tests for project in {}; total time {:.2}s",
             &arguments.platform,
             project.normalized_display(),
@@ -100,7 +100,7 @@ fn print_results(
     );
 
     let test_run = TestRun::from_file(output_path)?;
-    MessageType::print_line("Report", &output_path.to_string_lossy(), status);
+    MessageType::print_line("Report", output_path.to_string_lossy(), status);
 
     match arguments.show_results {
         ShowResults::Errors => {

@@ -23,10 +23,11 @@ pub fn walk_visible_directories(
     WalkDir::new(root)
         .max_depth(max_depth)
         .into_iter()
-        .filter_entry(|de| de.file_type().is_dir() && !is_hidden_directory(de))
+        .filter_entry(|de| de.file_type().is_dir() && !is_hidden(de))
 }
 
-fn is_hidden_directory(entry: &DirEntry) -> bool {
+/// Returns if the given directory entry is hidden (starts with a dot).
+fn is_hidden(entry: &DirEntry) -> bool {
     entry
         .file_name()
         .to_str()

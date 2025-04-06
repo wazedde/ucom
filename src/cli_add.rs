@@ -79,7 +79,7 @@ impl TemplateAsset {
             AssetSource::Static(content) => Ok(Cow::Borrowed(content)),
             AssetSource::Remote(url) => {
                 let _status =
-                    StatusLine::new("Downloading", &format!("{} from {}...", self.filename, url));
+                    StatusLine::new("Downloading", format!("{} from {}...", self.filename, url));
                 let content = content_cache::fetch_content(url, RemoteChangeCheck::Skip)?;
                 Ok(Cow::Owned(content))
             }

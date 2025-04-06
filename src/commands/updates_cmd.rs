@@ -23,7 +23,7 @@ pub fn find_project_updates(
     let current_version = project.unity_version()?;
 
     let updates = {
-        let _status = StatusLine::new("Checking", &format!("for updates to {current_version}"));
+        let _status = StatusLine::new("Checking", format!("for updates to {current_version}"));
         find_available_updates(current_version, mode)?
     };
 
@@ -55,7 +55,7 @@ fn download_and_print_release_notes(updates: &ReleaseUpdates) -> anyhow::Result<
     for release in updates.newer_releases.iter() {
         status.update_line(
             "Downloading",
-            &format!("Unity {} release notes...", release.version),
+            format!("Unity {} release notes...", release.version),
         );
 
         let url = &release.release_notes.url;

@@ -76,7 +76,7 @@ pub fn build_project(arguments: &BuildArguments) -> anyhow::Result<()> {
 
     MessageType::print_line(
         log_tag,
-        &format!(
+        format!(
             "building Unity {unity_version} {} project in {}",
             arguments.target,
             project.normalized_display()
@@ -86,7 +86,7 @@ pub fn build_project(arguments: &BuildArguments) -> anyhow::Result<()> {
 
     MessageType::print_line(
         "Total time",
-        &format!(
+        format!(
             "{:.2}s",
             Utc::now().signed_duration_since(start_time).as_seconds()
         ),

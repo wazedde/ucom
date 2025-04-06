@@ -11,6 +11,8 @@ use yansi::{Color, Paint, Painted, Style};
 // Status line
 //
 
+const LABEL_PADDING: usize = 12;
+
 /// A status line that is only active if stdout is a terminal.
 /// Clears the status line when dropped.
 pub enum StatusLine {
@@ -21,7 +23,7 @@ pub enum StatusLine {
 impl StatusLine {
     /// Creates a new `StatusLine` message with the given label and message that is cleared when dropped.
     /// If stdout is not a terminal, it will not output anything.
-    pub fn new(label: &str, msg: &str) -> Self {
+    pub fn new(label: impl AsRef<str>, msg: impl AsRef<str>) -> Self {
         if stdout().is_terminal() {
             Self::Stdout(StdoutStatusLine::new(label, msg, MessageType::Info))
         } else {
@@ -35,7 +37,7 @@ impl StatusLine {
     }
 
     /// Updates the status line with the given label and message.
-    pub fn update_line(&self, label: &str, msg: &str) {
+    pub fn update_line(&self, label: impl AsRef<str>, msg: impl AsRef<str>) {
         match self {
             Self::Stdout(..) => {
                 StdoutStatusLine::update_line(label, msg);
@@ -59,24 +61,27 @@ impl Drop for StdoutStatusLine {
 }
 
 impl StdoutStatusLine {
-    pub fn new(label: &str, msg: &str, message_type: MessageType) -> Self {
+    pub fn new(label: impl AsRef<str>, msg: impl AsRef<str>, message_type: MessageType) -> Self {
         let status_line = Self {};
         Self::print_line(label, msg, message_type).ok();
         status_line
     }
 
-    pub fn update_line(label: &str, msg: &str) {
+    pub fn update_line(label: impl AsRef<str>, msg: impl AsRef<str>) {
         Self::clear_last_line().ok();
         Self::print_line(label, msg, MessageType::Info).ok();
     }
 
-    fn print_line(label: &str, msg: &str, status: MessageType) -> io::Result<()> {
-        const LABEL_PADDING: usize = 12;
+    fn print_line(
+        label: impl AsRef<str>,
+        msg: impl AsRef<str>,
+        status: MessageType,
+    ) -> io::Result<()> {
         stdout().execute(SavePosition).and_then(|o| {
             print!(
                 "{:>LABEL_PADDING$} {}",
-                MessageType::format_text(label, status),
-                msg
+                MessageType::format_text(label.as_ref(), status),
+                msg.as_ref()
             );
             o.execute(RestorePosition)?.flush()
         })
@@ -118,7 +123,11 @@ impl MessageType {
     }
 
     /// Prints a status line with the given label and message.
-    pub fn print_line(label: &str, msg: &str, message_type: Self) {
-        println!("{:>12} {}", Self::format_text(label, message_type), msg);
+    pub fn print_line(label: impl AsRef<str>, msg: impl AsRef<str>, message_type: Self) {
+        println!(
+            "{:>LABEL_PADDING$} {}",
+            Self::format_text(label.as_ref(), message_type),
+            msg.as_ref()
+        );
     }
 }
