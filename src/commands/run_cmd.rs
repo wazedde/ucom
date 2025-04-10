@@ -1,7 +1,6 @@
 use std::process::Command;
 
 use crate::cli_run::RunArguments;
-use crate::commands::println_bold;
 use crate::unity::installations::Installations;
 use crate::unity::{build_command_line, spawn_and_forget, wait_with_stdout};
 
@@ -19,7 +18,7 @@ pub fn run_unity(arguments: RunArguments) -> anyhow::Result<()> {
     }
 
     if !arguments.quiet {
-        println_bold!("Run Unity {unity_version}");
+        println!("Run Unity {unity_version}");
     }
 
     if arguments.wait {

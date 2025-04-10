@@ -3,7 +3,7 @@ use crate::unity::release_api_data::{ReleaseData, ReleaseDataPage};
 use crate::utils::content_cache::ucom_cache_dir;
 use crate::utils::content_cache::{is_cache_file_expired, touch_file};
 use crate::utils::status_line::StatusLine;
-use anyhow::Context;
+use anyhow::{Context, anyhow};
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use serde_json::json;
@@ -51,15 +51,11 @@ impl Releases {
         self.iter().any(|r| r.version == version)
     }
 
-    pub fn find_by_version(&self, version: Version) -> Option<&ReleaseData> {
-        self.iter().find(|r| r.version == version)
-    }
-
     /// Returns the release with the given version.
-    /// # Panics if the version is not found.
-    pub fn get_by_version(&self, version: Version) -> &ReleaseData {
-        self.find_by_version(version)
-            .unwrap_or_else(|| panic!("Release with version {version} not found in collection"))
+    pub fn get_by_version(&self, version: Version) -> anyhow::Result<&ReleaseData> {
+        self.iter()
+            .find(|r| r.version == version)
+            .ok_or_else(|| anyhow!("Version {version} not found in releases",))
     }
 
     pub fn iter(&self) -> impl Iterator<Item = &ReleaseData> {
@@ -120,7 +116,7 @@ impl SortedReleases {
     }
 
     /// Returns the release with the given version.
-    pub fn get_by_version(&self, version: Version) -> &ReleaseData {
+    pub fn get_by_version(&self, version: Version) -> anyhow::Result<&ReleaseData> {
         self.0.get_by_version(version)
     }
 }

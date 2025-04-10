@@ -69,6 +69,10 @@ pub enum Command {
         /// Package information detail level
         #[arg(short = 'p', long, default_value = "no-unity", env = ENV_PACKAGE_LEVEL)]
         packages: PackagesInfoLevel,
+
+        /// Generate Markdown report of release notes
+        #[arg(short = 'r', long)]
+        report: bool,
     },
 
     /// Check for available Unity version updates for project

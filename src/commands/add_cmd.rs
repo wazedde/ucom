@@ -3,7 +3,7 @@ use std::path::PathBuf;
 use anyhow::anyhow;
 
 use crate::cli_add::{AddArguments, AssetSource, UnityTemplateFile};
-use crate::commands::{PERSISTENT_BUILD_SCRIPT_ROOT, add_file_to_project};
+use crate::commands::{INDENT, PERSISTENT_BUILD_SCRIPT_ROOT, add_file_to_project};
 use crate::unity::project::ProjectPath;
 use crate::utils::path_ext::PlatformConsistentPathExt;
 
@@ -35,7 +35,7 @@ pub fn add_to_project(args: &AddArguments) -> anyhow::Result<()> {
 
     if full_path.exists() && !args.force {
         return Err(anyhow!(
-            "File already exists, add '--force' to overwrite: {}",
+            "{INDENT}File already exists, add '--force' to overwrite: {}",
             full_path.normalized_display()
         ));
     }
@@ -43,11 +43,11 @@ pub fn add_to_project(args: &AddArguments) -> anyhow::Result<()> {
     if args.template == UnityTemplateFile::BuilderMenu {
         // The build menu requires the builder script to be added as well.
         let builder_script = UnityTemplateFile::Builder.as_asset();
-        let builder_script_path = project.join(&destination_dir).join(builder_script.filename);
-        if builder_script_path.exists() {
+        let local_path = &destination_dir.join(builder_script.filename);
+        if project.join(local_path).exists() {
             println!(
-                "Builder script already exists, not adding: {}",
-                builder_script_path.normalized_display()
+                "{INDENT}Already exists:   {}",
+                local_path.normalized_display()
             );
         } else {
             add_file_to_project(&project, &destination_dir, UnityTemplateFile::Builder)?;

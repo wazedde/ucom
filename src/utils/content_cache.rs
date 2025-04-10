@@ -23,7 +23,7 @@ enum CacheState {
     RefreshNeeded,
 }
 
-#[derive(Eq, PartialEq)]
+#[derive(Eq, PartialEq, Copy, Clone)]
 pub enum RemoteChangeCheck {
     /// Check if the remote content is newer than the local file.
     Validate,

@@ -5,7 +5,9 @@ use std::borrow::Cow;
 use std::path::Path;
 
 pub mod content_cache;
+pub mod formatter;
 pub mod path_ext;
+pub mod report;
 pub mod spawn_cmd;
 pub mod status_line;
 pub mod vec1;

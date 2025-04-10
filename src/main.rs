@@ -62,11 +62,13 @@ fn main() -> anyhow::Result<()> {
             install_required,
             recursive,
             packages,
+            report,
         } => project_info(
             &project_dir,
             packages,
             install_required,
             recursive,
+            report,
             FetchMode::Auto,
         )
         .with_context(|| color_error("Cannot show project info")),

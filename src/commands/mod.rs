@@ -59,10 +59,15 @@ fn add_file_to_project(
     let content = template_data.load_content()?;
 
     create_file(project_root.as_ref().join(&file_path), &content)
-        .inspect(|()| println!("Added to project: {}", file_path.normalized_display()))
+        .inspect(|()| {
+            println!(
+                "{INDENT}Added to project: {}",
+                file_path.normalized_display()
+            );
+        })
         .inspect_err(|_| {
             println!(
-                "Failed to add file to project: {}",
+                "{INDENT}Failed to add file to project: {}",
                 file_path.normalized_display()
             );
         })
@@ -85,17 +90,5 @@ macro_rules! println_bold {
     };
 }
 
-/// Version of `println!` that writes bold text if the given condition is true.
-macro_rules! println_conditional_bold {
-    ($bold:expr, $fmt:expr $(, $arg:expr)*) => {{
-        if $bold {
-            println!("{}", yansi::Paint::new(format!($fmt $(, $arg)*)).bold());
-        } else {
-            println!($fmt $(, $arg)*);
-        }
-    }};
-}
-
 use crate::utils::path_ext::PlatformConsistentPathExt;
 use println_bold;
-use println_conditional_bold;

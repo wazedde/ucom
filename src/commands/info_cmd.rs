@@ -1,19 +1,19 @@
 use crate::cli::PackagesInfoLevel;
-use crate::commands::{
-    INDENT, MARK_AVAILABLE, MARK_UNAVAILABLE, install_latest_matching, println_bold,
-};
+use crate::commands::{MARK_AVAILABLE, MARK_UNAVAILABLE, install_latest_matching};
 use crate::unity::project::ProjectPath;
 use crate::unity::project::{
     PackageInfo, PackageSource, Packages, PackagesAvailability, ProjectSettings,
     walk_visible_directories,
 };
-use crate::unity::release_api::FetchMode;
-use crate::unity::{Version, release_notes_url};
+use crate::unity::release_api::{FetchMode, fetch_latest_releases};
+use crate::unity::{BuildProfilesStatus, Version, release_notes_url};
+use crate::utils;
 use crate::utils::path_ext::PlatformConsistentPathExt;
-use crate::{unity, utils};
+use crate::utils::report::{HeaderLevel, Report};
+use content_cache::RemoteChangeCheck;
 use itertools::Itertools;
 use std::path::Path;
-use unity::project::BuildProfilesStatus;
+use utils::content_cache;
 use yansi::Paint;
 
 /// Shows project information.
@@ -22,31 +22,41 @@ pub fn project_info(
     packages_level: PackagesInfoLevel,
     install_required: bool,
     recursive: bool,
+    report: bool,
     mode: FetchMode,
 ) -> anyhow::Result<()> {
     if recursive {
-        show_recursive_project_info(path, packages_level)
+        show_recursive_project_info(path, packages_level, report)
     } else {
-        show_project_info(path, packages_level, install_required, mode)
+        show_project_info(path, packages_level, report, install_required, mode)
     }
 }
 
 fn show_recursive_project_info(
     path: &Path,
     packages_level: PackagesInfoLevel,
+    show_release_notes: bool,
 ) -> anyhow::Result<()> {
+    let report = if show_release_notes {
+        yansi::disable();
+        Report::Markdown
+    } else {
+        Report::Terminal
+    };
+
     let path = utils::resolve_absolute_dir_path(&path)?;
-    println!(
+    report.paragraph(format!(
         "Searching for Unity projects in: {}",
         path.normalized_display()
-    );
+    ));
 
     let mut directories = walk_visible_directories(path, 5);
     while let Some(Ok(entry)) = directories.next() {
         if let Ok(path) = ProjectPath::try_from(entry.path()) {
-            println!();
-            if let Err(err) = print_project_info(&path, packages_level) {
-                println!("{}{}", INDENT, err.red());
+            report.blank_line();
+            if let Err(err) = print_project_info(&path, packages_level, &report, show_release_notes)
+            {
+                report.list_item(format!("{} {}", "Error:".red(), err));
             }
             directories.skip_current_dir();
         }
@@ -57,21 +67,33 @@ fn show_recursive_project_info(
 fn show_project_info(
     path: &Path,
     packages_level: PackagesInfoLevel,
+    show_release_notes: bool,
     install_required: bool,
     mode: FetchMode,
 ) -> anyhow::Result<()> {
-    let version = print_project_info(&ProjectPath::try_from(path)?, packages_level)?;
+    let report = if show_release_notes {
+        yansi::disable();
+        Report::Markdown
+    } else {
+        Report::Terminal
+    };
+    let version = print_project_info(
+        &ProjectPath::try_from(path)?,
+        packages_level,
+        &report,
+        show_release_notes,
+    )?;
 
     if !version.is_editor_installed()? {
-        println!();
+        report.blank_line();
         if install_required {
             install_latest_matching(version.to_interned_str(), mode)?;
         } else {
-            println!(
+            report.paragraph(format!(
                 "Use the `{}` flag to install Unity version {}",
                 "--install-required".bold(),
                 version.bold()
-            );
+            ));
         }
     }
 
@@ -81,62 +103,79 @@ fn show_project_info(
 fn print_project_info(
     project: &ProjectPath,
     packages_level: PackagesInfoLevel,
+    report: &Report,
+    show_release_notes: bool,
 ) -> anyhow::Result<Version> {
     let unity_version = project.unity_version()?;
-    println_bold!("Project info for: {}", project.normalized_display());
+    report.header(
+        format!("Project info for: {}", project.normalized_display()),
+        HeaderLevel::H2,
+    );
 
     match ProjectSettings::from_project(project) {
         Ok(ps) => {
-            println!("{INDENT}Product name:  {}", ps.product_name.bold());
-            println!("{INDENT}Company name:  {}", ps.company_name.bold());
-            println!("{INDENT}Version:       {}", ps.bundle_version.bold());
+            report.list_item(format!("Product name:  {}", ps.product_name.bold()));
+            report.list_item(format!("Company name:  {}", ps.company_name.bold()));
+            report.list_item(format!("Version:       {}", ps.bundle_version.bold()));
         }
 
         Err(e) => {
-            println!(
-                "{INDENT}{}: {}",
+            report.list_item(format!(
+                "{}: {}",
                 "Could not read project settings".yellow(),
                 e.yellow()
-            );
+            ));
         }
     }
 
-    let installed_marker = if unity_version.is_editor_installed()? {
-        MARK_AVAILABLE.green().bold()
-    } else {
-        MARK_UNAVAILABLE.red().bold()
-    };
+    let is_installed = unity_version.is_editor_installed()?;
 
-    print!(
-        "{}{}Unity version: {} - {}",
-        installed_marker,
-        " ".repeat(INDENT.len() - 1),
-        unity_version.bold(),
-        release_notes_url(unity_version).bright_blue()
+    report.marked_item(
+        format!(
+            "Unity version: {} - {} ({})",
+            unity_version.bold(),
+            release_notes_url(unity_version).bright_blue(),
+            if is_installed {
+                "installed"
+            } else {
+                "not installed"
+            }
+        ),
+        if is_installed {
+            MARK_AVAILABLE.green().bold()
+        } else {
+            MARK_UNAVAILABLE.red().bold()
+        },
     );
-
-    let installed = unity_version.is_editor_installed()?;
-
-    if installed {
-        println!(" {}", "(installed)".green().bold());
-    } else {
-        println!(" {}", "(not installed)".red().bold());
-    }
 
     // Print the available build profiles
     let build_profiles = project.build_profiles(unity_version)?;
     if let BuildProfilesStatus::Available(profiles) = build_profiles {
-        println!();
-        println_bold!("Build profiles:");
+        report.blank_line();
+        report.header("Build profiles:", HeaderLevel::H2);
         for profile in profiles {
-            println!("{INDENT}{}", profile.normalized_display());
+            report.list_item(profile.normalized_display());
         }
     }
 
     if packages_level != PackagesInfoLevel::None {
-        print_project_packages(project, packages_level)?;
+        print_project_packages(project, packages_level, report)?;
     }
 
+    if show_release_notes {
+        let releases = fetch_latest_releases(FetchMode::Auto)?;
+        let release = releases.get_by_version(unity_version)?;
+
+        let url = &release.release_notes.url;
+        let body = content_cache::fetch_content(url, RemoteChangeCheck::Validate)?;
+
+        report.blank_line();
+        report.header(
+            format!("Release notes for [{}]({url})", release.version),
+            HeaderLevel::H2,
+        );
+        report.paragraph(body);
+    }
     Ok(unity_version)
 }
 
@@ -144,29 +183,25 @@ fn print_project_info(
 fn print_project_packages(
     project: &ProjectPath,
     package_level: PackagesInfoLevel,
+    report: &Report,
 ) -> anyhow::Result<()> {
     let availability = Packages::from_project(project)?;
 
     match availability {
         PackagesAvailability::NoManifest => {
-            println!(
-                "{INDENT}{}",
-                "No `manifest.json` file found, no packages info available.".yellow()
-            );
+            report.list_item("No `manifest.json` file found, no packages info available.".yellow());
             Ok(())
         }
         PackagesAvailability::LockFileDisabled => {
-            println!(
-                "{INDENT}{}",
+            report.list_item(
                 "Packages lock file is disabled in `manifest.json`, no packages info available."
-                    .yellow()
+                    .yellow(),
             );
             Ok(())
         }
         PackagesAvailability::NoLockFile => {
-            println!(
-                "{INDENT}{}",
-                "No `packages-lock.json` file found, no packages info available.".yellow()
+            report.list_item(
+                "No `packages-lock.json` file found, no packages info available.".yellow(),
             );
             Ok(())
         }
@@ -182,19 +217,21 @@ fn print_project_packages(
                 return Ok(());
             }
 
-            println!();
-            println_bold!(
-                "Packages: {} (L=local, E=embedded, G=git, T=tarball, R=registry, B=builtin)",
-                package_level,
+            report.blank_line();
+            report.header(
+                format!(
+                    "Packages: {package_level} (L=local, E=embedded, G=git, T=tarball, R=registry, B=builtin)",
+                ),
+                HeaderLevel::H2,
             );
 
             for (name, package) in packages {
-                println!(
-                    "{INDENT}{} {} ({})",
+                report.list_item(format!(
+                    "{} {} ({})",
                     package.source.as_ref().map_or("?", |s| s.to_short_str()),
                     name,
                     package.version,
-                );
+                ));
             }
             Ok(())
         }

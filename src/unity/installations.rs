@@ -159,29 +159,27 @@ impl Installations {
     /// Resolves the Unity editor directory from the environment variable or the default path.
     fn resolve_unity_editor_directory() -> anyhow::Result<PathBuf> {
         // Try to get the directory from the environment variable.
-        match env::var_os(ENV_EDITOR_DIR) {
-            Some(path) => {
-                // Use the directory set by the environment variable.
-                let path = Path::new(&path);
-                // If the directory does not exist or is not a directory, return an error.
-                if !path.is_dir() {
-                    return Err(anyhow!(
-                        "Editor directory set by `{ENV_EDITOR_DIR}` is not a valid directory: `{}`",
-                        path.normalized_display()
-                    ));
-                }
+        if let Some(path) = env::var_os(ENV_EDITOR_DIR) {
+            // Use the directory set by the environment variable.
+            let path = Path::new(&path);
+            if path.is_dir() {
                 Ok(path.to_owned())
+            } else {
+                Err(anyhow!(
+                    "Editor directory set by `{ENV_EDITOR_DIR}` is not a valid directory: `{}`",
+                    path.normalized_display()
+                ))
             }
-            None => {
-                // Use the default directory.
-                let path = Path::new(platform::UNITY_EDITOR_DIR);
-                if !path.is_dir() {
-                    return Err(anyhow!(
-                        "The default editor directory `{}` is not a valid directory`",
-                        platform::UNITY_EDITOR_DIR
-                    ));
-                }
+        } else {
+            // Use the default directory.
+            let path = Path::new(platform::UNITY_EDITOR_DIR);
+            if path.is_dir() {
                 Ok(path.to_owned())
+            } else {
+                Err(anyhow!(
+                    "The default editor directory `{}` is not a valid directory`",
+                    platform::UNITY_EDITOR_DIR
+                ))
             }
         }
     }

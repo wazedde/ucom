@@ -1,7 +1,6 @@
 use std::process::Command;
 
 use crate::cli::OpenArguments;
-use crate::commands::println_bold;
 use crate::unity::installations::Installations;
 use crate::unity::{ProjectPath, build_command_line, spawn_and_forget, wait_with_stdout};
 use crate::utils::path_ext::PlatformConsistentPathExt;
@@ -46,7 +45,7 @@ pub fn open_project(arguments: OpenArguments) -> anyhow::Result<()> {
     }
 
     if !arguments.quiet {
-        println_bold!(
+        println!(
             "Open Unity {} project in: {}",
             open_unity_version,
             project.normalized_display()

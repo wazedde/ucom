@@ -381,7 +381,6 @@ fn csharp_build_script_injection_hooks(project: &ProjectPath, inject: InjectActi
             )
         }
 
-        // Build script is already present, no need to inject.
         // Build script is not present, inject it.
         InjectAction::Persistent => {
             let closure_project_dir = project.to_path_buf();
@@ -411,15 +410,10 @@ fn cleanup_csharp_build_script(parent_dir: impl AsRef<Path>) -> anyhow::Result<(
         return Ok(());
     }
 
-    println!(
-        "Removing temporary ucom build script: {}",
-        parent_dir.normalized_display()
-    );
-
     // Remove the directory where the build script is located.
     fs::remove_dir_all(parent_dir).map_err(|_| {
         anyhow!(
-            "Could not remove directory: {}",
+            "Could not remove temporary directory: {}",
             parent_dir.normalized_display()
         )
     })?;

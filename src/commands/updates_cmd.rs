@@ -3,7 +3,7 @@ use std::path::Path;
 use yansi::Paint;
 
 use crate::commands::install_cmd::install_version;
-use crate::commands::{INDENT, MARK_AVAILABLE, MARK_UNAVAILABLE, println_bold};
+use crate::commands::{MARK_AVAILABLE, MARK_UNAVAILABLE};
 use crate::unity::release_api::{FetchMode, SortedReleases};
 use crate::unity::{
     ProjectPath, ProjectSettings, ReleaseUpdates, find_available_updates, release_notes_url,
@@ -11,6 +11,7 @@ use crate::unity::{
 use crate::utils::content_cache;
 use crate::utils::content_cache::RemoteChangeCheck;
 use crate::utils::path_ext::PlatformConsistentPathExt;
+use crate::utils::report::{HeaderLevel, Report};
 use crate::utils::status_line::StatusLine;
 
 pub fn find_project_updates(
@@ -27,32 +28,40 @@ pub fn find_project_updates(
         find_available_updates(current_version, mode)?
     };
 
-    if create_report {
+    let report = if create_report {
         yansi::disable();
-    }
+        Report::Markdown
+    } else {
+        Report::Terminal
+    };
 
-    print_project_header(&project, create_report);
-    println!();
+    print_project_header(&project, &report);
+    report.blank_line();
 
-    print_project_version(&updates, create_report)?;
+    print_project_version(&updates, &report, create_report)?;
 
     if create_report {
-        download_and_print_release_notes(&updates)?;
+        download_and_print_release_notes(&updates, &report)?;
     } else if !updates.newer_releases.is_empty() {
-        println!();
-        print_available_updates(&updates.newer_releases)?;
+        report.blank_line();
+        print_available_updates(&updates.newer_releases, &report)?;
     }
 
     if create_report {
         Ok(())
     } else {
-        handle_newer_release_installation(install_latest, &updates.newer_releases)
+        handle_newer_release_installation(install_latest, &updates.newer_releases, &report)
     }
 }
 
-fn download_and_print_release_notes(updates: &ReleaseUpdates) -> anyhow::Result<()> {
+fn download_and_print_release_notes(
+    updates: &ReleaseUpdates,
+    report: &Report,
+) -> anyhow::Result<()> {
     let status = StatusLine::new("Downloading", "Unity release notes...");
+
     for release in updates.newer_releases.iter() {
+        // TODO: Printing updates messes up output when output is terminal.
         status.update_line(
             "Downloading",
             format!("Unity {} release notes...", release.version),
@@ -61,13 +70,17 @@ fn download_and_print_release_notes(updates: &ReleaseUpdates) -> anyhow::Result<
         let url = &release.release_notes.url;
         let body = content_cache::fetch_content(url, RemoteChangeCheck::Validate)?;
 
-        println!();
-        println!("## Release notes for [{}]({url})", release.version);
-        println!();
-        println!("[install in Unity HUB]({})", release.unity_hub_deep_link);
-
-        println!();
-        println!("{body}");
+        report.blank_line();
+        report.header(
+            format!("Release notes for [{}]({url})", release.version),
+            HeaderLevel::H2,
+        );
+        report.paragraph(format!(
+            "[install in Unity HUB]({})",
+            release.unity_hub_deep_link
+        ));
+        report.blank_line();
+        report.paragraph(body);
     }
     Ok(())
 }
@@ -75,23 +88,24 @@ fn download_and_print_release_notes(updates: &ReleaseUpdates) -> anyhow::Result<
 fn handle_newer_release_installation(
     install_latest: bool,
     releases: &SortedReleases,
+    report: &Report,
 ) -> anyhow::Result<()> {
     if let Some(newer_release) = releases.iter().last() {
         let is_installed = newer_release.version.is_editor_installed()?;
         match (is_installed, install_latest) {
             (false, true) => {
                 // There is a newer version available, and the user wants to install it.
-                println!();
+                report.blank_line();
                 install_version(newer_release)?;
             }
             (false, false) => {
                 // There is a newer version available, but the user has not requested installation.
-                println!();
-                println!(
+                report.blank_line();
+                report.paragraph(format!(
                     "Use the `{}` flag to install Unity version {}",
                     "--install-latest".bold(),
                     newer_release.version.bold()
-                );
+                ));
             }
             _ => { /* The latest version is already installed. */ }
         }
@@ -99,60 +113,56 @@ fn handle_newer_release_installation(
     Ok(())
 }
 
-fn print_project_header(project: &ProjectPath, create_report: bool) {
-    if create_report {
-        print!("# ");
-    }
-
-    println_bold!("Unity updates for: `{}`", project.normalized_display());
-
-    if create_report {
-        println!();
-    }
+fn print_project_header(project: &ProjectPath, report: &Report) {
+    report.header(
+        format!("Unity updates for: `{}`", project.normalized_display()),
+        HeaderLevel::H1,
+    );
 
     match ProjectSettings::from_project(project) {
         Ok(ps) => {
-            println!("{}Product name:  {}", INDENT, ps.product_name.bold());
-            println!("{}Company name:  {}", INDENT, ps.company_name.bold());
-            println!("{}Version:       {}", INDENT, ps.bundle_version.bold());
+            report.list_item(format!("Product name:  {}", ps.product_name.bold()));
+            report.list_item(format!("Company name:  {}", ps.company_name.bold()));
+            report.list_item(format!("Version:       {}", ps.bundle_version.bold()));
         }
 
         Err(e) => {
-            println!(
-                "{INDENT}{}: {}",
+            report.list_item(format!(
+                "{}: {}",
                 "Could not read project settings".yellow(),
                 e.yellow()
-            );
+            ));
         }
     }
 }
 
-fn print_project_version(updates: &ReleaseUpdates, create_report: bool) -> anyhow::Result<()> {
+fn print_project_version(
+    updates: &ReleaseUpdates,
+    report: &Report,
+    create_report: bool,
+) -> anyhow::Result<()> {
     let is_installed = updates.current_release.version.is_editor_installed()?;
-    print!("{}", "Unity editor status: ".bold());
 
-    let version = match (is_installed, updates.newer_releases.is_empty()) {
-        (true, true) => {
-            println!("{}", "installed (latest version)".green().bold());
-            updates.current_release.version.green()
-        }
-        (true, false) => {
-            println!("{}", "installed (update available)".yellow().bold());
-            updates.current_release.version.yellow()
-        }
-        (false, true) => {
-            println!("{}", "not installed (latest version)".red().bold());
-            updates.current_release.version.red()
-        }
-        (false, false) => {
-            println!("{}", "not installed (outdated version)".red().bold());
-            updates.current_release.version.red()
-        }
+    let (status, colored_version) = match (is_installed, updates.newer_releases.is_empty()) {
+        (true, true) => (
+            "installed (latest version)".green(),
+            updates.current_release.version.green(),
+        ),
+        (true, false) => (
+            "installed (update available)".yellow(),
+            updates.current_release.version.yellow(),
+        ),
+        (false, true) => (
+            "not installed (latest version)".red(),
+            updates.current_release.version.red(),
+        ),
+        (false, false) => (
+            "not installed (outdated version)".red(),
+            updates.current_release.version.red(),
+        ),
     };
 
-    if create_report {
-        println!();
-    }
+    report.header(format!("Unity editor status: {status}"), HeaderLevel::H2);
 
     let installed_marker = if is_installed {
         MARK_AVAILABLE.green()
@@ -160,34 +170,34 @@ fn print_project_version(updates: &ReleaseUpdates, create_report: bool) -> anyho
         MARK_UNAVAILABLE.red()
     };
 
-    print!(
-        "{}{}{} ({}) - {}",
+    report.marked_item(
+        format!(
+            "{} ({}) - {}{}",
+            colored_version,
+            updates.current_release.release_date.format("%Y-%m-%d"),
+            release_notes_url(updates.current_release.version).bright_blue(),
+            if is_installed {
+                // The editor used by the project is installed, finish the line.
+                String::default()
+            } else if create_report {
+                // The editor used by the project is not installed, and we're writing to a file.
+                format!(
+                    " > [install in Unity HUB]({})",
+                    updates.current_release.unity_hub_deep_link
+                )
+            } else {
+                // The editor used by the project is not installed, and we're writing to the terminal.
+                String::default()
+            }
+        ),
         installed_marker,
-        " ".repeat(INDENT.len() - 1),
-        version,
-        updates.current_release.release_date.format("%Y-%m-%d"),
-        release_notes_url(updates.current_release.version).bright_blue(),
     );
-
-    if is_installed {
-        // The editor used by the project is installed, finish the line.
-        println!();
-    } else if create_report {
-        // The editor used by the project is not installed, and we're writing to a file.
-        println!(
-            " > [install in Unity HUB]({})",
-            updates.current_release.unity_hub_deep_link
-        );
-    } else {
-        // The editor used by the project is not installed, and we're writing to the terminal.
-        println!();
-    }
 
     Ok(())
 }
 
-fn print_available_updates(releases: &SortedReleases) -> anyhow::Result<()> {
-    println_bold!("Available update(s):");
+fn print_available_updates(releases: &SortedReleases, report: &Report) -> anyhow::Result<()> {
+    report.header("Available update(s):", HeaderLevel::H2);
     let max_len = releases
         .iter()
         .map(|rd| rd.version.to_interned_str().len())
@@ -195,20 +205,20 @@ fn print_available_updates(releases: &SortedReleases) -> anyhow::Result<()> {
         .ok_or_else(|| anyhow!("No releases"))?;
 
     for release in releases.iter() {
-        let release_date = release.release_date.format("%Y-%m-%d");
-
-        print!(
-            "- {:<max_len$} ({}) - {}",
-            release.version.to_interned_str().blue().bold(),
-            release_date,
-            release_notes_url(release.version).bright_blue(),
+        report.marked_item(
+            format!(
+                "{:<max_len$} ({}) - {}{}",
+                release.version.to_interned_str().blue().bold(),
+                release.release_date.format("%Y-%m-%d"),
+                release_notes_url(release.version).bright_blue(),
+                if release.version.is_editor_installed()? {
+                    format!(" > {}", "installed".bold())
+                } else {
+                    String::default()
+                }
+            ),
+            '-',
         );
-
-        if release.version.is_editor_installed()? {
-            println!(" > {}", "installed".bold());
-        } else {
-            println!();
-        }
     }
 
     Ok(())

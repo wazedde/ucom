@@ -7,7 +7,7 @@ use path_absolutize::Absolutize;
 
 use crate::cli_add::UnityTemplateFile;
 use crate::cli_new::NewArguments;
-use crate::commands::{INDENT, PERSISTENT_BUILD_SCRIPT_ROOT, add_file_to_project, println_bold};
+use crate::commands::{PERSISTENT_BUILD_SCRIPT_ROOT, add_file_to_project, println_bold};
 use crate::unity::installations::Installations;
 use crate::unity::{build_command_line, spawn_and_forget, wait_with_stdout};
 use crate::utils::path_ext::PlatformConsistentPathExt;
@@ -56,9 +56,7 @@ pub fn new_project(arguments: NewArguments) -> anyhow::Result<()> {
     if arguments.add_builder_menu {
         let parent_dir = &PathBuf::from(PERSISTENT_BUILD_SCRIPT_ROOT);
 
-        print!("{INDENT}");
         add_file_to_project(&project_dir, parent_dir, UnityTemplateFile::Builder)?;
-        print!("{INDENT}");
         add_file_to_project(&project_dir, parent_dir, UnityTemplateFile::BuilderMenu)?;
     }
 
@@ -95,7 +93,6 @@ fn git_init(project_dir: impl AsRef<Path>, include_lfs: bool) -> anyhow::Result<
         return Err(anyhow!("{}", String::from_utf8_lossy(&output.stderr))).context(init_context);
     }
 
-    print!("{INDENT}");
     add_file_to_project(
         project_dir,
         PathBuf::default(),
@@ -119,7 +116,6 @@ fn git_init(project_dir: impl AsRef<Path>, include_lfs: bool) -> anyhow::Result<
                 .context(lfs_context);
         }
 
-        print!("{INDENT}");
         add_file_to_project(
             project_dir,
             PathBuf::default(),
