@@ -45,7 +45,7 @@ fn show_recursive_project_info(
     };
 
     let path = utils::resolve_absolute_dir_path(&path)?;
-    report.paragraph(format!(
+    report.paragraph(format_args!(
         "Searching for Unity projects in: {}",
         path.normalized_display()
     ));
@@ -56,7 +56,7 @@ fn show_recursive_project_info(
             report.blank_line();
             if let Err(err) = print_project_info(&path, packages_level, &report, show_release_notes)
             {
-                report.list_item(format!("{} {}", "Error:".red(), err));
+                report.list_item(format_args!("{} {}", "Error:".red(), err));
             }
             directories.skip_current_dir();
         }
@@ -89,7 +89,7 @@ fn show_project_info(
         if install_required {
             install_latest_matching(version.to_interned_str(), mode)?;
         } else {
-            report.paragraph(format!(
+            report.paragraph(format_args!(
                 "Use the `{}` flag to install Unity version {}",
                 "--install-required".bold(),
                 version.bold()
@@ -108,19 +108,19 @@ fn print_project_info(
 ) -> anyhow::Result<Version> {
     let unity_version = project.unity_version()?;
     report.header(
-        format!("Project info for: {}", project.normalized_display()),
+        format_args!("Project info for: {}", project.normalized_display()),
         HeaderLevel::H2,
     );
 
     match ProjectSettings::from_project(project) {
         Ok(ps) => {
-            report.list_item(format!("Product name:  {}", ps.product_name.bold()));
-            report.list_item(format!("Company name:  {}", ps.company_name.bold()));
-            report.list_item(format!("Version:       {}", ps.bundle_version.bold()));
+            report.list_item(format_args!("Product name:  {}", ps.product_name.bold()));
+            report.list_item(format_args!("Company name:  {}", ps.company_name.bold()));
+            report.list_item(format_args!("Version:       {}", ps.bundle_version.bold()));
         }
 
         Err(e) => {
-            report.list_item(format!(
+            report.list_item(format_args!(
                 "{}: {}",
                 "Could not read project settings".yellow(),
                 e.yellow()
@@ -131,7 +131,7 @@ fn print_project_info(
     let is_installed = unity_version.is_editor_installed()?;
 
     report.marked_item(
-        format!(
+        format_args!(
             "Unity version: {} - {} ({})",
             unity_version.bold(),
             release_notes_url(unity_version).bright_blue(),
@@ -171,7 +171,7 @@ fn print_project_info(
 
         report.blank_line();
         report.header(
-            format!("Release notes for [{}]({url})", release.version),
+            format_args!("Release notes for [{}]({url})", release.version),
             HeaderLevel::H2,
         );
         report.paragraph(body);
@@ -219,14 +219,14 @@ fn print_project_packages(
 
             report.blank_line();
             report.header(
-                format!(
+                format_args!(
                     "Packages: {package_level} (L=local, E=embedded, G=git, T=tarball, R=registry, B=builtin)",
                 ),
                 HeaderLevel::H2,
             );
 
             for (name, package) in packages {
-                report.list_item(format!(
+                report.list_item(format_args!(
                     "{} {} ({})",
                     package.source.as_ref().map_or("?", |s| s.to_short_str()),
                     name,

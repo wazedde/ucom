@@ -118,7 +118,8 @@ fn display_list_with_release_dates(
     let version_groups = group_versions_by_minor(installed);
     let max_len = find_max_version_length(&version_groups);
 
-    report.when(report.is_markdown()).paragraph("```");
+    const CODE_BLOCK: &str = "```";
+    report.when(report.is_markdown()).paragraph(CODE_BLOCK);
 
     for group in version_groups.iter() {
         for info in group.iter() {
@@ -152,7 +153,7 @@ fn display_list_with_release_dates(
             ));
         }
     }
-    report.when(report.is_markdown()).paragraph("```");
+    report.when(report.is_markdown()).paragraph(CODE_BLOCK);
 }
 
 //
@@ -241,6 +242,7 @@ fn display_updates(installed: &Installations, mode: FetchMode) -> anyhow::Result
                     )
                 }
             };
+
             report.paragraph(format_args!(
                 "{marker}{stream_padding} {version_info}",
                 version_info = version_info.when(is_suggested).bold(),
@@ -316,7 +318,7 @@ fn display_latest_versions(
     let releases = fetch_latest_releases(mode)?;
     let report = Report::Terminal;
     report.header(
-        format!(
+        format_args!(
             "Latest available minor releases {}",
             format_suggested_version(releases.as_ref())
         ),
@@ -368,7 +370,7 @@ fn display_latest_versions(
             // No installed versions in the range.
             let stream = latest.stream;
 
-            report.paragraph(format!(
+            report.paragraph(format_args!(
                 "{marker}{stream_padding} {stream} {version} ({release_date})",
                 stream_padding = stream_padding(stream),
                 version = format_version_with_padding(latest.version, max_len),
@@ -419,7 +421,7 @@ fn display_available_versions(
     let mut releases = fetch_latest_releases(mode)?;
     let report = Report::Terminal;
     report.header(
-        format!(
+        format_args!(
             "Available releases {}",
             format_suggested_version(releases.as_ref())
         ),
@@ -454,10 +456,10 @@ fn display_available_versions(
             let version = format_version_with_padding(release.version, max_len);
             let stream = release.stream;
 
-            report.paragraph(format!(
+            report.paragraph(format_args!(
                 "{marker}{stream_padding} {info}",
                 stream_padding = stream_padding(stream),
-                info = (if is_installed {
+                info = if is_installed {
                     format!(
                         "{stream} {version} ({release_date}) - {url} > installed",
                         stream = stream.green(),
@@ -469,7 +471,7 @@ fn display_available_versions(
                         "{stream} {version} ({release_date}) - {url}",
                         url = release_notes_url(info.version).bright_blue()
                     )
-                })
+                }
                 .when(is_installed)
                 .bold()
             ));
@@ -498,7 +500,7 @@ fn display_installed_versions_line(
     let release_date = latest.release_date.format("%Y-%m-%d");
     let joined_versions = installed_in_range.iter().join(", ");
 
-    report.paragraph(format!(
+    report.paragraph(format_args!(
         "{marker}{stream_padding} {info}",
         stream_padding = stream_padding(stream),
         info = if is_up_to_date {

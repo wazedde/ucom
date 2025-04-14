@@ -1,6 +1,27 @@
 use std::fmt::Display;
 use yansi::Paint;
 
+/// Represents the level of a header.
+#[allow(dead_code)]
+pub enum HeaderLevel {
+    H1 = 1,
+    H2 = 2,
+    H3 = 3,
+    H4 = 4,
+}
+
+impl HeaderLevel {
+    /// Returns the header level as a string.
+    pub const fn as_str(&self) -> &str {
+        match self {
+            HeaderLevel::H1 => "#",
+            HeaderLevel::H2 => "##",
+            HeaderLevel::H3 => "###",
+            HeaderLevel::H4 => "####",
+        }
+    }
+}
+
 /// A utility for printing messages to the terminal or in Markdown format.
 pub enum Report {
     /// Prints to the terminal.
@@ -9,15 +30,6 @@ pub enum Report {
     Markdown,
     /// Does not print anything.
     Null,
-}
-
-/// Represents the level of a header.
-#[allow(dead_code)]
-pub enum HeaderLevel {
-    H1 = 1,
-    H2 = 2,
-    H3 = 3,
-    H4 = 4,
 }
 
 impl Report {
@@ -31,7 +43,7 @@ impl Report {
     pub fn header(&self, text: impl Display, level: HeaderLevel) -> &Self {
         match self {
             Report::Terminal => println!("{}", text.bold()),
-            Report::Markdown => println!("{} {}\n", "#".repeat(level as usize), text),
+            Report::Markdown => println!("{} {}\n", level.as_str(), text),
             Report::Null => {}
         }
         self
