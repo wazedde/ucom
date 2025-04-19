@@ -9,11 +9,11 @@ use crate::utils::status_line::StatusLine;
 
 #[derive(Args)]
 pub struct AddArguments {
-    /// Template file to add to project
+    /// Select the helper script or configuration file template to add.
     #[arg(value_enum)]
     pub template: UnityTemplateFile,
 
-    /// Project directory path
+    /// Path to the Unity project directory where the file should be added. Defaults to the current directory.
     #[arg(
         value_name = "DIRECTORY",
         value_hint = clap::ValueHint::DirPath,
@@ -22,7 +22,7 @@ pub struct AddArguments {
     )]
     pub project_dir: PathBuf,
 
-    /// Overwrite existing template files
+    /// Overwrite the target file if it already exists in the project directory.
     #[arg(
         short = 'f',
         long,
@@ -31,7 +31,7 @@ pub struct AddArguments {
     )]
     pub force: bool,
 
-    /// Print template content to stdout
+    /// Print the content of the selected template file to standard output instead of writing it to the project.
     #[arg(
         short = 'c',
         long,
@@ -40,7 +40,7 @@ pub struct AddArguments {
     )]
     pub display_content: bool,
 
-    /// Print template source URL
+    /// Print the source URL of the selected template file to standard output instead of writing it to the project.
     #[arg(
         short = 'u',
         long,
@@ -52,13 +52,13 @@ pub struct AddArguments {
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, ValueEnum)]
 pub enum UnityTemplateFile {
-    /// C# helper script for project building
+    /// Adds 'UnityBuilder.cs', a C# script for automating builds via the command line.
     Builder,
-    /// C# helper script adding build commands to Unity menu (includes 'builder')
+    /// Adds 'EditorMenu.cs', which includes the 'Builder' functionality and adds build commands to the Unity Editor menu.
     BuilderMenu,
-    /// Unity-specific .gitignore file
+    /// Adds a standard '.gitignore' file tailored for Unity projects.
     GitIgnore,
-    /// Unity-specific .gitattributes file
+    /// Adds a standard '.gitattributes' file tailored for Unity projects, often used with Git LFS.
     GitAttributes,
 }
 

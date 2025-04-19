@@ -7,7 +7,7 @@ pub trait FormatWhen: Display {
     where
         Self: Sized,
     {
-        // Default formatter is to just display the content.
+        // The Default formatter is to just display the content.
         ConditionalFormat {
             content: self,
             condition,

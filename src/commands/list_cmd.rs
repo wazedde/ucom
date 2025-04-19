@@ -5,14 +5,14 @@ use yansi::Paint;
 
 use crate::cli::ListType;
 use crate::commands::{
-    MARK_BULLET, MARK_NO_INFO, MARK_UP_TO_DATE, MARK_UPDATE_TO_LATEST, MARK_UPDATES_AVAILABLE,
+    MARK_BULLET, MARK_NO_INFO, MARK_UPDATES_AVAILABLE, MARK_UPDATE_TO_LATEST, MARK_UP_TO_DATE,
 };
 use crate::unity::installations::{Installations, SortedVersions};
 use crate::unity::release_api::{
-    FetchMode, Releases, SortedReleases, fetch_latest_releases, load_cached_releases,
+    fetch_latest_releases, load_cached_releases, FetchMode, Releases, SortedReleases,
 };
 use crate::unity::release_api_data::ReleaseData;
-use crate::unity::{ReleaseStream, Version, release_notes_url};
+use crate::unity::{release_notes_url, ReleaseStream, Version};
 use crate::utils::formatter::FormatWhen;
 use crate::utils::path_ext::PlatformConsistentPathExt;
 use crate::utils::report::{HeaderLevel, Report};
@@ -185,7 +185,7 @@ fn display_updates(installed: &Installations, mode: FetchMode) -> anyhow::Result
     );
 
     if releases.is_empty() {
-        return Err(anyhow!("No update information available."));
+        return Err(anyhow!("No update information is available."));
     }
 
     let version_groups = collect_version_update_info(&installed.versions, &releases);
@@ -270,7 +270,7 @@ fn collect_version_update_info<'a>(
         });
 
         if has_releases {
-            // Add update info to group (if there are any)
+            // Add update info to the group (if there are any)
             releases
                 .iter()
                 .filter(|rd| {
@@ -330,7 +330,7 @@ fn display_latest_versions(
 
     if minor_releases.is_empty() {
         return Err(anyhow!(
-            "No releases available that match `{}`",
+            "No releases are available that match `{}`",
             version_prefix.unwrap_or("*")
         ));
     }
@@ -435,7 +435,7 @@ fn display_available_versions(
     let Ok(versions) = SortedVersions::try_from(releases.iter().map(|rd| rd.version).collect_vec())
     else {
         return Err(anyhow!(
-            "No releases available that match `{}`",
+            "No releases are available that match `{}`",
             version_prefix.unwrap_or("*")
         ));
     };
@@ -491,7 +491,7 @@ fn display_installed_versions_line(
         .last()
         .filter(|&v| v == &latest.version)
         .is_some()
-        || installed_in_range // Special case for when installed version is newer than the latest.
+        || installed_in_range // Special case for when an installed version is newer than the latest.
             .last()
             .is_some_and(|&v| v > latest.version);
 
@@ -569,7 +569,7 @@ fn find_max_version_length(version_groups: &VersionInfoGroups<'_>) -> usize {
         .fold(0, std::cmp::max)
 }
 
-/// Returns list of grouped versions that are in the same minor range.
+/// Returns a list of grouped versions that are in the same minor range.
 fn group_versions_by_minor(installed: &SortedVersions) -> VersionInfoGroups<'_> {
     let version_groups = installed
         .iter()

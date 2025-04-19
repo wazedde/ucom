@@ -55,7 +55,7 @@ fn main() -> anyhow::Result<()> {
         }
 
         Command::Install { version } => install_latest_matching(&version, FetchMode::Auto)
-            .with_context(|| color_error("Cannot install Unity version")),
+            .with_context(|| color_error("Cannot install the Unity version")),
 
         Command::Info {
             project_dir,
@@ -78,29 +78,27 @@ fn main() -> anyhow::Result<()> {
             install_latest,
             report,
         } => find_project_updates(&project_dir, install_latest, report, FetchMode::Auto)
-            .with_context(|| color_error("Cannot show Unity updates for project")),
+            .with_context(|| color_error("Cannot show Unity updates for the project")),
 
         Command::Run(settings) => run_unity(settings).context(color_error("Cannot run Unity")),
 
-        Command::New(settings) => {
-            new_project(settings).with_context(|| color_error("Cannot create new Unity project"))
-        }
+        Command::New(settings) => new_project(settings)
+            .with_context(|| color_error("Cannot create the new Unity project")),
 
         Command::Open(settings) => {
-            open_project(settings).with_context(|| color_error("Cannot open Unity project"))
+            open_project(settings).with_context(|| color_error("Cannot open the Unity project"))
         }
 
         Command::Build(settings) => {
-            build_project(&settings).with_context(|| color_error("Cannot build project"))
+            build_project(&settings).with_context(|| color_error("Cannot build the project"))
         }
 
         Command::Test(settings) => {
             run_tests(&settings).with_context(|| color_error("Cannot run tests"))
         }
 
-        Command::Add(arguments) => {
-            add_to_project(&arguments).with_context(|| color_error("Cannot add file to project"))
-        }
+        Command::Add(arguments) => add_to_project(&arguments)
+            .with_context(|| color_error("Cannot add the file to the project")),
 
         Command::Cache { action: command } => {
             match command {

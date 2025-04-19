@@ -12,12 +12,12 @@ use crate::cli_test::TestArguments;
 pub const ENV_BUILD_TARGET: &str = "UCOM_BUILD_TARGET";
 pub const ENV_PACKAGE_LEVEL: &str = "UCOM_PACKAGE_LEVEL";
 
-/// Unity Commander: A command-line interface for Unity projects.
+/// Unity Commander: A command-line interface for managing Unity projects.
 #[derive(clap::Parser)]
 #[command(author, version, about)]
 #[command(arg_required_else_help = true)]
 pub struct Cli {
-    /// Suppress colored output
+    /// Suppress colored output in the terminal.
     #[arg(long, short = 'n')]
     pub no_color: bool,
 
@@ -27,102 +27,103 @@ pub struct Cli {
 
 #[derive(clap::Subcommand)]
 pub enum Command {
-    /// List installed Unity versions
+    /// List installed or available Unity versions.
     #[command(visible_alias = "ls")]
     List {
-        /// Specify what to list
+        /// Specify the type of versions to list.
         #[arg(value_enum, default_value = "installed")]
         list_type: ListType,
 
-        /// Filter by Unity version prefix (e.g. '2021')
+        /// Filter versions by a prefix (e.g., '2021', '2022.3').
         #[arg(short = 'u', long = "unity", value_name = "VERSION")]
         version_filter: Option<String>,
 
-        /// Force downloading release data from Unity API
+        /// Force download of release data from the Unity API, bypassing cache.
         #[arg(short = 'f', long)]
         force: bool,
     },
 
-    /// Install Unity version
+    /// Install a specific Unity version.
     #[command()]
     Install {
-        /// Version to install (prefix like '2023.1' or full version like '2021.1.0f1')
+        /// Version to install (e.g., '2023.1', '2021.1.0f1').
         #[arg(value_name = "VERSION")]
         version: String,
     },
 
-    /// Display project information
+    /// Display information about a Unity project.
     #[command(visible_alias = "i")]
     Info {
-        /// Project directory path
+        /// Path to the Unity project directory. Defaults to the current directory.
         #[arg(value_name = "DIRECTORY", value_hint = clap::ValueHint::DirPath, default_value = ".")]
         project_dir: PathBuf,
 
-        /// Install required Unity version if not present
+        /// Install the project's required Unity version if it's not already installed.
         #[arg(long)]
         install_required: bool,
 
-        /// Recursively search for Unity projects
+        /// Recursively search directories for the Unity project.
         #[arg(short = 'R', long)]
         recursive: bool,
 
-        /// Package information detail level
+        /// Set the level of detail for displaying package information.
         #[arg(short = 'p', long, default_value = "no-unity", env = ENV_PACKAGE_LEVEL)]
         packages: PackagesInfoLevel,
 
-        /// Generate Markdown report of release notes
+        /// Generate a Markdown report with available updates.
         #[arg(short = 'r', long)]
         report: bool,
     },
 
-    /// Check for available Unity version updates for project
+    /// Check for newer available Unity versions suitable for a project.
     #[command(visible_alias = "u")]
     Updates {
-        /// Project directory path
+        /// Path to the Unity project directory. Defaults to the current directory.
         #[arg(value_name = "DIRECTORY", value_hint = clap::ValueHint::DirPath, default_value = ".")]
         project_dir: PathBuf,
 
-        /// Install latest Unity version if not present
+        /// Install the latest suitable Unity version if it's not already installed.
         #[arg(long)]
         install_latest: bool,
 
-        /// Generate Markdown report of release notes
+        /// Generate a Markdown report of applicable release notes.
         #[arg(short = 'r', long)]
         report: bool,
     },
 
-    /// Create new Unity project and Git repository
+    /// Create a new Unity project, optionally initializing a Git repository.
     #[command()]
     New(NewArguments),
 
-    /// Open Unity project in the editor
+    /// Open a Unity project in the editor.
     #[command(visible_alias = "o")]
     Open(OpenArguments),
 
-    /// Build Unity project
+    /// Build a Unity project for a specified target platform.
     #[command(visible_alias = "b")]
     Build(BuildArguments),
 
-    /// Run project tests
+    /// Run tests within a Unity project.
     #[command(visible_alias = "t")]
     Test(TestArguments),
 
-    /// Run Unity with specified arguments
+    /// Run the Unity editor with custom command-line arguments.
     #[command(visible_alias = "r")]
     Run(RunArguments),
 
-    /// Add helper script or configuration file
+    /// Add a helper script or configuration file to the project.
     Add(AddArguments),
 
-    /// Manage download cache
+    /// Manage the download cache for Unity release data.
     ///
-    /// By default, cached files expire after one hour.
-    /// The system will re-download required files after this timeout.
+    /// By default, cached files expire after one hour. The system will
+    /// automatically re-download required files after this timeout.
     ///
-    /// Control caching with `UCOM_ENABLE_CACHE` environment variable.
-    /// Set to 'false' to disable caching and always download fresh data.
+    /// Control caching behavior with the `UCOM_ENABLE_CACHE` environment variable.
+    /// Set it to 'false' to disable caching and always download fresh data.
     #[command()]
     Cache {
+        /// Action to perform on the cache.
         #[arg(value_enum)]
         action: CacheAction,
     },
@@ -130,71 +131,71 @@ pub enum Command {
 
 #[derive(Args)]
 pub struct OpenArguments {
-    /// Project directory path
+    /// Path to the Unity project directory. Defaults to the current directory.
     #[arg(value_name = "DIRECTORY", value_hint = clap::ValueHint::DirPath, default_value = ".")]
     pub project_dir: PathBuf,
 
-    /// Upgrade project's Unity version.
-    /// If no version specified, uses latest in project's `major.minor` range.
-    /// Version prefix like '2021' selects latest installed in that range.
-    #[arg(short = 'U', long = "upgrade", value_name = "VERSION")]
-    pub upgrade_version: Option<Option<String>>,
+    /// Upgrade the project to a newer Unity version before opening.
+    /// If no version is specified, uses the latest installed version matching the project's `major.minor`.
+    /// A version prefix (e.g., '2021') selects the latest installed version in that release series.
+    #[arg(short = 'U', long = "upgrade", value_name = "VERSION", num_args = 0..=1, require_equals = true, default_missing_value = None)]
+    pub upgrade_version: Option<Option<String>>, // Outer Option: present?, Inner Option: value provided?
 
-    /// Set active build target
+    /// Set the active build target.
     #[arg(short = 't', long, value_name = "NAME")]
     pub target: Option<OpenTarget>,
 
-    /// Wait for Unity to exit before returning
+    /// Wait for the Unity editor process to exit before the command returns.
     #[arg(short = 'w', long)]
     pub wait: bool,
 
-    /// Close editor after opening project
+    /// Automatically close the Unity editor after the project load completes.
     #[arg(short = 'Q', long)]
     pub quit: bool,
 
-    /// Suppress messages
+    /// Suppress informational messages from ucom before launching Unity.
     #[arg(short = 'q', long)]
     pub quiet: bool,
 
-    /// Show command without executing
+    /// Show the command that would be executed without actually running it.
     #[arg(short = 'n', long)]
     pub dry_run: bool,
 
-    /// Arguments to pass directly to Unity
+    /// Additional arguments to pass directly to the Unity editor executable.
     #[arg(last = true, value_name = "UNITY_ARGS")]
     pub args: Option<Vec<String>>,
 }
 
 #[derive(Debug, Display, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, ValueEnum)]
 pub enum ListType {
-    /// List installed Unity versions
+    /// List Unity versions currently installed on the system.
     Installed,
-    /// Show installed versions and check for updates
+    /// List installed versions and check for available updates for each.
     Updates,
-    /// Show latest available Unity versions
+    /// List the latest available version for each major/minor release series.
     Latest,
-    /// Show all available Unity versions
+    /// List all known available Unity versions from the release data.
     All,
 }
 
 #[derive(Display, Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, ValueEnum)]
 pub enum PackagesInfoLevel {
-    /// No package information
+    /// Do not display any package information.
     #[value(name = "none")]
     #[strum(serialize = "none")]
     None,
 
-    /// Non-Unity packages only
+    /// Display information only for non-Unity packages (e.g., custom, third-party).
     #[value(name = "no-unity")]
     #[strum(serialize = "no-unity")]
     ExcludingUnity,
 
-    /// Include Unity registry packages
+    /// Display information for non-Unity and Unity registry packages.
     #[value(name = "inc-unity")]
     #[strum(serialize = "inc-unity")]
     IncludingUnity,
 
-    /// All packages including built-in and dependencies
+    /// Display information for all packages, including built-in and dependencies.
     #[value(name = "all")]
     #[strum(serialize = "all")]
     All,
@@ -202,8 +203,8 @@ pub enum PackagesInfoLevel {
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, ValueEnum)]
 pub enum CacheAction {
-    /// Remove all cached files
+    /// Remove all cached download files.
     Clear,
-    /// Show list of cached files
+    /// Display a list of currently cached files.
     List,
 }

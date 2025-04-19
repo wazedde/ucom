@@ -5,11 +5,13 @@ use clap::Args;
 
 #[derive(Args)]
 pub struct NewArguments {
-    /// Unity version for new project (e.g. '2021' uses latest 2021.x.y)
-    #[arg(short = 'u', long = "unity", value_name = "VERSION")]
+    /// Specify the Unity version to use for the new project.
+    /// Accepts a full version (e.g., '2022.3.5f1') or a prefix (e.g., '2021', '2022.3').
+    /// A prefix will select the latest installed version matching that prefix. Required.
+    #[arg(short = 'u', long = "unity", value_name = "VERSION", required = true)]
     pub version_pattern: String,
 
-    /// Target directory (must not exist)
+    /// Path and name for the new project directory. This directory must not exist yet. Required.
     #[arg(
         required = true,
         value_name = "DIRECTORY",
@@ -17,41 +19,41 @@ pub struct NewArguments {
     )]
     pub project_dir: PathBuf,
 
-    /// Set active build target
+    /// Set the initial active build target for the new project (e.g., win64, android).
     #[arg(short = 't', long, value_name = "NAME")]
     pub target: Option<OpenTarget>,
 
-    /// Add build menu script to project
+    /// Add helper scripts ('UnityBuilder.cs', 'EditorMenu.cs') for building via ucom or the Editor menu.
     ///
-    /// Adds both EditorMenu.cs and UnityBuilder.cs scripts to Assets/Plugins/Ucom/Editor directory
+    /// Files are placed in 'Assets/Plugins/Ucom/Editor/'.
     #[arg(long)]
     pub add_builder_menu: bool,
 
-    /// Initialize Git LFS with Unity-specific attributes
+    /// Initialize a Git repository, configure Git LFS, and add a Unity-specific '.gitattributes' file.
     #[arg(long = "lfs")]
     pub include_lfs: bool,
 
-    /// Skip Git repository initialization
-    #[arg(long, conflicts_with = "include_lfs")]
+    /// Skip initializing a Git repository for the new project.
+    #[arg(long, conflicts_with = "include_lfs")] // Conflict remains valid
     pub no_git: bool,
 
-    /// Wait for Unity to exit before returning
+    /// Wait for the initial Unity editor process (used for project creation) to exit before returning.
     #[arg(short = 'w', long)]
     pub wait: bool,
 
-    /// Close editor after project creation
+    /// Automatically close the Unity editor immediately after the project creation process finishes.
     #[arg(short = 'Q', long)]
     pub quit: bool,
 
-    /// Suppress messages
+    /// Suppress informational messages from ucom during project creation.
     #[arg(short = 'q', long)]
     pub quiet: bool,
 
-    /// Show command without executing
+    /// Show the command that would be executed without actually running it.
     #[arg(short = 'n', long)]
     pub dry_run: bool,
 
-    /// Arguments to pass directly to Unity
+    /// Additional arguments to pass directly to the Unity editor executable during project creation.
     #[arg(last = true, value_name = "UNITY_ARGS")]
     pub args: Option<Vec<String>>,
 }
