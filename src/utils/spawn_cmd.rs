@@ -37,7 +37,7 @@ impl From<std::process::Output> for CommandError {
 impl From<io::Error> for CommandError {
     fn from(err: io::Error) -> Self {
         Self {
-            exit_code: -1,
+            exit_code: err.raw_os_error().unwrap_or(-1),
             stderr: err.to_string(),
         }
     }
@@ -63,12 +63,10 @@ pub fn build_command_line(cmd: &Command) -> String {
 
     // Handle spaces in the path.
     if line.contains(char::is_whitespace) {
-        if cfg!(target_os = "macos") {
-            line = format!("\"{line}\"");
-        } else if cfg!(target_os = "windows") {
+        if cfg!(target_os = "windows") {
             line = format!("& \"{line}\"");
         } else {
-            unimplemented!();
+            line = format!("\"{line}\"");
         }
     }
 
@@ -93,7 +91,7 @@ pub fn wait_with_log_output(mut cmd: Command, log_file: &Path) -> Result<(), Com
 
     let stop_monitoring = Arc::new(AtomicBool::new(false));
 
-    let echo_runner = thread::spawn({
+    let log_monitor = thread::spawn({
         let stop_monitoring = stop_monitoring.clone();
         let log_file = log_file.to_owned();
         move || monitor_log_file(&log_file, Duration::from_millis(100), &stop_monitoring)
@@ -102,8 +100,8 @@ pub fn wait_with_log_output(mut cmd: Command, log_file: &Path) -> Result<(), Com
     let output = child.wait_with_output();
     stop_monitoring.store(true, Ordering::Release);
 
-    // Wait for echo to finish.
-    echo_runner.join().map_err(|e| CommandError {
+    // Wait for the log monitor thread to finish.
+    log_monitor.join().map_err(|e| CommandError {
         exit_code: -1,
         stderr: format!("Echo runner thread panicked: {e:?}"),
     })??;

@@ -5,14 +5,14 @@ use yansi::Paint;
 
 use crate::cli::ListType;
 use crate::commands::{
-    MARK_BULLET, MARK_NO_INFO, MARK_UPDATES_AVAILABLE, MARK_UPDATE_TO_LATEST, MARK_UP_TO_DATE,
+    MARK_BULLET, MARK_NO_INFO, MARK_UP_TO_DATE, MARK_UPDATE_TO_LATEST, MARK_UPDATES_AVAILABLE,
 };
 use crate::unity::installations::{Installations, SortedVersions};
 use crate::unity::release_api::{
-    fetch_latest_releases, load_cached_releases, FetchMode, Releases, SortedReleases,
+    FetchMode, Releases, SortedReleases, fetch_latest_releases, load_cached_releases,
 };
 use crate::unity::release_api_data::ReleaseData;
-use crate::unity::{release_notes_url, ReleaseStream, Version};
+use crate::unity::{ReleaseStream, Version, release_notes_url};
 use crate::utils::formatter::FormatWhen;
 use crate::utils::path_ext::PlatformConsistentPathExt;
 use crate::utils::report::{HeaderLevel, Report};
@@ -115,10 +115,10 @@ fn display_list_with_release_dates(
     releases: &Releases,
     report: &Report,
 ) {
+    const CODE_BLOCK: &str = "```";
     let version_groups = group_versions_by_minor(installed);
     let max_len = find_max_version_length(&version_groups);
 
-    const CODE_BLOCK: &str = "```";
     report.when(report.is_markdown()).paragraph(CODE_BLOCK);
 
     for group in version_groups.iter() {
@@ -550,7 +550,7 @@ enum VersionType<'a> {
 
 const fn stream_padding(stream: ReleaseStream) -> &'static str {
     match stream {
-        ReleaseStream::Beta | ReleaseStream::Tech => "─",
+        ReleaseStream::Beta | ReleaseStream::Tech | ReleaseStream::Supp => "─",
         ReleaseStream::Lts => "──",
         ReleaseStream::Other | ReleaseStream::Alpha => "",
     }

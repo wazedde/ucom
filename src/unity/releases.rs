@@ -11,17 +11,26 @@ pub enum ReleaseStream {
     #[serde(rename = "LTS")]
     #[strum(serialize = "LTS")]
     Lts,
+
     #[serde(rename = "TECH")]
     #[strum(serialize = "TECH")]
     Tech,
+
     #[serde(rename = "BETA")]
     #[strum(serialize = "BETA")]
     Beta,
+
     #[serde(rename = "ALPHA")]
     #[strum(serialize = "ALPHA")]
     Alpha,
+
+    #[serde(rename = "SUPPORTED")]
+    #[strum(serialize = "SUPP")]
+    Supp,
+
+    // Fallback for unknown values.
     #[serde(other)]
-    #[strum(serialize = "    ")]
+    #[strum(serialize = "OTHER")]
     Other,
 }
 
