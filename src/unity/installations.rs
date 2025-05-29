@@ -227,7 +227,7 @@ impl Installations {
             None => {
                 // The editor directory is not set and no installations were found.
                 anyhow!(
-                    "No Unity installations found in the default directory `{}`. Please set the `{ENV_EDITOR_DIR}` environment variable to the correct path.",
+                    "No Unity installations found in `{}`. Set `{ENV_EDITOR_DIR}` or install Unity.",
                     platform::UNITY_EDITOR_DIR
                 )
             }
