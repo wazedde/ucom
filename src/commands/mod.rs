@@ -5,6 +5,8 @@ use anyhow::anyhow;
 use chrono::TimeDelta;
 
 use crate::cli_add::UnityTemplateFile;
+use crate::utils::path_ext::PlatformConsistentPathExt;
+
 pub use crate::commands::add_cmd::add_to_project;
 pub use crate::commands::build_cmd::build_project;
 pub use crate::commands::info_cmd::project_info;
@@ -82,13 +84,3 @@ fn create_file(file_path: impl AsRef<Path>, content: &str) -> anyhow::Result<()>
     fs::create_dir_all(parent_dir)?;
     fs::write(file_path, content).map_err(Into::into)
 }
-
-/// Version of `println!` that writes bold text.
-macro_rules! println_bold {
-    ($($arg:tt)*) => {
-        println!("{}", yansi::Paint::new(format!($($arg)*)).bold());
-    };
-}
-
-use crate::utils::path_ext::PlatformConsistentPathExt;
-use println_bold;
