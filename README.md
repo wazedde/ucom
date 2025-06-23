@@ -41,7 +41,7 @@ additional features like building projects and running tests. Inspired by cargo 
 - `ucom build android ~/Develop/MyProject --mode editor-quit` - Build Android for specific project and close editor
 - `ucom test playmode --categories "!Slow;UI"` - Run playmode tests, excluding slow tests but including UI tests
 - `ucom new ~/Develop/MyProject -u 2021.3.1 --lfs` - Create new project with Git LFS support
-- `ucom open ~/Develop/MyProject -U=2021.3` - Open and upgrade project to latest Unity version in that range
+- `ucom open ~/Develop/MyProject --upgrade=2021.3` - Open and upgrade project to latest Unity version in that range
 - `ucom info ~/Develop/MyProject --install-required` - Install Unity version if not present
 - `ucom updates ~/Develop/MyProject --install-latest` - Install latest Unity version if not present
 - `ucom run -u 2022.3 -- -createProject ~/path/to/project -quit` - Run Unity with custom arguments

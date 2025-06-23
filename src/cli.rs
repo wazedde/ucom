@@ -138,7 +138,7 @@ pub struct OpenArguments {
     /// Upgrade the project to a newer Unity version before opening.
     /// If no version is specified, uses the latest installed version matching the project's `major.minor`.
     /// A version prefix (e.g., '2021') selects the latest installed version in that release series.
-    #[arg(short = 'U', long = "upgrade", value_name = "VERSION", num_args = 0..=1, require_equals = true, default_missing_value = None)]
+    #[arg(long = "upgrade", value_name = "VERSION", num_args = 0..=1, require_equals = true, default_missing_value = None)]
     pub upgrade_version: Option<Option<String>>, // Outer Option: present?, Inner Option: value provided?
 
     /// Set the active build target.
