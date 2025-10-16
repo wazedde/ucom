@@ -126,13 +126,13 @@ fn display_list_with_release_dates(
             let stream = release.map_or(ReleaseStream::Other, |rd| rd.stream);
 
             let error_label = release.and_then(|rd| rd.error_label());
-            let has_error = Condition::cached(error_label.is_some());
+            let has_error = error_label.is_some();
 
             let release_info = format!(
                 "{stream} {vs} ({rd}) {mk} {description}",
                 vs = format_args!("{:<max_len$}", info.version.to_interned_str())
                     .paint(ERROR)
-                    .whenever(has_error),
+                    .whenever(Condition::cached(has_error)),
                 rd = release.map_or_else(
                     || "----------".to_string(),
                     |rd| rd.release_date.format("%Y-%m-%d").to_string(),
@@ -226,7 +226,7 @@ fn display_updates(installed: &Installations, mode: UpdatePolicy) -> anyhow::Res
             let stream_padding = stream_padding(stream);
 
             let error_label = release.error_label();
-            let has_error = Condition::cached(error_label.is_some());
+            let has_error = error_label.is_some();
 
             let release_info = match &info.version_type {
                 VersionType::HasLaterInstalled => {
@@ -250,7 +250,7 @@ fn display_updates(installed: &Installations, mode: UpdatePolicy) -> anyhow::Res
                     };
 
                     if is_last_version_in_group {
-                        let style = if has_error() { ERROR } else { UP_TO_DATE };
+                        let style = if has_error { ERROR } else { UP_TO_DATE };
                         format!(
                             "{stream} {vs} ({release_date}) {mk} Up to date{error_link}",
                             vs = version_str.paint(style),
@@ -259,7 +259,7 @@ fn display_updates(installed: &Installations, mode: UpdatePolicy) -> anyhow::Res
                                     .paint(ERROR)),
                         )
                     } else {
-                        let style = if has_error() { ERROR } else { HAS_UPDATE };
+                        let style = if has_error { ERROR } else { HAS_UPDATE };
                         format!(
                             "{stream} {vs} ({release_date}) {mk} Update(s) available{error_link}",
                             vs = version_str.paint(style),
@@ -270,7 +270,7 @@ fn display_updates(installed: &Installations, mode: UpdatePolicy) -> anyhow::Res
                     }
                 }
                 VersionType::UpdateToLatest(release_info) => {
-                    let style = if has_error() { ERROR } else { IS_UPDATE };
+                    let style = if has_error { ERROR } else { IS_UPDATE };
                     format!(
                         "{stream} {vs} ({release_date}) {mk} {rd}",
                         vs = version_str.paint(style),
@@ -512,7 +512,7 @@ fn display_available_versions(
             let stream = release.stream;
 
             let error_label = release.error_label();
-            let has_error = Condition::cached(error_label.is_some());
+            let has_error = error_label.is_some();
 
             let description = format_release_description(info, Some(release));
             let mark = if error_label.is_some() {
@@ -525,13 +525,13 @@ fn display_available_versions(
                 "{line_marker}{sp} {ds}",
                 sp = stream_padding(stream),
                 ds = if is_installed {
-                    let style = if has_error() { ERROR } else { UP_TO_DATE };
+                    let style = if has_error { ERROR } else { UP_TO_DATE };
                     format!(
                         "{stream} {vs} ({release_date}) {mark} {description} > installed",
                         vs = version.paint(style),
                     )
                 } else {
-                    let style = if has_error() { ERROR } else { UNSTYLED };
+                    let style = if has_error { ERROR } else { UNSTYLED };
                     format!(
                         "{stream} {vs} ({release_date}) {mark} {description}",
                         vs = version.paint(style)
