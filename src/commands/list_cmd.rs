@@ -68,13 +68,13 @@ fn display_installed_versions(installed: &Installations, mode: UpdatePolicy) -> 
     let report = Report::Terminal;
     report.header(
         format_args!(
-            "Unity versions in: {} {}",
-            &installed
+            "Unity versions in: {di} {sv}",
+            di = &installed
                 .install_dir
                 .normalized_display()
                 .when(report.is_markdown())
                 .md_code(),
-            format_suggested_version(&releases),
+            sv = format_suggested_version(&releases),
         ),
         HeaderLevel::H1,
     );
@@ -100,9 +100,9 @@ fn display_basic_list(installed: &SortedVersions, report: &Report) {
             );
 
             report.paragraph(format_args!(
-                "{line_marker} {:<max_len$} - {}",
-                info.version.to_interned_str(),
-                release_notes_url(info.version).paint(LINK)
+                "{line_marker} {vs:<max_len$} - {rn}",
+                vs = info.version.to_interned_str(),
+                rn = release_notes_url(info.version).paint(LINK)
             ));
         }
     }
@@ -128,36 +128,33 @@ fn display_list_with_release_dates(
             let error_label = release.and_then(|rd| rd.error_label());
             let has_error = error_label.is_some();
 
-            let release_info = format!(
-                "{stream} {vs} ({rd}) {mk} {description}",
-                vs = format_args!("{:<max_len$}", info.version.to_interned_str())
-                    .paint(ERROR)
-                    .whenever(Condition::cached(has_error)),
-                rd = release.map_or_else(
-                    || "----------".to_string(),
-                    |rd| rd.release_date.format("%Y-%m-%d").to_string(),
-                ),
-                mk = if error_label.is_some() {
-                    MARK_ERROR.paint(ERROR)
-                } else if is_suggested {
-                    MARK_SUGGESTED.paint(UNSTYLED)
-                } else {
-                    MARK_BULLET.paint(UNSTYLED)
-                },
-                description = format_release_description(info, release),
-            )
-            .to_string();
-
             report.paragraph(format_args!(
-                "{lm}{stream_padding} {release_info}",
+                "{lm}{sp} {ri}",
                 lm = slim_branch_marker(
                     info.version == group.first().version,
                     info.version == group.last().version,
                 ),
-                stream_padding = stream_padding(stream),
-                release_info = release_info
-                    .bold()
-                    .whenever(Condition::cached(is_suggested))
+                sp = stream_padding(stream),
+                ri = format_args!(
+                    "{stream} {vs} ({rd}) {mk} {description}",
+                    vs = format_args!("{v:<max_len$}", v = info.version.to_interned_str())
+                        .paint(ERROR)
+                        .whenever(Condition::cached(has_error)),
+                    rd = release.map_or_else(
+                        || "----------".to_string(),
+                        |rd| rd.release_date.format("%Y-%m-%d").to_string(),
+                    ),
+                    mk = if error_label.is_some() {
+                        MARK_ERROR.paint(ERROR)
+                    } else if is_suggested {
+                        MARK_SUGGESTED.paint(UNSTYLED)
+                    } else {
+                        MARK_BULLET.paint(UNSTYLED)
+                    },
+                    description = format_release_description(info, release),
+                )
+                .bold()
+                .whenever(Condition::cached(is_suggested))
             ));
         }
     }
@@ -192,13 +189,13 @@ fn display_updates(installed: &Installations, mode: UpdatePolicy) -> anyhow::Res
     let report = Report::Terminal;
     report.header(
         format_args!(
-            "Updates for Unity versions in: {} {}",
-            installed
+            "Updates for Unity versions in: {di} {sv}",
+            di = installed
                 .install_dir
                 .normalized_display()
                 .when(report.is_markdown())
                 .md_code(),
-            format_suggested_version(releases.as_ref())
+            sv = format_suggested_version(releases.as_ref())
         ),
         HeaderLevel::H1,
     );
@@ -283,16 +280,19 @@ fn display_updates(installed: &Installations, mode: UpdatePolicy) -> anyhow::Res
                 VersionType::NoReleaseInfo => {
                     format!(
                         "{stream} {version_str} ({release_date}) {MARK_NO_INFO} {}",
-                        format_args!("No {} update info available", info.version.build_type,)
-                            .paint(NO_UPDATE_INFO)
+                        format_args!(
+                            "No {bt} update info available",
+                            bt = info.version.build_type,
+                        )
+                        .paint(NO_UPDATE_INFO)
                     )
                 }
             }
             .to_string();
 
             report.paragraph(format_args!(
-                "{line_marker}{stream_padding} {}",
-                release_info
+                "{line_marker}{stream_padding} {ri}",
+                ri = release_info
                     .bold()
                     .whenever(Condition::cached(is_suggested)),
             ));
@@ -368,8 +368,8 @@ fn display_latest_versions(
     let report = Report::Terminal;
     report.header(
         format_args!(
-            "Latest available minor releases {}",
-            format_suggested_version(releases.as_ref())
+            "Latest available minor releases {sv}",
+            sv = format_suggested_version(releases.as_ref())
         ),
         HeaderLevel::H1,
     );
@@ -477,8 +477,8 @@ fn display_available_versions(
     let report = Report::Terminal;
     report.header(
         format_args!(
-            "Available releases {}",
-            format_suggested_version(releases.as_ref())
+            "Available releases {sv}",
+            sv = format_suggested_version(releases.as_ref())
         ),
         HeaderLevel::H1,
     );
@@ -566,9 +566,9 @@ fn display_installed_versions_line(
     let joined_versions = installed_in_range.iter().join(", ");
 
     report.paragraph(format_args!(
-        "{line_marker}{stream_padding} {info}",
-        stream_padding = stream_padding(stream),
-        info = if is_up_to_date {
+        "{line_marker}{sp} {ri}",
+        sp = stream_padding(stream),
+        ri = if is_up_to_date {
             format!(
                 "{stream} {vs} ({release_date}) {MARK_UP_TO_DATE} Installed: {joined_versions}",
                 vs = version.paint(UP_TO_DATE),
@@ -620,7 +620,7 @@ const fn stream_padding(stream: ReleaseStream) -> &'static str {
 }
 
 fn format_version_with_padding(version: Version, max_len: usize) -> String {
-    format!("{:<max_len$}", version.to_interned_str())
+    format!("{v:<max_len$}", v = version.to_interned_str())
 }
 
 /// Returns the max length of the version strings in the groups.
@@ -678,9 +678,10 @@ fn format_release_description(info: &VersionInfo, release: Option<&ReleaseData>)
 }
 
 fn create_description_url(le: &LabelElement) -> String {
-    find_first_url(&le.description)
-        .map(|url| le.label_text.paint(ERROR).link(url).to_string())
-        .unwrap_or_else(|| le.label_text.paint(ERROR).to_string())
+    find_first_url(&le.description).map_or_else(
+        || le.label_text.paint(ERROR).to_string(),
+        |url| le.label_text.paint(ERROR).link(url).to_string(),
+    )
 }
 
 fn collect_latest_minor_releases<'a>(
