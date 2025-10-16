@@ -1,4 +1,4 @@
-use crate::unity::release_api::{FetchMode, SortedReleases, fetch_latest_releases};
+use crate::unity::release_api::{SortedReleases, UpdatePolicy, fetch_latest_releases};
 use crate::unity::release_api_data::ReleaseData;
 use crate::unity::{BuildType, Version};
 use serde::{Deserialize, Serialize};
@@ -41,7 +41,10 @@ pub struct ReleaseUpdates {
 }
 
 /// Finds the available updates for the given version.
-pub fn find_available_updates(version: Version, mode: FetchMode) -> anyhow::Result<ReleaseUpdates> {
+pub fn find_available_updates(
+    version: Version,
+    mode: UpdatePolicy,
+) -> anyhow::Result<ReleaseUpdates> {
     let mut releases = fetch_latest_releases(mode)?;
 
     releases.retain(|rd| {
@@ -53,7 +56,7 @@ pub fn find_available_updates(version: Version, mode: FetchMode) -> anyhow::Resu
     let index = releases
         .iter()
         .position(|rd| rd.version == version)
-        .ok_or_else(|| anyhow::anyhow!("Version {} not found in releases", version))?;
+        .ok_or_else(|| anyhow::anyhow!("Version {version} not found in releases"))?;
     let current_release = releases.remove(index);
 
     Ok(ReleaseUpdates {
@@ -89,12 +92,9 @@ pub fn release_notes_url(version: Version) -> Url {
         BuildType::Beta => Url(format!(
             "https://unity.com/releases/editor/beta/{version}#notes"
         )),
-        BuildType::Final | BuildType::ReleaseCandidate => {
-            let version = format!("{}.{}.{}", version.major, version.minor, version.patch);
-            Url(format!(
-                "https://unity.com/releases/editor/whats-new/{version}#notes"
-            ))
-        }
+        BuildType::Final | BuildType::ReleaseCandidate => Url(format!(
+            "https://unity.com/releases/editor/whats-new/{version}#notes"
+        )),
         BuildType::FinalPatch => Url(format!(
             "https://unity.com/releases/editor/whats-new/{version}#notes"
         )),
@@ -117,7 +117,7 @@ mod releases_tests {
         let url = super::release_notes_url(version);
         assert_eq!(
             url.as_ref(),
-            "https://unity.com/releases/editor/whats-new/2021.2.14#notes"
+            "https://unity.com/releases/editor/whats-new/2021.2.14f1#notes"
         );
     }
 
@@ -127,7 +127,7 @@ mod releases_tests {
         let url = super::release_notes_url(version);
         assert_eq!(
             url.as_ref(),
-            "https://unity.com/releases/editor/whats-new/5.1.0#notes"
+            "https://unity.com/releases/editor/whats-new/5.1.0f1#notes"
         );
     }
 
@@ -137,7 +137,7 @@ mod releases_tests {
         let url = super::release_notes_url(version);
         assert_eq!(
             url.as_ref(),
-            "https://unity.com/releases/editor/whats-new/5.1.0#notes"
+            "https://unity.com/releases/editor/whats-new/5.1.0f2#notes"
         );
     }
 
@@ -147,7 +147,7 @@ mod releases_tests {
         let url = super::release_notes_url(version);
         assert_eq!(
             url.as_ref(),
-            "https://unity.com/releases/editor/whats-new/5.1.0#notes"
+            "https://unity.com/releases/editor/whats-new/5.1.0f3#notes"
         );
     }
 }

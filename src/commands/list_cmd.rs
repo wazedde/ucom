@@ -1,17 +1,15 @@
 use anyhow::anyhow;
-use crossterm::style::Stylize;
 use itertools::Itertools;
-use yansi::Paint;
+use yansi::{Condition, Paint};
 
 use crate::cli::ListType;
-use crate::commands::{
-    MARK_BULLET, MARK_NO_INFO, MARK_UP_TO_DATE, MARK_UPDATE_TO_LATEST, MARK_UPDATES_AVAILABLE,
-};
+use crate::commands::*;
+use crate::style_definitions::*;
 use crate::unity::installations::{Installations, SortedVersions};
 use crate::unity::release_api::{
-    FetchMode, Releases, SortedReleases, fetch_latest_releases, load_cached_releases,
+    Releases, SortedReleases, UpdatePolicy, fetch_latest_releases, load_cached_releases,
 };
-use crate::unity::release_api_data::ReleaseData;
+use crate::unity::release_api_data::{LabelElement, ReleaseData};
 use crate::unity::{ReleaseStream, Version, release_notes_url};
 use crate::utils::formatter::FormatWhen;
 use crate::utils::path_ext::PlatformConsistentPathExt;
@@ -26,7 +24,7 @@ use crate::utils::vec1::Vec1;
 pub fn list_versions(
     list_type: ListType,
     version_prefix: Option<&str>,
-    mode: FetchMode,
+    mode: UpdatePolicy,
 ) -> anyhow::Result<()> {
     match list_type {
         ListType::Installed => {
@@ -60,11 +58,11 @@ pub fn list_versions(
 /// ├─ 6000.0.35f1 - https://unity.com/releases/editor/whats-new/6000.0.35#notes
 /// └─ 6000.0.36f1 * https://unity.com/releases/editor/whats-new/6000.0.36#notes
 /// ```
-fn display_installed_versions(installed: &Installations, mode: FetchMode) -> anyhow::Result<()> {
-    let releases = if mode == FetchMode::Auto {
+fn display_installed_versions(installed: &Installations, mode: UpdatePolicy) -> anyhow::Result<()> {
+    let releases = if mode == UpdatePolicy::Incremental {
         load_cached_releases()?
     } else {
-        fetch_latest_releases(FetchMode::Force)?.into()
+        fetch_latest_releases(UpdatePolicy::ForceRefresh)?.into()
     };
 
     let report = Report::Terminal;
@@ -96,15 +94,15 @@ fn display_basic_list(installed: &SortedVersions, report: &Report) {
 
     for group in version_groups.iter() {
         for info in group.iter() {
-            let marker = list_marker(
+            let line_marker = wide_branch_marker(
                 info.version == group.first().version,
                 info.version == group.last().version,
             );
 
             report.paragraph(format_args!(
-                "{marker} {:<max_len$} - {}",
+                "{line_marker} {:<max_len$} - {}",
                 info.version.to_interned_str(),
-                release_notes_url(info.version).bright_blue()
+                release_notes_url(info.version).paint(LINK)
             ));
         }
     }
@@ -127,33 +125,54 @@ fn display_list_with_release_dates(
             let release = releases.iter().find(|p| p.version == info.version);
             let stream = release.map_or(ReleaseStream::Other, |rd| rd.stream);
 
+            let error_label = release.and_then(|rd| rd.error_label());
+            let has_error = Condition::cached(error_label.is_some());
+
+            let release_info = format!(
+                "{stream} {vs} ({rd}) {mk} {description}",
+                vs = format_args!("{:<max_len$}", info.version.to_interned_str())
+                    .paint(ERROR)
+                    .whenever(has_error),
+                rd = release.map_or_else(
+                    || "----------".to_string(),
+                    |rd| rd.release_date.format("%Y-%m-%d").to_string(),
+                ),
+                mk = if error_label.is_some() {
+                    MARK_ERROR.paint(ERROR)
+                } else if is_suggested {
+                    MARK_SUGGESTED.paint(NORMAL)
+                } else {
+                    MARK_BULLET.paint(NORMAL)
+                },
+                description = format_release_description(info, release),
+            )
+            .to_string();
+
             report.paragraph(format_args!(
-                "{marker}{stream_padding} {version_info}",
-                marker = slim_list_marker(
+                "{lm}{stream_padding} {release_info}",
+                lm = slim_branch_marker(
                     info.version == group.first().version,
                     info.version == group.last().version,
                 ),
                 stream_padding = stream_padding(stream),
-                version_info = format_args!(
-                    "{stream} {version_str} ({release_date}) {separator} {release_notes}",
-                    version_str = format_args!("{:<max_len$}", info.version.to_interned_str()),
-                    release_date = release.map_or_else(
-                        || "----------".to_string(),
-                        |rd| rd.release_date.format("%Y-%m-%d").to_string(),
-                    ),
-                    separator = if is_suggested {
-                        MARK_UP_TO_DATE
-                    } else {
-                        MARK_BULLET
-                    },
-                    release_notes = release_notes_url(info.version).bright_blue()
-                )
-                .when(is_suggested)
-                .bold()
+                release_info = release_info
+                    .bold()
+                    .whenever(Condition::cached(is_suggested))
             ));
         }
     }
     report.when(report.is_markdown()).paragraph(CODE_BLOCK);
+}
+fn find_first_url(text: &str) -> Option<&str> {
+    let start_index = text.find("http://").or_else(|| text.find("https://"))?;
+
+    let remaining_text = &text[start_index..];
+
+    let end_index = remaining_text
+        .find(|c: char| c.is_whitespace() || c == '"' || c == '<' || c == '>')
+        .unwrap_or(remaining_text.len());
+
+    Some(&remaining_text[..end_index])
 }
 
 //
@@ -168,7 +187,7 @@ fn display_list_with_release_dates(
 /// ├── LTS 6000.0.35f1 (2025-01-22) - Update(s) available
 /// └── LTS 6000.0.36f1 (2025-01-28) * https://unity.com/releases/editor/whats-new/6000.0.36#notes
 /// ```
-fn display_updates(installed: &Installations, mode: FetchMode) -> anyhow::Result<()> {
+fn display_updates(installed: &Installations, mode: UpdatePolicy) -> anyhow::Result<()> {
     let releases = fetch_latest_releases(mode)?;
     let report = Report::Terminal;
     report.header(
@@ -199,53 +218,82 @@ fn display_updates(installed: &Installations, mode: FetchMode) -> anyhow::Result
             let release = releases.get_by_version(info.version)?;
             let release_date = release.release_date.format("%Y-%m-%d");
 
-            let marker = slim_list_marker(
+            let line_marker = slim_branch_marker(
                 info.version == group.first().version,
                 info.version == group.last().version,
             );
             let stream = release.stream;
             let stream_padding = stream_padding(stream);
 
-            let version_info = match &info.version_type {
+            let error_label = release.error_label();
+            let has_error = Condition::cached(error_label.is_some());
+
+            let release_info = match &info.version_type {
                 VersionType::HasLaterInstalled => {
-                    format!("{stream} {version_str} ({release_date})")
-                }
-                VersionType::LatestInstalled => {
-                    let last_in_group = info.version == group.last().version;
-                    if last_in_group {
+                    if let Some(el) = error_label {
                         format!(
-                            "{} {} ({release_date}) {MARK_UP_TO_DATE} Up to date",
-                            stream.green(),
-                            version_str.green()
+                            "{stream} {vs} ({release_date}) {mk} [{el}]",
+                            vs = version_str.paint(ERROR),
+                            mk = MARK_ERROR.paint(ERROR),
+                            el = create_description_url(el)
                         )
                     } else {
+                        format!("{stream} {version_str} ({release_date})")
+                    }
+                }
+                VersionType::LatestInstalled => {
+                    let is_last_version_in_group = info.version == group.last().version;
+                    let error_link = if let Some(el) = error_label {
+                        format!(" [{el}]", el = create_description_url(el))
+                    } else {
+                        String::default()
+                    };
+
+                    if is_last_version_in_group {
+                        let style = if has_error() { ERROR } else { UP_TO_DATE };
                         format!(
-                            "{} {} ({release_date}) {MARK_UPDATES_AVAILABLE} Update(s) available",
-                            stream.yellow(),
-                            version_str.yellow()
+                            "{stream} {vs} ({release_date}) {mk} Up to date{error_link}",
+                            vs = version_str.paint(style),
+                            mk = error_label
+                                .map_or(MARK_UP_TO_DATE.paint(NORMAL), |_| MARK_ERROR.paint(ERROR)),
+                        )
+                    } else {
+                        let style = if has_error() { ERROR } else { HAS_UPDATE };
+                        format!(
+                            "{stream} {vs} ({release_date}) {mk} Update(s) available{error_link}",
+                            vs = version_str.paint(style),
+                            mk = error_label
+                                .map_or(MARK_UPDATES_AVAILABLE.paint(NORMAL), |_| MARK_ERROR
+                                    .paint(ERROR)),
                         )
                     }
                 }
                 VersionType::UpdateToLatest(release_info) => {
+                    let style = if has_error() { ERROR } else { IS_UPDATE };
                     format!(
-                        "{} {} ({release_date}) {MARK_UPDATE_TO_LATEST} {}",
-                        stream.blue(),
-                        version_str.blue(),
-                        release_notes_url(release_info.version).bright_blue()
+                        "{stream} {vs} ({release_date}) {mk} {rd}",
+                        vs = version_str.paint(style),
+                        mk = error_label
+                            .map_or(MARK_UPDATE_TO_LATEST.paint(NORMAL), |_| MARK_ERROR
+                                .paint(ERROR)),
+                        rd = format_release_description(info, Some(release_info)),
                     )
                 }
                 VersionType::NoReleaseInfo => {
                     format!(
                         "{stream} {version_str} ({release_date}) {MARK_NO_INFO} {}",
                         format_args!("No {} update info available", info.version.build_type,)
-                            .bright_black()
+                            .paint(NO_UPDATE_INFO)
                     )
                 }
-            };
+            }
+            .to_string();
 
             report.paragraph(format_args!(
-                "{marker}{stream_padding} {version_info}",
-                version_info = version_info.when(is_suggested).bold(),
+                "{line_marker}{stream_padding} {}",
+                release_info
+                    .bold()
+                    .whenever(Condition::cached(is_suggested)),
             ));
         }
     }
@@ -313,7 +361,7 @@ fn collect_version_update_info<'a>(
 fn display_latest_versions(
     installed: Option<&Installations>,
     version_prefix: Option<&str>,
-    mode: FetchMode,
+    mode: UpdatePolicy,
 ) -> anyhow::Result<()> {
     let releases = fetch_latest_releases(mode)?;
     let report = Report::Terminal;
@@ -348,7 +396,7 @@ fn display_latest_versions(
             .peek()
             .is_none_or(|v| v.version.major != latest.version.major);
 
-        let marker = slim_list_marker(
+        let line_marker = slim_branch_marker(
             Some(latest.version.major) != previous_major,
             is_last_in_range,
         );
@@ -371,13 +419,19 @@ fn display_latest_versions(
             let stream = latest.stream;
 
             report.paragraph(format_args!(
-                "{marker}{stream_padding} {stream} {version} ({release_date})",
-                stream_padding = stream_padding(stream),
-                version = format_version_with_padding(latest.version, max_len),
-                release_date = latest.release_date.format("%Y-%m-%d"),
+                "{line_marker}{sp} {stream} {vs} ({rd})",
+                sp = stream_padding(stream),
+                vs = format_version_with_padding(latest.version, max_len),
+                rd = latest.release_date.format("%Y-%m-%d"),
             ));
         } else {
-            display_installed_versions_line(&report, marker, latest, &installs_in_range, max_len);
+            display_installed_versions_line(
+                &report,
+                line_marker,
+                latest,
+                &installs_in_range,
+                max_len,
+            );
         }
     }
     Ok(())
@@ -416,7 +470,7 @@ fn format_suggested_version(releases: &Releases) -> String {
 fn display_available_versions(
     installed: Option<&Installations>,
     version_prefix: Option<&str>,
-    mode: FetchMode,
+    mode: UpdatePolicy,
 ) -> anyhow::Result<()> {
     let mut releases = fetch_latest_releases(mode)?;
     let report = Report::Terminal;
@@ -445,7 +499,7 @@ fn display_available_versions(
 
     for group in version_groups.iter() {
         for info in group.iter() {
-            let marker = slim_list_marker(
+            let line_marker = slim_branch_marker(
                 info.version == group.first().version,
                 info.version == group.last().version,
             );
@@ -456,24 +510,34 @@ fn display_available_versions(
             let version = format_version_with_padding(release.version, max_len);
             let stream = release.stream;
 
+            let error_label = release.error_label();
+            let has_error = Condition::cached(error_label.is_some());
+
+            let description = format_release_description(info, Some(release));
+            let mark = if error_label.is_some() {
+                MARK_ERROR.paint(ERROR)
+            } else {
+                MARK_BULLET.paint(NORMAL)
+            };
+
             report.paragraph(format_args!(
-                "{marker}{stream_padding} {info}",
-                stream_padding = stream_padding(stream),
-                info = if is_installed {
+                "{line_marker}{sp} {ds}",
+                sp = stream_padding(stream),
+                ds = if is_installed {
+                    let style = if has_error() { ERROR } else { UP_TO_DATE };
                     format!(
-                        "{stream} {version} ({release_date}) - {url} > installed",
-                        stream = stream.green(),
-                        version = version.green(),
-                        url = release_notes_url(info.version).bright_blue()
+                        "{stream} {vs} ({release_date}) {mark} {description} > installed",
+                        vs = version.paint(style),
                     )
                 } else {
+                    let style = if has_error() { ERROR } else { NORMAL };
                     format!(
-                        "{stream} {version} ({release_date}) - {url}",
-                        url = release_notes_url(info.version).bright_blue()
+                        "{stream} {vs} ({release_date}) {mark} {description}",
+                        vs = version.paint(style)
                     )
                 }
-                .when(is_installed)
                 .bold()
+                .whenever(Condition::cached(is_installed))
             ));
         }
     }
@@ -482,7 +546,7 @@ fn display_available_versions(
 
 fn display_installed_versions_line(
     report: &Report,
-    marker: &str,
+    line_marker: &str,
     latest: &ReleaseData,
     installed_in_range: &[Version],
     max_len: usize,
@@ -501,20 +565,18 @@ fn display_installed_versions_line(
     let joined_versions = installed_in_range.iter().join(", ");
 
     report.paragraph(format_args!(
-        "{marker}{stream_padding} {info}",
+        "{line_marker}{stream_padding} {info}",
         stream_padding = stream_padding(stream),
         info = if is_up_to_date {
             format!(
-                "{stream} {version} ({release_date}) {MARK_UP_TO_DATE} Installed: {joined_versions}",
-                stream = stream.green(),
-                version = version.green(),
-            ).bold()
+                "{stream} {vs} ({release_date}) {MARK_UP_TO_DATE} Installed: {joined_versions}",
+                vs = version.paint(UP_TO_DATE),
+            ).bold().to_string()
         } else {
             format!(
-                "{stream} {version} ({release_date}) {MARK_UPDATES_AVAILABLE} Installed: {joined_versions} - update available",
-                stream = stream.blue(),
-                version = version.blue(),
-            ).bold()
+                "{stream} {vs} ({release_date}) {MARK_UPDATES_AVAILABLE} Installed: {joined_versions} - update available",
+                vs = version.paint(IS_UPDATE),
+            ).bold().to_string()
         }
     ));
 }
@@ -606,6 +668,20 @@ where
     Vec1::try_from(infos).ok()
 }
 
+fn format_release_description(info: &VersionInfo, release: Option<&ReleaseData>) -> String {
+    if let Some(s) = release.and_then(|rd| rd.error_label().map(create_description_url)) {
+        format!("{} [{}]", release_notes_url(info.version).paint(LINK), s)
+    } else {
+        release_notes_url(info.version).paint(LINK).to_string()
+    }
+}
+
+fn create_description_url(le: &LabelElement) -> String {
+    find_first_url(&le.description)
+        .map(|url| le.label_text.paint(ERROR).link(url).to_string())
+        .unwrap_or_else(|| le.label_text.paint(ERROR).to_string())
+}
+
 fn collect_latest_minor_releases<'a>(
     releases: &'a SortedReleases,
     version_prefix: Option<&str>,
@@ -619,7 +695,7 @@ fn collect_latest_minor_releases<'a>(
         .collect()
 }
 
-fn list_marker(is_first: bool, is_last: bool) -> &'static str {
+fn wide_branch_marker(is_first: bool, is_last: bool) -> &'static str {
     match (is_first, is_last) {
         (true, true) => "──",
         (true, false) => "┬─",
@@ -628,7 +704,7 @@ fn list_marker(is_first: bool, is_last: bool) -> &'static str {
     }
 }
 
-fn slim_list_marker(is_first: bool, is_last: bool) -> &'static str {
+fn slim_branch_marker(is_first: bool, is_last: bool) -> &'static str {
     match (is_first, is_last) {
         (true, true) => "─",
         (true, false) => "┬",

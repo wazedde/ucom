@@ -32,6 +32,8 @@ pub struct ReleaseData {
     pub sku_family: String,
     #[serde(rename = "unityHubDeepLink")]
     pub unity_hub_deep_link: String,
+    #[serde(rename = "label", skip_serializing_if = "Option::is_none")]
+    pub label: Option<LabelElement>,
 
     #[serde(skip_serializing, rename = "recommended")]
     pub recommended: Option<bool>,
@@ -41,6 +43,15 @@ pub struct ReleaseData {
     pub downloads: Option<Vec<DownloadsElement>>,
     #[serde(skip, rename = "thirdPartyNotices")]
     pub third_party_notices: Option<Vec<ThirdPartyNoticesElement>>,
+}
+
+impl ReleaseData {
+    pub fn error_label(&self) -> Option<&LabelElement> {
+        const ERROR_COLOR: &str = "ERROR";
+        self.label
+            .as_ref()
+            .filter(|label| label.color == ERROR_COLOR)
+    }
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -117,6 +128,18 @@ pub struct EulaElement {
     pub eula_type: String, // Renamed due to keyword collision
     #[serde(rename = "url")]
     pub url: String,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct LabelElement {
+    #[serde(rename = "description")]
+    pub description: String,
+    #[serde(rename = "labelText")]
+    pub label_text: String,
+    #[serde(rename = "icon")]
+    pub icon: String,
+    #[serde(rename = "color")]
+    pub color: String,
 }
 
 #[derive(Debug, Serialize, Deserialize)]

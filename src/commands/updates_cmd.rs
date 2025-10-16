@@ -4,7 +4,8 @@ use yansi::Paint;
 
 use crate::commands::install_cmd::install_version;
 use crate::commands::{MARK_AVAILABLE, MARK_UNAVAILABLE};
-use crate::unity::release_api::{FetchMode, SortedReleases};
+use crate::style_definitions::{ERROR, HAS_UPDATE, IS_UPDATE, LINK, OK, UP_TO_DATE, WARNING};
+use crate::unity::release_api::{SortedReleases, UpdatePolicy};
 use crate::unity::{
     ProjectPath, ProjectSettings, ReleaseUpdates, find_available_updates, release_notes_url,
 };
@@ -18,7 +19,7 @@ pub fn find_project_updates(
     project_dir: &Path,
     install_latest: bool,
     create_report: bool,
-    mode: FetchMode,
+    mode: UpdatePolicy,
 ) -> anyhow::Result<()> {
     let project = ProjectPath::try_from(project_dir)?;
     let current_version = project.unity_version()?;
@@ -129,8 +130,8 @@ fn print_project_header(project: &ProjectPath, report: &Report) {
         Err(e) => {
             report.list_item(format!(
                 "{}: {}",
-                "Could not read project settings".yellow(),
-                e.yellow()
+                "Could not read project settings".paint(WARNING),
+                e.paint(WARNING),
             ));
         }
     }
@@ -145,29 +146,29 @@ fn print_project_version(
 
     let (status, colored_version) = match (is_installed, updates.newer_releases.is_empty()) {
         (true, true) => (
-            "installed (latest version)".green(),
-            updates.current_release.version.green(),
+            "installed (latest version)".paint(UP_TO_DATE),
+            updates.current_release.version.paint(UP_TO_DATE),
         ),
         (true, false) => (
-            "installed (update available)".yellow(),
-            updates.current_release.version.yellow(),
+            "installed (update available)".paint(HAS_UPDATE),
+            updates.current_release.version.paint(HAS_UPDATE),
         ),
         (false, true) => (
-            "not installed (latest version)".red(),
-            updates.current_release.version.red(),
+            "not installed (latest version)".paint(ERROR),
+            updates.current_release.version.paint(ERROR),
         ),
         (false, false) => (
-            "not installed (outdated version)".red(),
-            updates.current_release.version.red(),
+            "not installed (outdated version)".paint(ERROR),
+            updates.current_release.version.paint(ERROR),
         ),
     };
 
     report.header(format!("Unity editor status: {status}"), HeaderLevel::H2);
 
     let installed_marker = if is_installed {
-        MARK_AVAILABLE.green()
+        MARK_AVAILABLE.paint(OK)
     } else {
-        MARK_UNAVAILABLE.red()
+        MARK_UNAVAILABLE.paint(ERROR)
     };
 
     report.marked_item(
@@ -175,7 +176,7 @@ fn print_project_version(
             "{} ({}) - {}{}",
             colored_version,
             updates.current_release.release_date.format("%Y-%m-%d"),
-            release_notes_url(updates.current_release.version).bright_blue(),
+            release_notes_url(updates.current_release.version).paint(LINK),
             if is_installed {
                 // The editor used by the project is installed, finish the line.
                 String::default()
@@ -208,9 +209,9 @@ fn print_available_updates(releases: &SortedReleases, report: &Report) -> anyhow
         report.marked_item(
             format!(
                 "{:<max_len$} ({}) - {}{}",
-                release.version.to_interned_str().blue().bold(),
+                release.version.to_interned_str().paint(IS_UPDATE).bold(),
                 release.release_date.format("%Y-%m-%d"),
-                release_notes_url(release.version).bright_blue(),
+                release_notes_url(release.version).paint(LINK),
                 if release.version.is_editor_installed()? {
                     format!(" > {}", "installed".bold())
                 } else {

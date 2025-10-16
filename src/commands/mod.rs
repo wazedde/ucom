@@ -38,6 +38,8 @@ pub const MARK_NO_INFO: char = '?';
 pub const MARK_BULLET: char = '-';
 pub const MARK_AVAILABLE: char = '✓';
 pub const MARK_UNAVAILABLE: char = '✗';
+pub const MARK_ERROR: char = '‼';
+pub const MARK_SUGGESTED: char = '*';
 
 trait TimeDeltaExt {
     fn as_seconds(&self) -> f64;

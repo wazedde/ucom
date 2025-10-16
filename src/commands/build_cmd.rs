@@ -292,7 +292,7 @@ fn collect_log_errors(log_file: &Path) -> anyhow::Error {
 
     match &errors[..] {
         [] => anyhow!("No errors found in log"),
-        [single_error] => anyhow!("{}", single_error),
+        [single_error] => anyhow!("{single_error}"),
         _ => {
             let joined = errors
                 .iter()

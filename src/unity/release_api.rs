@@ -1,7 +1,7 @@
 use crate::unity::Version;
 use crate::unity::release_api_data::{ReleaseData, ReleaseDataPage};
 use crate::utils::content_cache::ucom_cache_dir;
-use crate::utils::content_cache::{is_cache_file_expired, touch_file};
+use crate::utils::content_cache::{is_cached_file_stale, touch_file};
 use crate::utils::status_line::StatusLine;
 use anyhow::{Context, anyhow};
 use chrono::{DateTime, Utc};
@@ -16,8 +16,10 @@ const RELEASES_FILENAME: &str = "releases_dataset.json";
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Releases {
-    #[serde(rename = "lastUpdated")]
-    pub last_updated: DateTime<Utc>,
+    #[serde(rename = "lastUpdate", default)]
+    pub last_update: DateTime<Utc>,
+    #[serde(rename = "lastFullUpdate", default)]
+    pub last_full_update: DateTime<Utc>,
     #[serde(rename = "suggestedVersion")]
     pub suggested_version: Option<Version>,
 
@@ -36,8 +38,10 @@ impl IntoIterator for Releases {
 
 impl Default for Releases {
     fn default() -> Self {
+        let now = Utc::now();
         Self {
-            last_updated: Utc::now(),
+            last_update: now,
+            last_full_update: now,
             suggested_version: None,
             releases: Vec::new(),
         }
@@ -131,39 +135,53 @@ pub fn load_cached_releases() -> anyhow::Result<Releases> {
     }
 }
 
-/// Fetch mode for fetching releases.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum FetchMode {
-    /// Fetch only if the cache is expired.
-    Auto,
-    /// Fetch regardless of the cache.
-    Force,
+pub enum UpdatePolicy {
+    /// Perform an incremental update if the cache is stale.
+    Incremental,
+    /// Force a full refresh, ignoring any existing cache.
+    ForceRefresh,
 }
 
 /// Downloads and caches the release info.
-pub fn fetch_latest_releases(mode: FetchMode) -> anyhow::Result<SortedReleases> {
+pub fn fetch_latest_releases(mode: UpdatePolicy) -> anyhow::Result<SortedReleases> {
+    const EXPIRATION_DAYS: i64 = 30;
     let releases_path = ucom_cache_dir()?.join(RELEASES_FILENAME);
-    let mut releases = if mode == FetchMode::Auto {
-        load_cached_releases()?
-    } else {
-        Releases::default()
+    let (mode, mut releases) = match mode {
+        UpdatePolicy::Incremental => {
+            let releases = load_cached_releases()?;
+            if (Utc::now() - releases.last_full_update).num_days() > EXPIRATION_DAYS {
+                // Data set is more than 30 days old, fetch full data.
+                (UpdatePolicy::ForceRefresh, Releases::default())
+            } else {
+                // Data is recent, fetch incremental data.
+                (UpdatePolicy::Incremental, releases)
+            }
+        }
+        UpdatePolicy::ForceRefresh => (UpdatePolicy::ForceRefresh, Releases::default()),
     };
 
-    if mode == FetchMode::Auto && !is_cache_file_expired(&releases_path) {
+    if mode == UpdatePolicy::Incremental && !is_cached_file_stale(&releases_path) {
         return Ok(SortedReleases::new(releases));
     }
 
-    let status = StatusLine::new("Downloading", "Unity release data...");
+    let data_description = if releases.is_empty() {
+        "Full Unity release data..."
+    } else {
+        "Incremental Unity release data..."
+    };
+
+    let status = StatusLine::new("Downloading", data_description);
     let fetch_count = fetch_release_info(&mut releases, |count, total| {
         let percentage = count as f64 / total as f64 * 100.0;
         status.update_line(
             "Downloading",
-            format!("Unity release data ({percentage:.0}%)"),
+            format!("{data_description} ({percentage:.0}%)"),
         );
     })?;
 
     if fetch_count > 0 {
-        releases.last_updated = Utc::now();
+        releases.last_update = Utc::now();
         let sorted_releases = SortedReleases::new(releases);
 
         create_dir_all(ucom_cache_dir()?)?;

@@ -1,11 +1,12 @@
 use crate::cli::PackagesInfoLevel;
 use crate::commands::{MARK_AVAILABLE, MARK_UNAVAILABLE, install_latest_matching};
+use crate::style_definitions::*;
 use crate::unity::project::ProjectPath;
 use crate::unity::project::{
     PackageInfo, PackageSource, Packages, PackagesAvailability, ProjectSettings,
     walk_visible_directories,
 };
-use crate::unity::release_api::{FetchMode, fetch_latest_releases};
+use crate::unity::release_api::{UpdatePolicy, fetch_latest_releases};
 use crate::unity::{BuildProfilesStatus, Version, release_notes_url};
 use crate::utils;
 use crate::utils::path_ext::PlatformConsistentPathExt;
@@ -23,7 +24,7 @@ pub fn project_info(
     install_required: bool,
     recursive: bool,
     report: bool,
-    mode: FetchMode,
+    mode: UpdatePolicy,
 ) -> anyhow::Result<()> {
     if recursive {
         show_recursive_project_info(path, packages_level, report)
@@ -56,7 +57,7 @@ fn show_recursive_project_info(
             report.blank_line();
             if let Err(err) = print_project_info(&path, packages_level, &report, show_release_notes)
             {
-                report.list_item(format_args!("{} {}", "Error:".red(), err));
+                report.list_item(format_args!("{} {}", "Error:".paint(ERROR), err));
             }
             directories.skip_current_dir();
         }
@@ -69,7 +70,7 @@ fn show_project_info(
     packages_level: PackagesInfoLevel,
     show_release_notes: bool,
     install_required: bool,
-    mode: FetchMode,
+    mode: UpdatePolicy,
 ) -> anyhow::Result<()> {
     let report = if show_release_notes {
         yansi::disable();
@@ -122,8 +123,8 @@ fn print_project_info(
         Err(e) => {
             report.list_item(format_args!(
                 "{}: {}",
-                "Could not read project settings".yellow(),
-                e.yellow()
+                "Could not read project settings".paint(WARNING),
+                e.paint(WARNING),
             ));
         }
     }
@@ -134,7 +135,7 @@ fn print_project_info(
         format_args!(
             "Unity version: {} - {} ({})",
             unity_version.bold(),
-            release_notes_url(unity_version).bright_blue(),
+            release_notes_url(unity_version).paint(LINK),
             if is_installed {
                 "installed"
             } else {
@@ -142,9 +143,9 @@ fn print_project_info(
             }
         ),
         if is_installed {
-            MARK_AVAILABLE.green().bold()
+            MARK_AVAILABLE.paint(OK).bold()
         } else {
-            MARK_UNAVAILABLE.red().bold()
+            MARK_UNAVAILABLE.paint(ERROR).bold()
         },
     );
 
@@ -163,7 +164,7 @@ fn print_project_info(
     }
 
     if show_release_notes {
-        let releases = fetch_latest_releases(FetchMode::Auto)?;
+        let releases = fetch_latest_releases(UpdatePolicy::Incremental)?;
         let release = releases.get_by_version(unity_version)?;
 
         let url = &release.release_notes.url;
@@ -189,19 +190,21 @@ fn print_project_packages(
 
     match availability {
         PackagesAvailability::NoManifest => {
-            report.list_item("No `manifest.json` file found, no packages info available.".yellow());
+            report.list_item(
+                "No `manifest.json` file found, no packages info available.".paint(WARNING),
+            );
             Ok(())
         }
         PackagesAvailability::LockFileDisabled => {
             report.list_item(
                 "Packages lock file is disabled in `manifest.json`, no packages info available."
-                    .yellow(),
+                    .paint(WARNING),
             );
             Ok(())
         }
         PackagesAvailability::NoLockFile => {
             report.list_item(
-                "No `packages-lock.json` file found, no packages info available.".yellow(),
+                "No `packages-lock.json` file found, no packages info available.".paint(WARNING),
             );
             Ok(())
         }

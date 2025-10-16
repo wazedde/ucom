@@ -3,11 +3,12 @@ use std::process::{Command, exit};
 
 use anyhow::anyhow;
 use chrono::prelude::*;
-use yansi::{Paint, Style};
+use yansi::Paint;
 
 use crate::cli_test::{ShowResults, TestArguments};
 use crate::commands::TimeDeltaExt;
 use crate::nunit::{TestCase, TestResult, TestRun};
+use crate::style_definitions::{ERROR, PLAIN};
 use crate::unity::project::ProjectPath;
 use crate::unity::{build_command_line, wait_with_stdout};
 use crate::utils::path_ext::PlatformConsistentPathExt;
@@ -179,6 +180,7 @@ impl TestArguments {
         cmd
     }
 }
+
 fn print_test_cases<'a>(test_cases: impl Iterator<Item = &'a TestCase>) {
     let mut test_cases = test_cases.peekable();
     if test_cases.peek().is_some() {
@@ -187,9 +189,9 @@ fn print_test_cases<'a>(test_cases: impl Iterator<Item = &'a TestCase>) {
 
     for test_case in test_cases {
         let (name_style, status) = if test_case.result == TestResult::Passed {
-            (Style::new(), MessageType::Ok)
+            (PLAIN, MessageType::Ok)
         } else {
-            (Style::new().red(), MessageType::Error)
+            (ERROR, MessageType::Error)
         };
 
         println!(

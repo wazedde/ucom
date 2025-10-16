@@ -1,14 +1,15 @@
-use crate::unity::release_api::{FetchMode, fetch_latest_releases};
+use crate::style_definitions::LINK;
+use crate::unity::release_api::{UpdatePolicy, fetch_latest_releases};
 use crate::unity::release_api_data::ReleaseData;
 use yansi::Paint;
 
-pub fn install_latest_matching(version_prefix: &str, mode: FetchMode) -> anyhow::Result<()> {
+pub fn install_latest_matching(version_prefix: &str, mode: UpdatePolicy) -> anyhow::Result<()> {
     let releases = fetch_latest_releases(mode)?;
     let release = releases
         .iter()
         .filter(|rd| rd.version.to_interned_str().starts_with(version_prefix))
         .max_by_key(|rd| rd.version)
-        .ok_or_else(|| anyhow::anyhow!("No version found that matches `{}`", version_prefix))?;
+        .ok_or_else(|| anyhow::anyhow!("No version found that matches `{version_prefix}`"))?;
 
     install_version(release)
 }
@@ -20,7 +21,7 @@ pub fn install_version(release: &ReleaseData) -> anyhow::Result<()> {
 
     println!(
         "Opening Unity Hub with deep link {} to install version {}",
-        release.unity_hub_deep_link.bright_blue(),
+        release.unity_hub_deep_link.paint(LINK),
         release.version.bold()
     );
 

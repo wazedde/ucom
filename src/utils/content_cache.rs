@@ -15,12 +15,12 @@ static CACHE_ENABLED: OnceLock<bool> = OnceLock::new();
 const CACHE_REFRESH_SECONDS: i64 = 3600;
 
 enum CacheState {
-    /// The cache is expired.
-    Expired,
-    /// The cache is still valid.
-    Valid,
-    /// The cache is still valid but needs to be refreshed.
-    RefreshNeeded,
+    /// Cache is outdated and must be refetched from source.
+    Stale,
+    /// Cache is current and can be used directly.
+    Fresh,
+    /// Cache is usable but should have its timestamp updated.
+    Touched,
 }
 
 #[derive(Eq, PartialEq, Copy, Clone)]
@@ -46,9 +46,9 @@ pub fn fetch_content(url: &str, change_check: RemoteChangeCheck) -> anyhow::Resu
     let filename = cache_dir.join(sanitize_filename(url));
 
     match determine_cache_status(url, &filename, change_check)? {
-        CacheState::Expired => fetch_and_store_in_cache(url, &filename, &cache_dir),
-        CacheState::Valid => fs::read_to_string(&filename).map_err(anyhow::Error::msg),
-        CacheState::RefreshNeeded => refresh_file_timestamp_and_read(&filename),
+        CacheState::Stale => fetch_and_store_in_cache(url, &filename, &cache_dir),
+        CacheState::Fresh => fs::read_to_string(&filename).map_err(anyhow::Error::msg),
+        CacheState::Touched => refresh_file_timestamp_and_read(&filename),
     }
 }
 
@@ -59,7 +59,7 @@ pub fn delete_cache_directory() {
     }
 }
 
-/// Sets whether the cache is enabled or not based on environment variable `UCOM_ENABLE_CACHE`.
+/// Sets whether the cache is enabled or not based on the environment variable `UCOM_ENABLE_CACHE`.
 pub fn configure_cache_from_environment() -> anyhow::Result<()> {
     match env::var("UCOM_ENABLE_CACHE") {
         Ok(val) => {
@@ -68,7 +68,7 @@ pub fn configure_cache_from_environment() -> anyhow::Result<()> {
                 .set(enabled)
                 .map_err(|_| anyhow!("Failed to set CACHE_ENABLED"))
         }
-        Err(_) => Ok(()), // environment variable not set
+        Err(_) => Ok(()), // environment variable isn't set
     }
 }
 
@@ -81,20 +81,20 @@ pub fn is_cache_enabled() -> bool {
 pub fn ucom_cache_dir() -> anyhow::Result<PathBuf> {
     cache_dir()
         .map(|p| p.join("ucom"))
-        .ok_or_else(|| anyhow!("Unable to get cache directory"))
+        .ok_or_else(|| anyhow!("Unable to get a cache directory"))
 }
 
-/// Returns whether the cached file is expired.
-pub fn is_cache_file_expired(path: &Path) -> bool {
+/// Returns whether the given file is too old to be considered valid.
+pub fn is_cached_file_stale(path: &Path) -> bool {
     let cached_time: DateTime<Utc> = match path.metadata().and_then(|m| m.modified()) {
         Ok(modified) => DateTime::<Utc>::from(modified),
-        Err(_) => return true, // Cannot get modification time; consider expired
+        Err(_) => return true, // Cannot get modification time; consider stale.
     };
 
     let delta_time = Utc::now() - cached_time;
 
     if delta_time < Duration::zero() {
-        return true; // Modification time is in the future; consider expired
+        return true; // Modification time is in the future; consider stale
     }
 
     delta_time > Duration::seconds(CACHE_REFRESH_SECONDS)
@@ -116,7 +116,7 @@ pub fn touch_file(path: &Path) -> anyhow::Result<()> {
         })
         .with_context(|| {
             format!(
-                "Failed to update timestamp on {}",
+                "Failed to update the timestamp on {}",
                 path.normalized_display()
             )
         })
@@ -132,7 +132,7 @@ fn is_timestamp_permission_error(_err: &std::io::Error) -> bool {
     false
 }
 
-/// Checks if the cached content is up-to-date.
+/// Checks if the cached content is up to date.
 fn determine_cache_status(
     url: &str,
     cached: &Path,
@@ -145,19 +145,19 @@ fn determine_cache_status(
         if delta_time <= TimeDelta::try_seconds(CACHE_REFRESH_SECONDS).unwrap_or(TimeDelta::zero())
         {
             // Local file is still fresh enough
-            CacheState::Valid
+            CacheState::Fresh
         } else if change_check == RemoteChangeCheck::Validate
             && !is_remote_content_newer(url, cached_time).unwrap_or(true)
         {
             // Local file is newer than remote Last-Modified
-            CacheState::RefreshNeeded
+            CacheState::Touched
         } else {
             // Local file is out of date
-            CacheState::Expired
+            CacheState::Stale
         }
     } else {
         // Has no cache file
-        CacheState::Expired
+        CacheState::Stale
     };
     Ok(state)
 }
@@ -182,7 +182,7 @@ fn fetch_and_store_in_cache(
     cache_dir: &Path,
 ) -> anyhow::Result<String> {
     let content = ureq::get(url).call()?.into_body().read_to_string()?;
-    create_dir_all(cache_dir).context("Failed to create cache directory")?;
+    create_dir_all(cache_dir).context("Failed to create a cache directory")?;
     fs::write(filename, &content)?;
     Ok(content)
 }
@@ -194,7 +194,7 @@ fn refresh_file_timestamp_and_read(filename: &Path) -> anyhow::Result<String> {
     match fs::File::open(filename)?.set_modified(Utc::now().into()) {
         Ok(()) => fs::read_to_string(filename).map_err(anyhow::Error::msg),
         Err(e) if e.raw_os_error() == Some(ERROR_ACCESS_DENIED) => {
-            // If error is a permission error, do workaround by re-saving the file
+            // If the error is a permission error, do workaround by re-saving the file
             let content = fs::read_to_string(filename)?;
             fs::write(filename, &content)?;
             Ok(content)
