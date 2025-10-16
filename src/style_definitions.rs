@@ -1,8 +1,7 @@
-use yansi::Color::{Blue, BrightBlack, BrightBlue, Green, Red, White, Yellow};
+use yansi::Color::{Blue, BrightBlack, BrightBlue, Green, Red, Yellow};
 use yansi::Style;
 
-pub static PLAIN: Style = Style::new();
-pub static NORMAL: Style = White.foreground();
+pub static UNSTYLED: Style = Style::new();
 pub static OK: Style = Green.foreground();
 pub static ERROR: Style = Red.foreground();
 pub static WARNING: Style = Yellow.foreground();

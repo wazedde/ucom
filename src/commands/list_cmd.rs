@@ -140,9 +140,9 @@ fn display_list_with_release_dates(
                 mk = if error_label.is_some() {
                     MARK_ERROR.paint(ERROR)
                 } else if is_suggested {
-                    MARK_SUGGESTED.paint(NORMAL)
+                    MARK_SUGGESTED.paint(UNSTYLED)
                 } else {
-                    MARK_BULLET.paint(NORMAL)
+                    MARK_BULLET.paint(UNSTYLED)
                 },
                 description = format_release_description(info, release),
             )
@@ -255,7 +255,8 @@ fn display_updates(installed: &Installations, mode: UpdatePolicy) -> anyhow::Res
                             "{stream} {vs} ({release_date}) {mk} Up to date{error_link}",
                             vs = version_str.paint(style),
                             mk = error_label
-                                .map_or(MARK_UP_TO_DATE.paint(NORMAL), |_| MARK_ERROR.paint(ERROR)),
+                                .map_or(MARK_UP_TO_DATE.paint(UNSTYLED), |_| MARK_ERROR
+                                    .paint(ERROR)),
                         )
                     } else {
                         let style = if has_error() { ERROR } else { HAS_UPDATE };
@@ -263,7 +264,7 @@ fn display_updates(installed: &Installations, mode: UpdatePolicy) -> anyhow::Res
                             "{stream} {vs} ({release_date}) {mk} Update(s) available{error_link}",
                             vs = version_str.paint(style),
                             mk = error_label
-                                .map_or(MARK_UPDATES_AVAILABLE.paint(NORMAL), |_| MARK_ERROR
+                                .map_or(MARK_UPDATES_AVAILABLE.paint(UNSTYLED), |_| MARK_ERROR
                                     .paint(ERROR)),
                         )
                     }
@@ -274,7 +275,7 @@ fn display_updates(installed: &Installations, mode: UpdatePolicy) -> anyhow::Res
                         "{stream} {vs} ({release_date}) {mk} {rd}",
                         vs = version_str.paint(style),
                         mk = error_label
-                            .map_or(MARK_UPDATE_TO_LATEST.paint(NORMAL), |_| MARK_ERROR
+                            .map_or(MARK_UPDATE_TO_LATEST.paint(UNSTYLED), |_| MARK_ERROR
                                 .paint(ERROR)),
                         rd = format_release_description(info, Some(release_info)),
                     )
@@ -517,7 +518,7 @@ fn display_available_versions(
             let mark = if error_label.is_some() {
                 MARK_ERROR.paint(ERROR)
             } else {
-                MARK_BULLET.paint(NORMAL)
+                MARK_BULLET.paint(UNSTYLED)
             };
 
             report.paragraph(format_args!(
@@ -530,7 +531,7 @@ fn display_available_versions(
                         vs = version.paint(style),
                     )
                 } else {
-                    let style = if has_error() { ERROR } else { NORMAL };
+                    let style = if has_error() { ERROR } else { UNSTYLED };
                     format!(
                         "{stream} {vs} ({release_date}) {mark} {description}",
                         vs = version.paint(style)

@@ -8,7 +8,7 @@ use yansi::Paint;
 use crate::cli_test::{ShowResults, TestArguments};
 use crate::commands::TimeDeltaExt;
 use crate::nunit::{TestCase, TestResult, TestRun};
-use crate::style_definitions::{ERROR, PLAIN};
+use crate::style_definitions::{ERROR, UNSTYLED};
 use crate::unity::project::ProjectPath;
 use crate::unity::{build_command_line, wait_with_stdout};
 use crate::utils::path_ext::PlatformConsistentPathExt;
@@ -189,7 +189,7 @@ fn print_test_cases<'a>(test_cases: impl Iterator<Item = &'a TestCase>) {
 
     for test_case in test_cases {
         let (name_style, status) = if test_case.result == TestResult::Passed {
-            (PLAIN, MessageType::Ok)
+            (UNSTYLED, MessageType::Ok)
         } else {
             (ERROR, MessageType::Error)
         };
