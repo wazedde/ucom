@@ -1,20 +1,14 @@
 use crate::cli::PackagesInfoLevel;
-use crate::commands::{MARK_AVAILABLE, MARK_UNAVAILABLE, install_latest_matching};
+use crate::commands::{MARK_AVAILABLE, MARK_ERROR, MARK_UNAVAILABLE, install_latest_matching};
 use crate::style_definitions::*;
-use crate::unity::project::ProjectPath;
-use crate::unity::project::{
-    PackageInfo, PackageSource, Packages, PackagesAvailability, ProjectSettings,
-    walk_visible_directories,
-};
+use crate::unity::project::*;
 use crate::unity::release_api::{UpdatePolicy, fetch_latest_releases};
 use crate::unity::{BuildProfilesStatus, Version, release_notes_url};
 use crate::utils;
 use crate::utils::path_ext::PlatformConsistentPathExt;
-use crate::utils::report::{HeaderLevel, Report};
-use content_cache::RemoteChangeCheck;
+use crate::utils::report::{HeaderLevel, Report, WrapMode};
 use itertools::Itertools;
 use std::path::Path;
-use utils::content_cache;
 use yansi::Paint;
 
 /// Shows project information.
@@ -57,7 +51,7 @@ fn show_recursive_project_info(
             report.blank_line();
             if let Err(err) = print_project_info(&path, packages_level, &report, show_release_notes)
             {
-                report.list_item(format_args!("{} {}", "Error:".paint(ERROR), err));
+                report.list_item(format_args!("{la} {err}", la = "Error:".paint(ERROR)));
             }
             directories.skip_current_dir();
         }
@@ -91,9 +85,9 @@ fn show_project_info(
             install_latest_matching(version.to_interned_str(), mode)?;
         } else {
             report.paragraph(format_args!(
-                "Use the `{}` flag to install Unity version {}",
-                "--install-required".bold(),
-                version.bold()
+                "Use the `{op}` flag to install Unity version {ve}",
+                op = "--install-required".bold(),
+                ve = version.bold()
             ));
         }
     }
@@ -110,7 +104,7 @@ fn print_project_info(
     let unity_version = project.unity_version()?;
     report.header(
         format_args!("Project info for: {}", project.normalized_display()),
-        HeaderLevel::H2,
+        HeaderLevel::H1,
     );
 
     match ProjectSettings::from_project(project) {
@@ -120,34 +114,54 @@ fn print_project_info(
             report.list_item(format_args!("Version:       {}", ps.bundle_version.bold()));
         }
 
-        Err(e) => {
+        Err(err) => {
             report.list_item(format_args!(
-                "{}: {}",
-                "Could not read project settings".paint(WARNING),
-                e.paint(WARNING),
+                "{m}: {e}",
+                m = "Could not read project settings".paint(WARNING),
+                e = err.paint(WARNING),
             ));
         }
     }
 
+    let releases = fetch_latest_releases(UpdatePolicy::Incremental)?;
+    let release = releases.get_by_version(unity_version)?;
     let is_installed = unity_version.is_editor_installed()?;
 
+    let error_label = release.error_label();
+    let has_error = error_label.is_some();
+
+    let style = if has_error { ERROR } else { OK };
     report.marked_item(
         format_args!(
-            "Unity version: {} - {} ({})",
-            unity_version.bold(),
-            release_notes_url(unity_version).paint(LINK),
-            if is_installed {
+            "Unity version: {vs} - {rn} ({st})",
+            vs = unity_version.paint(style).bold(),
+            rn = release_notes_url(unity_version).paint(LINK),
+            st = if is_installed {
                 "installed"
             } else {
                 "not installed"
             }
         ),
-        if is_installed {
+        if has_error {
+            MARK_ERROR.paint(ERROR).bold()
+        } else if is_installed {
             MARK_AVAILABLE.paint(OK).bold()
         } else {
             MARK_UNAVAILABLE.paint(ERROR).bold()
         },
     );
+
+    if let Some(error_label) = error_label {
+        report.blank_line();
+        report.header(
+            format_args!("{}", error_label.label_text).paint(ERROR),
+            HeaderLevel::H2,
+        );
+
+        let description = report.render_links(&error_label.description, UNSTYLED, LINK);
+        let description = report.wrap_text(&description, WrapMode::TerminalWidth);
+        report.paragraph(&description);
+    }
 
     // Print the available build profiles
     let build_profiles = project.build_profiles(unity_version)?;
@@ -164,15 +178,15 @@ fn print_project_info(
     }
 
     if show_release_notes {
-        let releases = fetch_latest_releases(UpdatePolicy::Incremental)?;
-        let release = releases.get_by_version(unity_version)?;
-
         let url = &release.release_notes.url;
-        let body = content_cache::fetch_content(url, RemoteChangeCheck::Validate)?;
+        let body = utils::content_cache::fetch_content(
+            url,
+            utils::content_cache::RemoteChangeCheck::Validate,
+        )?;
 
         report.blank_line();
         report.header(
-            format_args!("Release notes for [{}]({url})", release.version),
+            format_args!("Release notes for [{v}]({url})", v = release.version),
             HeaderLevel::H2,
         );
         report.paragraph(body);
@@ -230,10 +244,9 @@ fn print_project_packages(
 
             for (name, package) in packages {
                 report.list_item(format_args!(
-                    "{} {} ({})",
-                    package.source.as_ref().map_or("?", |s| s.to_short_str()),
-                    name,
-                    package.version,
+                    "{ps} {name} ({pv})",
+                    ps = package.source.as_ref().map_or("?", |s| s.to_short_str()),
+                    pv = package.version,
                 ));
             }
             Ok(())
