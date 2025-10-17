@@ -20,9 +20,9 @@ pub fn install_version(release: &ReleaseData) -> anyhow::Result<()> {
     }
 
     println!(
-        "Opening Unity Hub with deep link {} to install version {}",
-        release.unity_hub_deep_link.paint(LINK),
-        release.version.bold()
+        "Opening Unity Hub with deep link {l} to install version {v}",
+        l = release.unity_hub_deep_link.paint(LINK),
+        v = release.version.bold()
     );
 
     let deep_link = release.unity_hub_deep_link.as_str();

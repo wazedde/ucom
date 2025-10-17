@@ -36,9 +36,9 @@ pub fn build_project(arguments: &BuildArguments) -> anyhow::Result<()> {
         return Ok(());
     }
     let build_text = format!(
-        "Unity {unity_version} {} project in {}",
-        arguments.target,
-        project.normalized_display()
+        "Unity {unity_version} {t} project in {v}",
+        t = arguments.target,
+        v = project.normalized_display()
     );
 
     let build_status = if arguments.quiet {
@@ -77,9 +77,9 @@ pub fn build_project(arguments: &BuildArguments) -> anyhow::Result<()> {
     MessageType::print_line(
         log_tag,
         format!(
-            "building Unity {unity_version} {} project in {}",
-            arguments.target,
-            project.normalized_display()
+            "building Unity {unity_version} {t} project in {p}",
+            t = arguments.target,
+            p = project.normalized_display()
         ),
         build_status,
     );
@@ -87,8 +87,8 @@ pub fn build_project(arguments: &BuildArguments) -> anyhow::Result<()> {
     MessageType::print_line(
         "Total time",
         format!(
-            "{:.2}s",
-            Utc::now().signed_duration_since(start_time).as_seconds()
+            "{t:.2}s",
+            t = Utc::now().signed_duration_since(start_time).as_seconds()
         ),
         build_status,
     );
@@ -297,7 +297,7 @@ fn collect_log_errors(log_file: &Path) -> anyhow::Error {
             let joined = errors
                 .iter()
                 .enumerate()
-                .map(|(i, error)| format!("{}: {}", i + 1, error))
+                .map(|(i, error)| format!("{c}: {e}", c = i + 1, e = error))
                 .join("\n");
 
             anyhow!(joined)

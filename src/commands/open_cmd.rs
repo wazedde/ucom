@@ -46,9 +46,9 @@ pub fn open_project(arguments: OpenArguments) -> anyhow::Result<()> {
 
     if !arguments.quiet {
         println!(
-            "Open Unity {} project in: {}",
-            open_unity_version,
-            project.normalized_display()
+            "Open Unity {v} project in: {p}",
+            v = open_unity_version,
+            p = project.normalized_display()
         );
     }
 

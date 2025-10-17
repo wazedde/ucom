@@ -92,10 +92,10 @@ fn print_results(
     MessageType::print_line(
         "Finished",
         format!(
-            "{} tests for project in {}; total time {:.2}s",
-            &arguments.platform,
-            project.normalized_display(),
-            Utc::now().signed_duration_since(start_time).as_seconds()
+            "{p} tests for project in {d}; total time {t:.2}s",
+            p = &arguments.platform,
+            d = project.normalized_display(),
+            t = Utc::now().signed_duration_since(start_time).as_seconds()
         ),
         status,
     );
@@ -131,9 +131,9 @@ fn print_results(
     );
 
     println!(
-        "Result: {}. {}",
-        MessageType::format_text(status.as_ref(), status),
-        results,
+        "Result: {s}. {r}",
+        s = MessageType::format_text(status.as_ref(), status),
+        r = results,
     );
     Ok(())
 }
@@ -195,10 +195,10 @@ fn print_test_cases<'a>(test_cases: impl Iterator<Item = &'a TestCase>) {
         };
 
         println!(
-            "{}: {}; finished in {:.2}s",
-            MessageType::format_text(test_case.result.as_ref(), status),
-            test_case.full_name.paint(name_style),
-            test_case.duration,
+            "{s}: {n}; finished in {t:.2}s",
+            s = MessageType::format_text(test_case.result.as_ref(), status),
+            n = test_case.full_name.paint(name_style),
+            t = test_case.duration,
         );
     }
 }

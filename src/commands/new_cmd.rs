@@ -54,9 +54,9 @@ pub fn new_project(arguments: NewArguments) -> anyhow::Result<()> {
 
     if !arguments.quiet {
         println_bold!(
-            "Create new Unity {} project in: {}",
-            version,
-            project_dir.normalized_display()
+            "Create new Unity {v} project in: {p}",
+            v = version,
+            p = project_dir.normalized_display()
         );
     }
 
