@@ -1,11 +1,11 @@
 use std::fs;
 use std::path::Path;
 
-use anyhow::anyhow;
-use chrono::TimeDelta;
-
 use crate::cli_add::UnityTemplateFile;
 use crate::utils::path_ext::PlatformConsistentPathExt;
+use anyhow::anyhow;
+use chrono::TimeDelta;
+use yansi::Paint;
 
 pub use crate::commands::add_cmd::add_to_project;
 pub use crate::commands::build_cmd::build_project;
@@ -16,6 +16,9 @@ pub use crate::commands::new_cmd::new_project;
 pub use crate::commands::open_cmd::open_project;
 pub use crate::commands::run_cmd::run_unity;
 pub use crate::commands::updates_cmd::find_project_updates;
+use crate::style_definitions::{ERROR, LINK, UNSTYLED};
+use crate::unity::release_api_data::LabelElement;
+use crate::utils::report::{HeaderLevel, Report, WrapMode};
 
 mod add_cmd;
 mod build_cmd;
@@ -85,4 +88,33 @@ fn create_file(file_path: impl AsRef<Path>, content: &str) -> anyhow::Result<()>
 
     fs::create_dir_all(parent_dir)?;
     fs::write(file_path, content).map_err(Into::into)
+}
+
+fn report_error_description(report: &Report, error_label: &LabelElement) {
+    report.blank_line();
+    report.header(
+        format_args!("{}", error_label.label_text).paint(ERROR),
+        HeaderLevel::H2,
+    );
+
+    let description = report.render_links(&error_label.description, UNSTYLED, LINK);
+    let description = report.wrap_text(&description, WrapMode::TerminalWidth);
+    report.paragraph(&description);
+}
+
+fn format_label_with_url(le: &LabelElement) -> String {
+    extract_first_url(&le.description).map_or_else(
+        || le.label_text.paint(ERROR).to_string(),
+        |url| le.label_text.paint(ERROR).link(url).to_string(),
+    )
+}
+
+fn extract_first_url(text: &str) -> Option<&str> {
+    let start_index = text.find("http://").or_else(|| text.find("https://"))?;
+    let remaining_text = &text[start_index..];
+    let end_index = remaining_text
+        .find(|c: char| c.is_whitespace() || c == '"' || c == '<' || c == '>')
+        .unwrap_or(remaining_text.len());
+
+    Some(&remaining_text[..end_index])
 }

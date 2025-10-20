@@ -6,7 +6,7 @@ use crate::unity::release_api::{UpdatePolicy, fetch_latest_releases};
 use crate::unity::{BuildProfilesStatus, Version, release_notes_url};
 use crate::utils;
 use crate::utils::path_ext::PlatformConsistentPathExt;
-use crate::utils::report::{HeaderLevel, Report, WrapMode};
+use crate::utils::report::{HeaderLevel, Report};
 use itertools::Itertools;
 use std::path::Path;
 use yansi::Paint;
@@ -151,17 +151,9 @@ fn print_project_info(
         },
     );
 
-    if let Some(error_label) = error_label {
-        report.blank_line();
-        report.header(
-            format_args!("{}", error_label.label_text).paint(ERROR),
-            HeaderLevel::H2,
-        );
-
-        let description = report.render_links(&error_label.description, UNSTYLED, LINK);
-        let description = report.wrap_text(&description, WrapMode::TerminalWidth);
-        report.paragraph(&description);
-    }
+    error_label.inspect(|el| {
+        crate::commands::report_error_description(report, el);
+    });
 
     // Print the available build profiles
     let build_profiles = project.build_profiles(unity_version)?;

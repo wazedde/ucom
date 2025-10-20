@@ -9,7 +9,7 @@ use crate::unity::installations::{Installations, SortedVersions};
 use crate::unity::release_api::{
     Releases, SortedReleases, UpdatePolicy, fetch_latest_releases, load_cached_releases,
 };
-use crate::unity::release_api_data::{LabelElement, ReleaseData};
+use crate::unity::release_api_data::ReleaseData;
 use crate::unity::{ReleaseStream, Version, release_notes_url};
 use crate::utils::formatter::FormatWhen;
 use crate::utils::path_ext::PlatformConsistentPathExt;
@@ -160,17 +160,6 @@ fn display_list_with_release_dates(
     }
     report.when(report.is_markdown()).paragraph(CODE_BLOCK);
 }
-fn find_first_url(text: &str) -> Option<&str> {
-    let start_index = text.find("http://").or_else(|| text.find("https://"))?;
-
-    let remaining_text = &text[start_index..];
-
-    let end_index = remaining_text
-        .find(|c: char| c.is_whitespace() || c == '"' || c == '<' || c == '>')
-        .unwrap_or(remaining_text.len());
-
-    Some(&remaining_text[..end_index])
-}
 
 //
 // List updates
@@ -232,7 +221,7 @@ fn display_updates(installed: &Installations, mode: UpdatePolicy) -> anyhow::Res
                             "{stream} {vs} ({release_date}) {mk} [{el}]",
                             vs = version_str.paint(ERROR),
                             mk = MARK_ERROR.paint(ERROR),
-                            el = create_description_url(el)
+                            el = format_label_with_url(el)
                         )
                     } else {
                         format!("{stream} {version_str} ({release_date})")
@@ -241,7 +230,7 @@ fn display_updates(installed: &Installations, mode: UpdatePolicy) -> anyhow::Res
                 VersionType::LatestInstalled => {
                     let is_last_version_in_group = info.version == group.last().version;
                     let error_link = if let Some(el) = error_label {
-                        format!(" [{el}]", el = create_description_url(el))
+                        format!(" [{el}]", el = format_label_with_url(el))
                     } else {
                         String::default()
                     };
@@ -670,18 +659,11 @@ where
 }
 
 fn format_release_description(info: &VersionInfo, release: Option<&ReleaseData>) -> String {
-    if let Some(s) = release.and_then(|rd| rd.error_label().map(create_description_url)) {
+    if let Some(s) = release.and_then(|rd| rd.error_label().map(format_label_with_url)) {
         format!("{} [{}]", release_notes_url(info.version).paint(LINK), s)
     } else {
         release_notes_url(info.version).paint(LINK).to_string()
     }
-}
-
-fn create_description_url(le: &LabelElement) -> String {
-    find_first_url(&le.description).map_or_else(
-        || le.label_text.paint(ERROR).to_string(),
-        |url| le.label_text.paint(ERROR).link(url).to_string(),
-    )
 }
 
 fn collect_latest_minor_releases<'a>(

@@ -79,7 +79,7 @@ impl SortedVersions {
                 )
             })?
             .flatten()
-            .map(|de| de.path()) //
+            .map(|de| de.path())
             .filter(|p| p.is_dir() && p.join(platform::UNITY_EDITOR_EXE).exists())
             .filter_map(|p| p.file_name()?.to_string_lossy().parse::<Version>().ok())
             .collect_vec();

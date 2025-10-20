@@ -3,8 +3,10 @@ use std::path::Path;
 use yansi::Paint;
 
 use crate::commands::install_cmd::install_version;
-use crate::commands::{MARK_AVAILABLE, MARK_UNAVAILABLE};
-use crate::style_definitions::{ERROR, HAS_UPDATE, IS_UPDATE, LINK, OK, UP_TO_DATE, WARNING};
+use crate::commands::*;
+use crate::style_definitions::{
+    ERROR, HAS_UPDATE, IS_UPDATE, LINK, OK, UNSTYLED, UP_TO_DATE, WARNING,
+};
 use crate::unity::release_api::{SortedReleases, UpdatePolicy};
 use crate::unity::{
     ProjectPath, ProjectSettings, ReleaseUpdates, find_available_updates, release_notes_url,
@@ -45,7 +47,7 @@ pub fn find_project_updates(
         download_and_print_release_notes(&updates, &report)?;
     } else if !updates.newer_releases.is_empty() {
         report.blank_line();
-        print_available_updates(&updates.newer_releases, &report)?;
+        print_available_updates(&updates, &report)?;
     }
 
     if create_report {
@@ -142,7 +144,11 @@ fn print_project_version(
     report: &Report,
     create_report: bool,
 ) -> anyhow::Result<()> {
-    let is_installed = updates.current_release.version.is_editor_installed()?;
+    let release = &updates.current_release;
+    let is_installed = release.version.is_editor_installed()?;
+
+    let error_label = release.error_label();
+    let has_error = error_label.is_some();
 
     let (status, colored_version) = match (is_installed, updates.newer_releases.is_empty()) {
         (true, true) => (
@@ -165,7 +171,9 @@ fn print_project_version(
 
     report.header(format!("Unity editor status: {status}"), HeaderLevel::H2);
 
-    let installed_marker = if is_installed {
+    let installed_marker = if has_error {
+        MARK_ERROR.paint(ERROR)
+    } else if is_installed {
         MARK_AVAILABLE.paint(OK)
     } else {
         MARK_UNAVAILABLE.paint(ERROR)
@@ -194,31 +202,54 @@ fn print_project_version(
         installed_marker,
     );
 
+    error_label.inspect(|el| {
+        report_error_description(report, el);
+    });
     Ok(())
 }
 
-fn print_available_updates(releases: &SortedReleases, report: &Report) -> anyhow::Result<()> {
+fn print_available_updates(releases: &ReleaseUpdates, report: &Report) -> anyhow::Result<()> {
     report.header("Available update(s):", HeaderLevel::H2);
     let max_len = releases
+        .newer_releases
         .iter()
         .map(|rd| rd.version.to_interned_str().len())
         .max()
         .ok_or_else(|| anyhow!("No releases"))?;
 
-    for release in releases.iter() {
+    for release in releases.newer_releases.iter() {
+        let error_label = release.error_label();
+        let has_error = error_label.is_some();
+
+        let version_style = if has_error { ERROR } else { IS_UPDATE };
+        let error_info = if let Some(el) = error_label {
+            format!(" [{}]", format_label_with_url(el))
+        } else {
+            String::default()
+        };
+
+        let installed_info = if release.version.is_editor_installed()? {
+            format!(" > {}", "installed".bold())
+        } else {
+            String::default()
+        };
+
         report.marked_item(
             format!(
-                "{:<max_len$} ({}) - {}{}",
-                release.version.to_interned_str().paint(IS_UPDATE).bold(),
-                release.release_date.format("%Y-%m-%d"),
-                release_notes_url(release.version).paint(LINK),
-                if release.version.is_editor_installed()? {
-                    format!(" > {}", "installed".bold())
-                } else {
-                    String::default()
-                }
+                "{vs:<max_len$} ({rd}) - {rn}{error_info}{installed_info}",
+                vs = release
+                    .version
+                    .to_interned_str()
+                    .paint(version_style)
+                    .bold(),
+                rd = release.release_date.format("%Y-%m-%d"),
+                rn = release_notes_url(release.version).paint(LINK),
             ),
-            '-',
+            if has_error {
+                MARK_ERROR.paint(ERROR)
+            } else {
+                MARK_BULLET.paint(UNSTYLED)
+            },
         );
     }
 
