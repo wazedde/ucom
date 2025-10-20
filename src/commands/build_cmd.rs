@@ -4,18 +4,19 @@ use std::io::{BufRead, BufReader};
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
+use crate::cli_add::UnityTemplateFile;
+use crate::cli_build::{BuildArguments, BuildMode, BuildOptions, BuildScriptTarget, InjectAction};
+use crate::commands::{
+    PERSISTENT_BUILD_SCRIPT_ROOT, TimeDeltaExt, add_file_to_project, check_version_issues,
+};
+use crate::unity::{ProjectPath, build_command_line, wait_with_log_output, wait_with_stdout};
+use crate::utils::path_ext::PlatformConsistentPathExt;
+use crate::utils::status_line::{MessageType, StatusLine};
 use anyhow::anyhow;
 use chrono::Utc;
 use itertools::Itertools;
 use path_absolutize::Absolutize;
 use uuid::Uuid;
-
-use crate::cli_add::UnityTemplateFile;
-use crate::cli_build::{BuildArguments, BuildMode, BuildOptions, BuildScriptTarget, InjectAction};
-use crate::commands::{PERSISTENT_BUILD_SCRIPT_ROOT, TimeDeltaExt, add_file_to_project};
-use crate::unity::{ProjectPath, build_command_line, wait_with_log_output, wait_with_stdout};
-use crate::utils::path_ext::PlatformConsistentPathExt;
-use crate::utils::status_line::{MessageType, StatusLine};
 
 const AUTO_BUILD_SCRIPT_ROOT: &str = "Assets/Ucom";
 
@@ -94,6 +95,7 @@ pub fn build_project(arguments: &BuildArguments) -> anyhow::Result<()> {
     );
 
     print_build_report(&log_path, build_status);
+    check_version_issues(unity_version);
     build_result.map_err(|_| collect_log_errors(&log_path))
 }
 
@@ -314,6 +316,7 @@ fn line_contains_error(line: &str) -> bool {
         "Error building Player",
         "error:",
         "BuildFailedException:",
+        "System.Exception:",
     ];
 
     ERROR_PREFIXES.iter().any(|prefix| line.contains(prefix))

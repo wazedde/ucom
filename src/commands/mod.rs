@@ -17,6 +17,8 @@ pub use crate::commands::open_cmd::open_project;
 pub use crate::commands::run_cmd::run_unity;
 pub use crate::commands::updates_cmd::find_project_updates;
 use crate::style_definitions::{ERROR, LINK, UNSTYLED};
+use crate::unity::Version;
+use crate::unity::release_api::{UpdatePolicy, fetch_latest_releases};
 use crate::unity::release_api_data::LabelElement;
 use crate::utils::report::{HeaderLevel, Report, WrapMode};
 
@@ -117,4 +119,17 @@ fn extract_first_url(text: &str) -> Option<&str> {
         .unwrap_or(remaining_text.len());
 
     Some(&remaining_text[..end_index])
+}
+
+/// Checks if the given version has any issues and reports them.
+fn check_version_issues(unity_version: Version) {
+    if let Ok(releases) = fetch_latest_releases(UpdatePolicy::Incremental)
+        && let Ok(release_data) = releases.get_by_version(unity_version)
+    {
+        release_data.error_label().inspect(|label| {
+            let report = Report::Terminal;
+            report_error_description(&report, label);
+            report.blank_line();
+        });
+    }
 }
