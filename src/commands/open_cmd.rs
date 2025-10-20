@@ -1,6 +1,7 @@
 use std::process::Command;
 
 use crate::cli::OpenArguments;
+use crate::commands::check_version_issues;
 use crate::unity::installations::Installations;
 use crate::unity::{ProjectPath, build_command_line, spawn_and_forget, wait_with_stdout};
 use crate::utils::path_ext::PlatformConsistentPathExt;
@@ -50,6 +51,7 @@ pub fn open_project(arguments: OpenArguments) -> anyhow::Result<()> {
             v = open_unity_version,
             p = project.normalized_display()
         );
+        check_version_issues(open_unity_version);
     }
 
     if arguments.wait {
