@@ -92,27 +92,31 @@ impl UnityTemplateFile {
         match self {
             Self::Builder => TemplateAsset {
                 filename: "UnityBuilder.cs",
-                content: AssetSource::Remote(
-                    "https://gist.github.com/jakkovanhunen/b56a70509616b6ff3492a17ae670a5e7/raw",
-                ),
+                content: AssetSource::Static(include_str!("../templates/UnityBuilder.cs")),
+                // content: AssetSource::Remote(
+                //     "https://gist.github.com/jakkovanhunen/b56a70509616b6ff3492a17ae670a5e7/raw",
+                // ),
             },
             Self::BuilderMenu => TemplateAsset {
                 filename: "EditorMenu.cs",
-                content: AssetSource::Remote(
-                    "https://gist.github.com/jakkovanhunen/a610aa5f675e3826de3b389ddba21319/raw",
-                ),
+                content: AssetSource::Static(include_str!("../templates/EditorMenu.cs")),
+                // content: AssetSource::Remote(
+                //     "https://gist.github.com/jakkovanhunen/a610aa5f675e3826de3b389ddba21319/raw",
+                // ),
             },
             Self::GitIgnore => TemplateAsset {
                 filename: ".gitignore",
-                content: AssetSource::Remote(
-                    "https://gist.github.com/jakkovanhunen/5748353142783045c9bc353ed3a341e7/raw",
-                ),
+                content: AssetSource::Static(include_str!("../templates/gitignore.txt")),
+                // content: AssetSource::Remote(
+                //     "https://gist.github.com/jakkovanhunen/5748353142783045c9bc353ed3a341e7/raw",
+                // ),
             },
             Self::GitAttributes => TemplateAsset {
                 filename: ".gitattributes",
-                content: AssetSource::Remote(
-                    "https://gist.github.com/jakkovanhunen/68d2c0e0da4ebfdf9e094b5505c3f337/raw",
-                ),
+                content: AssetSource::Static(include_str!("../templates/gitattributes.txt")),
+                // content: AssetSource::Remote(
+                //     "https://gist.github.com/jakkovanhunen/68d2c0e0da4ebfdf9e094b5505c3f337/raw",
+                // ),
             },
         }
     }

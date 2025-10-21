@@ -123,13 +123,28 @@ fn extract_first_url(text: &str) -> Option<&str> {
 
 /// Checks if the given version has any issues and reports them.
 fn check_version_issues(unity_version: Version) {
-    if let Ok(releases) = fetch_latest_releases(UpdatePolicy::Incremental)
-        && let Ok(release_data) = releases.get_by_version(unity_version)
-    {
-        release_data.error_label().inspect(|label| {
-            let report = Report::Terminal;
-            report_error_description(&report, label);
-            report.blank_line();
-        });
-    }
+    let releases = match fetch_latest_releases(UpdatePolicy::Incremental) {
+        Ok(releases) => releases,
+        Err(e) => {
+            eprintln!("Failed to fetch release information: {}", e);
+            return;
+        }
+    };
+
+    let release_data = match releases.get_by_version(unity_version) {
+        Ok(data) => data,
+        Err(e) => {
+            eprintln!(
+                "Failed to get release data for version {}: {}",
+                unity_version, e
+            );
+            return;
+        }
+    };
+
+    release_data.error_label().inspect(|label| {
+        let report = Report::Terminal;
+        report_error_description(&report, label);
+        report.blank_line();
+    });
 }

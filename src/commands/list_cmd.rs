@@ -12,7 +12,6 @@ use crate::unity::release_api::{
 use crate::unity::release_api_data::ReleaseData;
 use crate::unity::{ReleaseStream, Version, release_notes_url};
 use crate::utils::formatter::FormatWhen;
-use crate::utils::path_ext::PlatformConsistentPathExt;
 use crate::utils::report::{HeaderLevel, Report};
 use crate::utils::vec1::Vec1;
 
