@@ -10,8 +10,8 @@ use serde::Deserialize;
 use walkdir::{DirEntry, IntoIter, WalkDir};
 
 use crate::unity::Version;
-use crate::utils;
 use crate::utils::path_ext::PlatformConsistentPathExt;
+use crate::utils::resolve_absolute_dir_path;
 
 const VERSION_SUB_PATH: &str = "ProjectSettings/ProjectVersion.txt";
 
@@ -229,7 +229,7 @@ impl ProjectPath {
     /// Creates a new `ProjectPath` from the given directory.
     /// Fails if the directory does not contain a Unity project.
     pub fn try_from(path: impl AsRef<Path>) -> anyhow::Result<Self> {
-        let path = utils::resolve_absolute_dir_path(&path)?;
+        let path = resolve_absolute_dir_path(&path)?;
         if Self::contains_unity_project(&path) {
             Ok(Self(path.to_path_buf()))
         } else {

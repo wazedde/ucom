@@ -1,8 +1,9 @@
 use std::process::Command;
 
 use crate::cli_run::RunArguments;
+use crate::commands::execute_unity_command;
+use crate::unity::build_command_line;
 use crate::unity::installations::Installations;
-use crate::unity::{build_command_line, spawn_and_forget, wait_with_stdout};
 
 /// Runs the Unity Editor with the given arguments.
 pub fn run_unity(arguments: RunArguments) -> anyhow::Result<()> {
@@ -21,10 +22,5 @@ pub fn run_unity(arguments: RunArguments) -> anyhow::Result<()> {
         println!("Run Unity {unity_version}");
     }
 
-    if arguments.wait {
-        wait_with_stdout(run_command)?;
-    } else {
-        spawn_and_forget(run_command)?;
-    }
-    Ok(())
+    execute_unity_command(run_command, arguments.wait, arguments.quiet)
 }

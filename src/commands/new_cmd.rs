@@ -7,9 +7,11 @@ use path_absolutize::Absolutize;
 
 use crate::cli_add::UnityTemplateFile;
 use crate::cli_new::NewArguments;
-use crate::commands::{PERSISTENT_BUILD_SCRIPT_ROOT, add_file_to_project, check_version_issues};
+use crate::commands::{
+    PERSISTENT_BUILD_SCRIPT_ROOT, add_file_to_project, check_version_issues, execute_unity_command,
+};
+use crate::unity::build_command_line;
 use crate::unity::installations::Installations;
-use crate::unity::{build_command_line, spawn_and_forget, wait_with_stdout};
 use crate::utils::path_ext::PlatformConsistentPathExt;
 use crate::utils::status_line::StatusLine;
 
@@ -71,14 +73,13 @@ pub fn new_project(arguments: NewArguments) -> anyhow::Result<()> {
         git_init(project_dir, arguments.include_lfs)?;
     }
 
-    match (arguments.wait, arguments.quit && !arguments.quiet) {
-        (true, true) => {
-            let _status = StatusLine::new("Creating", "project...");
-            wait_with_stdout(cmd)?;
-        }
-        (true, false) => wait_with_stdout(cmd)?,
-        (false, _) => spawn_and_forget(cmd)?,
-    }
+    let _status = if arguments.wait && arguments.quit && !arguments.quiet {
+        StatusLine::new("Creating", "project...")
+    } else {
+        StatusLine::new_silent()
+    };
+
+    execute_unity_command(cmd, arguments.wait, arguments.quiet)?;
 
     Ok(())
 }

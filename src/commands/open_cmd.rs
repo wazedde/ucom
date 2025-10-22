@@ -1,9 +1,9 @@
 use std::process::Command;
 
 use crate::cli::OpenArguments;
-use crate::commands::check_version_issues;
+use crate::commands::{check_version_issues, execute_unity_command};
 use crate::unity::installations::Installations;
-use crate::unity::{ProjectPath, build_command_line, spawn_and_forget, wait_with_stdout};
+use crate::unity::{ProjectPath, build_command_line};
 use crate::utils::path_ext::PlatformConsistentPathExt;
 
 /// Opens the given Unity project in the Unity Editor.
@@ -54,10 +54,5 @@ pub fn open_project(arguments: OpenArguments) -> anyhow::Result<()> {
         check_version_issues(open_unity_version);
     }
 
-    if arguments.wait {
-        wait_with_stdout(cmd)?;
-    } else {
-        spawn_and_forget(cmd)?;
-    }
-    Ok(())
+    execute_unity_command(cmd, arguments.wait, arguments.quiet)
 }

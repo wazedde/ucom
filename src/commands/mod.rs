@@ -1,10 +1,10 @@
-use std::fs;
-use std::path::Path;
-
 use crate::cli_add::UnityTemplateFile;
 use crate::utils::path_ext::PlatformConsistentPathExt;
 use anyhow::anyhow;
 use chrono::TimeDelta;
+use std::fs;
+use std::path::Path;
+use std::process::Command;
 use yansi::Paint;
 
 pub use crate::commands::add_cmd::add_to_project;
@@ -147,4 +147,16 @@ fn check_version_issues(unity_version: Version) {
         report_error_description(&report, label);
         report.blank_line();
     });
+}
+pub fn execute_unity_command(cmd: Command, wait: bool, quiet: bool) -> anyhow::Result<()> {
+    if !quiet {
+        println!("Running: {}", crate::unity::build_command_line(&cmd));
+    }
+
+    if wait {
+        crate::unity::wait_with_stdout(cmd)?;
+    } else {
+        crate::unity::spawn_and_forget(cmd)?;
+    }
+    Ok(())
 }
