@@ -7,7 +7,8 @@ use std::process::Command;
 use crate::cli_add::UnityTemplateFile;
 use crate::cli_build::{BuildArguments, BuildMode, BuildOptions, BuildScriptTarget, InjectAction};
 use crate::commands::{
-    PERSISTENT_BUILD_SCRIPT_ROOT, TimeDeltaExt, add_file_to_project, check_version_issues,
+    PERSISTENT_BUILD_SCRIPT_ROOT, ProjectSetup, TimeDeltaExt, add_file_to_project,
+    check_version_issues,
 };
 use crate::unity::{ProjectPath, build_command_line, wait_with_log_output, wait_with_stdout};
 use crate::utils::path_ext::PlatformConsistentPathExt;
@@ -23,23 +24,23 @@ const AUTO_BUILD_SCRIPT_ROOT: &str = "Assets/Ucom";
 /// Runs the build command.
 pub fn build_project(arguments: &BuildArguments) -> anyhow::Result<()> {
     let start_time = Utc::now();
-    let project = ProjectPath::try_from(&arguments.project_dir)?;
-    let unity_version = project.unity_version()?;
-    let editor_path = unity_version.editor_executable_path()?;
+    let setup = ProjectSetup::new(&arguments.project_dir)?;
+    let editor_path = setup.editor_executable()?;
 
-    let output_path = arguments.output_path(&project)?;
-    let log_path = arguments.full_log_path(&project)?;
+    let output_path = arguments.output_path(&setup.project)?;
+    let log_path = arguments.full_log_path(&setup.project)?;
 
-    let build_command = arguments.create_cmd(&project, &editor_path, &output_path, &log_path);
+    let build_command = arguments.create_cmd(&setup.project, &editor_path, &output_path, &log_path);
 
     if arguments.dry_run {
         println!("{}", build_command_line(&build_command));
         return Ok(());
     }
     let build_text = format!(
-        "Unity {unity_version} {t} project in {v}",
-        t = arguments.target,
-        v = project.normalized_display()
+        "Unity {} {} project in {}",
+        setup.unity_version,
+        arguments.target,
+        setup.project.normalized_display()
     );
 
     let build_status = if arguments.quiet {
@@ -49,7 +50,7 @@ pub fn build_project(arguments: &BuildArguments) -> anyhow::Result<()> {
         StatusLine::new_silent()
     };
 
-    let hooks = csharp_build_script_injection_hooks(&project, arguments.inject);
+    let hooks = csharp_build_script_injection_hooks(&setup.project, arguments.inject);
 
     (hooks.inject_build_script)()?;
 
@@ -78,9 +79,10 @@ pub fn build_project(arguments: &BuildArguments) -> anyhow::Result<()> {
     MessageType::print_line(
         log_tag,
         format!(
-            "building Unity {unity_version} {t} project in {p}",
-            t = arguments.target,
-            p = project.normalized_display()
+            "building Unity {} {} project in {}",
+            setup.unity_version,
+            arguments.target,
+            setup.project.normalized_display()
         ),
         build_status,
     );
@@ -95,7 +97,7 @@ pub fn build_project(arguments: &BuildArguments) -> anyhow::Result<()> {
     );
 
     print_build_report(&log_path, build_status);
-    check_version_issues(unity_version);
+    check_version_issues(setup.unity_version);
     build_result.map_err(|_| collect_log_errors(&log_path))
 }
 

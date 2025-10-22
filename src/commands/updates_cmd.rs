@@ -8,9 +8,7 @@ use crate::style_definitions::{
     ERROR, HAS_UPDATE, IS_UPDATE, LINK, OK, UNSTYLED, UP_TO_DATE, WARNING,
 };
 use crate::unity::release_api::{SortedReleases, UpdatePolicy};
-use crate::unity::{
-    ProjectPath, ProjectSettings, ReleaseUpdates, find_available_updates, release_notes_url,
-};
+use crate::unity::{ProjectSettings, ReleaseUpdates, find_available_updates, release_notes_url};
 use crate::utils::content_cache;
 use crate::utils::content_cache::RemoteChangeCheck;
 use crate::utils::path_ext::PlatformConsistentPathExt;
@@ -23,8 +21,8 @@ pub fn find_project_updates(
     create_report: bool,
     mode: UpdatePolicy,
 ) -> anyhow::Result<()> {
-    let project = ProjectPath::try_from(project_dir)?;
-    let current_version = project.unity_version()?;
+    let setup = ProjectSetup::new(project_dir)?;
+    let current_version = setup.unity_version;
 
     let updates = {
         let _status = StatusLine::new("Checking", format!("for updates to {current_version}"));
@@ -38,7 +36,7 @@ pub fn find_project_updates(
         Report::Terminal
     };
 
-    print_project_header(&project, &report);
+    print_project_header(&setup.project, &report);
     report.blank_line();
 
     print_project_version(&updates, &report, create_report)?;

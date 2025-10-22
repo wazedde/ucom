@@ -6,20 +6,18 @@ use chrono::prelude::*;
 use yansi::Paint;
 
 use crate::cli_test::{ShowResults, TestArguments};
-use crate::commands::TimeDeltaExt;
+use crate::commands::{ProjectSetup, TimeDeltaExt};
 use crate::nunit::{TestCase, TestResult, TestRun};
 use crate::style_definitions::{ERROR, UNSTYLED};
-use crate::unity::project::ProjectPath;
-use crate::unity::{build_command_line, wait_with_stdout};
+use crate::unity::{ProjectPath, build_command_line, wait_with_stdout};
 use crate::utils::path_ext::PlatformConsistentPathExt;
 use crate::utils::status_line::{MessageType, StatusLine};
 
 pub fn run_tests(arguments: &TestArguments) -> anyhow::Result<()> {
     let start_time = Utc::now();
-    let project = ProjectPath::try_from(&arguments.project_dir)?;
-    let project_unity_version = project.unity_version()?;
-    let editor_exe = project_unity_version.editor_executable_path()?;
-    project.ensure_assets_directory_exists()?;
+    let setup = ProjectSetup::new(&arguments.project_dir)?;
+    let editor_exe = setup.editor_executable()?;
+    setup.project.ensure_assets_directory_exists()?;
 
     let test_results = format!(
         "tests-{}-{}.xml",
@@ -27,8 +25,8 @@ pub fn run_tests(arguments: &TestArguments) -> anyhow::Result<()> {
         Utc::now().format("%Y%m%d%H%M%S")
     );
 
-    let output_path = project.join(test_results);
-    let test_command = arguments.build_cmd(&project, &editor_exe, &output_path);
+    let output_path = setup.project.join(test_results);
+    let test_command = arguments.build_cmd(&setup.project, &editor_exe, &output_path);
 
     if arguments.dry_run {
         println!("{}", build_command_line(&test_command));
@@ -44,7 +42,7 @@ pub fn run_tests(arguments: &TestArguments) -> anyhow::Result<()> {
                 format!(
                     "{} tests for project in {}",
                     &arguments.platform,
-                    project.normalized_display()
+                    setup.project.normalized_display()
                 ),
             )
         };
@@ -71,7 +69,7 @@ pub fn run_tests(arguments: &TestArguments) -> anyhow::Result<()> {
             Err(_) => MessageType::Error,
         };
 
-        print_results(arguments, &start_time, &project, &output_path, status)?;
+        print_results(arguments, &start_time, &setup.project, &output_path, status)?;
     }
 
     if tests_result.is_err() {

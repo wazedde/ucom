@@ -1,9 +1,9 @@
 use crate::cli_add::UnityTemplateFile;
 use crate::utils::path_ext::PlatformConsistentPathExt;
-use anyhow::anyhow;
+use anyhow::{Context, anyhow};
 use chrono::TimeDelta;
 use std::fs;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::process::Command;
 use yansi::Paint;
 
@@ -17,9 +17,9 @@ pub use crate::commands::open_cmd::open_project;
 pub use crate::commands::run_cmd::run_unity;
 pub use crate::commands::updates_cmd::find_project_updates;
 use crate::style_definitions::{ERROR, LINK, UNSTYLED};
-use crate::unity::Version;
 use crate::unity::release_api::{UpdatePolicy, fetch_latest_releases};
 use crate::unity::release_api_data::LabelElement;
+use crate::unity::{ProjectPath, Version};
 use crate::utils::report::{HeaderLevel, Report, WrapMode};
 
 mod add_cmd;
@@ -159,4 +159,31 @@ pub fn execute_unity_command(cmd: Command, wait: bool, quiet: bool) -> anyhow::R
         crate::unity::spawn_and_forget(cmd)?;
     }
     Ok(())
+}
+
+/// Unified project setup for commands
+pub struct ProjectSetup {
+    pub project: ProjectPath,
+    pub unity_version: Version,
+}
+
+impl ProjectSetup {
+    /// Initialize project and validate Unity version
+    pub fn new(project_dir: &Path) -> anyhow::Result<Self> {
+        let project =
+            ProjectPath::try_from(project_dir).context("Failed to locate Unity project")?;
+        let unity_version = project
+            .unity_version()
+            .context("Failed to read Unity version from project")?;
+
+        Ok(Self {
+            project,
+            unity_version,
+        })
+    }
+
+    /// Get the editor executable for this project's Unity version
+    pub fn editor_executable(&self) -> anyhow::Result<PathBuf> {
+        self.unity_version.editor_executable_path()
+    }
 }
