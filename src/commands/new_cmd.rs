@@ -8,7 +8,8 @@ use path_absolutize::Absolutize;
 use crate::cli_add::UnityTemplateFile;
 use crate::cli_new::NewArguments;
 use crate::commands::{
-    PERSISTENT_BUILD_SCRIPT_ROOT, add_file_to_project, check_version_issues, execute_unity_command,
+    PERSISTENT_BUILD_SCRIPT_ROOT, UnityCommandBuilder, add_file_to_project, check_version_issues,
+    execute_unity_command,
 };
 use crate::unity::build_command_line;
 use crate::unity::installations::Installations;
@@ -36,18 +37,17 @@ pub fn new_project(arguments: NewArguments) -> anyhow::Result<()> {
     let version = Installations::latest_installed_version(Some(&arguments.version_pattern))?;
     let editor_exe = version.editor_executable_path()?;
 
-    let mut cmd = Command::new(editor_exe);
-    cmd.arg("-createProject")
-        .arg(project_dir.as_ref())
-        .args(arguments.args.unwrap_or_default());
-
-    if arguments.quit {
-        cmd.arg("-quit");
-    }
+    let mut builder = UnityCommandBuilder::new(editor_exe)
+        .add_arg("-createProject")
+        .add_arg(project_dir.to_string_lossy().to_string())
+        .add_args(arguments.args.unwrap_or_default())
+        .quit(arguments.quit);
 
     if let Some(target) = arguments.target {
-        cmd.args(["-buildTarget", target.as_ref()]);
+        builder = builder.with_build_target(target.as_ref());
     }
+
+    let cmd = builder.build();
 
     if arguments.dry_run {
         println!("{}", build_command_line(&cmd));

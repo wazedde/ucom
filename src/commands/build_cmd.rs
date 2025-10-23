@@ -7,8 +7,8 @@ use std::process::Command;
 use crate::cli_add::UnityTemplateFile;
 use crate::cli_build::{BuildArguments, BuildMode, BuildOptions, BuildScriptTarget, InjectAction};
 use crate::commands::{
-    PERSISTENT_BUILD_SCRIPT_ROOT, ProjectSetup, TimeDeltaExt, add_file_to_project,
-    check_version_issues,
+    PERSISTENT_BUILD_SCRIPT_ROOT, ProjectSetup, TimeDeltaExt, UnityCommandBuilder,
+    add_file_to_project, check_version_issues,
 };
 use crate::unity::{ProjectPath, build_command_line, wait_with_log_output, wait_with_stdout};
 use crate::utils::path_ext::PlatformConsistentPathExt;
@@ -161,46 +161,49 @@ impl BuildArguments {
         output_dir: &Path,
         log_file: &Path,
     ) -> Command {
-        // Build the command to execute.
-        let mut cmd = Command::new(editor_exe);
-        cmd.args(["-projectPath", &project.to_string_lossy()])
-            .args(["-buildTarget", self.target.as_ref()])
-            .args(["-logFile", &log_file.to_string_lossy()])
-            .args(["-executeMethod", &self.build_function])
-            .args(["--ucom-build-output", &output_dir.to_string_lossy()])
-            .args([
-                "--ucom-build-target",
-                BuildScriptTarget::from(self.target).as_ref(),
-            ]);
+        // Build the command using the builder pattern.
+        let mut builder = UnityCommandBuilder::new(editor_exe.to_path_buf())
+            .with_project_path(project.to_path_buf())
+            .with_build_target(self.target.as_ref())
+            .with_log_file(log_file)
+            .add_arg("-executeMethod")
+            .add_arg(&self.build_function)
+            .add_arg("--ucom-build-output")
+            .add_arg(output_dir.to_string_lossy().to_string())
+            .add_arg("--ucom-build-target")
+            .add_arg(BuildScriptTarget::from(self.target).as_ref());
 
         let build_options = self.build_option_flags();
         if build_options != (BuildOptions::None as i32) {
-            cmd.args(["--ucom-build-options", &build_options.to_string()]);
+            builder = builder
+                .add_arg("--ucom-build-options")
+                .add_arg(build_options.to_string());
         }
 
         if let Some(build_args) = &self.build_args {
-            cmd.args(["--ucom-pre-build-args", build_args]);
+            builder = builder.add_arg("--ucom-pre-build-args").add_arg(build_args);
         }
 
-        // Add the build mode.
+        // Add the build mode flags.
         match self.mode {
             BuildMode::BatchNoGraphics => {
-                cmd.args(["-batchmode", "-nographics", "-quit"]);
+                builder = builder.batch_mode(true).no_graphics(true).quit(true);
             }
             BuildMode::Batch => {
-                cmd.args(["-batchmode", "-quit"]);
+                builder = builder.batch_mode(true).quit(true);
             }
             BuildMode::EditorQuit => {
-                cmd.args(["-quit"]);
+                builder = builder.quit(true);
             }
             BuildMode::Editor => (), // Do nothing.
         }
 
         // Add any additional arguments.
         if let Some(a) = self.args.as_ref() {
-            cmd.args(a);
+            builder = builder.add_args(a.iter().cloned());
         }
-        cmd
+
+        builder.build()
     }
 
     fn build_option_flags(&self) -> i32 {

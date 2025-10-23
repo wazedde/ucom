@@ -1,7 +1,5 @@
-use std::process::Command;
-
 use crate::cli::OpenArguments;
-use crate::commands::{check_version_issues, execute_unity_command};
+use crate::commands::{UnityCommandBuilder, check_version_issues, execute_unity_command};
 use crate::unity::installations::Installations;
 use crate::unity::{ProjectPath, build_command_line};
 use crate::utils::path_ext::PlatformConsistentPathExt;
@@ -27,18 +25,16 @@ pub fn open_project(arguments: OpenArguments) -> anyhow::Result<()> {
     project.ensure_assets_directory_exists()?;
 
     // Build the command to execute.
-    let mut cmd = Command::new(editor_exe);
-    cmd.args(["-projectPath", &project.to_string_lossy()]);
+    let mut builder = UnityCommandBuilder::new(editor_exe)
+        .with_project_path(project.to_path_buf())
+        .quit(arguments.quit)
+        .add_args(arguments.args.unwrap_or_default());
 
     if let Some(target) = arguments.target {
-        cmd.args(["-buildTarget", target.as_ref()]);
+        builder = builder.with_build_target(target.as_ref());
     }
 
-    if arguments.quit {
-        cmd.arg("-quit");
-    }
-
-    cmd.args(arguments.args.unwrap_or_default());
+    let cmd = builder.build();
 
     if arguments.dry_run {
         println!("{}", build_command_line(&cmd));

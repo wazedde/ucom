@@ -6,7 +6,7 @@ use chrono::prelude::*;
 use yansi::Paint;
 
 use crate::cli_test::{ShowResults, TestArguments};
-use crate::commands::{ProjectSetup, TimeDeltaExt};
+use crate::commands::{ProjectSetup, TimeDeltaExt, UnityCommandBuilder};
 use crate::nunit::{TestCase, TestResult, TestRun};
 use crate::style_definitions::{ERROR, UNSTYLED};
 use crate::unity::{ProjectPath, build_command_line, wait_with_stdout};
@@ -138,44 +138,52 @@ fn print_results(
 
 impl TestArguments {
     fn build_cmd(&self, project: &ProjectPath, editor_exe: &Path, output_dir: &Path) -> Command {
-        // Build the command to execute.
-        let mut cmd = Command::new(editor_exe);
-        cmd.args(["-projectPath", &project.to_string_lossy()]);
-        cmd.arg("-runTests");
-        cmd.args(["-testPlatform", self.platform.as_ref()]);
+        // Build the command using the builder pattern.
+        let mut builder = UnityCommandBuilder::new(editor_exe.to_path_buf())
+            .with_project_path(project.to_path_buf())
+            .add_arg("-runTests")
+            .add_arg("-testPlatform")
+            .add_arg(self.platform.as_ref())
+            .batch_mode(self.no_batch_mode);
 
+        // Set build target
         if let Some(target) = self.target {
-            cmd.args(["-buildTarget", target.as_ref()]);
+            builder = builder.with_build_target(target.as_ref());
         } else {
-            cmd.args(["-buildTarget", self.platform.as_build_target().as_ref()]);
+            builder = builder.with_build_target(self.platform.as_build_target().as_ref());
         }
 
-        if self.no_batch_mode {
-            cmd.arg("-batchmode");
-        }
-
+        // Add forget project path flag if needed
         if self.forget_project_path {
-            cmd.arg("-forgetProjectPath");
+            builder = builder.add_arg("-forgetProjectPath");
         }
 
+        // Add test filters
         if let Some(s) = &self.categories {
-            cmd.args(["-testCategory", &format!("\"{s}\"")]);
+            builder = builder.add_arg("-testCategory").add_arg(format!("\"{s}\""));
         }
 
         if let Some(s) = &self.tests {
-            cmd.args(["-testFilter", &format!("\"{s}\"")]);
+            builder = builder.add_arg("-testFilter").add_arg(format!("\"{s}\""));
         }
 
         if let Some(s) = &self.assemblies {
-            cmd.args(["-assemblyNames", &format!("\"{s}\"")]);
+            builder = builder
+                .add_arg("-assemblyNames")
+                .add_arg(format!("\"{s}\""));
         }
 
-        cmd.args(["-testResults", &output_dir.to_string_lossy()]);
+        // Add test results path
+        builder = builder
+            .add_arg("-testResults")
+            .add_arg(output_dir.to_string_lossy().to_string());
 
+        // Add any additional arguments
         if let Some(a) = self.args.as_ref() {
-            cmd.args(a);
+            builder = builder.add_args(a.iter().cloned());
         }
-        cmd
+
+        builder.build()
     }
 }
 
