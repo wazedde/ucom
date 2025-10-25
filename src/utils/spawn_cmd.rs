@@ -116,11 +116,8 @@ pub fn wait_with_log_output(mut cmd: Command, log_file: &Path) -> Result<(), Com
 
 /// Spawns command and immediately returns without any output.
 pub fn spawn_and_forget(mut cmd: Command) -> Result<(), CommandError> {
-    cmd.stdout(Stdio::piped())
-        .stderr(Stdio::piped())
-        .spawn()
-        .map(|_| ())
-        .map_err(std::convert::Into::into)
+    cmd.stdout(Stdio::piped()).stderr(Stdio::piped()).spawn()?;
+    Ok(())
 }
 
 /// Spawns command and outputs to the console. Blocks until the command has finished.

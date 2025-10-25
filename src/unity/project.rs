@@ -4,7 +4,7 @@ use std::io::{BufRead, BufReader, Read};
 use std::ops::Deref;
 use std::path::{Path, PathBuf};
 
-use anyhow::anyhow;
+use anyhow::{Context, anyhow};
 use itertools::Itertools;
 use serde::Deserialize;
 use walkdir::{DirEntry, IntoIter, WalkDir};
@@ -52,7 +52,7 @@ impl PackagesLock {
     #[allow(dead_code)]
     pub fn from_project(project_dir: &Path) -> anyhow::Result<Self> {
         let file = File::open(project_dir.join("Packages/manifest.json"))?;
-        serde_json::from_reader(BufReader::new(file)).map_err(Into::into)
+        serde_json::from_reader(BufReader::new(file)).context("Failed to parse packages manifest")
     }
 }
 

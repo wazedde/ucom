@@ -13,7 +13,7 @@ use crate::commands::{
 use crate::unity::{ProjectPath, build_command_line, wait_with_log_output, wait_with_stdout};
 use crate::utils::path_ext::PlatformConsistentPathExt;
 use crate::utils::status_line::{MessageType, StatusLine};
-use anyhow::anyhow;
+use anyhow::{Context, anyhow};
 use chrono::Utc;
 use itertools::Itertools;
 use path_absolutize::Absolutize;
@@ -278,7 +278,7 @@ fn clean_output_directory(path: &Path) -> anyhow::Result<()> {
     for dir in to_delete {
         println!("Removing directory: {}", dir.normalized_display());
         fs::remove_dir_all(&dir)
-            .map_err(|_| anyhow!("Could not remove directory: {}", dir.normalized_display()))?;
+            .with_context(|| format!("Could not remove directory: {}", dir.normalized_display()))?;
     }
 
     Ok(())
@@ -419,8 +419,8 @@ fn cleanup_csharp_build_script(parent_dir: impl AsRef<Path>) -> anyhow::Result<(
     }
 
     // Remove the directory where the build script is located.
-    fs::remove_dir_all(parent_dir).map_err(|_| {
-        anyhow!(
+    fs::remove_dir_all(parent_dir).with_context(|| {
+        format!(
             "Could not remove temporary directory: {}",
             parent_dir.normalized_display()
         )
@@ -430,7 +430,7 @@ fn cleanup_csharp_build_script(parent_dir: impl AsRef<Path>) -> anyhow::Result<(
     let meta_file = parent_dir.with_extension("meta");
     if meta_file.exists() {
         fs::remove_file(&meta_file)
-            .map_err(|_| anyhow!("Could not remove: {}", meta_file.normalized_display()))?;
+            .with_context(|| format!("Could not remove: {}", meta_file.normalized_display()))?;
     }
 
     Ok(())

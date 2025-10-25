@@ -34,12 +34,13 @@ pub enum RemoteChangeCheck {
 /// Gets the content of the given URL. Gets the content from the cache if it exists and is not too old.
 pub fn fetch_content(url: &str, change_check: RemoteChangeCheck) -> anyhow::Result<String> {
     if !is_cache_enabled() {
-        return ureq::get(url)
+        let body = ureq::get(url)
             .call()
             .with_context(|| format!("Failed to fetch {url}"))?
             .into_body()
             .read_to_string()
-            .map_err(anyhow::Error::msg);
+            .context("Failed to read response body")?;
+        return Ok(body);
     }
 
     let cache_dir = ucom_cache_dir()?;
@@ -47,7 +48,12 @@ pub fn fetch_content(url: &str, change_check: RemoteChangeCheck) -> anyhow::Resu
 
     match determine_cache_status(url, &filename, change_check)? {
         CacheState::Stale => fetch_and_store_in_cache(url, &filename, &cache_dir),
-        CacheState::Fresh => fs::read_to_string(&filename).map_err(anyhow::Error::msg),
+        CacheState::Fresh => fs::read_to_string(&filename).with_context(|| {
+            format!(
+                "Failed to read cached file: {}",
+                filename.normalized_display()
+            )
+        }),
         CacheState::Touched => refresh_file_timestamp_and_read(&filename),
     }
 }
@@ -192,7 +198,8 @@ fn refresh_file_timestamp_and_read(filename: &Path) -> anyhow::Result<String> {
 
     // Update the local timestamp
     match fs::File::open(filename)?.set_modified(Utc::now().into()) {
-        Ok(()) => fs::read_to_string(filename).map_err(anyhow::Error::msg),
+        Ok(()) => fs::read_to_string(filename)
+            .with_context(|| format!("Failed to read file: {}", filename.normalized_display())),
         Err(e) if e.raw_os_error() == Some(ERROR_ACCESS_DENIED) => {
             // If the error is a permission error, do workaround by re-saving the file
             let content = fs::read_to_string(filename)?;

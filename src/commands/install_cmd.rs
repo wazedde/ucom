@@ -1,6 +1,7 @@
 use crate::style_definitions::LINK;
 use crate::unity::release_api::{UpdatePolicy, fetch_latest_releases};
 use crate::unity::release_api_data::ReleaseData;
+use anyhow::anyhow;
 use yansi::Paint;
 
 pub fn install_latest_matching(version_prefix: &str, mode: UpdatePolicy) -> anyhow::Result<()> {
@@ -9,7 +10,7 @@ pub fn install_latest_matching(version_prefix: &str, mode: UpdatePolicy) -> anyh
         .iter()
         .filter(|rd| rd.version.to_interned_str().starts_with(version_prefix))
         .max_by_key(|rd| rd.version)
-        .ok_or_else(|| anyhow::anyhow!("No version found that matches `{version_prefix}`"))?;
+        .ok_or_else(|| anyhow!("No version found that matches `{version_prefix}`"))?;
 
     install_version(release)
 }

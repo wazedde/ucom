@@ -89,7 +89,9 @@ fn create_file(file_path: impl AsRef<Path>, content: &str) -> anyhow::Result<()>
         .ok_or_else(|| anyhow!("Invalid file path: {}", file_path.normalized_display()))?;
 
     fs::create_dir_all(parent_dir)?;
-    fs::write(file_path, content).map_err(Into::into)
+    fs::write(file_path, content)
+        .with_context(|| format!("Failed to write file: {}", file_path.normalized_display()))?;
+    Ok(())
 }
 
 fn report_error_description(report: &Report, error_label: &LabelElement) {

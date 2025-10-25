@@ -1,6 +1,7 @@
 use crate::unity::release_api::{SortedReleases, UpdatePolicy, fetch_latest_releases};
 use crate::unity::release_api_data::ReleaseData;
 use crate::unity::{BuildType, Version};
+use anyhow::anyhow;
 use serde::{Deserialize, Serialize};
 use std::fmt::{Display, Formatter};
 use strum::Display;
@@ -56,7 +57,7 @@ pub fn find_available_updates(
     let index = releases
         .iter()
         .position(|rd| rd.version == version)
-        .ok_or_else(|| anyhow::anyhow!("Version {version} not found in releases"))?;
+        .ok_or_else(|| anyhow!("Version {version} not found in releases"))?;
     let current_release = releases.remove(index);
 
     Ok(ReleaseUpdates {
