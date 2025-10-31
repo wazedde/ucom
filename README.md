@@ -39,6 +39,7 @@ additional features like building projects and running tests. Inspired by cargo 
 ### Advanced Examples
 
 - `ucom build android ~/Develop/MyProject --mode editor-quit` - Build Android for specific project and close editor
+- `ucom build ios --force-editor-build` - Build via open editor, allowing platform switch and play mode exit
 - `ucom test playmode --categories "!Slow;UI"` - Run playmode tests, excluding slow tests but including UI tests
 - `ucom new ~/Develop/MyProject -u 2021.3.1 --lfs` - Create new project with Git LFS support
 - `ucom open ~/Develop/MyProject --upgrade=2021.3` - Open and upgrade project to latest Unity version in that range
@@ -74,6 +75,28 @@ View and add helper scripts with the `add` command:
 - `ucom add gitattributes` - Add a Unity-specific .gitattributes file for Git LFS
 - `ucom add builder-menu` - Add Editor a menu script for building
 
+## Building with Open Unity Editor
+
+`ucom` can build projects that are already open in the Unity editor using file-based IPC (Inter-Process Communication).
+When you run `ucom build`, it automatically detects if the project is open and communicates with the running editor
+instead of launching a new batch mode process.
+
+Key features:
+
+- **Platform Switching**: Use `--force-editor-build` to allow automatic platform switching if needed
+- **Play Mode Handling**: Use `--force-editor-build` to automatically exit play mode before building
+- **Setup**: Run `ucom add builder` to install the required script in your project
+
+Example:
+
+```bash
+# Build via open editor (if project is open)
+ucom build webgl
+
+# Build with automatic platform switching
+ucom build android --force-editor-build
+```
+
 ## Test Support
 
 The `test` command supports running tests in various modes:
@@ -104,7 +127,6 @@ The following environment variables can be used to set default values for comman
 - macOS and Windows only
 - Requires default editor location (or set environment variable) `UCOM_EDITOR_DIR`
 - Git required for `new` command
-- Cannot build projects that are already open
 - iOS builds don't build the exported Xcode project
 
 ## `ucom help`
@@ -499,6 +521,13 @@ Options:
 
           Defaults to a file inside the '<PROJECT_DIR>/Logs' directory.
 
+      --force-editor-build
+          Allow disruptive operations when the Unity editor is already open.
+
+          This flag permits ucom to automatically switch build platforms (which triggers asset reimport) or exit Play Mode
+          when necessary to perform the build. Without this flag, ucom will return an error if such operations would be
+          required.
+
   -q, --quiet
           Suppress Unity build log output from appearing in the terminal (stdout/stderr)
 
@@ -620,7 +649,8 @@ Arguments:
           Select the helper script or configuration file template to add
 
           Possible values:
-          - builder:        Adds 'UnityBuilder.cs', a C# script for automating builds via the command line
+          - builder:        Adds 'UnityBuilder.cs', a C# script for automating builds via the command line and enabling
+            editor IPC builds
           - builder-menu:   Adds 'EditorMenu.cs', which includes the 'Builder' functionality and adds build commands to
             the Unity Editor menu
           - git-ignore:     Adds a standard '.gitignore' file tailored for Unity projects

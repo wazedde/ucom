@@ -3,6 +3,7 @@ use std::fs::File;
 use std::io::{BufRead, BufReader};
 use std::path::{Path, PathBuf};
 use std::process::Command;
+use std::time::Duration;
 
 use crate::cli_add::UnityTemplateFile;
 use crate::cli_build::{BuildArguments, BuildMode, BuildOptions, BuildScriptTarget, InjectAction};
@@ -10,13 +11,15 @@ use crate::commands::{
     PERSISTENT_BUILD_SCRIPT_ROOT, ProjectSetup, TimeDeltaExt, UnityCommandBuilder,
     add_file_to_project, check_version_issues,
 };
+use crate::unity::editor_process::is_unity_editor_running;
 use crate::unity::{ProjectPath, build_command_line, wait_with_log_output, wait_with_stdout};
 use crate::utils::path_ext::PlatformConsistentPathExt;
 use crate::utils::status_line::{MessageType, StatusLine};
-use anyhow::{Context, anyhow};
+use anyhow::{Context, Result, anyhow};
 use chrono::Utc;
 use itertools::Itertools;
 use path_absolutize::Absolutize;
+use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
 const AUTO_BUILD_SCRIPT_ROOT: &str = "Assets/Ucom";
@@ -25,6 +28,13 @@ const AUTO_BUILD_SCRIPT_ROOT: &str = "Assets/Ucom";
 pub fn build_project(arguments: &BuildArguments) -> anyhow::Result<()> {
     let start_time = Utc::now();
     let setup = ProjectSetup::new(&arguments.project_dir)?;
+
+    // Try to build via editor IPC if editor is running
+    if let Some(result) = try_editor_build(arguments, &setup)? {
+        return handle_editor_build_result(result, &setup, start_time);
+    }
+
+    // Fall back to batch mode build
     let editor_path = setup.editor_executable()?;
 
     let output_path = arguments.output_path(&setup.project)?;
@@ -434,4 +444,261 @@ fn cleanup_csharp_build_script(parent_dir: impl AsRef<Path>) -> anyhow::Result<(
     }
 
     Ok(())
+}
+
+/// Attempts to build the project using an already-running Unity editor via IPC.
+///
+/// Returns `Ok(Some(result))` if the editor is running and responds.
+/// Returns `Ok(None)` if the editor is not running (caller should fall back to batch mode).
+/// Returns `Err` if communication fails or the build fails.
+fn try_editor_build(
+    args: &BuildArguments,
+    setup: &ProjectSetup,
+) -> Result<Option<EditorBuildResult>> {
+    if !is_unity_editor_running(&setup.project)? {
+        return Ok(None);
+    }
+
+    // Check if UnityBuilder.cs is installed (contains the editor watcher)
+    let builder_file_name = UnityTemplateFile::Builder.as_asset().filename;
+    let builder_script_path = setup
+        .project
+        .join(PERSISTENT_BUILD_SCRIPT_ROOT)
+        .join(builder_file_name);
+
+    if !builder_script_path.exists() {
+        return Err(anyhow!(
+            "Unity editor is running, but {} not installed.\n\n\
+             To enable building via the running editor, install the builder script:\n\
+             \n\
+             {}\n\
+             \n\
+             This will enable both batch mode and editor IPC builds.\n\
+             Or close the Unity editor to build in batch mode.",
+            builder_file_name,
+            format_args!("  ucom add builder {}", setup.project.normalized_display())
+        ));
+    }
+
+    MessageType::print_line(
+        "Building via editor",
+        format!(
+            "Unity {} {} project in {}",
+            setup.unity_version,
+            args.target,
+            setup.project.normalized_display()
+        ),
+        MessageType::Info,
+    );
+
+    let uuid = Uuid::new_v4();
+    let temp_dir = setup.project.join("Temp");
+    let command_dir = temp_dir.join("ucom-commands");
+    let result_dir = temp_dir.join("ucom-results");
+
+    fs::create_dir_all(&command_dir)?;
+    fs::create_dir_all(&result_dir)?;
+
+    let output_path = args.output_path(&setup.project)?;
+    let log_path = args.full_log_path(&setup.project)?;
+
+    let command = EditorCommand {
+        command: "build".to_string(),
+        uuid: uuid.to_string(),
+        timestamp: Utc::now().to_rfc3339(),
+        platform: BuildScriptTarget::from(args.target).as_ref().to_string(),
+        output_path: output_path.to_string_lossy().to_string(),
+        log_path: log_path.to_string_lossy().to_string(),
+        build_options: args.build_option_flags(),
+        development_build: args.development_build,
+        force_platform_switch: args.force_editor_build,
+        force_play_mode_exit: args.force_editor_build,
+    };
+
+    let command_file = command_dir.join(format!("build-{uuid}.json"));
+    let command_json = serde_json::to_string_pretty(&command)?;
+    fs::write(&command_file, command_json)?;
+
+    let result = poll_for_result(&result_dir, &uuid)?;
+    // NOTE: When the user cancels the polling, files are left behind. Which is fine.
+
+    let _ = fs::remove_file(&command_file);
+    let result_file = result_dir.join(format!("build-{uuid}.json"));
+    let _ = fs::remove_file(&result_file);
+
+    Ok(Some(result))
+}
+
+/// Polls for a result file from the Unity editor.
+///
+/// Returns the parsed result when the editor completes the build.
+/// Polls indefinitely - user can press Ctrl+C to cancel.
+fn poll_for_result(result_dir: &Path, uuid: &Uuid) -> Result<EditorBuildResult> {
+    let result_file = result_dir.join(format!("build-{uuid}.json"));
+    let poll_interval = Duration::from_millis(500);
+
+    loop {
+        if result_file.exists() {
+            let json = fs::read_to_string(&result_file)?;
+            let result: EditorBuildResult = serde_json::from_str(&json)?;
+            return Ok(result);
+        }
+
+        std::thread::sleep(poll_interval);
+    }
+}
+
+/// Handles the result from an editor build, displaying appropriate messages.
+///
+/// Returns `Ok(())` if the build succeeded, `Err` otherwise.
+fn handle_editor_build_result(
+    result: EditorBuildResult,
+    setup: &ProjectSetup,
+    start_time: chrono::DateTime<Utc>,
+) -> Result<()> {
+    match result.status.as_str() {
+        "error" => return Err(anyhow!("{}", result.message)),
+        "failed" => {
+            // Check for platform switch failure specifically
+            if result.error_code.as_deref() == Some("PLATFORM_SWITCH_FAILED") {
+                return Err(anyhow!(
+                    "Platform switch failed: {}\n\n\
+                     This may happen if:\n\
+                     - The target platform is not installed\n\
+                     - The user cancelled the operation\n\
+                     - Unity encountered an error during the switch",
+                    result.message
+                ));
+            }
+
+            MessageType::print_line(
+                "Failed",
+                format!(
+                    "building Unity {} {} project",
+                    setup.unity_version,
+                    result.original_platform.as_deref().unwrap_or("Unknown")
+                ),
+                MessageType::Error,
+            );
+        }
+        "success" => {
+            if result.platform_switched {
+                MessageType::print_line(
+                    "Platform switched",
+                    format!(
+                        "{} → {} ({:.1}s)",
+                        result.original_platform.as_deref().unwrap_or("Unknown"),
+                        result.switched_to.as_deref().unwrap_or("Unknown"),
+                        result.platform_switch_time_seconds
+                    ),
+                    MessageType::Info,
+                );
+            }
+
+            MessageType::print_line(
+                "Succeeded",
+                format!(
+                    "building Unity {} {} project in {}",
+                    setup.unity_version,
+                    result
+                        .switched_to
+                        .as_deref()
+                        .or(result.original_platform.as_deref())
+                        .unwrap_or("Unknown"),
+                    setup.project.normalized_display()
+                ),
+                MessageType::Ok,
+            );
+
+            // Print build report
+            print_editor_build_report(&result, MessageType::Ok);
+        }
+        _ => {}
+    }
+
+    MessageType::print_line(
+        "Total time",
+        format!(
+            "{t:.2}s",
+            t = Utc::now().signed_duration_since(start_time).as_seconds()
+        ),
+        if result.status == "success" {
+            MessageType::Ok
+        } else {
+            MessageType::Error
+        },
+    );
+
+    if result.status == "success" {
+        Ok(())
+    } else {
+        Err(anyhow!("Build failed"))
+    }
+}
+
+/// Prints the build report from editor build result.
+fn print_editor_build_report(result: &EditorBuildResult, status: MessageType) {
+    if let Some(build_result) = &result.build_result {
+        MessageType::print_line("Build result", build_result, status);
+    }
+
+    if let Some(platform) = &result.platform {
+        MessageType::print_line("Platform", platform, status);
+    }
+
+    MessageType::print_line("Output path", &result.output_path, status);
+
+    if let Some(total_size) = result.total_size {
+        MessageType::print_line("Size", format!("{} MB", total_size / 1024 / 1024), status);
+    }
+
+    if let Some(total_errors) = result.total_errors {
+        MessageType::print_line("Errors", total_errors.to_string(), status);
+    }
+
+    if let Some(total_warnings) = result.total_warnings {
+        MessageType::print_line("Warnings", total_warnings.to_string(), status);
+    }
+
+    MessageType::print_line(
+        "Build time",
+        format!("{:.2}s", result.build_time_seconds),
+        status,
+    );
+}
+
+/// Command structure sent to Unity editor via JSON file.
+#[derive(Serialize, Debug)]
+struct EditorCommand {
+    command: String,
+    uuid: String,
+    timestamp: String,
+    platform: String,
+    output_path: String,
+    log_path: String,
+    build_options: i32,
+    development_build: bool,
+    force_platform_switch: bool,
+    force_play_mode_exit: bool,
+}
+
+/// Result structure received from Unity editor via JSON file.
+#[derive(Deserialize, Debug)]
+#[allow(dead_code)]
+struct EditorBuildResult {
+    uuid: String,
+    status: String,
+    message: String,
+    error_code: Option<String>,
+    platform_switched: bool,
+    original_platform: Option<String>,
+    switched_to: Option<String>,
+    build_time_seconds: f32,
+    platform_switch_time_seconds: f32,
+    output_path: String,
+    build_result: Option<String>,
+    platform: Option<String>,
+    total_size: Option<u64>,
+    total_errors: Option<i32>,
+    total_warnings: Option<i32>,
 }

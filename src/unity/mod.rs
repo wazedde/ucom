@@ -3,6 +3,7 @@ pub use crate::unity::releases::*;
 pub use crate::unity::version::*;
 pub use crate::utils::spawn_cmd::*;
 
+pub mod editor_process;
 pub mod installations;
 pub mod project;
 pub mod release_api;

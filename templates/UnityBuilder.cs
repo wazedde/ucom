@@ -19,6 +19,7 @@
 #if UNITY_2018_3_OR_NEWER
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 using System.IO;
 using System.Linq;
@@ -73,12 +74,12 @@ namespace Ucom
         [UsedImplicitly]
         public static void Build()
         {
-            string[] args = Environment.GetCommandLineArgs();
+            var args = Environment.GetCommandLineArgs();
 
             var invalidArgs = false;
 
             // Get the output directory.
-            if (!args.TryGetArgValue(BuildOutputArg, out string outputDirectory))
+            if (!args.TryGetArgValue(BuildOutputArg, out var outputDirectory))
             {
                 // No output path specified.
                 Log($"[Builder] Error: Output path '{BuildOutputArg} <path>' not specified.", LogType.Error);
@@ -86,7 +87,7 @@ namespace Ucom
             }
 
             // Get the build target.
-            if (!args.TryGetArgValue(BuildTargetArg, out string argValue))
+            if (!args.TryGetArgValue(BuildTargetArg, out var argValue))
             {
                 // No build target specified.
                 Log($"[Builder] Error: Build target '{BuildTargetArg} <target>' not specified.", LogType.Error);
@@ -114,10 +115,9 @@ namespace Ucom
 
             var options = BuildOptions.None;
 
-            if (args.TryGetArgValue(BuildOptionsArg, out string boValue))
+            if (args.TryGetArgValue(BuildOptionsArg, out var boValue))
             {
-                // test // test 3
-                if (int.TryParse(boValue, out int bo))
+                if (int.TryParse(boValue, out var bo))
                 {
                     options = (BuildOptions)bo;
                 }
@@ -130,16 +130,16 @@ namespace Ucom
             }
 
             string[] extraScriptingDefines = null;
-            if (args.TryGetArgValue(AddDefinesArg, out string defines))
+            if (args.TryGetArgValue(AddDefinesArg, out var defines))
                 extraScriptingDefines = defines.Split(';');
 
-            if (!args.TryGetArgValue(PreBuildArgs, out string preBuildArgs))
+            if (!args.TryGetArgValue(PreBuildArgs, out var preBuildArgs))
                 preBuildArgs = "";
 
-            bool buildFailed = !TryGetBuildLocationPath(outputDirectory,
+            var buildFailed = !TryGetBuildLocationPath(outputDirectory,
                 Application.productName,
                 EditorUserBuildSettings.activeBuildTarget,
-                out string locationPathName
+                out var locationPathName
             );
 
             buildFailed |= invalidArgs
@@ -200,17 +200,19 @@ namespace Ucom
             var summary = report.summary;
 
             var sb = new StringBuilder();
+
+            var buildStartTime = summary.buildStartedAt.ToLocalTime().ToString(CultureInfo.InvariantCulture);
             sb.AppendLine("[Builder] Build Report")
                 .AppendLine($"    Build result: {summary.result}")
                 .AppendLine($"    Platform:     {summary.platform}")
                 .AppendLine($"    Output path:  {summary.outputPath}")
                 .AppendLine($"    Size:         {summary.totalSize / 1024 / 1024} MB")
-                .AppendLine($"    Start time:   {summary.buildStartedAt.ToLocalTime().ToString(CultureInfo.InvariantCulture)}")
+                .AppendLine($"    Start time:   {buildStartTime}")
                 .AppendLine($"    Build time:   {summary.totalTime.TotalSeconds:0.00}s")
                 .AppendLine($"    Errors:       {summary.totalErrors}")
                 .AppendLine($"    Warnings:     {summary.totalWarnings}");
 
-            if (Environment.GetCommandLineArgs().TryGetArgValue("-logFile", out string logFile))
+            if (Environment.GetCommandLineArgs().TryGetArgValue("-logFile", out var logFile))
                 sb.AppendLine($"    Log file:     {logFile}");
 
             // End of build report.
@@ -242,7 +244,7 @@ namespace Ucom
             BuildTarget buildTarget,
             out string fullOutputPath)
         {
-            if (TryGetAppFileName(appName, buildTarget, out string appFileName))
+            if (TryGetAppFileName(appName, buildTarget, out var appFileName))
             {
                 fullOutputPath = Path.Combine(buildRootPath, appFileName);
                 return true;
@@ -297,7 +299,7 @@ namespace Ucom
         /// Returns the paths of the active scenes in the build settings.
         /// </summary>
         /// <returns>The paths of the active scenes in the build settings.</returns>
-        [NotNull]
+        [JetBrains.Annotations.NotNull]
         public static string[] GetActiveScenes()
         {
             return EditorBuildSettings
@@ -319,7 +321,7 @@ namespace Ucom
         {
             outputPath = null;
 
-            if (!TryGetBuildTargetDirName(EditorUserBuildSettings.activeBuildTarget, out string target))
+            if (!TryGetBuildTargetDirName(EditorUserBuildSettings.activeBuildTarget, out var target))
                 return false;
 
             outputPath = Path.Combine(GetBuildsDirectoryPath(), outputTypeType.ToString(), target);
@@ -418,7 +420,7 @@ namespace Ucom
         /// <returns>True if the argument was found; False otherwise.</returns>
         public static bool TryGetArgValue(this string[] source, string arg, out string value)
         {
-            int index = Array.IndexOf(source, arg);
+            var index = Array.IndexOf(source, arg);
             if (index < 0 || index == source.Length - 1)
             {
                 value = null;
@@ -446,8 +448,11 @@ namespace Ucom
             }
             catch (Exception)
             {
-                string m = string.Join(", ", methods.Select(m => $"{m.ReflectedType?.FullName}.{m.Name}"));
-                Log($"[Builder] Multiple UcomPreProcessBuildAttribute methods found, there should only be one: {m}", LogType.Error);
+                var m = string.Join(", ", methods.Select(m => $"{m.ReflectedType?.FullName}.{m.Name}"));
+                Log(
+                    $"[Builder] Multiple {nameof(UcomPreProcessBuildAttribute)} methods found, there should only be one: {m}",
+                    LogType.Error
+                );
                 return false;
             }
         }
@@ -467,7 +472,10 @@ namespace Ucom
                 return true;
             }
 
-            Log($"[Builder] Invalid method signature for UcomPreProcessBuildAttribute: {method.ReflectedType?.FullName}.{method.Name}", LogType.Error);
+            Log(
+                $"[Builder] Invalid method signature for UcomPreProcessBuildAttribute: {method.ReflectedType?.FullName}.{method.Name}",
+                LogType.Error
+            );
             return false;
         }
     }
@@ -509,6 +517,438 @@ namespace Ucom
     /// </example>
     [AttributeUsage(AttributeTargets.Method)]
     public class UcomPreProcessBuildAttribute : Attribute { }
+
+#if UNITY_EDITOR
+    /// <summary>
+    /// Editor script that watches for ucom command files and executes them.
+    /// This enables ucom to communicate with an already-running Unity editor.
+    /// </summary>
+    [InitializeOnLoad]
+    public class EditorCommandWatcher
+    {
+        private static FileSystemWatcher _watcher;
+        private static readonly string CommandDir;
+        private static readonly string ResultDir;
+        private static double _lastPollTime;
+        private const double PollIntervalSeconds = 1.0;
+
+        // Deferred command handling for play mode exit and compilation waiting
+        private static CommandFile _deferredCommand;
+        private static bool _waitingForPlayModeExit;
+        private static bool _waitingForCompilation;
+
+        static EditorCommandWatcher()
+        {
+            CommandDir = Path.Combine(Application.dataPath, "..", "Temp", "ucom-commands");
+            ResultDir = Path.Combine(Application.dataPath, "..", "Temp", "ucom-results");
+
+            Directory.CreateDirectory(CommandDir);
+            Directory.CreateDirectory(ResultDir);
+
+            InitializeWatcher();
+
+            // Also check for existing commands on load
+            CheckForCommands();
+
+            // Cleanup old command files (older than 1 hour)
+            CleanupOldFiles();
+
+            // Register polling callback that works even when Unity is in background
+            EditorApplication.update += PollForCommands;
+            _lastPollTime = EditorApplication.timeSinceStartup;
+        }
+
+        private static void InitializeWatcher()
+        {
+            try
+            {
+                _watcher = new FileSystemWatcher(CommandDir, "*.json")
+                {
+                    NotifyFilter = NotifyFilters.FileName | NotifyFilters.LastWrite,
+                    EnableRaisingEvents = true
+                };
+
+                _watcher.Created += OnCommandFileCreated;
+                _watcher.Changed += OnCommandFileCreated;
+            }
+            catch (Exception e)
+            {
+                Debug.LogError($"[Ucom] Failed to initialize command watcher: {e.Message}");
+            }
+        }
+
+        private static void OnCommandFileCreated(object sender, FileSystemEventArgs e)
+        {
+            // Schedule processing on main thread
+            EditorApplication.delayCall += () => ProcessCommandFile(e.FullPath);
+        }
+
+        private static void PollForCommands()
+        {
+            // Check for new commands every N seconds, even when Unity is in background
+            var currentTime = EditorApplication.timeSinceStartup;
+            if (currentTime - _lastPollTime < PollIntervalSeconds)
+                return;
+
+            _lastPollTime = currentTime;
+
+            // Process deferred command if conditions are met
+            if (_deferredCommand != null)
+            {
+                if (_waitingForPlayModeExit)
+                {
+                    if (!EditorApplication.isPlaying)
+                    {
+                        _waitingForPlayModeExit = false;
+                        ProcessBuildCommand(_deferredCommand);
+                        _deferredCommand = null;
+                    }
+
+                    return; // Keep waiting
+                }
+
+                if (_waitingForCompilation)
+                {
+                    if (!EditorApplication.isCompiling)
+                    {
+                        _waitingForCompilation = false;
+                        ProcessBuildCommand(_deferredCommand);
+                        _deferredCommand = null;
+                    }
+
+                    return; // Keep waiting
+                }
+            }
+
+            // Check for new commands
+            CheckForCommands();
+        }
+
+        private static void CheckForCommands()
+        {
+            if (!Directory.Exists(CommandDir))
+                return;
+
+            foreach (var file in Directory.GetFiles(CommandDir, "*.json"))
+            {
+                ProcessCommandFile(file);
+            }
+        }
+
+        private static void CleanupOldFiles()
+        {
+            try
+            {
+                if (!Directory.Exists(CommandDir))
+                    return;
+
+                var cutoff = DateTime.UtcNow.AddHours(-1);
+
+                foreach (var file in Directory.GetFiles(CommandDir, "*.json"))
+                {
+                    if (File.GetLastWriteTimeUtc(file) < cutoff)
+                    {
+                        File.Delete(file);
+                    }
+                }
+            }
+            catch (Exception e)
+            {
+                Debug.LogError($"[Ucom] Failed to cleanup old command files: {e.Message}");
+            }
+        }
+
+        private static void ProcessCommandFile(string commandFilePath)
+        {
+            if (!File.Exists(commandFilePath))
+                return;
+
+            try
+            {
+                var json = File.ReadAllText(commandFilePath);
+                var command = JsonUtility.FromJson<CommandFile>(json);
+
+                switch (command.command)
+                {
+                    case "build":
+                        ProcessBuildCommand(command);
+                        break;
+                    default:
+                        WriteErrorResult(command.uuid,
+                            "UNKNOWN_COMMAND",
+                            $"Unknown command: {command.command}"
+                        );
+                        break;
+                }
+
+                // Cleanup command file
+                File.Delete(commandFilePath);
+            }
+            catch (Exception e)
+            {
+                Debug.LogError($"[Ucom] Failed to process command: {e.Message}");
+            }
+        }
+
+        private static void ProcessBuildCommand(CommandFile cmd)
+        {
+            // Validate: Check if in play mode
+            if (EditorApplication.isPlaying)
+            {
+                if (!cmd.force_play_mode_exit)
+                {
+                    WriteErrorResult(cmd.uuid,
+                        "IN_PLAY_MODE",
+                        "Unity editor is in Play Mode. Use --force-editor-build to exit play mode."
+                    );
+                    return;
+                }
+
+                // Exit play mode and defer the command
+                EditorApplication.isPlaying = false;
+                _deferredCommand = cmd;
+                _waitingForPlayModeExit = true;
+                return; // Will be processed in next poll cycle after play mode exits
+            }
+
+            // Validate: Check if compiling
+            if (EditorApplication.isCompiling)
+            {
+                if (!cmd.force_platform_switch)
+                {
+                    WriteErrorResult(cmd.uuid,
+                        "COMPILING",
+                        "Unity editor is compiling. Use --force-editor-build to wait for compilation."
+                    );
+                    return;
+                }
+
+                // Defer the command until compilation finishes
+                _deferredCommand = cmd;
+                _waitingForCompilation = true;
+                return; // Will be processed in next poll cycle after compilation finishes
+            }
+
+            // Validate: Check platform match
+            if (!Enum.TryParse(cmd.platform, out BuildTarget target))
+            {
+                WriteErrorResult(cmd.uuid,
+                    "INVALID_PLATFORM",
+                    $"Invalid build platform: {cmd.platform}"
+                );
+                return;
+            }
+
+            var needsPlatformSwitch = target != EditorUserBuildSettings.activeBuildTarget;
+
+            if (needsPlatformSwitch && !cmd.force_platform_switch)
+            {
+                // Platform mismatch without permission to switch
+                WriteErrorResult(cmd.uuid,
+                    "PLATFORM_MISMATCH",
+                    $"Editor is in {EditorUserBuildSettings.activeBuildTarget} mode, " +
+                    $"but build target is {target}. Use --force-editor-build to switch platforms."
+                );
+                return;
+            }
+
+            // Execute build (with platform switch if needed)
+            ExecuteBuild(cmd, target, needsPlatformSwitch);
+        }
+
+        private static bool TrySwitchPlatform(BuildTarget target, out string errorMessage, out float switchTime)
+        {
+            switchTime = 0f;
+
+            if (target == EditorUserBuildSettings.activeBuildTarget)
+            {
+                errorMessage = null;
+                return true;
+            }
+
+            var targetGroup = BuildPipeline.GetBuildTargetGroup(target);
+
+            // Check if target is supported/installed
+            if (!BuildPipeline.IsBuildTargetSupported(targetGroup, target))
+            {
+                errorMessage = $"Build target '{target}' is not supported or installed.";
+                return false;
+            }
+
+            var startTime = EditorApplication.timeSinceStartup;
+
+            var switched = EditorUserBuildSettings.SwitchActiveBuildTarget(targetGroup, target);
+
+            if (!switched)
+            {
+                errorMessage = $"Failed to switch from {EditorUserBuildSettings.activeBuildTarget} to {target}. " +
+                               "This may happen if the user cancelled the operation.";
+                return false;
+            }
+
+            switchTime = (float)(EditorApplication.timeSinceStartup - startTime);
+            errorMessage = null;
+            return true;
+        }
+
+        private static void ExecuteBuild(CommandFile cmd, BuildTarget target, bool needsSwitch)
+        {
+            var originalPlatform = EditorUserBuildSettings.activeBuildTarget.ToString();
+
+            var result = new ResultFile
+            {
+                uuid = cmd.uuid,
+                original_platform = originalPlatform
+            };
+
+            // Handle platform switch if needed
+            if (needsSwitch)
+            {
+                if (!TrySwitchPlatform(target, out var switchError, out var switchTime))
+                {
+                    result.status = "failed";
+                    result.error_code = "PLATFORM_SWITCH_FAILED";
+                    result.message = switchError;
+                    WriteResult(result);
+                    return;
+                }
+
+                result.platform_switched = true;
+                result.switched_to = target.ToString();
+                result.platform_switch_time_seconds = switchTime;
+            }
+
+            // Get the full build location path (directory + filename) using UnityBuilder
+            if (!UnityBuilder.TryGetBuildLocationPath(cmd.output_path,
+                    Application.productName,
+                    target,
+                    out var locationPathName
+                ))
+            {
+                result.status = "failed";
+                result.error_code = "BUILD_FAILED";
+                result.message = $"Build target '{target}' is not supported for building.";
+                WriteResult(result);
+                return;
+            }
+
+            var buildStartTime = EditorApplication.timeSinceStartup;
+
+            // Build the player using BuildPipeline to get BuildReport
+            var buildPlayerOptions = new BuildPlayerOptions
+            {
+                scenes = UnityBuilder.GetActiveScenes(),
+                locationPathName = locationPathName,
+                target = target,
+                options = (BuildOptions)cmd.build_options
+            };
+
+            BuildReport report;
+            try
+            {
+                report = BuildPipeline.BuildPlayer(buildPlayerOptions);
+            }
+            catch (Exception e)
+            {
+                result.status = "failed";
+                result.error_code = "BUILD_FAILED";
+                result.message = $"Build exception: {e.Message}";
+                WriteResult(result);
+                return;
+            }
+
+            result.build_time_seconds =
+                (float)(EditorApplication.timeSinceStartup - buildStartTime);
+            result.output_path = locationPathName;
+
+            // Extract build report data
+            var summary = report.summary;
+            result.build_result = summary.result.ToString();
+            result.platform = summary.platform.ToString();
+            result.total_size = summary.totalSize;
+            result.total_errors = summary.totalErrors;
+            result.total_warnings = summary.totalWarnings;
+
+            if (summary.result == BuildResult.Succeeded)
+            {
+                result.status = "success";
+                result.message = "Build completed successfully";
+            }
+            else
+            {
+                result.status = "failed";
+                result.error_code = "BUILD_FAILED";
+                result.message = "Build failed. Check Unity console for errors.";
+            }
+
+            WriteResult(result);
+        }
+
+        private static void WriteErrorResult(string uuid, string errorCode, string message)
+        {
+            var result = new ResultFile
+            {
+                uuid = uuid,
+                status = "error",
+                error_code = errorCode,
+                message = message
+            };
+
+            WriteResult(result);
+        }
+
+        private static void WriteResult(ResultFile result)
+        {
+            try
+            {
+                var json = JsonUtility.ToJson(result, true);
+                var resultPath = Path.Combine(ResultDir, $"build-{result.uuid}.json");
+                File.WriteAllText(resultPath, json);
+            }
+            catch (Exception e)
+            {
+                Debug.LogError($"[Ucom] Failed to write result: {e.Message}");
+            }
+        }
+    }
+
+    [Serializable]
+    [SuppressMessage("ReSharper", "InconsistentNaming")]
+    public class CommandFile
+    {
+        public string command;
+        public string uuid;
+        public string timestamp;
+        public string platform;
+        public string output_path;
+        public string log_path;
+        public int build_options;
+        public bool development_build;
+        public bool force_platform_switch;
+        public bool force_play_mode_exit;
+    }
+
+    [Serializable]
+    [SuppressMessage("ReSharper", "InconsistentNaming")]
+    public class ResultFile
+    {
+        public string uuid;
+        public string status;
+        public string message;
+        public string error_code;
+        public bool platform_switched;
+        public string original_platform;
+        public string switched_to;
+        public float build_time_seconds;
+        public float platform_switch_time_seconds;
+        public string output_path;
+        public string build_result;
+        public string platform;
+        public ulong total_size;
+        public int total_errors;
+        public int total_warnings;
+    }
+#endif // UNITY_EDITOR
 }
 #else
 #error "Ucom command line building is not supported for this version of Unity; version 2018.3 or newer is required."

@@ -126,6 +126,14 @@ pub struct BuildArguments {
     #[arg(short = 'n', long)]
     pub dry_run: bool,
 
+    /// Allow disruptive operations when the Unity editor is already open.
+    ///
+    /// This flag permits ucom to automatically switch build platforms (which triggers asset reimport)
+    /// or exit Play Mode when necessary to perform the build. Without this flag, ucom will return
+    /// an error if such operations would be required.
+    #[arg(long = "force-editor-build")]
+    pub force_editor_build: bool,
+
     /// Additional arguments to pass directly to the Unity editor executable during the build.
     #[arg(last = true, value_name = "UNITY_ARGS")]
     pub args: Option<Vec<String>>,

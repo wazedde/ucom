@@ -276,7 +276,7 @@ fn display_updates(installed: &Installations, mode: UpdatePolicy) -> anyhow::Res
                     )
                 }
             }
-            .to_string();
+            .clone();
 
             report.paragraph(format_args!(
                 "{line_marker}{stream_padding} {ri}",
