@@ -11,8 +11,10 @@ use crate::commands::{
     PERSISTENT_BUILD_SCRIPT_ROOT, ProjectSetup, TimeDeltaExt, UnityCommandBuilder,
     add_file_to_project, check_version_issues,
 };
-use crate::unity::editor_process::is_unity_editor_running;
-use crate::unity::{ProjectPath, build_command_line, wait_with_log_output, wait_with_stdout};
+use crate::unity::{
+    ProjectPath, build_command_line, is_unity_editor_running, wait_with_log_output,
+    wait_with_stdout,
+};
 use crate::utils::path_ext::PlatformConsistentPathExt;
 use crate::utils::status_line::{MessageType, StatusLine};
 use anyhow::{Context, Result, anyhow};
