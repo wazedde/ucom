@@ -1,7 +1,7 @@
 /*
  * This file is part of the ucom command line tool (https://github.com/jakkovanhunen/ucom).
  *
- * Copyright 2022-2024 Jakko van Hunen
+ * Copyright 2022-2026 Jakko van Hunen
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -40,17 +40,17 @@ namespace Ucom
                 label = "Ucom",
                 guiHandler = _ =>
                 {
-                    var activeBuildTargetGroup = BuildPipeline.GetBuildTargetGroup(EditorUserBuildSettings.activeBuildTarget);
-                    bool isEnabled = !ScriptingDefines.HasDefine(DefineSymbol, activeBuildTargetGroup);
-                    bool newIsEnabled = EditorGUILayout.Toggle("Enable Ucom Menu", isEnabled);
+                    var targetGroup = BuildPipeline.GetBuildTargetGroup(EditorUserBuildSettings.activeBuildTarget);
+                    var isEnabled = !ScriptingDefines.HasDefine(DefineSymbol, targetGroup);
+                    var newIsEnabled = EditorGUILayout.Toggle("Enable Ucom Menu", isEnabled);
 
                     EditorGUILayout.LabelField(
-                        $"Disabling the menu adds the {DefineSymbol} compiler symbol to the current build target ({activeBuildTargetGroup}).",
+                        $"Disabling the menu adds the {DefineSymbol} compiler symbol to the current build target ({targetGroup}).",
                         EditorStyles.wordWrappedLabel
                     );
 
                     if (newIsEnabled != isEnabled)
-                        ScriptingDefines.SetDefine(DefineSymbol, !newIsEnabled, activeBuildTargetGroup);
+                        ScriptingDefines.SetDefine(DefineSymbol, !newIsEnabled, targetGroup);
                 },
 
                 keywords = new HashSet<string>(new[] { "ucom", "menu", "build" }),
@@ -70,7 +70,7 @@ namespace Ucom
         /// <returns>True if the scripting define symbol is defined; False otherwise.</returns>
         public static bool HasDefine(string define, BuildTargetGroup buildTargetGroup)
         {
-            string[] symbols = PlayerSettings.GetScriptingDefineSymbolsForGroup(buildTargetGroup).Split(';');
+            var symbols = PlayerSettings.GetScriptingDefineSymbolsForGroup(buildTargetGroup).Split(';');
             return symbols.Contains(define);
         }
 
@@ -82,8 +82,8 @@ namespace Ucom
         /// <param name="buildTargetGroup"></param>
         public static void SetDefine(string define, bool enabled, BuildTargetGroup buildTargetGroup)
         {
-            string symbols = PlayerSettings.GetScriptingDefineSymbolsForGroup(buildTargetGroup);
-            string[] symbolList = symbols.Split(';');
+            var symbols = PlayerSettings.GetScriptingDefineSymbolsForGroup(buildTargetGroup);
+            var symbolList = symbols.Split(';');
 
             switch (enabled)
             {
@@ -157,7 +157,7 @@ namespace Ucom
         [MenuItem(MenuConstants.MenuName + "/Release/Build", false, 1)]
         public static void Build()
         {
-            if (!TryGetOutputPath(out string outputDirectory, OutputType.Release) || !ValidateActiveScenes())
+            if (!TryGetOutputPath(out var outputDirectory, OutputType.Release) || !ValidateActiveScenes())
                 return;
 
             if (UnityBuilder.Build(outputDirectory, UnityBuilder.GetActiveScenes()))
@@ -172,7 +172,7 @@ namespace Ucom
         [MenuItem(MenuConstants.MenuName + "/Release/Build and Run", false, 1)]
         public static void BuildAndRun()
         {
-            if (!TryGetOutputPath(out string outputDirectory, OutputType.Release) || !ValidateActiveScenes())
+            if (!TryGetOutputPath(out var outputDirectory, OutputType.Release) || !ValidateActiveScenes())
                 return;
 
             UnityBuilder.Build(outputDirectory, UnityBuilder.GetActiveScenes(), BuildOptions.AutoRunPlayer);
@@ -187,7 +187,7 @@ namespace Ucom
         [MenuItem(MenuConstants.MenuName + "/Debug/Build and Run (Deep Profiling)", false, 2)]
         public static void DeepProfilingBuild()
         {
-            if (!TryGetOutputPath(out string outputDirectory, OutputType.Debug) || !ValidateActiveScenes())
+            if (!TryGetOutputPath(out var outputDirectory, OutputType.Debug) || !ValidateActiveScenes())
                 return;
 
             UnityBuilder.Build(outputDirectory,
@@ -218,7 +218,7 @@ namespace Ucom
 
         private static bool TryGetOutputPath(out string outputDirectory, OutputType outputType)
         {
-            if (UnityBuilder.TryGetDefaultBuildOutputPath(out string outputPath, outputType)
+            if (UnityBuilder.TryGetDefaultBuildOutputPath(out var outputPath, outputType)
                 && UnityBuilder.TryGetBuildLocationPath(outputPath,
                     Application.productName,
                     EditorUserBuildSettings.activeBuildTarget,
@@ -228,7 +228,9 @@ namespace Ucom
                 return true;
             }
 
-            UnityBuilder.Log($"[Builder] Unsupported build target{EditorUserBuildSettings.activeBuildTarget}", LogType.Error);
+            UnityBuilder.Log($"[Builder] Unsupported build target{EditorUserBuildSettings.activeBuildTarget}",
+                LogType.Error
+            );
             outputDirectory = null;
             return false;
         }
@@ -238,7 +240,10 @@ namespace Ucom
             if (UnityBuilder.GetActiveScenes().Length > 0)
                 return true;
 
-            EditorUtility.DisplayDialog("No Active Scenes to Build", "Add at least one active scene to the Build Settings.", "Ok");
+            EditorUtility.DisplayDialog("No Active Scenes to Build",
+                "Add at least one active scene to the Build Settings.",
+                "Ok"
+            );
             return false;
         }
 
@@ -249,7 +254,7 @@ namespace Ucom
         [MenuItem(MenuConstants.MenuName + "/Debug/Build and Run", false, 2)]
         public static void DebugBuild()
         {
-            if (!TryGetOutputPath(out string outputDirectory, OutputType.Debug) || !ValidateActiveScenes())
+            if (!TryGetOutputPath(out var outputDirectory, OutputType.Debug) || !ValidateActiveScenes())
                 return;
 
             UnityBuilder.Build(outputDirectory,
@@ -270,7 +275,7 @@ namespace Ucom
         [MenuItem(MenuConstants.MenuName + "/Debug/Build and Run (Profiling)", false, 2)]
         public static void ProfilingBuild()
         {
-            if (!TryGetOutputPath(out string outputDirectory, OutputType.Debug) || !ValidateActiveScenes())
+            if (!TryGetOutputPath(out var outputDirectory, OutputType.Debug) || !ValidateActiveScenes())
                 return;
 
             UnityBuilder.Build(outputDirectory,

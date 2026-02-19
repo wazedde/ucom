@@ -1,7 +1,7 @@
 /*
  * This file is part of the ucom command line tool (https://github.com/jakkovanhunen/ucom).
  *
- * Copyright 2022-2024 Jakko van Hunen
+ * Copyright 2022-2026 Jakko van Hunen
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
