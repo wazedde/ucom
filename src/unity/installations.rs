@@ -11,6 +11,8 @@ use std::{env, fs};
 const ENV_EDITOR_DIR: &str = "UCOM_EDITOR_DIR";
 
 mod platform {
+    use std::path::PathBuf;
+
     /// Sub path to the executable on macOS.
     #[cfg(target_os = "macos")]
     pub const UNITY_EDITOR_EXE: &str = "Unity.app/Contents/MacOS/Unity";
@@ -19,21 +21,39 @@ mod platform {
     #[cfg(target_os = "windows")]
     pub const UNITY_EDITOR_EXE: &str = r"Editor\Unity.exe";
 
+    /// Sub path to the executable on Linux.
+    #[cfg(target_os = "linux")]
+    pub const UNITY_EDITOR_EXE: &str = "Editor/Unity";
+
     /// Other target platforms are not supported.
-    #[cfg(not(any(target_os = "macos", target_os = "windows")))]
+    #[cfg(not(any(target_os = "macos", target_os = "windows", target_os = "linux")))]
     pub const UNITY_EDITOR_EXE: &str = compile_error!("Unsupported platform");
 
-    /// Parent directory of editor installations on macOS.
+    /// Returns the default parent directory of editor installations on macOS.
     #[cfg(target_os = "macos")]
-    pub const UNITY_EDITOR_DIR: &str = "/Applications/Unity/Hub/Editor/";
+    pub fn default_editor_dir() -> PathBuf {
+        PathBuf::from("/Applications/Unity/Hub/Editor/")
+    }
 
-    /// Parent directory of editor installations on Windows.
+    /// Returns the default parent directory of editor installations on Windows.
     #[cfg(target_os = "windows")]
-    pub const UNITY_EDITOR_DIR: &str = r"C:\Program Files\Unity\Hub\Editor";
+    pub fn default_editor_dir() -> PathBuf {
+        PathBuf::from(r"C:\Program Files\Unity\Hub\Editor")
+    }
+
+    /// Returns the default parent directory of editor installations on Linux.
+    #[cfg(target_os = "linux")]
+    pub fn default_editor_dir() -> PathBuf {
+        dirs::home_dir()
+            .map(|h| h.join("Unity/Hub/Editor"))
+            .unwrap_or_else(|| PathBuf::from("~/Unity/Hub/Editor"))
+    }
 
     /// Other target platforms are not supported.
-    #[cfg(not(any(target_os = "macos", target_os = "windows")))]
-    pub const UNITY_EDITOR_DIR: &str = compile_error!("Unsupported platform");
+    #[cfg(not(any(target_os = "macos", target_os = "windows", target_os = "linux")))]
+    pub fn default_editor_dir() -> PathBuf {
+        compile_error!("Unsupported platform")
+    }
 }
 
 //
@@ -172,13 +192,13 @@ impl Installations {
             }
         } else {
             // Use the default directory.
-            let path = Path::new(platform::UNITY_EDITOR_DIR);
+            let path = platform::default_editor_dir();
             if path.is_dir() {
-                Ok(path.to_owned())
+                Ok(path)
             } else {
                 Err(anyhow!(
                     "The default editor directory `{}` is not a valid directory`",
-                    platform::UNITY_EDITOR_DIR
+                    path.display()
                 ))
             }
         }
@@ -228,7 +248,7 @@ impl Installations {
                 // The editor directory is not set and no installations were found.
                 anyhow!(
                     "No Unity installations found in `{}`. Set `{ENV_EDITOR_DIR}` or install Unity.",
-                    platform::UNITY_EDITOR_DIR
+                    platform::default_editor_dir().display()
                 )
             }
         }

@@ -43,6 +43,10 @@ pub fn install_version(release: &ReleaseData) -> anyhow::Result<()> {
         std::process::Command::new("open")
             .args([deep_link])
             .status()?
+    } else if cfg!(target_os = "linux") {
+        std::process::Command::new("xdg-open")
+            .args([deep_link])
+            .status()?
     } else {
         anyhow::bail!("Unsupported OS for Unity Hub deep linking");
     };
