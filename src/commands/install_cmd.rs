@@ -35,16 +35,25 @@ pub fn install_version(release: &ReleaseData) -> anyhow::Result<()> {
         );
     }
 
+    if cfg!(target_os = "linux") {
+        // Unity Hub inherits the terminal's file descriptors and writes GPU
+        // initialisation noise (e.g. VA-API errors) to stderr asynchronously,
+        // even after ucom has already exited. Redirect both streams to /dev/null
+        // so that output never bleeds into the terminal.
+        std::process::Command::new("xdg-open")
+            .args([deep_link])
+            .stdout(std::process::Stdio::null())
+            .stderr(std::process::Stdio::null())
+            .spawn()?;
+        return Ok(());
+    }
+
     let status = if cfg!(target_os = "windows") {
         std::process::Command::new("cmd")
             .args(["/C", "start", deep_link])
             .status()?
     } else if cfg!(target_os = "macos") {
         std::process::Command::new("open")
-            .args([deep_link])
-            .status()?
-    } else if cfg!(target_os = "linux") {
-        std::process::Command::new("xdg-open")
             .args([deep_link])
             .status()?
     } else {
