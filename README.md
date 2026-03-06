@@ -19,13 +19,13 @@ interaction. It handles project creation, builds, tests, and Unity version manag
 Requires [Rust](https://www.rust-lang.org) v1.85.0+
 
 ```bash
-cargo install --git https://github.com/jakkovanhunen/ucom
+cargo install --git https://github.com/wazedde/ucom
 ```
 
 Or build from source:
 
 ```bash
-git clone https://github.com/jakkovanhunen/ucom
+git clone https://github.com/wazedde/ucom
 cd ucom
 cargo build --release
 ```

@@ -3,7 +3,6 @@ pub use crate::unity::releases::*;
 pub use crate::unity::version::*;
 pub use crate::utils::spawn_cmd::*;
 
-use anyhow::Result;
 use sysinfo::System;
 
 pub mod installations;
@@ -17,7 +16,7 @@ pub mod version;
 ///
 /// Returns `true` if a Unity Editor process is found with the project loaded.
 /// Unity Hub processes are ignored as they may also reference project paths.
-pub fn is_unity_editor_running(project: &ProjectPath) -> Result<bool> {
+pub fn is_unity_editor_running(project: &ProjectPath) -> bool {
     let sys = System::new_all();
     let project_path = project.to_string_lossy();
 
@@ -46,9 +45,9 @@ pub fn is_unity_editor_running(project: &ProjectPath) -> Result<bool> {
                 .to_lowercase()
                 .contains("-projectpath")
         }) {
-            return Ok(true);
+            return true;
         }
     }
 
-    Ok(false)
+    false
 }

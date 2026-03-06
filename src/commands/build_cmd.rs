@@ -457,7 +457,7 @@ fn try_editor_build(
     args: &BuildArguments,
     setup: &ProjectSetup,
 ) -> Result<Option<EditorBuildResult>> {
-    if !is_unity_editor_running(&setup.project)? {
+    if !is_unity_editor_running(&setup.project) {
         return Ok(None);
     }
 
