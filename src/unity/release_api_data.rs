@@ -45,12 +45,47 @@ pub struct ReleaseData {
     pub third_party_notices: Option<Vec<ThirdPartyNoticesElement>>,
 }
 
+pub enum ReleaseIssue {
+    NoIssue,
+    Error(LabelElement),
+    Warning(LabelElement),
+}
+
+#[allow(dead_code)]
+impl ReleaseIssue {
+    pub fn is_error(&self) -> bool {
+        matches!(self, ReleaseIssue::Error(_))
+    }
+
+    pub fn is_warning(&self) -> bool {
+        matches!(self, ReleaseIssue::Warning(_))
+    }
+
+    pub fn has_issue(&self) -> bool {
+        !matches!(self, ReleaseIssue::NoIssue)
+    }
+
+    pub fn label(&self) -> Option<&LabelElement> {
+        match self {
+            ReleaseIssue::NoIssue => None,
+            ReleaseIssue::Error(label) => Some(label),
+            ReleaseIssue::Warning(label) => Some(label),
+        }
+    }
+}
+
 impl ReleaseData {
-    pub fn error_label(&self) -> Option<&LabelElement> {
-        const ERROR_COLOR: &str = "ERROR";
-        self.label
-            .as_ref()
-            .filter(|label| label.color == ERROR_COLOR)
+    pub fn issue(&self) -> ReleaseIssue {
+        if let Some(label) = self.label.as_ref() {
+            return if label.color == "ERROR" {
+                ReleaseIssue::Error(label.clone())
+            } else if label.color == "WARNING" {
+                ReleaseIssue::Warning(label.clone())
+            } else {
+                ReleaseIssue::NoIssue
+            };
+        }
+        ReleaseIssue::NoIssue
     }
 }
 
@@ -130,7 +165,7 @@ pub struct EulaElement {
     pub url: String,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct LabelElement {
     #[serde(rename = "description")]
     pub description: String,

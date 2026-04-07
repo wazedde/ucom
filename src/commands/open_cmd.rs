@@ -1,5 +1,5 @@
 use crate::cli::OpenArguments;
-use crate::commands::{UnityCommandBuilder, check_version_issues, execute_unity_command};
+use crate::commands::{UnityCommandBuilder, execute_unity_command, report_version_issues};
 use crate::unity::installations::Installations;
 use crate::unity::{ProjectPath, build_command_line};
 use crate::utils::path_ext::PlatformConsistentPathExt;
@@ -47,7 +47,7 @@ pub fn open_project(arguments: OpenArguments) -> anyhow::Result<()> {
             v = open_unity_version,
             p = project.normalized_display()
         );
-        check_version_issues(open_unity_version);
+        report_version_issues(open_unity_version);
     }
 
     execute_unity_command(cmd, arguments.wait, arguments.quiet)

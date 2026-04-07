@@ -4,7 +4,7 @@ use crate::commands::{
     INDENT, add_to_project, build_project, find_project_updates, install_latest_matching,
     list_versions, new_project, open_project, project_info, run_unity,
 };
-use crate::style_definitions::ERROR;
+use crate::style_definitions::STYLE_ERROR;
 use crate::unity::release_api::UpdatePolicy;
 use anyhow::Context;
 use clap::Parser;
@@ -38,7 +38,7 @@ fn main() -> anyhow::Result<()> {
     }
 
     configure_cache_from_environment()
-        .with_context(|| "Cannot set cache from environment".paint(ERROR))?;
+        .with_context(|| "Cannot set cache from environment".paint(STYLE_ERROR))?;
 
     match command {
         Command::List {
@@ -53,14 +53,14 @@ fn main() -> anyhow::Result<()> {
             };
             list_versions(list_type, version_filter.as_deref(), mode).with_context(|| {
                 format!("Cannot list `{list_type}`")
-                    .paint(ERROR)
+                    .paint(STYLE_ERROR)
                     .to_string()
             })
         }
 
         Command::Install { version } => {
             install_latest_matching(&version, UpdatePolicy::Incremental)
-                .with_context(|| "Cannot install the Unity version".paint(ERROR))
+                .with_context(|| "Cannot install the Unity version".paint(STYLE_ERROR))
         }
 
         Command::Info {
@@ -77,7 +77,7 @@ fn main() -> anyhow::Result<()> {
             report,
             UpdatePolicy::Incremental,
         )
-        .with_context(|| "Cannot show project info".paint(ERROR)),
+        .with_context(|| "Cannot show project info".paint(STYLE_ERROR)),
 
         Command::Updates {
             project_dir,
@@ -89,27 +89,28 @@ fn main() -> anyhow::Result<()> {
             report,
             UpdatePolicy::Incremental,
         )
-        .with_context(|| "Cannot show Unity updates for the project".paint(ERROR)),
+        .with_context(|| "Cannot show Unity updates for the project".paint(STYLE_ERROR)),
 
-        Command::Run(settings) => run_unity(settings).context("Cannot run Unity".paint(ERROR)),
-
-        Command::New(settings) => new_project(settings)
-            .with_context(|| "Cannot create the new Unity project".paint(ERROR)),
-
-        Command::Open(settings) => {
-            open_project(settings).with_context(|| "Cannot open the Unity project".paint(ERROR))
+        Command::Run(settings) => {
+            run_unity(settings).context("Cannot run Unity".paint(STYLE_ERROR))
         }
 
+        Command::New(settings) => new_project(settings)
+            .with_context(|| "Cannot create the new Unity project".paint(STYLE_ERROR)),
+
+        Command::Open(settings) => open_project(settings)
+            .with_context(|| "Cannot open the Unity project".paint(STYLE_ERROR)),
+
         Command::Build(settings) => {
-            build_project(&settings).with_context(|| "Cannot build the project".paint(ERROR))
+            build_project(&settings).with_context(|| "Cannot build the project".paint(STYLE_ERROR))
         }
 
         Command::Test(settings) => {
-            run_tests(&settings).with_context(|| "Cannot run tests".paint(ERROR))
+            run_tests(&settings).with_context(|| "Cannot run tests".paint(STYLE_ERROR))
         }
 
         Command::Add(arguments) => add_to_project(&arguments)
-            .with_context(|| "Cannot add the file to the project".paint(ERROR)),
+            .with_context(|| "Cannot add the file to the project".paint(STYLE_ERROR)),
 
         Command::Cache { action: command } => {
             match command {

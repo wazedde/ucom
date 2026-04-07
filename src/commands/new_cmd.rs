@@ -8,8 +8,8 @@ use path_absolutize::Absolutize;
 use crate::cli_add::UnityTemplateFile;
 use crate::cli_new::NewArguments;
 use crate::commands::{
-    PERSISTENT_BUILD_SCRIPT_ROOT, UnityCommandBuilder, add_file_to_project, check_version_issues,
-    execute_unity_command,
+    PERSISTENT_BUILD_SCRIPT_ROOT, UnityCommandBuilder, add_file_to_project, execute_unity_command,
+    report_version_issues,
 };
 use crate::unity::build_command_line;
 use crate::unity::installations::Installations;
@@ -60,7 +60,7 @@ pub fn new_project(arguments: NewArguments) -> anyhow::Result<()> {
             v = version,
             p = project_dir.normalized_display()
         );
-        check_version_issues(version);
+        report_version_issues(version);
     }
 
     if arguments.add_builder_menu {

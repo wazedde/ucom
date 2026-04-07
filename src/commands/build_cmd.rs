@@ -9,7 +9,7 @@ use crate::cli_add::UnityTemplateFile;
 use crate::cli_build::{BuildArguments, BuildMode, BuildOptions, BuildScriptTarget, InjectAction};
 use crate::commands::{
     PERSISTENT_BUILD_SCRIPT_ROOT, ProjectSetup, TimeDeltaExt, UnityCommandBuilder,
-    add_file_to_project, check_version_issues,
+    add_file_to_project, report_version_issues,
 };
 use crate::unity::{
     ProjectPath, build_command_line, is_unity_editor_running, wait_with_log_output,
@@ -17,7 +17,7 @@ use crate::unity::{
 };
 use crate::utils::path_ext::PlatformConsistentPathExt;
 use crate::utils::status_line::{MessageType, StatusLine};
-use anyhow::{Context, Result, anyhow};
+use anyhow::{Context, anyhow};
 use chrono::Utc;
 use itertools::Itertools;
 use path_absolutize::Absolutize;
@@ -109,7 +109,7 @@ pub fn build_project(arguments: &BuildArguments) -> anyhow::Result<()> {
     );
 
     print_build_report(&log_path, build_status);
-    check_version_issues(setup.unity_version);
+    report_version_issues(setup.unity_version);
     build_result.map_err(|_| collect_log_errors(&log_path))
 }
 
@@ -124,7 +124,7 @@ impl BuildArguments {
     fn full_log_path(&self, project: &ProjectPath) -> anyhow::Result<PathBuf> {
         let log_file = self.log_file.as_deref().map_or_else(
             || format!("Build-{}.log", self.target).into(),
-            std::borrow::ToOwned::to_owned,
+            ToOwned::to_owned,
         );
 
         let file_name = log_file
@@ -456,7 +456,7 @@ fn cleanup_csharp_build_script(parent_dir: impl AsRef<Path>) -> anyhow::Result<(
 fn try_editor_build(
     args: &BuildArguments,
     setup: &ProjectSetup,
-) -> Result<Option<EditorBuildResult>> {
+) -> anyhow::Result<Option<EditorBuildResult>> {
     if !is_unity_editor_running(&setup.project) {
         return Ok(None);
     }
@@ -535,7 +535,7 @@ fn try_editor_build(
 ///
 /// Returns the parsed result when the editor completes the build.
 /// Polls indefinitely - user can press Ctrl+C to cancel.
-fn poll_for_result(result_dir: &Path, uuid: &Uuid) -> Result<EditorBuildResult> {
+fn poll_for_result(result_dir: &Path, uuid: &Uuid) -> anyhow::Result<EditorBuildResult> {
     let result_file = result_dir.join(format!("build-{uuid}.json"));
     let poll_interval = Duration::from_millis(500);
 
@@ -557,7 +557,7 @@ fn handle_editor_build_result(
     result: EditorBuildResult,
     setup: &ProjectSetup,
     start_time: chrono::DateTime<Utc>,
-) -> Result<()> {
+) -> anyhow::Result<()> {
     match result.status.as_str() {
         "error" => return Err(anyhow!("{}", result.message)),
         "failed" => {

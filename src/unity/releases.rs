@@ -4,10 +4,12 @@ use crate::unity::{BuildType, Version};
 use anyhow::anyhow;
 use serde::{Deserialize, Serialize};
 use std::fmt::{Display, Formatter};
-use strum::Display;
+use strum::{AsRefStr, Display};
 
 /// The release stream.
-#[derive(Display, Serialize, Deserialize, Debug, Eq, PartialEq, Ord, PartialOrd, Clone, Copy)]
+#[derive(
+    Display, AsRefStr, Serialize, Deserialize, Debug, Eq, PartialEq, Ord, PartialOrd, Clone, Copy,
+)]
 pub enum ReleaseStream {
     #[serde(rename = "LTS")]
     #[strum(serialize = "LTS")]

@@ -1,5 +1,5 @@
 use crate::cli::PackagesInfoLevel;
-use crate::commands::{MARK_AVAILABLE, MARK_ERROR, MARK_UNAVAILABLE, install_latest_matching};
+use crate::commands::{MARK_AVAILABLE, MARK_UNAVAILABLE, install_latest_matching};
 use crate::style_definitions::*;
 use crate::unity::project::*;
 use crate::unity::release_api::{UpdatePolicy, fetch_latest_releases};
@@ -51,7 +51,7 @@ fn show_recursive_project_info(
             report.blank_line();
             if let Err(err) = print_project_info(&path, packages_level, &report, show_release_notes)
             {
-                report.list_item(format_args!("{la} {err}", la = "Error:".paint(ERROR)));
+                report.list_item(format_args!("{la} {err}", la = "Error:".paint(STYLE_ERROR)));
             }
             directories.skip_current_dir();
         }
@@ -117,8 +117,8 @@ fn print_project_info(
         Err(err) => {
             report.list_item(format_args!(
                 "{m}: {e}",
-                m = "Could not read project settings".paint(WARNING),
-                e = err.paint(WARNING),
+                m = "Could not read project settings".paint(STYLE_WARNING),
+                e = err.paint(STYLE_WARNING),
             ));
         }
     }
@@ -127,33 +127,33 @@ fn print_project_info(
     let release = releases.get_by_version(unity_version)?;
     let is_installed = unity_version.is_editor_installed()?;
 
-    let error_label = release.error_label();
-    let has_error = error_label.is_some();
+    let issue = release.issue();
 
-    let style = if has_error { ERROR } else { OK };
+    let version_marker = if issue.has_issue() {
+        issue.marker().bold().to_string()
+    } else if is_installed {
+        MARK_AVAILABLE.paint(STYLE_SUCCESS).bold().to_string()
+    } else {
+        MARK_UNAVAILABLE.paint(STYLE_ERROR).bold().to_string()
+    };
+
     report.marked_item(
         format_args!(
             "Unity version: {vs} - {rn} ({st})",
-            vs = unity_version.paint(style).bold(),
-            rn = release_notes_url(unity_version).paint(LINK),
+            vs = unity_version.paint(issue.style()).bold(),
+            rn = release_notes_url(unity_version).paint(STYLE_LINK),
             st = if is_installed {
                 "installed"
             } else {
                 "not installed"
             }
         ),
-        if has_error {
-            MARK_ERROR.paint(ERROR).bold()
-        } else if is_installed {
-            MARK_AVAILABLE.paint(OK).bold()
-        } else {
-            MARK_UNAVAILABLE.paint(ERROR).bold()
-        },
+        version_marker,
     );
 
-    error_label.inspect(|el| {
-        crate::commands::report_error_description(report, el);
-    });
+    if issue.has_issue() {
+        crate::commands::report_error_description(report, &issue);
+    }
 
     // Print the available build profiles
     let build_profiles = project.build_profiles(unity_version)?;
@@ -197,20 +197,21 @@ fn print_project_packages(
     match availability {
         PackagesAvailability::NoManifest => {
             report.list_item(
-                "No `manifest.json` file found, no packages info available.".paint(WARNING),
+                "No `manifest.json` file found, no packages info available.".paint(STYLE_WARNING),
             );
             Ok(())
         }
         PackagesAvailability::LockFileDisabled => {
             report.list_item(
                 "Packages lock file is disabled in `manifest.json`, no packages info available."
-                    .paint(WARNING),
+                    .paint(STYLE_WARNING),
             );
             Ok(())
         }
         PackagesAvailability::NoLockFile => {
             report.list_item(
-                "No `packages-lock.json` file found, no packages info available.".paint(WARNING),
+                "No `packages-lock.json` file found, no packages info available."
+                    .paint(STYLE_WARNING),
             );
             Ok(())
         }

@@ -1,4 +1,4 @@
-use crate::style_definitions::LINK;
+use crate::style_definitions::STYLE_LINK;
 use crate::unity::release_api::{UpdatePolicy, fetch_latest_releases};
 use crate::unity::release_api_data::ReleaseData;
 use anyhow::anyhow;
@@ -22,7 +22,7 @@ pub fn install_version(release: &ReleaseData) -> anyhow::Result<()> {
 
     println!(
         "Opening Unity Hub with deep link {l} to install version {v}",
-        l = release.unity_hub_deep_link.paint(LINK),
+        l = release.unity_hub_deep_link.paint(STYLE_LINK),
         v = release.version.bold()
     );
 
