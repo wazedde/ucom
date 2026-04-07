@@ -13,7 +13,10 @@ pub enum Vec1Error {
     SourceVecIsEmpty,
     /// Attempted to pop the last element from a [`Vec1`].
     CannotPopLastElement,
-    CannotRemoveLastElement,
+    /// Attempted to remove the last element from a [`Vec1`].
+    WouldBecomeEmpty,
+    /// Attempted to access an element at an out-of-bounds index.
+    IndexOutOfBounds(usize),
 }
 
 const GUARANTEE_NON_EMPTY: &str = "Vec1 is guaranteed to be non-empty by construction";
@@ -25,7 +28,8 @@ impl Display for Vec1Error {
         match self {
             Self::SourceVecIsEmpty => write!(f, "Source Vec is empty"),
             Self::CannotPopLastElement => write!(f, "Cannot pop the last element"),
-            Self::CannotRemoveLastElement => write!(f, "Cannot remove the last element"),
+            Self::WouldBecomeEmpty => write!(f, "Cannot remove the last element"),
+            Self::IndexOutOfBounds(index) => write!(f, "Index {} is out of bounds", index),
         }
     }
 }
@@ -131,13 +135,17 @@ impl<T> Vec1<T> {
         }
     }
 
-    /// Removes the value at the given index.
+    /// Removes an element from the `Vec1` at the specified `index` and returns it.
     ///
     /// # Errors
-    /// Returns [`Vec1Error::CannotRemoveLastElement`] if the list only contains one element.
+    /// Returns [`Vec1Error::WouldBecomeEmpty`] if the list would become empty after the removal.
+    /// Returns [`Vec1Error::IndexOutOfBounds(index)`] if the provided index is out of bounds.
     pub fn remove(&mut self, index: usize) -> Result<T, Vec1Error> {
         if self.len() == 1 {
-            return Err(Vec1Error::CannotRemoveLastElement);
+            return Err(Vec1Error::WouldBecomeEmpty);
+        }
+        if index >= self.len() {
+            return Err(Vec1Error::IndexOutOfBounds(index));
         }
         Ok(self.0.remove(index))
     }
@@ -177,7 +185,13 @@ mod tests {
         let mut v = Vec1::try_from(vec![1, 2, 3]).unwrap();
         assert_eq!(v.remove(0), Ok(1));
         assert_eq!(v.remove(0), Ok(2));
-        assert_eq!(v.remove(0), Err(Vec1Error::CannotRemoveLastElement));
+        assert_eq!(v.remove(0), Err(Vec1Error::WouldBecomeEmpty));
+    }
+
+    #[test]
+    fn test_remove_out_of_bounds_panics() {
+        let mut v = Vec1::try_from(vec![1, 2]).unwrap();
+        assert_eq!(v.remove(2), Err(Vec1Error::IndexOutOfBounds(2)));
     }
 
     #[test]
