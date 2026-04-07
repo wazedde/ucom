@@ -7,9 +7,10 @@ use std::time::Duration;
 
 use crate::cli_add::UnityTemplateFile;
 use crate::cli_build::{BuildArguments, BuildMode, BuildOptions, BuildScriptTarget, InjectAction};
+use crate::commands::unity_command_builder::UnityCommandBuilder;
 use crate::commands::{
-    PERSISTENT_BUILD_SCRIPT_ROOT, ProjectSetup, TimeDeltaExt, UnityCommandBuilder,
-    add_file_to_project, report_version_issues,
+    PERSISTENT_BUILD_SCRIPT_ROOT, ProjectSetup, TimeDeltaExt, add_file_to_project,
+    report_version_issues,
 };
 use crate::unity::{
     ProjectPath, build_command_line, is_unity_editor_running, wait_with_log_output,

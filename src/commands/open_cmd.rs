@@ -1,5 +1,6 @@
 use crate::cli::OpenArguments;
-use crate::commands::{UnityCommandBuilder, execute_unity_command, report_version_issues};
+use crate::commands::unity_command_builder::UnityCommandBuilder;
+use crate::commands::{execute_unity_command, report_version_issues};
 use crate::unity::installations::Installations;
 use crate::unity::{ProjectPath, build_command_line};
 use crate::utils::path_ext::PlatformConsistentPathExt;

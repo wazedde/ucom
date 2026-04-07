@@ -1,5 +1,6 @@
 use crate::cli_run::RunArguments;
-use crate::commands::{UnityCommandBuilder, execute_unity_command};
+use crate::commands::execute_unity_command;
+use crate::commands::unity_command_builder::UnityCommandBuilder;
 use crate::unity::build_command_line;
 use crate::unity::installations::Installations;
 

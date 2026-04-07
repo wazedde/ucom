@@ -7,9 +7,9 @@ use path_absolutize::Absolutize;
 
 use crate::cli_add::UnityTemplateFile;
 use crate::cli_new::NewArguments;
+use crate::commands::unity_command_builder::UnityCommandBuilder;
 use crate::commands::{
-    PERSISTENT_BUILD_SCRIPT_ROOT, UnityCommandBuilder, add_file_to_project, execute_unity_command,
-    report_version_issues,
+    PERSISTENT_BUILD_SCRIPT_ROOT, add_file_to_project, execute_unity_command, report_version_issues,
 };
 use crate::unity::build_command_line;
 use crate::unity::installations::Installations;

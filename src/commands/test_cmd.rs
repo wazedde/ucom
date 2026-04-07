@@ -6,7 +6,8 @@ use chrono::prelude::*;
 use yansi::Paint;
 
 use crate::cli_test::{ShowResults, TestArguments};
-use crate::commands::{ProjectSetup, TimeDeltaExt, UnityCommandBuilder};
+use crate::commands::unity_command_builder::UnityCommandBuilder;
+use crate::commands::{ProjectSetup, TimeDeltaExt};
 use crate::nunit::{TestCase, TestResult, TestRun};
 use crate::style_definitions::{STYLE_ERROR, STYLE_PLAIN};
 use crate::unity::{ProjectPath, build_command_line, wait_with_stdout};
