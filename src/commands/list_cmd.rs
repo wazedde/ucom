@@ -94,13 +94,13 @@ fn display_basic_list(installed: &SortedVersions, report: &Report) {
 
     for group in version_groups.iter() {
         for info in group.iter() {
-            let line_marker = wide_branch_marker(
+            let connector = branch_connector(
                 info.version == group.first().version,
                 info.version == group.last().version,
             );
 
             report.paragraph(format_args!(
-                "{line_marker} {vs:<version_col_width$} - {rn}",
+                "{connector}─ {vs:<version_col_width$} - {rn}",
                 vs = info.version.to_interned_str(),
                 rn = release_notes_url(info.version).paint(STYLE_LINK)
             ));
@@ -131,7 +131,7 @@ fn display_list_with_release_dates(
             report.paragraph(format_args!(
                 "{bp}{ri}",
                 bp = BranchPrefix(
-                    slim_branch_marker(
+                    branch_connector(
                         info.version == group.first().version,
                         info.version == group.last().version,
                     ),
@@ -192,7 +192,7 @@ fn display_updates(installed: &Installations, mode: UpdatePolicy) -> anyhow::Res
             report.paragraph(format_args!(
                 "{bp}{ri}",
                 bp = BranchPrefix(
-                    slim_branch_marker(
+                    branch_connector(
                         info.version == group.first().version,
                         info.version == group.last().version,
                     ),
@@ -305,7 +305,7 @@ fn display_latest_versions(
             .peek()
             .is_none_or(|v| v.version.major != latest.version.major);
 
-        let line_marker = slim_branch_marker(
+        let connector = branch_connector(
             Some(latest.version.major) != previous_major,
             is_last_in_range,
         );
@@ -329,14 +329,14 @@ fn display_latest_versions(
 
             report.paragraph(format_args!(
                 "{bp}{stream} {vs} ({rd})",
-                bp = BranchPrefix(line_marker, stream),
+                bp = BranchPrefix(connector, stream),
                 vs = AlignedVersion(latest.version, version_col_width),
                 rd = latest.release_date.format("%Y-%m-%d"),
             ));
         } else {
             display_installed_versions_line(
                 &report,
-                line_marker,
+                connector,
                 latest,
                 &installs_in_range,
                 version_col_width,
@@ -408,7 +408,7 @@ fn display_available_versions(
 
     for group in version_groups.iter() {
         for info in group.iter() {
-            let line_marker = slim_branch_marker(
+            let connector = branch_connector(
                 info.version == group.first().version,
                 info.version == group.last().version,
             );
@@ -426,7 +426,7 @@ fn display_available_versions(
 
             report.paragraph(format_args!(
                 "{bp}{ds}",
-                bp = BranchPrefix(line_marker, stream),
+                bp = BranchPrefix(connector, stream),
                 ds = if is_installed {
                     let style = issue.issue_style_or(STYLE_UP_TO_DATE);
                     format!(
@@ -705,17 +705,8 @@ fn collect_latest_minor_releases<'a>(
         .collect()
 }
 
-fn wide_branch_marker(is_first: bool, is_last: bool) -> &'static str {
-    match (is_first, is_last) {
-        (true, true) => "──",
-        (true, false) => "┬─",
-        (false, false) => "├─",
-        (false, true) => "└─",
-    }
-}
-
-fn slim_branch_marker(is_first: bool, is_last: bool) -> &'static str {
-    match (is_first, is_last) {
+fn branch_connector(is_first_in_group: bool, is_last_in_group: bool) -> &'static str {
+    match (is_first_in_group, is_last_in_group) {
         (true, true) => "─",
         (true, false) => "┬",
         (false, false) => "├",
