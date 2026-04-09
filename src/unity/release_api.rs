@@ -266,6 +266,6 @@ where
 fn load_release_info(path: &Path) -> anyhow::Result<Releases> {
     let file = File::open(path)?;
     let reader = BufReader::new(file);
-    let releases: Releases = serde_json::from_reader(reader)?;
+    let releases = serde_json::from_reader(reader)?;
     Ok(releases)
 }

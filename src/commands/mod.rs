@@ -137,7 +137,7 @@ fn report_version_issues(unity_version: Version) {
     let releases = match fetch_latest_releases(UpdatePolicy::Incremental) {
         Ok(releases) => releases,
         Err(e) => {
-            eprintln!("Failed to fetch release information: {}", e);
+            eprintln!("Failed to fetch release information: {e}");
             return;
         }
     };
@@ -145,10 +145,7 @@ fn report_version_issues(unity_version: Version) {
     let release_data = match releases.get_by_version(unity_version) {
         Ok(release_data) => release_data,
         Err(e) => {
-            eprintln!(
-                "Failed to get release data for version {}: {}",
-                unity_version, e
-            );
+            eprintln!("Failed to get release data for version {unity_version}: {e}");
             return;
         }
     };

@@ -204,7 +204,7 @@ fn print_project_version(
 
     if issue.has_issue() {
         report_error_description(report, &issue);
-    };
+    }
     Ok(())
 }
 

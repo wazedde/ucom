@@ -596,7 +596,7 @@ fn format_installed_release_line(
     is_suggested: bool,
 ) -> FormattedReleaseLine {
     let stream = release.map_or(ReleaseStream::Other, |rd| rd.stream);
-    let issue = release.map_or(ReleaseIssue::NoIssue, |rd| rd.issue());
+    let issue = release.map_or(ReleaseIssue::NoIssue, ReleaseData::issue);
 
     FormattedReleaseLine {
         stream,

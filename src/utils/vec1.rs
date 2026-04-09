@@ -29,7 +29,7 @@ impl Display for Vec1Error {
             Self::SourceVecIsEmpty => write!(f, "Source Vec is empty"),
             Self::CannotPopLastElement => write!(f, "Cannot pop the last element"),
             Self::WouldBecomeEmpty => write!(f, "Cannot remove the last element"),
-            Self::IndexOutOfBounds(index) => write!(f, "Index {} is out of bounds", index),
+            Self::IndexOutOfBounds(index) => write!(f, "Index {index} is out of bounds"),
         }
     }
 }
