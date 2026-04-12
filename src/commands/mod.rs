@@ -51,6 +51,15 @@ pub const MARK_ERROR: char = '‼';
 pub const MARK_WARNING: char = '!';
 pub const MARK_SUGGESTED: char = '*';
 
+// A non-fatal warning macro that prints to stderr
+macro_rules! warn_non_fatal {
+    ($($arg:tt)*) => {
+        eprintln!("Warning: {}", format_args!($($arg)*));
+    };
+}
+
+pub(crate) use warn_non_fatal;
+
 trait TimeDeltaExt {
     fn as_seconds(&self) -> f64;
 }
@@ -80,7 +89,7 @@ fn add_file_to_project(
             );
         })
         .inspect_err(|_| {
-            println!(
+            warn_non_fatal!(
                 "{INDENT}Failed to add file to project: {}",
                 file_path.normalized_display()
             );
@@ -137,7 +146,7 @@ fn report_version_issues(unity_version: Version) {
     let releases = match fetch_latest_releases(UpdatePolicy::Incremental) {
         Ok(releases) => releases,
         Err(e) => {
-            eprintln!("Failed to fetch release information: {e}");
+            warn_non_fatal!("Failed to fetch release information: {e}");
             return;
         }
     };
@@ -145,7 +154,7 @@ fn report_version_issues(unity_version: Version) {
     let release_data = match releases.get_by_version(unity_version) {
         Ok(release_data) => release_data,
         Err(e) => {
-            eprintln!("Failed to get release data for version {unity_version}: {e}");
+            warn_non_fatal!("Failed to get release data for version {unity_version}: {e}");
             return;
         }
     };

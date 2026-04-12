@@ -1,7 +1,7 @@
 use crate::unity::Version;
 use crate::utils::path_ext::PlatformConsistentPathExt;
 use crate::utils::vec1::{Vec1, Vec1Error};
-use anyhow::{Context, anyhow};
+use anyhow::{Context, anyhow, bail};
 use itertools::Itertools;
 use std::ops::Deref;
 use std::path::{Path, PathBuf};
@@ -185,10 +185,10 @@ impl Installations {
             if path.is_dir() {
                 Ok(path.to_owned())
             } else {
-                Err(anyhow!(
+                bail!(
                     "Editor directory set by `{ENV_EDITOR_DIR}` is not a valid directory: `{}`",
                     path.normalized_display()
-                ))
+                )
             }
         } else {
             // Use the default directory.
@@ -196,10 +196,10 @@ impl Installations {
             if path.is_dir() {
                 Ok(path)
             } else {
-                Err(anyhow!(
+                bail!(
                     "The default editor directory `{}` is not a valid directory`",
                     path.display()
-                ))
+                )
             }
         }
     }
@@ -272,7 +272,7 @@ impl Version {
         if exe_path.exists() {
             Ok(exe_path)
         } else {
-            Err(anyhow!("Unity version is not installed: {self}"))
+            bail!("Unity version is not installed: {self}")
         }
     }
 }

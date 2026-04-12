@@ -1,7 +1,7 @@
 use crate::style_definitions::STYLE_LINK;
 use crate::unity::release_api::{UpdatePolicy, fetch_latest_releases};
 use crate::unity::release_api_data::ReleaseData;
-use anyhow::anyhow;
+use anyhow::{anyhow, bail, ensure};
 use yansi::Paint;
 
 pub fn install_latest_matching(version_prefix: &str, mode: UpdatePolicy) -> anyhow::Result<()> {
@@ -16,9 +16,11 @@ pub fn install_latest_matching(version_prefix: &str, mode: UpdatePolicy) -> anyh
 }
 
 pub fn install_version(release: &ReleaseData) -> anyhow::Result<()> {
-    if release.version.is_editor_installed()? {
-        anyhow::bail!("Version {} is already installed", release.version);
-    }
+    ensure!(
+        !release.version.is_editor_installed()?,
+        "Version {} is already installed",
+        release.version
+    );
 
     println!(
         "Opening Unity Hub with deep link {l} to install version {v}",
@@ -28,12 +30,11 @@ pub fn install_version(release: &ReleaseData) -> anyhow::Result<()> {
 
     let deep_link = release.unity_hub_deep_link.as_str();
 
-    if deep_link.is_empty() {
-        anyhow::bail!(
-            "No Unity Hub deep link available for version {}",
-            release.version
-        );
-    }
+    ensure!(
+        !deep_link.is_empty(),
+        "No Unity Hub deep link available for version {}",
+        release.version
+    );
 
     if cfg!(target_os = "linux") {
         // Unity Hub inherits the terminal's file descriptors and writes GPU
@@ -57,12 +58,10 @@ pub fn install_version(release: &ReleaseData) -> anyhow::Result<()> {
             .args([deep_link])
             .status()?
     } else {
-        anyhow::bail!("Unsupported OS for Unity Hub deep linking");
+        bail!("Unsupported OS for Unity Hub deep linking");
     };
 
-    if !status.success() {
-        anyhow::bail!("Failed to open Unity Hub deep link");
-    }
+    ensure!(status.success(), "Failed to open Unity Hub deep link");
 
     Ok(())
 }

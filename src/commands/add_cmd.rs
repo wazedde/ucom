@@ -1,9 +1,9 @@
 use std::path::PathBuf;
 
-use anyhow::anyhow;
+use anyhow::bail;
 
 use crate::cli_add::{AddArguments, AssetSource, UnityTemplateFile};
-use crate::commands::{INDENT, PERSISTENT_BUILD_SCRIPT_ROOT, add_file_to_project};
+use crate::commands::{INDENT, PERSISTENT_BUILD_SCRIPT_ROOT, add_file_to_project, warn_non_fatal};
 use crate::unity::project::ProjectPath;
 use crate::utils::path_ext::PlatformConsistentPathExt;
 
@@ -12,12 +12,11 @@ pub fn add_to_project(args: &AddArguments) -> anyhow::Result<()> {
         println!("{}", args.template.as_asset().load_content()?);
         return Ok(());
     } else if args.display_url {
-        return if let AssetSource::Remote(url) = args.template.as_asset().content {
+        if let AssetSource::Remote(url) = args.template.as_asset().content {
             println!("{url}");
-            Ok(())
-        } else {
-            Err(anyhow!("File does not have a URL source"))
-        };
+            return Ok(());
+        }
+        bail!("File does not have a URL source");
     }
 
     let project = ProjectPath::try_from(&args.project_dir)?;
@@ -34,10 +33,10 @@ pub fn add_to_project(args: &AddArguments) -> anyhow::Result<()> {
         .join(args.template.as_asset().filename);
 
     if full_path.exists() && !args.force {
-        return Err(anyhow!(
-            "{INDENT}File already exists, add '--force' to overwrite: {}",
+        bail!(
+            "File already exists, add '--force' to overwrite: {}",
             full_path.normalized_display()
-        ));
+        )
     }
 
     if args.template == UnityTemplateFile::BuilderMenu {
@@ -45,7 +44,7 @@ pub fn add_to_project(args: &AddArguments) -> anyhow::Result<()> {
         let builder_script = UnityTemplateFile::Builder.as_asset();
         let local_path = &destination_dir.join(builder_script.filename);
         if project.join(local_path).exists() {
-            println!(
+            warn_non_fatal!(
                 "{INDENT}Already exists:   {}",
                 local_path.normalized_display()
             );

@@ -18,7 +18,7 @@ use crate::unity::{
 };
 use crate::utils::path_ext::PlatformConsistentPathExt;
 use crate::utils::status_line::{MessageType, StatusLine};
-use anyhow::{Context, anyhow};
+use anyhow::{Context, anyhow, bail};
 use chrono::Utc;
 use itertools::Itertools;
 use path_absolutize::Absolutize;
@@ -158,10 +158,10 @@ impl BuildArguments {
         };
 
         if project.as_ref() == output_dir {
-            return Err(anyhow!(
+            bail!(
                 "Output directory cannot be the same as the project directory: {}",
                 project.normalized_display()
-            ));
+            );
         }
         Ok(output_dir)
     }
@@ -470,7 +470,7 @@ fn try_editor_build(
         .join(builder_file_name);
 
     if !builder_script_path.exists() {
-        return Err(anyhow!(
+        bail!(
             "Unity editor is running, but {} not installed.\n\n\
              To enable building via the running editor, install the builder script:\n\
              \n\
@@ -480,7 +480,7 @@ fn try_editor_build(
              Or close the Unity editor to build in batch mode.",
             builder_file_name,
             format_args!("  ucom add builder {}", setup.project.normalized_display())
-        ));
+        );
     }
 
     MessageType::print_line(
@@ -560,18 +560,18 @@ fn handle_editor_build_result(
     start_time: chrono::DateTime<Utc>,
 ) -> anyhow::Result<()> {
     match result.status.as_str() {
-        "error" => return Err(anyhow!("{}", result.message)),
+        "error" => bail!("{}", result.message),
         "failed" => {
             // Check for platform switch failure specifically
             if result.error_code.as_deref() == Some("PLATFORM_SWITCH_FAILED") {
-                return Err(anyhow!(
+                bail!(
                     "Platform switch failed: {}\n\n\
                      This may happen if:\n\
                      - The target platform is not installed\n\
                      - The user cancelled the operation\n\
                      - Unity encountered an error during the switch",
                     result.message
-                ));
+                );
             }
 
             MessageType::print_line(
@@ -635,7 +635,7 @@ fn handle_editor_build_result(
     if result.status == "success" {
         Ok(())
     } else {
-        Err(anyhow!("Build failed"))
+        bail!("Build failed")
     }
 }
 

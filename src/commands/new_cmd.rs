@@ -2,7 +2,7 @@ use std::env;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
-use anyhow::{Context, anyhow};
+use anyhow::{Context, anyhow, bail};
 use path_absolutize::Absolutize;
 
 use crate::cli_add::UnityTemplateFile;
@@ -28,10 +28,10 @@ pub fn new_project(arguments: NewArguments) -> anyhow::Result<()> {
     let project_dir = arguments.project_dir.absolutize()?;
 
     if project_dir.exists() {
-        return Err(anyhow!(
+        bail!(
             "Directory already exists: {}",
             project_dir.normalized_display()
-        ));
+        );
     }
 
     let version = Installations::latest_installed_version(Some(&arguments.version_pattern))?;

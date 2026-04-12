@@ -4,7 +4,7 @@ use std::io::{BufRead, BufReader, Read};
 use std::ops::Deref;
 use std::path::{Path, PathBuf};
 
-use anyhow::{Context, anyhow};
+use anyhow::{Context, anyhow, bail};
 use itertools::Itertools;
 use serde::Deserialize;
 use walkdir::{DirEntry, IntoIter, WalkDir};
@@ -186,9 +186,9 @@ impl ProjectSettings {
                 };
                 Ok(setting)
             }
-            _ => Err(anyhow!(
+            _ => bail!(
                 "Could not find `productName` or `companyName` or `bundleVersion` in `ProjectSettings/ProjectSettings.asset`"
-            )),
+            ),
         }
     }
 
@@ -233,10 +233,10 @@ impl ProjectPath {
         if Self::contains_unity_project(&path) {
             Ok(Self(path.to_path_buf()))
         } else {
-            Err(anyhow!(
+            bail!(
                 "Path does not contain a Unity project: {}",
                 path.normalized_display()
-            ))
+            )
         }
     }
 
@@ -269,10 +269,10 @@ impl ProjectPath {
         if self.join("Assets").exists() {
             Ok(())
         } else {
-            Err(anyhow!(
+            bail!(
                 "Unity project does not have an `Assets` directory: `{}`",
                 self.normalized_display()
-            ))
+            )
         }
     }
 

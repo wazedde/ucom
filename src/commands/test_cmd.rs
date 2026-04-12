@@ -1,7 +1,7 @@
 use std::path::Path;
 use std::process::{Command, exit};
 
-use anyhow::anyhow;
+use anyhow::bail;
 use chrono::prelude::*;
 use yansi::Paint;
 
@@ -53,15 +53,15 @@ pub fn run_tests(arguments: &TestArguments) -> anyhow::Result<()> {
     if let Err(e) = &tests_result {
         // If the error was not caused by the command exiting with code 2 (tests failed), return it.
         if e.exit_code != 2 {
-            return Err(anyhow!("{e}"));
+            bail!("{e}");
         }
     }
 
     if !output_path.exists() {
         // Stupid workaround for Unity not returning an error when project is already open.
-        return Err(anyhow!(
+        bail!(
             "Unable to run tests, is another Unity instance running with this same project open?"
-        ));
+        );
     }
 
     if !arguments.quiet {

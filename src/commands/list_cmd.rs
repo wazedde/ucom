@@ -1,4 +1,4 @@
-use anyhow::anyhow;
+use anyhow::{bail, ensure};
 use itertools::Itertools;
 use std::fmt::{Display, Formatter};
 use yansi::{Condition, Paint};
@@ -172,9 +172,7 @@ fn display_updates(installed: &Installations, mode: UpdatePolicy) -> anyhow::Res
         HeaderLevel::H1,
     );
 
-    if releases.is_empty() {
-        return Err(anyhow!("No update information is available."));
-    }
+    ensure!(!releases.is_empty(), "No update information is available.");
 
     let version_groups = collect_version_update_info(&installed.versions, &releases);
     let max_version_len = find_max_version_length(&version_groups);
@@ -284,12 +282,11 @@ fn display_latest_versions(
     // Get the latest version of each range.
     let minor_releases = collect_latest_minor_releases(&releases, version_prefix);
 
-    if minor_releases.is_empty() {
-        return Err(anyhow!(
-            "No releases are available that match `{}`",
-            version_prefix.unwrap_or("*")
-        ));
-    }
+    ensure!(
+        !minor_releases.is_empty(),
+        "No releases are available that match `{}`",
+        version_prefix.unwrap_or("*")
+    );
 
     let version_col_width = minor_releases
         .iter()
@@ -397,10 +394,10 @@ fn display_available_versions(
 
     let Ok(versions) = SortedVersions::try_from(releases.iter().map(|rd| rd.version).collect_vec())
     else {
-        return Err(anyhow!(
+        bail!(
             "No releases are available that match `{}`",
             version_prefix.unwrap_or("*")
-        ));
+        );
     };
 
     let version_groups = group_versions_by_minor(&versions);
