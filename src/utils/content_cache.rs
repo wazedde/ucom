@@ -171,8 +171,8 @@ fn determine_cache_status(
 /// Checks if the remote page has been updated since the given time.
 fn is_remote_content_newer(url: &str, local_time: SystemTime) -> anyhow::Result<bool> {
     let local_datetime = DateTime::<Utc>::from(local_time);
-    let remote_datetime = fetch_last_modified_time(url)
-        .with_context(|| "Failed to determine if remote content is newer")?;
+    let remote_datetime =
+        fetch_last_modified_time(url).context("Failed to determine if remote content is newer")?;
 
     Ok(local_datetime < remote_datetime)
 }

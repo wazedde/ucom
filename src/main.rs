@@ -38,7 +38,7 @@ fn main() -> anyhow::Result<()> {
     }
 
     configure_cache_from_environment()
-        .with_context(|| "Cannot set cache from environment".paint(STYLE_ERROR))?;
+        .context("Cannot set cache from environment".paint(STYLE_ERROR))?;
 
     match command {
         Command::List {
@@ -60,7 +60,7 @@ fn main() -> anyhow::Result<()> {
 
         Command::Install { version } => {
             install_latest_matching(&version, UpdatePolicy::Incremental)
-                .with_context(|| "Cannot install the Unity version".paint(STYLE_ERROR))
+                .context("Cannot install the Unity version".paint(STYLE_ERROR))
         }
 
         Command::Info {
@@ -77,7 +77,7 @@ fn main() -> anyhow::Result<()> {
             report,
             UpdatePolicy::Incremental,
         )
-        .with_context(|| "Cannot show project info".paint(STYLE_ERROR)),
+        .context("Cannot show project info".paint(STYLE_ERROR)),
 
         Command::Updates {
             project_dir,
@@ -89,28 +89,30 @@ fn main() -> anyhow::Result<()> {
             report,
             UpdatePolicy::Incremental,
         )
-        .with_context(|| "Cannot show Unity updates for the project".paint(STYLE_ERROR)),
+        .context("Cannot show Unity updates for the project".paint(STYLE_ERROR)),
 
         Command::Run(settings) => {
             run_unity(settings).context("Cannot run Unity".paint(STYLE_ERROR))
         }
 
-        Command::New(settings) => new_project(settings)
-            .with_context(|| "Cannot create the new Unity project".paint(STYLE_ERROR)),
+        Command::New(settings) => {
+            new_project(settings).context("Cannot create the new Unity project".paint(STYLE_ERROR))
+        }
 
-        Command::Open(settings) => open_project(settings)
-            .with_context(|| "Cannot open the Unity project".paint(STYLE_ERROR)),
+        Command::Open(settings) => {
+            open_project(settings).context("Cannot open the Unity project".paint(STYLE_ERROR))
+        }
 
         Command::Build(settings) => {
-            build_project(&settings).with_context(|| "Cannot build the project".paint(STYLE_ERROR))
+            build_project(&settings).context("Cannot build the project".paint(STYLE_ERROR))
         }
 
         Command::Test(settings) => {
-            run_tests(&settings).with_context(|| "Cannot run tests".paint(STYLE_ERROR))
+            run_tests(&settings).context("Cannot run tests".paint(STYLE_ERROR))
         }
 
         Command::Add(arguments) => add_to_project(&arguments)
-            .with_context(|| "Cannot add the file to the project".paint(STYLE_ERROR)),
+            .context("Cannot add the file to the project".paint(STYLE_ERROR)),
 
         Command::Cache { action: command } => {
             match command {
