@@ -237,12 +237,10 @@ fn print_available_updates(releases: &ReleaseUpdates, report: &Report) -> anyhow
             report.marked_item(
                 format_args!(
                     "{vs} ({rd}) - {rn}{is}",
-                    vs = AlignedVersion(release.version, version_col_width)
-                        .paint(version_style)
-                        .bold(),
+                    vs = AlignedVersion(release.version, version_col_width).paint(version_style),
                     rd = release.release_date.format("%Y-%m-%d"),
                     rn = release_notes_url(release.version).paint(STYLE_LINK),
-                    is = issue.issue_tag(),
+                    is = issue.issue_tag_with_prefix(" "),
                 ),
                 issue.issue_marker_or(|| MARK_BULLET),
             );
