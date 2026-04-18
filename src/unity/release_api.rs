@@ -59,7 +59,7 @@ impl Releases {
     pub fn get_by_version(&self, version: Version) -> anyhow::Result<&ReleaseData> {
         self.iter()
             .find(|r| r.version == version)
-            .ok_or_else(|| anyhow!("Version {version} not found in releases",))
+            .ok_or_else(|| anyhow!("Version {version} not found in releases"))
     }
 
     pub fn iter(&self) -> impl Iterator<Item = &ReleaseData> {

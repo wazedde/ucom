@@ -5,8 +5,8 @@ use yansi::Paint;
 use crate::commands::install_cmd::install_version;
 use crate::commands::*;
 use crate::style_definitions::{
-    STYLE_ERROR, STYLE_LINK, STYLE_PLAIN, STYLE_SUCCESS, STYLE_UP_TO_DATE, STYLE_UPDATE_AVAILABLE,
-    STYLE_UPDATE_VERSION, STYLE_WARNING,
+    STYLE_ERROR, STYLE_LINK, STYLE_OUTDATED, STYLE_SUCCESS, STYLE_UP_TO_DATE, STYLE_UPDATE_VERSION,
+    STYLE_WARNING,
 };
 use crate::unity::release_api::{SortedReleases, UpdatePolicy};
 use crate::unity::{ProjectSettings, ReleaseUpdates, find_available_updates, release_notes_url};
@@ -154,11 +154,8 @@ fn print_project_version(
             updates.current_release.version.paint(STYLE_UP_TO_DATE),
         ),
         (true, false) => (
-            "installed (update available)".paint(STYLE_UPDATE_AVAILABLE),
-            updates
-                .current_release
-                .version
-                .paint(STYLE_UPDATE_AVAILABLE),
+            "installed (update available)".paint(STYLE_OUTDATED),
+            updates.current_release.version.paint(STYLE_OUTDATED),
         ),
         (false, true) => (
             "not installed (latest version)".paint(STYLE_ERROR),
@@ -231,10 +228,10 @@ fn print_available_updates(releases: &ReleaseUpdates, report: &Report) -> anyhow
                         .bold(),
                     rd = release.release_date.format("%Y-%m-%d"),
                     rn = release_notes_url(release.version).paint(STYLE_LINK),
-                    is = issue.issue_suffix(),
+                    is = issue.issue_tag(),
                     in = "installed".bold(),
                 ),
-                issue.marker_paint_or(|| MARK_BULLET, STYLE_PLAIN),
+                issue.issue_marker_or(|| MARK_BULLET),
             );
         } else {
             report.marked_item(
@@ -245,9 +242,9 @@ fn print_available_updates(releases: &ReleaseUpdates, report: &Report) -> anyhow
                         .bold(),
                     rd = release.release_date.format("%Y-%m-%d"),
                     rn = release_notes_url(release.version).paint(STYLE_LINK),
-                    is = issue.issue_suffix(),
+                    is = issue.issue_tag(),
                 ),
-                issue.marker_paint_or(|| MARK_BULLET, STYLE_PLAIN),
+                issue.issue_marker_or(|| MARK_BULLET),
             );
         }
     }

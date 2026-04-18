@@ -2,10 +2,12 @@ use crate::cli_add::UnityTemplateFile;
 use crate::utils::path_ext::PlatformConsistentPathExt;
 use anyhow::{Context, anyhow};
 use chrono::TimeDelta;
+use std::borrow::Cow;
 use std::fmt::{Display, Formatter};
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::Command;
+use std::sync::LazyLock;
 use yansi::{Paint, Style};
 
 pub use crate::commands::add_cmd::add_to_project;
@@ -18,7 +20,8 @@ pub use crate::commands::open_cmd::open_project;
 pub use crate::commands::run_cmd::run_unity;
 pub use crate::commands::updates_cmd::find_project_updates;
 use crate::style_definitions::{
-    STYLE_ERROR, STYLE_LINK, STYLE_PLAIN, STYLE_UPDATE_AVAILABLE, STYLE_WARNING,
+    STYLE_ERROR, STYLE_LINK, STYLE_OUTDATED, STYLE_PLAIN, STYLE_UP_TO_DATE, STYLE_UPDATE_VERSION,
+    STYLE_WARNING,
 };
 use crate::unity::release_api::{UpdatePolicy, fetch_latest_releases};
 use crate::unity::release_api_data::{LabelElement, ReleaseIssue};
@@ -40,16 +43,21 @@ mod unity_command_builder;
 
 pub const PERSISTENT_BUILD_SCRIPT_ROOT: &str = "Assets/Plugins/Ucom/Editor";
 pub const INDENT: &str = "  ";
-pub const MARK_UP_TO_DATE: char = '✓';
-pub const MARK_UPDATES_AVAILABLE: char = '+';
-pub const MARK_UPDATE_TO_LATEST: char = '→';
-pub const MARK_NO_INFO: char = '?';
-pub const MARK_BULLET: char = '-';
-pub const MARK_AVAILABLE: char = '✓';
-pub const MARK_UNAVAILABLE: char = '✗';
-pub const MARK_ERROR: char = '‼';
-pub const MARK_WARNING: char = '!';
-pub const MARK_SUGGESTED: char = '*';
+pub const MARK_NO_INFO: &str = "?";
+pub const MARK_BULLET: &str = "-";
+pub const MARK_AVAILABLE: &str = "✓";
+pub const MARK_UNAVAILABLE: &str = "✗";
+pub const MARK_ERROR: &str = "‼";
+pub const MARK_WARNING: &str = "!";
+
+static TAG_OUTDATED: LazyLock<String> =
+    LazyLock::new(|| format!("[{}]", "OUTDATED".paint(STYLE_OUTDATED)));
+
+static TAG_NEW: LazyLock<String> =
+    LazyLock::new(|| format!("[{}]", "NEW".paint(STYLE_UPDATE_VERSION)));
+
+static TAG_UP_TO_DATE: LazyLock<String> =
+    LazyLock::new(|| format!("[{}]", "OK".paint(STYLE_UP_TO_DATE)));
 
 // A non-fatal warning macro that prints to stderr
 macro_rules! warn_non_fatal {
@@ -115,7 +123,7 @@ fn report_error_description(report: &Report, issue: &ReleaseIssue) {
 
     report.blank_line();
     report.header(
-        format_args!("{}", label.label_text).paint(issue.style()),
+        format_args!("{}", label.label_text.to_uppercase()).paint(issue.style()),
         HeaderLevel::H2,
     );
 
@@ -126,8 +134,14 @@ fn report_error_description(report: &Report, issue: &ReleaseIssue) {
 
 fn format_label_with_url(le: &LabelElement, style: Style) -> String {
     extract_first_url(&le.description).map_or_else(
-        || le.label_text.paint(style).to_string(),
-        |url| le.label_text.paint(style).link(url).to_string(),
+        || le.label_text.to_uppercase().paint(style).to_string(),
+        |url| {
+            le.label_text
+                .to_uppercase()
+                .paint(style)
+                .link(url)
+                .to_string()
+        },
     )
 }
 
@@ -198,7 +212,7 @@ pub struct ProjectSetup {
 }
 
 impl ProjectSetup {
-    /// Initialize project and validate Unity version
+    /// Initialise project and validate Unity version
     pub fn new(project_dir: &Path) -> anyhow::Result<Self> {
         let project =
             ProjectPath::try_from(project_dir).context("Failed to locate Unity project")?;
@@ -218,7 +232,6 @@ impl ProjectSetup {
     }
 }
 
-#[allow(dead_code)]
 impl ReleaseIssue {
     pub fn style(&self) -> Style {
         match self {
@@ -237,40 +250,42 @@ impl ReleaseIssue {
     }
 
     pub fn marker(&self) -> String {
-        let marker = match self {
-            ReleaseIssue::NoIssue => MARK_BULLET,
-            ReleaseIssue::Error(_) => MARK_ERROR,
-            ReleaseIssue::Warning(_) => MARK_WARNING,
-        };
-
-        marker.paint(self.style()).to_string()
-    }
-
-    pub fn marker_paint_or<F>(&self, fallback: F, style: Style) -> String
-    where
-        F: FnOnce() -> char,
-    {
-        if self.has_issue() {
-            self.marker()
-        } else {
-            fallback().paint(style).to_string()
+        match self {
+            ReleaseIssue::NoIssue => MARK_BULLET.paint(self.style()).to_string(),
+            ReleaseIssue::Error(_) => MARK_ERROR.paint(self.style()).to_string(),
+            ReleaseIssue::Warning(_) => MARK_WARNING.paint(self.style()).to_string(),
         }
     }
 
-    pub fn issue_marker_or<F>(&self, fallback: F) -> String
+    pub fn issue_marker_or<F>(&self, fallback: F) -> Cow<'static, str>
     where
-        F: FnOnce() -> String,
+        F: FnOnce() -> &'static str,
     {
         if self.has_issue() {
-            self.marker()
+            Cow::Owned(self.marker())
         } else {
-            fallback()
+            Cow::Borrowed(fallback())
         }
     }
 
-    pub fn issue_suffix(&self) -> String {
+    pub fn issue_tag_or<F>(&self, fallback: F) -> Cow<'static, str>
+    where
+        F: FnOnce() -> &'static str,
+    {
+        if self.has_issue() {
+            Cow::Owned(self.issue_tag())
+        } else {
+            Cow::Borrowed(fallback())
+        }
+    }
+
+    pub fn issue_tag_with_prefix(&self, prefix: &str) -> String {
         self.label()
-            .map(|label| format!(" [{}]", format_label_with_url(label, self.style())))
+            .map(|label| format!("{prefix}[{}]", format_label_with_url(label, self.style())))
             .unwrap_or_default()
+    }
+
+    pub fn issue_tag(&self) -> String {
+        self.issue_tag_with_prefix("")
     }
 }

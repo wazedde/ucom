@@ -314,13 +314,13 @@ fn collect_log_errors(log_file: &Path) -> anyhow::Error {
         [] => anyhow!("No errors found in log"),
         [single_error] => anyhow!("{single_error}"),
         _ => {
-            let joined = errors
+            let error_list = errors
                 .iter()
                 .enumerate()
                 .map(|(i, error)| format!("{c}: {e}", c = i + 1, e = error))
                 .join("\n");
 
-            anyhow!(joined)
+            anyhow!(error_list)
         }
     }
 }

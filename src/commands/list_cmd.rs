@@ -52,11 +52,11 @@ pub fn list_versions(
 
 /// Prints list of installed versions.
 /// ```
-/// Unity versions in: /Applications/Unity/Hub/Editor/ (suggested: LTS 6000.0.36f1)
-/// ── 2022.3.57f1 - https://unity.com/releases/editor/whats-new/2022.3.57#notes
-/// ┬─ 6000.0.32f1 - https://unity.com/releases/editor/whats-new/6000.0.32#notes
-/// ├─ 6000.0.35f1 - https://unity.com/releases/editor/whats-new/6000.0.35#notes
-/// └─ 6000.0.36f1 * https://unity.com/releases/editor/whats-new/6000.0.36#notes
+/// Unity versions in: /Applications/Unity/Hub/Editor/ (suggested: SUPP 6000.4.3f1)
+/// ┬── LTS 6000.3.5f1  (2026-01-21) ! https://unity.com/releases/editor/whats-new/6000.3.5f1#notes [WARNING]
+/// └── LTS 6000.3.11f1 (2026-03-11) - https://unity.com/releases/editor/whats-new/6000.3.11f1#notes
+/// ┬─ SUPP 6000.4.2f1  (2026-04-09) - https://unity.com/releases/editor/whats-new/6000.4.2f1#notes
+/// └─ SUPP 6000.4.3f1  (2026-04-15) - https://unity.com/releases/editor/whats-new/6000.4.3f1#notes
 /// ```
 fn display_installed_versions(installed: &Installations, mode: UpdatePolicy) -> anyhow::Result<()> {
     let releases = if mode == UpdatePolicy::Incremental {
@@ -150,11 +150,13 @@ fn display_list_with_release_dates(
 
 /// Prints list of installed versions and available updates.
 /// ```
-/// Updates for Unity versions in: /Applications/Unity/Hub/Editor/ (suggested: LTS 6000.0.36f1)
-/// ─── LTS 2022.3.57f1 (2025-01-29) - Up to date
-/// ┬── LTS 6000.0.32f1 (2024-12-19)
-/// ├── LTS 6000.0.35f1 (2025-01-22) - Update(s) available
-/// └── LTS 6000.0.36f1 (2025-01-28) * https://unity.com/releases/editor/whats-new/6000.0.36#notes
+/// Updates for Unity versions in: /Applications/Unity/Hub/Editor/ (suggested: SUPP 6000.4.3f1)
+/// ┬── LTS 6000.3.5f1  (2026-01-21) [WARNING]
+/// ├── LTS 6000.3.11f1 (2026-03-11) [OUTDATED]
+/// ├── LTS 6000.3.12f1 (2026-03-25) [NEW] https://unity.com/releases/editor/whats-new/6000.3.12f1#notes
+/// └── LTS 6000.3.13f1 (2026-04-08) [NEW] https://unity.com/releases/editor/whats-new/6000.3.13f1#notes
+/// ┬─ SUPP 6000.4.2f1  (2026-04-09)
+/// └─ SUPP 6000.4.3f1  (2026-04-15) [OK]
 /// ```
 fn display_updates(installed: &Installations, mode: UpdatePolicy) -> anyhow::Result<()> {
     let releases = fetch_latest_releases(mode)?;
@@ -253,15 +255,16 @@ fn collect_version_update_info<'a>(
 /// Prints list of latest available Unity versions.
 /// ```
 /// ...
-/// ┬─ TECH 2022.1.24f1 (2022-12-06)
-/// ├─ TECH 2022.2.21f1 (2023-05-24)
-/// └── LTS 2022.3.57f1 (2025-01-29) - Installed: 2022.3.57f1
-/// ┬─ TECH 2023.1.20f1 (2023-11-09)
-/// ├─ TECH 2023.2.20f1 (2024-04-25)
+/// ┬─ TECH 2023.1.22f1 (2025-10-03)
+/// ├─ TECH 2023.2.22f1 (2025-10-03)
 /// └─ BETA 2023.3.0b10 (2024-03-05)
-/// ┬── LTS 6000.0.36f1 (2025-01-28) - Installed: 6000.0.32f1, 6000.0.35f1 - update available
-/// ├─ BETA 6000.1.0b4  (2025-01-28)
-/// └ ALPHA 6000.2.0a1  (2025-01-29)
+/// ┬── LTS 6000.0.73f1 (2026-04-15)
+/// ├─ SUPP 6000.1.17f1 (2025-10-03)
+/// ├─ SUPP 6000.2.15f1 (2025-12-03)
+/// ├── LTS 6000.3.13f1 (2026-04-08) Installed: 6000.3.5f1, 6000.3.11f1 [OUTDATED]
+/// ├─ SUPP 6000.4.3f1  (2026-04-15) Installed: 6000.4.2f1, 6000.4.3f1 [OK]
+/// ├─ BETA 6000.5.0b4  (2026-04-16)
+/// └ ALPHA 6000.6.0a3  (2026-04-15)
 /// ...
 /// ```
 fn display_latest_versions(
@@ -454,8 +457,7 @@ fn display_installed_versions_line(
 ) {
     let is_up_to_date = installed_in_range
         .last()
-        .filter(|&v| v == &latest.version)
-        .is_some()
+        .is_some_and(|v| v == &latest.version)
         || installed_in_range // Special case for when an installed version is newer than the latest.
             .last()
             .is_some_and(|&v| v > latest.version);
@@ -465,21 +467,23 @@ fn display_installed_versions_line(
     let release_date = latest.release_date.format("%Y-%m-%d");
     let joined_versions = installed_in_range.iter().join(", ");
 
-    let line = if is_up_to_date {
+    let release_info = if is_up_to_date {
         format_args!(
-            "{stream} {vs} ({release_date}) {MARK_UP_TO_DATE} Installed: {joined_versions}",
+            "{stream} {vs} ({release_date}) Installed: {joined_versions} {tg}",
             vs = version.paint(STYLE_UP_TO_DATE),
+            tg = TAG_UP_TO_DATE.as_str(),
         )
     } else {
         format_args!(
-            "{stream} {vs} ({release_date}) {MARK_UPDATES_AVAILABLE} Installed: {joined_versions} - update available",
-            vs = version.paint(STYLE_UPDATE_VERSION),
+            "{stream} {vs} ({release_date}) Installed: {joined_versions} {tg}",
+            vs = version.paint(STYLE_OUTDATED),
+            tg = TAG_OUTDATED.as_str()
         )
     };
     report.paragraph(format_args!(
         "{bp}{ri}",
         bp = BranchPrefix(line_marker, stream),
-        ri = line.bold()
+        ri = release_info.bold()
     ));
 }
 
@@ -571,7 +575,7 @@ where
 
 fn format_release_description(info: &VersionInfo, release: Option<&ReleaseData>) -> String {
     let issue_suffix = release
-        .map(|rd| rd.issue().issue_suffix())
+        .map(|rd| rd.issue().issue_tag_with_prefix(" "))
         .unwrap_or_default();
 
     format!(
@@ -599,23 +603,12 @@ fn format_installed_release_line(
         stream,
         content: format!(
             "{stream} {vs} ({rd}) {mk} {description}",
-            vs = AlignedVersion(info.version, version_col_width)
-                .paint(STYLE_ERROR)
-                .whenever(Condition::cached(issue.has_issue())),
+            vs = AlignedVersion(info.version, version_col_width).paint(issue.style()),
             rd = release.map_or_else(
                 || "----------".to_string(),
                 |rd| rd.release_date.format("%Y-%m-%d").to_string(),
             ),
-            mk = issue.marker_paint_or(
-                || {
-                    if is_suggested {
-                        MARK_SUGGESTED
-                    } else {
-                        MARK_BULLET
-                    }
-                },
-                STYLE_PLAIN,
-            ),
+            mk = issue.issue_marker_or(|| { MARK_BULLET }),
             description = format_release_description(info, release),
         )
         .bold()
@@ -634,15 +627,14 @@ fn format_update_release_line(
     let release_date = release.release_date.format("%Y-%m-%d");
     let version = AlignedVersion(info.version, version_col_width);
     let issue = release.issue();
-    let issue_suffix = issue.issue_suffix();
 
     let content = match &info.version_type {
         VersionType::HasLaterInstalled => {
             if issue.has_issue() {
                 format!(
-                    "{stream} {vs} ({release_date}) {mk}{issue_suffix}",
+                    "{stream} {vs} ({release_date}) {mk}",
                     vs = version.paint(issue.style()),
-                    mk = issue.marker(),
+                    mk = issue.issue_tag(),
                 )
             } else {
                 format!("{stream} {version} ({release_date})")
@@ -650,27 +642,24 @@ fn format_update_release_line(
         }
         VersionType::LatestInstalled => {
             if is_last_version_in_group {
-                let style = issue.issue_style_or(STYLE_UP_TO_DATE);
                 format!(
-                    "{stream} {vs} ({release_date}) {mk} Up to date{issue_suffix}",
-                    vs = version.paint(style),
-                    mk = issue.marker_paint_or(|| MARK_UP_TO_DATE, STYLE_PLAIN),
+                    "{stream} {vs} ({release_date}) {mk}",
+                    vs = version.paint(issue.issue_style_or(STYLE_UP_TO_DATE)),
+                    mk = issue.issue_tag_or(|| TAG_UP_TO_DATE.as_str()),
                 )
             } else {
-                let style = issue.issue_style_or(STYLE_UPDATE_AVAILABLE);
                 format!(
-                    "{stream} {vs} ({release_date}) {mk} Update(s) available{issue_suffix}",
-                    vs = version.paint(style),
-                    mk = issue.marker_paint_or(|| MARK_UPDATES_AVAILABLE, STYLE_UPDATE_AVAILABLE),
+                    "{stream} {vs} ({release_date}) {mk}",
+                    vs = version.paint(issue.issue_style_or(STYLE_OUTDATED)),
+                    mk = issue.issue_tag_or(|| TAG_OUTDATED.as_str()),
                 )
             }
         }
         VersionType::UpdateToLatest(release_info) => {
-            let style = issue.issue_style_or(STYLE_UPDATE_VERSION);
             format!(
                 "{stream} {vs} ({release_date}) {mk} {rd}",
-                vs = version.paint(style),
-                mk = issue.marker_paint_or(|| MARK_UPDATE_TO_LATEST, STYLE_PLAIN),
+                vs = version.paint(issue.issue_style_or(STYLE_UPDATE_VERSION)),
+                mk = issue.issue_tag_or(|| TAG_NEW.as_str()),
                 rd = format_release_description(info, Some(release_info)),
             )
         }
