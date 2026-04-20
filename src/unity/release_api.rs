@@ -2,6 +2,7 @@ use crate::unity::Version;
 use crate::unity::release_api_data::{ReleaseData, ReleaseDataPage};
 use crate::utils::content_cache::ucom_cache_dir;
 use crate::utils::content_cache::{is_cached_file_stale, touch_file};
+use crate::utils::native_progress::{NativeProgressBar, NativeProgressState};
 use crate::utils::status_line::StatusLine;
 use anyhow::{Context, anyhow};
 use chrono::{DateTime, Utc};
@@ -171,9 +172,11 @@ pub fn fetch_latest_releases(mode: UpdatePolicy) -> anyhow::Result<SortedRelease
         "Incremental Unity release data..."
     };
 
+    let mut progress = NativeProgressBar::new();
     let status = StatusLine::new("Downloading", data_description);
     let fetch_count = fetch_release_info(&mut releases, |count, total| {
         let percentage = count as f64 / total as f64 * 100.0;
+        progress.update(NativeProgressState::Determinate(percentage as u8));
         status.update_line(
             "Downloading",
             format!("{data_description} ({percentage:.0}%)"),
@@ -214,9 +217,9 @@ fn fetch_releases_page(limit: usize, offset: usize) -> anyhow::Result<ReleaseDat
 /// Because the API is very slow, we minimize the number of requests when looking for new releases
 /// by assuming there were no new releases if all releases in a page are already in the list.
 /// This is not perfect, but seems to be good enough for our use case.
-fn fetch_release_info<F>(releases: &mut Releases, callback: F) -> anyhow::Result<usize>
+fn fetch_release_info<F>(releases: &mut Releases, mut callback: F) -> anyhow::Result<usize>
 where
-    F: Fn(usize, usize),
+    F: FnMut(usize, usize),
 {
     // If list is empty, fetch as much as possible, otherwise fetch 5 at a time to make it faster.
     let fetch_all = releases.is_empty();

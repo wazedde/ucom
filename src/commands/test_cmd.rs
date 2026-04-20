@@ -11,6 +11,7 @@ use crate::commands::{ProjectSetup, TimeDeltaExt};
 use crate::nunit::{TestCase, TestResult, TestRun};
 use crate::style_definitions::{STYLE_ERROR, STYLE_PLAIN};
 use crate::unity::{ProjectPath, build_command_line, wait_with_stdout};
+use crate::utils::native_progress::{NativeProgressBar, NativeProgressState};
 use crate::utils::path_ext::PlatformConsistentPathExt;
 use crate::utils::status_line::{MessageType, StatusLine};
 
@@ -47,6 +48,7 @@ pub fn run_tests(arguments: &TestArguments) -> anyhow::Result<()> {
                 ),
             )
         };
+        let _progress_guard = NativeProgressBar::with_state(NativeProgressState::Indeterminate);
         wait_with_stdout(test_command)
     };
 

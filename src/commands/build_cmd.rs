@@ -16,6 +16,7 @@ use crate::unity::{
     ProjectPath, build_command_line, is_unity_editor_running, wait_with_log_output,
     wait_with_stdout,
 };
+use crate::utils::native_progress::{NativeProgressBar, NativeProgressState};
 use crate::utils::path_ext::PlatformConsistentPathExt;
 use crate::utils::status_line::{MessageType, StatusLine};
 use anyhow::{Context, anyhow, bail};
@@ -62,6 +63,8 @@ pub fn build_project(arguments: &BuildArguments) -> anyhow::Result<()> {
         MessageType::print_line("Building", &build_text, MessageType::Info);
         StatusLine::new_silent()
     };
+
+    let _progress_guard = NativeProgressBar::with_state(NativeProgressState::Indeterminate);
 
     let hooks = csharp_build_script_injection_hooks(&setup.project, arguments.inject);
 
@@ -539,6 +542,8 @@ fn try_editor_build(
 fn poll_for_result(result_dir: &Path, uuid: &Uuid) -> anyhow::Result<EditorBuildResult> {
     let result_file = result_dir.join(format!("build-{uuid}.json"));
     let poll_interval = Duration::from_millis(500);
+
+    let _progress_guard = NativeProgressBar::with_state(NativeProgressState::Indeterminate);
 
     loop {
         if result_file.exists() {
