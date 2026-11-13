@@ -16,8 +16,8 @@ use crate::commands::{
     report_version_issues, warn_non_fatal,
 };
 use crate::unity::{
-    ProjectPath, build_command_line, is_unity_editor_running, wait_with_log_output,
-    wait_with_stdout,
+    Pid, ProjectPath, build_command_line, find_unity_editor_process, is_process_running,
+    wait_with_log_output, wait_with_stdout,
 };
 use crate::utils::native_progress::{NativeProgressBar, NativeProgressState};
 use crate::utils::path_ext::PlatformConsistentPathExt;
@@ -38,8 +38,8 @@ pub fn build_project(arguments: &BuildArguments) -> anyhow::Result<()> {
     let setup = ProjectSetup::new(&arguments.project_dir)?;
 
     // If the project is open in the Unity editor, build there via IPC.
-    if is_unity_editor_running(&setup.project) {
-        return build_via_editor(arguments, &setup, start_time);
+    if let Some(editor_pid) = find_unity_editor_process(&setup.project) {
+        return build_via_editor(arguments, &setup, editor_pid, start_time);
     }
 
     // Otherwise, build in a new Unity process.
@@ -464,6 +464,7 @@ fn cleanup_csharp_build_script(parent_dir: impl AsRef<Path>) -> anyhow::Result<(
 fn build_via_editor(
     args: &BuildArguments,
     setup: &ProjectSetup,
+    editor_pid: Pid,
     start_time: chrono::DateTime<Utc>,
 ) -> anyhow::Result<()> {
     ensure_editor_builder_installed(setup)?;
@@ -507,7 +508,7 @@ fn build_via_editor(
         StatusLine::new_silent()
     };
 
-    let result = send_editor_command(&setup.project, &command)?;
+    let result = send_editor_command(&setup.project, &command, editor_pid)?;
     drop(build_status);
 
     if result.status == "success" && args.clean {
@@ -569,6 +570,7 @@ fn warn_unsupported_editor_build_flags(args: &BuildArguments) {
 fn send_editor_command(
     project: &ProjectPath,
     command: &EditorCommand,
+    editor_pid: Pid,
 ) -> anyhow::Result<EditorBuildResult> {
     let temp_dir = project.join("Temp");
     let command_dir = temp_dir.join("ucom-commands");
@@ -583,7 +585,7 @@ fn send_editor_command(
 
     write_atomic(&command_file, serde_json::to_string_pretty(command)?)?;
 
-    let result = poll_for_result(&result_file)?;
+    let result = poll_for_result(&result_file, project, editor_pid)?;
     // NOTE: When the user cancels the polling, files are left behind. Which is fine.
 
     let _ = fs::remove_file(&command_file);
@@ -594,19 +596,28 @@ fn send_editor_command(
 
 /// Polls for a result file from the Unity editor.
 ///
-/// Returns the parsed result when the editor completes the build.
-/// Polls indefinitely - user can press Ctrl+C to cancel.
+/// Returns the parsed result when the editor completes the build. There is no timeout, so
+/// long builds are supported; the user can press Ctrl+C to cancel. Every few seconds the
+/// editor process found at the start (`editor_pid`) is checked, and polling stops with an
+/// error once it has exited.
 ///
 /// Current versions of `UnityBuilder.cs` write the result file atomically. Builder scripts
 /// installed in projects before that change write it in place, so a read may observe a
 /// partially written file. Read and parse failures are therefore retried for a short grace
 /// period before being reported.
-fn poll_for_result(result_file: &Path) -> anyhow::Result<EditorBuildResult> {
+fn poll_for_result(
+    result_file: &Path,
+    project: &ProjectPath,
+    editor_pid: Pid,
+) -> anyhow::Result<EditorBuildResult> {
     const POLL_INTERVAL: Duration = Duration::from_millis(500);
     const MAX_READ_ATTEMPTS: u32 = 10;
+    /// Number of polls between editor liveness checks (5 seconds).
+    const LIVENESS_CHECK_POLLS: u32 = 10;
 
     let _progress_guard = NativeProgressBar::with_state(NativeProgressState::Indeterminate);
     let mut failed_reads = 0;
+    let mut polls: u32 = 0;
 
     loop {
         if result_file.exists() {
@@ -624,6 +635,18 @@ fn poll_for_result(result_file: &Path) -> anyhow::Result<EditorBuildResult> {
                     }
                 }
             }
+        }
+
+        polls = polls.wrapping_add(1);
+        // The editor may have written the result just before exiting, so check for it again.
+        if polls.is_multiple_of(LIVENESS_CHECK_POLLS)
+            && !is_process_running(editor_pid)
+            && !result_file.exists()
+        {
+            bail!(
+                "The Unity editor for {} is no longer running; no build result was received.",
+                project.normalized_display()
+            );
         }
 
         std::thread::sleep(POLL_INTERVAL);
