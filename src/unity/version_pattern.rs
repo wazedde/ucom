@@ -18,10 +18,10 @@ use crate::unity::{BuildType, Version};
 pub struct VersionPattern {
     text: String,
     major: ComponentPattern,
-    minor: Option<ComponentPattern>,
-    patch: Option<ComponentPattern>,
+    minor: ComponentPattern,
+    patch: ComponentPattern,
     build_type: Option<BuildType>,
-    build: Option<ComponentPattern>,
+    build: ComponentPattern,
 }
 
 /// Pattern for a single numeric version component.
@@ -100,14 +100,15 @@ impl FromStr for VersionPattern {
             .and_then(ComponentPattern::parse)
             .ok_or(VersionPatternError)?;
 
-        let minor = parts
-            .next()
-            .map(|p| ComponentPattern::parse(p).ok_or(VersionPatternError))
-            .transpose()?;
+        // Components that are left out match anything.
+        let minor = match parts.next() {
+            Some(p) => ComponentPattern::parse(p).ok_or(VersionPatternError)?,
+            None => ComponentPattern::Any,
+        };
 
         let (patch, build_type, build) = match parts.next() {
             Some(p) => parse_patch_and_build(p).ok_or(VersionPatternError)?,
-            None => (None, None, None),
+            None => (ComponentPattern::Any, None, ComponentPattern::Any),
         };
 
         if parts.next().is_some() {
@@ -125,16 +126,13 @@ impl FromStr for VersionPattern {
     }
 }
 
-type PatchAndBuild = (
-    Option<ComponentPattern>,
-    Option<BuildType>,
-    Option<ComponentPattern>,
-);
-
-/// Parses the last dot-separated part of a pattern, e.g. `5`, `5f`, `5f1`, `6*` or `*`.
-fn parse_patch_and_build(s: &str) -> Option<PatchAndBuild> {
+/// Parses the last dot-separated part of a pattern, e.g. `5`, `5f`, `5f1`, `6*` or `*`,
+/// into the patch, build type and build number patterns.
+fn parse_patch_and_build(
+    s: &str,
+) -> Option<(ComponentPattern, Option<BuildType>, ComponentPattern)> {
     let Some(type_start) = s.find(|c: char| c.is_ascii_alphabetic() && c != 'x' && c != 'X') else {
-        return Some((Some(ComponentPattern::parse(s)?), None, None));
+        return Some((ComponentPattern::parse(s)?, None, ComponentPattern::Any));
     };
 
     let patch = ComponentPattern::parse(&s[..type_start])?;
@@ -145,11 +143,11 @@ fn parse_patch_and_build(s: &str) -> Option<PatchAndBuild> {
     let build_type = BuildType::from_short_str(&rest[..type_len].to_ascii_lowercase())?;
 
     let build = match &rest[type_len..] {
-        "" => None,
-        b => Some(ComponentPattern::parse(b)?),
+        "" => ComponentPattern::Any,
+        b => ComponentPattern::parse(b)?,
     };
 
-    Some((Some(patch), Some(build_type), build))
+    Some((patch, Some(build_type), build))
 }
 
 impl Display for VersionPattern {
@@ -164,10 +162,10 @@ impl From<Version> for VersionPattern {
         Self {
             text: version.to_string(),
             major: ComponentPattern::Exact(version.major.into()),
-            minor: Some(ComponentPattern::Exact(version.minor.into())),
-            patch: Some(ComponentPattern::Exact(version.patch.into())),
+            minor: ComponentPattern::Exact(version.minor.into()),
+            patch: ComponentPattern::Exact(version.patch.into()),
             build_type: Some(version.build_type),
-            build: Some(ComponentPattern::Exact(version.build.into())),
+            build: ComponentPattern::Exact(version.build.into()),
         }
     }
 }
@@ -178,29 +176,20 @@ impl VersionPattern {
         Self {
             text: version.to_major_minor_string(),
             major: ComponentPattern::Exact(version.major.into()),
-            minor: Some(ComponentPattern::Exact(version.minor.into())),
-            patch: None,
+            minor: ComponentPattern::Exact(version.minor.into()),
+            patch: ComponentPattern::Any,
             build_type: None,
-            build: None,
+            build: ComponentPattern::Any,
         }
     }
 
     /// Returns true if the given version matches this pattern.
     pub fn matches(&self, version: Version) -> bool {
         self.major.matches(version.major.into())
-            && self
-                .minor
-                .as_ref()
-                .is_none_or(|p| p.matches(version.minor.into()))
-            && self
-                .patch
-                .as_ref()
-                .is_none_or(|p| p.matches(version.patch.into()))
+            && self.minor.matches(version.minor.into())
+            && self.patch.matches(version.patch.into())
             && self.build_type.is_none_or(|t| t == version.build_type)
-            && self
-                .build
-                .as_ref()
-                .is_none_or(|p| p.matches(version.build.into()))
+            && self.build.matches(version.build.into())
     }
 }
 

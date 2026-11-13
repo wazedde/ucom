@@ -3,7 +3,7 @@ use std::fs::File;
 use std::io::{BufRead, BufReader};
 use std::path::{Path, PathBuf};
 use std::process::Command;
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 use crate::cli_add::UnityTemplateFile;
 use crate::cli_build::{
@@ -54,19 +54,7 @@ pub fn build_project(arguments: &BuildArguments) -> anyhow::Result<()> {
         println!("{}", build_command_line(&build_command));
         return Ok(());
     }
-    let build_text = format!(
-        "Unity {} {} project in {}",
-        setup.unity_version,
-        arguments.target,
-        setup.project.normalized_display()
-    );
-
-    let build_status = if arguments.quiet {
-        StatusLine::new("Building", &build_text)
-    } else {
-        MessageType::print_line("Building", &build_text, MessageType::Info);
-        StatusLine::new_silent()
-    };
+    let build_status = start_build_status("Building", arguments, &setup);
 
     let _progress_guard = NativeProgressBar::with_state(NativeProgressState::Indeterminate);
 
@@ -119,6 +107,24 @@ pub fn build_project(arguments: &BuildArguments) -> anyhow::Result<()> {
     print_build_report(&log_path, build_status);
     report_version_issues(setup.unity_version);
     build_result.map_err(|_| collect_log_errors(&log_path))
+}
+
+/// Announces the start of a build: a status line in quiet mode, otherwise a printed message.
+/// The status line is cleared when the returned value is dropped.
+fn start_build_status(label: &str, args: &BuildArguments, setup: &ProjectSetup) -> StatusLine {
+    let build_text = format!(
+        "Unity {} {} project in {}",
+        setup.unity_version,
+        args.target,
+        setup.project.normalized_display()
+    );
+
+    if args.quiet {
+        StatusLine::new(label, &build_text)
+    } else {
+        MessageType::print_line(label, &build_text, MessageType::Info);
+        StatusLine::new_silent()
+    }
 }
 
 impl BuildArguments {
@@ -494,19 +500,7 @@ fn build_via_editor(
         return Ok(());
     }
 
-    let build_text = format!(
-        "Unity {} {} project in {}",
-        setup.unity_version,
-        args.target,
-        setup.project.normalized_display()
-    );
-
-    let build_status = if args.quiet {
-        StatusLine::new("Building via editor", &build_text)
-    } else {
-        MessageType::print_line("Building via editor", &build_text, MessageType::Info);
-        StatusLine::new_silent()
-    };
+    let build_status = start_build_status("Building via editor", args, setup);
 
     let result = send_editor_command(&setup.project, &command, editor_pid)?;
     drop(build_status);
@@ -585,7 +579,7 @@ fn send_editor_command(
 
     write_atomic(&command_file, serde_json::to_string_pretty(command)?)?;
 
-    let result = poll_for_result(&result_file, project, editor_pid)?;
+    let result = poll_for_result(&result_file, editor_pid)?;
     // NOTE: When the user cancels the polling, files are left behind. Which is fine.
 
     let _ = fs::remove_file(&command_file);
@@ -605,19 +599,14 @@ fn send_editor_command(
 /// installed in projects before that change write it in place, so a read may observe a
 /// partially written file. Read and parse failures are therefore retried for a short grace
 /// period before being reported.
-fn poll_for_result(
-    result_file: &Path,
-    project: &ProjectPath,
-    editor_pid: Pid,
-) -> anyhow::Result<EditorBuildResult> {
+fn poll_for_result(result_file: &Path, editor_pid: Pid) -> anyhow::Result<EditorBuildResult> {
     const POLL_INTERVAL: Duration = Duration::from_millis(500);
     const MAX_READ_ATTEMPTS: u32 = 10;
-    /// Number of polls between editor liveness checks (5 seconds).
-    const LIVENESS_CHECK_POLLS: u32 = 10;
+    const LIVENESS_CHECK_INTERVAL: Duration = Duration::from_secs(5);
 
     let _progress_guard = NativeProgressBar::with_state(NativeProgressState::Indeterminate);
     let mut failed_reads = 0;
-    let mut polls: u32 = 0;
+    let mut last_liveness_check = Instant::now();
 
     loop {
         if result_file.exists() {
@@ -637,16 +626,12 @@ fn poll_for_result(
             }
         }
 
-        polls = polls.wrapping_add(1);
-        // The editor may have written the result just before exiting, so check for it again.
-        if polls.is_multiple_of(LIVENESS_CHECK_POLLS)
-            && !is_process_running(editor_pid)
-            && !result_file.exists()
-        {
-            bail!(
-                "The Unity editor for {} is no longer running; no build result was received.",
-                project.normalized_display()
-            );
+        if last_liveness_check.elapsed() >= LIVENESS_CHECK_INTERVAL {
+            last_liveness_check = Instant::now();
+            // The editor may have written the result just before exiting, so check for it again.
+            if !is_process_running(editor_pid) && !result_file.exists() {
+                bail!("The Unity editor is no longer running; no build result was received.");
+            }
         }
 
         std::thread::sleep(POLL_INTERVAL);

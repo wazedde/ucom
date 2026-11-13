@@ -1,14 +1,16 @@
 use crate::unity::Version;
 use crate::unity::release_api_data::{ReleaseData, ReleaseDataPage};
-use crate::utils::content_cache::{is_cached_file_stale, touch_file, ucom_cache_dir};
+use crate::utils::content_cache::{
+    is_cached_file_stale, store_in_cache, touch_file, ucom_cache_dir,
+};
 use crate::utils::native_progress::{NativeProgressBar, NativeProgressState};
 use crate::utils::path_ext::PlatformConsistentPathExt;
 use crate::utils::status_line::StatusLine;
-use crate::utils::{warn_non_fatal, write_atomic_with};
+use crate::utils::warn_non_fatal;
 use anyhow::{Context, anyhow};
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
-use std::fs::{self, File, create_dir_all};
+use std::fs::{self, File};
 use std::io::{BufReader, ErrorKind};
 
 const RELEASES_API_URL: &str = "https://services.api.unity.com/unity/editor/release/v1/releases";
@@ -208,29 +210,17 @@ pub fn fetch_latest_releases(mode: UpdatePolicy) -> anyhow::Result<SortedRelease
         );
     })?;
 
-    if fetch_count > 0 {
-        releases.last_update = Utc::now();
-    }
-
-    let sorted_releases = SortedReleases::new(releases);
-
-    if fetch_count > 0 {
-        let stored = create_dir_all(ucom_cache_dir()?)
-            .map_err(anyhow::Error::from)
-            .and_then(|()| {
-                write_atomic_with(&releases_path, |writer| {
-                    Ok(serde_json::to_writer(writer, &sorted_releases.0)?)
-                })
-            });
-
-        if let Err(e) = stored {
-            warn_non_fatal!("Could not write the release data cache: {e:#}");
-        }
-    } else {
+    if fetch_count == 0 {
         // A failed timestamp update only means the update check is repeated next time.
         let _ = touch_file(&releases_path);
+        return Ok(SortedReleases::new(releases));
     }
 
+    releases.last_update = Utc::now();
+    let sorted_releases = SortedReleases::new(releases);
+    store_in_cache(&releases_path, |writer| {
+        Ok(serde_json::to_writer(writer, &sorted_releases.0)?)
+    });
     Ok(sorted_releases)
 }
 

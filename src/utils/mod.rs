@@ -15,6 +15,9 @@ pub mod spawn_cmd;
 pub mod status_line;
 pub mod vec1;
 
+#[cfg(test)]
+pub mod test_util;
+
 /// Prints a non-fatal warning to stderr.
 macro_rules! warn_non_fatal {
     ($($arg:tt)*) => {
@@ -97,27 +100,26 @@ pub fn resolve_absolute_dir_path(path: &impl AsRef<Path>) -> anyhow::Result<Cow<
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::utils::test_util::TempDir;
 
     #[test]
     fn write_atomic_replaces_file_and_leaves_no_temp_file() {
-        let dir = std::env::temp_dir().join(format!("ucom-write-atomic-{}", uuid::Uuid::new_v4()));
-        fs::create_dir_all(&dir).unwrap();
+        let temp = TempDir::new("write-atomic");
+        let dir = temp.path();
         let path = dir.join("build-test.json");
 
         write_atomic(&path, "first").unwrap();
         write_atomic(&path, "second").unwrap();
 
         assert_eq!(fs::read_to_string(&path).unwrap(), "second");
-        let entries: Vec<_> = fs::read_dir(&dir).unwrap().flatten().collect();
+        let entries: Vec<_> = fs::read_dir(dir).unwrap().flatten().collect();
         assert_eq!(entries.len(), 1, "temporary files left behind: {entries:?}");
-
-        fs::remove_dir_all(&dir).unwrap();
     }
 
     #[test]
     fn write_atomic_concurrent_writers_produce_a_complete_file() {
-        let dir = std::env::temp_dir().join(format!("ucom-write-atomic-{}", uuid::Uuid::new_v4()));
-        fs::create_dir_all(&dir).unwrap();
+        let temp = TempDir::new("write-atomic");
+        let dir = temp.path();
         let path = dir.join("releases.json");
 
         let payloads: Vec<String> = (b'a'..=b'h')
@@ -141,9 +143,7 @@ mod tests {
             payloads.contains(&content),
             "file content is a mix of writers"
         );
-        let entries: Vec<_> = fs::read_dir(&dir).unwrap().flatten().collect();
+        let entries: Vec<_> = fs::read_dir(dir).unwrap().flatten().collect();
         assert_eq!(entries.len(), 1, "temporary files left behind: {entries:?}");
-
-        fs::remove_dir_all(&dir).unwrap();
     }
 }

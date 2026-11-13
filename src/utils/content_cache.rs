@@ -1,10 +1,11 @@
 use std::fs;
-use std::fs::create_dir_all;
+use std::fs::{File, create_dir_all};
+use std::io::{BufWriter, Write};
 use std::path::{Path, PathBuf};
 use std::time::SystemTime;
 
 use crate::utils::path_ext::PlatformConsistentPathExt;
-use crate::utils::warn_non_fatal;
+use crate::utils::{warn_non_fatal, write_atomic_with};
 use anyhow::{Context, anyhow};
 use chrono::{DateTime, Duration, TimeDelta, Utc};
 use dirs::cache_dir;
@@ -34,7 +35,7 @@ pub fn fetch_content(url: &str, change_check: RemoteChangeCheck) -> anyhow::Resu
     let filename = cache_dir.join(sanitize_filename(url));
 
     match determine_cache_status(url, &filename, change_check)? {
-        CacheState::Stale => fetch_and_store_in_cache(url, &filename, &cache_dir),
+        CacheState::Stale => fetch_and_store_in_cache(url, &filename),
         CacheState::Fresh => fs::read_to_string(&filename).with_context(|| {
             format!(
                 "Failed to read cached file: {}",
@@ -51,6 +52,26 @@ pub fn fetch_content(url: &str, change_check: RemoteChangeCheck) -> anyhow::Resu
                 )
             })
         }
+    }
+}
+
+/// Writes a cache file atomically, creating the cache directory if needed.
+///
+/// Caching is best-effort: if the file cannot be written, a warning is printed and the
+/// caller continues with the data it already has.
+pub fn store_in_cache(path: &Path, write: impl FnOnce(&mut BufWriter<File>) -> anyhow::Result<()>) {
+    let store = || -> anyhow::Result<()> {
+        if let Some(dir) = path.parent() {
+            create_dir_all(dir)?;
+        }
+        write_atomic_with(path, write)
+    };
+
+    if let Err(e) = store() {
+        warn_non_fatal!(
+            "Could not write to the cache at {}: {e:#}",
+            path.normalized_display()
+        );
     }
 }
 
@@ -163,11 +184,7 @@ fn sanitize_filename(filename: &str) -> String {
 ///
 /// Storing the content in the cache is best-effort: if the cache cannot be written,
 /// a warning is printed and the downloaded content is still returned.
-fn fetch_and_store_in_cache(
-    url: &str,
-    filename: &Path,
-    cache_dir: &Path,
-) -> anyhow::Result<String> {
+fn fetch_and_store_in_cache(url: &str, filename: &Path) -> anyhow::Result<String> {
     let content = ureq::get(url)
         .call()
         .with_context(|| format!("Failed to fetch {url}"))?
@@ -175,13 +192,7 @@ fn fetch_and_store_in_cache(
         .read_to_string()
         .context("Failed to read response body")?;
 
-    if let Err(e) = create_dir_all(cache_dir).and_then(|()| fs::write(filename, &content)) {
-        warn_non_fatal!(
-            "Could not write to the cache at {}: {e}",
-            filename.normalized_display()
-        );
-    }
-
+    store_in_cache(filename, |writer| Ok(writer.write_all(content.as_bytes())?));
     Ok(content)
 }
 

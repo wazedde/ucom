@@ -4,6 +4,7 @@ pub use crate::unity::version::*;
 pub use crate::unity::version_pattern::VersionPattern;
 pub use crate::utils::spawn_cmd::*;
 
+use std::collections::HashSet;
 use std::ffi::{OsStr, OsString};
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -56,13 +57,12 @@ pub fn find_unity_editor_process(project: &ProjectPath) -> Option<Pid> {
     );
 
     let project = comparable_path(project);
-    let mut matches: Vec<(Pid, Option<Pid>)> = candidates
+    let matches: Vec<(Pid, Option<Pid>)> = candidates
         .iter()
         .filter_map(|&pid| system.process(pid))
         .filter(|process| is_interactive_editor_for(process.cmd(), process.cwd(), &project))
         .map(|process| (process.pid(), process.parent()))
         .collect();
-    matches.sort_unstable();
 
     select_top_level_process(&matches)
 }
@@ -119,15 +119,14 @@ fn is_interactive_editor_for(cmd: &[OsString], cwd: Option<&Path>, project: &Pat
     })
 }
 
-/// Picks the process to track from the matching `(pid, parent)` pairs: the first one whose
-/// parent is not itself a match, so a matching child process is never chosen over its parent.
+/// Picks the process to track from the matching `(pid, parent)` pairs: one whose parent is
+/// not itself a match, so a matching child process is never chosen over its parent.
 fn select_top_level_process(matches: &[(Pid, Option<Pid>)]) -> Option<Pid> {
-    let is_match = |pid: Pid| matches.iter().any(|&(candidate, _)| candidate == pid);
+    let pids: HashSet<Pid> = matches.iter().map(|&(pid, _)| pid).collect();
 
     matches
         .iter()
-        .find(|&&(_, parent)| parent.is_none_or(|parent| !is_match(parent)))
-        .or(matches.first())
+        .find(|(_, parent)| parent.is_none_or(|parent| !pids.contains(&parent)))
         .map(|&(pid, _)| pid)
 }
 
@@ -142,6 +141,7 @@ fn comparable_path(path: &Path) -> PathBuf {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::utils::test_util::TempDir;
 
     fn cmd(args: &[&str]) -> Vec<OsString> {
         args.iter().map(OsString::from).collect()
@@ -164,7 +164,8 @@ mod tests {
 
     #[test]
     fn editor_detection_matches_only_the_exact_project() {
-        let root = std::env::temp_dir().join(format!("ucom-detect-{}", uuid::Uuid::new_v4()));
+        let temp = TempDir::new("detect");
+        let root = temp.path().to_path_buf();
         let game = root.join("Game");
         let game2 = root.join("Game2");
         let other = root.join("Other");
@@ -216,8 +217,6 @@ mod tests {
             let upper = game_str.to_uppercase();
             assert!(matches(&[editor, "-projectPath", &upper], None));
         }
-
-        fs::remove_dir_all(&root).unwrap();
     }
 
     #[test]
@@ -227,15 +226,10 @@ mod tests {
             select_top_level_process(&[(pid(10), Some(pid(1)))]),
             Some(pid(10))
         );
-        // A child (20) of a matching parent (30) is skipped, even though it sorts first.
+        // A child (20) of a matching parent (30) is skipped, even though it comes first.
         assert_eq!(
             select_top_level_process(&[(pid(20), Some(pid(30))), (pid(30), Some(pid(1)))]),
             Some(pid(30))
-        );
-        // Without a clear top level (a cycle), the first match is used.
-        assert_eq!(
-            select_top_level_process(&[(pid(20), Some(pid(30))), (pid(30), Some(pid(20)))]),
-            Some(pid(20))
         );
     }
 
