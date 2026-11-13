@@ -1,16 +1,13 @@
-use std::env;
 use std::fs;
 use std::fs::create_dir_all;
 use std::path::{Path, PathBuf};
-use std::sync::OnceLock;
 use std::time::SystemTime;
 
 use crate::utils::path_ext::PlatformConsistentPathExt;
+use crate::utils::warn_non_fatal;
 use anyhow::{Context, anyhow};
 use chrono::{DateTime, Duration, TimeDelta, Utc};
 use dirs::cache_dir;
-
-static CACHE_ENABLED: OnceLock<bool> = OnceLock::new();
 
 const CACHE_REFRESH_SECONDS: i64 = 3600;
 
@@ -33,16 +30,6 @@ pub enum RemoteChangeCheck {
 
 /// Gets the content of the given URL. Gets the content from the cache if it exists and is not too old.
 pub fn fetch_content(url: &str, change_check: RemoteChangeCheck) -> anyhow::Result<String> {
-    if !is_cache_enabled() {
-        let body = ureq::get(url)
-            .call()
-            .with_context(|| format!("Failed to fetch {url}"))?
-            .into_body()
-            .read_to_string()
-            .context("Failed to read response body")?;
-        return Ok(body);
-    }
-
     let cache_dir = ucom_cache_dir()?;
     let filename = cache_dir.join(sanitize_filename(url));
 
@@ -54,7 +41,16 @@ pub fn fetch_content(url: &str, change_check: RemoteChangeCheck) -> anyhow::Resu
                 filename.normalized_display()
             )
         }),
-        CacheState::Touched => refresh_file_timestamp_and_read(&filename),
+        CacheState::Touched => {
+            // A failed timestamp update only means the remote check is repeated next time.
+            let _ = touch_file(&filename);
+            fs::read_to_string(&filename).with_context(|| {
+                format!(
+                    "Failed to read cached file: {}",
+                    filename.normalized_display()
+                )
+            })
+        }
     }
 }
 
@@ -63,24 +59,6 @@ pub fn delete_cache_directory() {
     if let Ok(dir) = ucom_cache_dir() {
         fs::remove_dir_all(dir).ok();
     }
-}
-
-/// Sets whether the cache is enabled or not based on the environment variable `UCOM_ENABLE_CACHE`.
-pub fn configure_cache_from_environment() -> anyhow::Result<()> {
-    match env::var("UCOM_ENABLE_CACHE") {
-        Ok(val) => {
-            let enabled = val == "true" || val == "1";
-            CACHE_ENABLED
-                .set(enabled)
-                .map_err(|_| anyhow!("Failed to set CACHE_ENABLED"))
-        }
-        Err(_) => Ok(()), // environment variable isn't set
-    }
-}
-
-/// Returns whether the cache is enabled or not.
-pub fn is_cache_enabled() -> bool {
-    *CACHE_ENABLED.get().unwrap_or(&true)
 }
 
 /// Returns the cache directory for ucom.
@@ -182,32 +160,29 @@ fn sanitize_filename(filename: &str) -> String {
 }
 
 /// Downloads the content from the given URL and saves it to the given filename.
+///
+/// Storing the content in the cache is best-effort: if the cache cannot be written,
+/// a warning is printed and the downloaded content is still returned.
 fn fetch_and_store_in_cache(
     url: &str,
     filename: &Path,
     cache_dir: &Path,
 ) -> anyhow::Result<String> {
-    let content = ureq::get(url).call()?.into_body().read_to_string()?;
-    create_dir_all(cache_dir).context("Failed to create a cache directory")?;
-    fs::write(filename, &content)?;
-    Ok(content)
-}
+    let content = ureq::get(url)
+        .call()
+        .with_context(|| format!("Failed to fetch {url}"))?
+        .into_body()
+        .read_to_string()
+        .context("Failed to read response body")?;
 
-fn refresh_file_timestamp_and_read(filename: &Path) -> anyhow::Result<String> {
-    const ERROR_ACCESS_DENIED: i32 = 5;
-
-    // Update the local timestamp
-    match fs::File::open(filename)?.set_modified(Utc::now().into()) {
-        Ok(()) => fs::read_to_string(filename)
-            .with_context(|| format!("Failed to read file: {}", filename.normalized_display())),
-        Err(e) if e.raw_os_error() == Some(ERROR_ACCESS_DENIED) => {
-            // If the error is a permission error, do workaround by re-saving the file
-            let content = fs::read_to_string(filename)?;
-            fs::write(filename, &content)?;
-            Ok(content)
-        }
-        Err(e) => Err(e.into()),
+    if let Err(e) = create_dir_all(cache_dir).and_then(|()| fs::write(filename, &content)) {
+        warn_non_fatal!(
+            "Could not write to the cache at {}: {e}",
+            filename.normalized_display()
+        );
     }
+
+    Ok(content)
 }
 
 fn fetch_last_modified_time(url: &str) -> anyhow::Result<DateTime<Utc>> {

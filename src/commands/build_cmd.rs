@@ -6,11 +6,14 @@ use std::process::Command;
 use std::time::Duration;
 
 use crate::cli_add::UnityTemplateFile;
-use crate::cli_build::{BuildArguments, BuildMode, BuildOptions, BuildScriptTarget, InjectAction};
+use crate::cli_build::{
+    BuildArguments, BuildMode, BuildOptions, BuildScriptTarget, DEFAULT_BUILD_FUNCTION,
+    InjectAction,
+};
 use crate::commands::unity_command_builder::UnityCommandBuilder;
 use crate::commands::{
     PERSISTENT_BUILD_SCRIPT_ROOT, ProjectSetup, TimeDeltaExt, add_file_to_project,
-    report_version_issues,
+    report_version_issues, warn_non_fatal,
 };
 use crate::unity::{
     ProjectPath, build_command_line, is_unity_editor_running, wait_with_log_output,
@@ -19,6 +22,7 @@ use crate::unity::{
 use crate::utils::native_progress::{NativeProgressBar, NativeProgressState};
 use crate::utils::path_ext::PlatformConsistentPathExt;
 use crate::utils::status_line::{MessageType, StatusLine};
+use crate::utils::write_atomic;
 use anyhow::{Context, anyhow, bail};
 use chrono::Utc;
 use itertools::Itertools;
@@ -33,12 +37,12 @@ pub fn build_project(arguments: &BuildArguments) -> anyhow::Result<()> {
     let start_time = Utc::now();
     let setup = ProjectSetup::new(&arguments.project_dir)?;
 
-    // Try to build via editor IPC if editor is running
-    if let Some(result) = try_editor_build(arguments, &setup)? {
-        return handle_editor_build_result(result, &setup, start_time);
+    // If the project is open in the Unity editor, build there via IPC.
+    if is_unity_editor_running(&setup.project) {
+        return build_via_editor(arguments, &setup, start_time);
     }
 
-    // Fall back to batch mode build
+    // Otherwise, build in a new Unity process.
     let editor_path = setup.editor_executable()?;
 
     let output_path = arguments.output_path(&setup.project)?;
@@ -452,20 +456,72 @@ fn cleanup_csharp_build_script(parent_dir: impl AsRef<Path>) -> anyhow::Result<(
     Ok(())
 }
 
-/// Attempts to build the project using an already-running Unity editor via IPC.
+/// Builds the project in the Unity editor that already has it open, using file-based IPC.
 ///
-/// Returns `Ok(Some(result))` if the editor is running and responds.
-/// Returns `Ok(None)` if the editor is not running (caller should fall back to batch mode).
-/// Returns `Err` if communication fails or the build fails.
-fn try_editor_build(
+/// Flags that only control how a new Unity process is launched (`--mode`, `--inject`) do not
+/// apply here. Flags that would change the build but cannot be sent to the editor produce a
+/// warning.
+fn build_via_editor(
     args: &BuildArguments,
     setup: &ProjectSetup,
-) -> anyhow::Result<Option<EditorBuildResult>> {
-    if !is_unity_editor_running(&setup.project) {
-        return Ok(None);
+    start_time: chrono::DateTime<Utc>,
+) -> anyhow::Result<()> {
+    ensure_editor_builder_installed(setup)?;
+    warn_unsupported_editor_build_flags(args);
+
+    let output_path = args.output_path(&setup.project)?;
+    let log_path = args.full_log_path(&setup.project)?;
+
+    let command = EditorCommand {
+        command: "build".to_string(),
+        uuid: Uuid::new_v4().to_string(),
+        timestamp: Utc::now().to_rfc3339(),
+        platform: BuildScriptTarget::from(args.target).as_ref().to_string(),
+        output_path: output_path.to_string_lossy().to_string(),
+        log_path: log_path.to_string_lossy().to_string(),
+        build_options: args.build_option_flags(),
+        development_build: args.development_build,
+        force_platform_switch: args.force_editor_build,
+        force_play_mode_exit: args.force_editor_build,
+    };
+
+    if args.dry_run {
+        println!(
+            "The project is open in the Unity editor. This build command would be sent to it:"
+        );
+        println!("{}", serde_json::to_string_pretty(&command)?);
+        return Ok(());
     }
 
-    // Check if UnityBuilder.cs is installed (contains the editor watcher)
+    let build_text = format!(
+        "Unity {} {} project in {}",
+        setup.unity_version,
+        args.target,
+        setup.project.normalized_display()
+    );
+
+    let build_status = if args.quiet {
+        StatusLine::new("Building via editor", &build_text)
+    } else {
+        MessageType::print_line("Building via editor", &build_text, MessageType::Info);
+        StatusLine::new_silent()
+    };
+
+    let result = send_editor_command(&setup.project, &command)?;
+    drop(build_status);
+
+    if result.status == "success" && args.clean {
+        clean_output_directory(&output_path)?;
+    }
+
+    let outcome = handle_editor_build_result(result, setup, start_time);
+    report_version_issues(setup.unity_version);
+    outcome
+}
+
+/// Returns an error if the build script, which contains the editor command watcher,
+/// is not installed in the project.
+fn ensure_editor_builder_installed(setup: &ProjectSetup) -> anyhow::Result<()> {
     let builder_file_name = UnityTemplateFile::Builder.as_asset().filename;
     let builder_script_path = setup
         .project
@@ -485,75 +541,99 @@ fn try_editor_build(
             format_args!("  ucom add builder {}", setup.project.normalized_display())
         );
     }
+    Ok(())
+}
 
-    MessageType::print_line(
-        "Building via editor",
-        format!(
-            "Unity {} {} project in {}",
-            setup.unity_version,
-            args.target,
-            setup.project.normalized_display()
-        ),
-        MessageType::Info,
-    );
+/// Warns about flags that change the build but are not supported when building via the editor.
+fn warn_unsupported_editor_build_flags(args: &BuildArguments) {
+    let mut unsupported = Vec::new();
+    if args.build_function != DEFAULT_BUILD_FUNCTION {
+        unsupported.push("--build-function");
+    }
+    if args.build_args.is_some() {
+        unsupported.push("--build-args");
+    }
+    if args.args.as_ref().is_some_and(|a| !a.is_empty()) {
+        unsupported.push("additional Unity arguments");
+    }
 
-    let uuid = Uuid::new_v4();
-    let temp_dir = setup.project.join("Temp");
+    if !unsupported.is_empty() {
+        warn_non_fatal!(
+            "Ignored when building via the running Unity editor: {}",
+            unsupported.join(", ")
+        );
+    }
+}
+
+/// Writes a command file for the editor and waits for the matching result file.
+fn send_editor_command(
+    project: &ProjectPath,
+    command: &EditorCommand,
+) -> anyhow::Result<EditorBuildResult> {
+    let temp_dir = project.join("Temp");
     let command_dir = temp_dir.join("ucom-commands");
     let result_dir = temp_dir.join("ucom-results");
 
     fs::create_dir_all(&command_dir)?;
     fs::create_dir_all(&result_dir)?;
 
-    let output_path = args.output_path(&setup.project)?;
-    let log_path = args.full_log_path(&setup.project)?;
+    let file_name = format!("build-{}.json", command.uuid);
+    let command_file = command_dir.join(&file_name);
+    let result_file = result_dir.join(&file_name);
 
-    let command = EditorCommand {
-        command: "build".to_string(),
-        uuid: uuid.to_string(),
-        timestamp: Utc::now().to_rfc3339(),
-        platform: BuildScriptTarget::from(args.target).as_ref().to_string(),
-        output_path: output_path.to_string_lossy().to_string(),
-        log_path: log_path.to_string_lossy().to_string(),
-        build_options: args.build_option_flags(),
-        development_build: args.development_build,
-        force_platform_switch: args.force_editor_build,
-        force_play_mode_exit: args.force_editor_build,
-    };
+    write_atomic(&command_file, serde_json::to_string_pretty(command)?)?;
 
-    let command_file = command_dir.join(format!("build-{uuid}.json"));
-    let command_json = serde_json::to_string_pretty(&command)?;
-    fs::write(&command_file, command_json)?;
-
-    let result = poll_for_result(&result_dir, &uuid)?;
+    let result = poll_for_result(&result_file)?;
     // NOTE: When the user cancels the polling, files are left behind. Which is fine.
 
     let _ = fs::remove_file(&command_file);
-    let result_file = result_dir.join(format!("build-{uuid}.json"));
     let _ = fs::remove_file(&result_file);
 
-    Ok(Some(result))
+    Ok(result)
 }
 
 /// Polls for a result file from the Unity editor.
 ///
 /// Returns the parsed result when the editor completes the build.
 /// Polls indefinitely - user can press Ctrl+C to cancel.
-fn poll_for_result(result_dir: &Path, uuid: &Uuid) -> anyhow::Result<EditorBuildResult> {
-    let result_file = result_dir.join(format!("build-{uuid}.json"));
-    let poll_interval = Duration::from_millis(500);
+///
+/// Current versions of `UnityBuilder.cs` write the result file atomically. Builder scripts
+/// installed in projects before that change write it in place, so a read may observe a
+/// partially written file. Read and parse failures are therefore retried for a short grace
+/// period before being reported.
+fn poll_for_result(result_file: &Path) -> anyhow::Result<EditorBuildResult> {
+    const POLL_INTERVAL: Duration = Duration::from_millis(500);
+    const MAX_READ_ATTEMPTS: u32 = 10;
 
     let _progress_guard = NativeProgressBar::with_state(NativeProgressState::Indeterminate);
+    let mut failed_reads = 0;
 
     loop {
         if result_file.exists() {
-            let json = fs::read_to_string(&result_file)?;
-            let result: EditorBuildResult = serde_json::from_str(&json)?;
-            return Ok(result);
+            match read_editor_build_result(result_file) {
+                Ok(result) => return Ok(result),
+                Err(e) => {
+                    failed_reads += 1;
+                    if failed_reads >= MAX_READ_ATTEMPTS {
+                        return Err(e).with_context(|| {
+                            format!(
+                                "Failed to read build result from the editor: {}",
+                                result_file.normalized_display()
+                            )
+                        });
+                    }
+                }
+            }
         }
 
-        std::thread::sleep(poll_interval);
+        std::thread::sleep(POLL_INTERVAL);
     }
+}
+
+/// Reads and parses a result file written by the Unity editor.
+fn read_editor_build_result(result_file: &Path) -> anyhow::Result<EditorBuildResult> {
+    let json = fs::read_to_string(result_file)?;
+    Ok(serde_json::from_str(&json)?)
 }
 
 /// Handles the result from an editor build, displaying appropriate messages.

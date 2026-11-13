@@ -3,6 +3,9 @@ use std::path::PathBuf;
 use clap::{Args, ValueEnum};
 use strum::{AsRefStr, Display};
 
+/// The build method provided by the ucom build script (`UnityBuilder.cs`).
+pub const DEFAULT_BUILD_FUNCTION: &str = "Ucom.UnityBuilder.Build";
+
 #[derive(Args)]
 pub struct BuildArguments {
     /// Target platform to build the project for (e.g., win64, android, webgl). Required.
@@ -86,6 +89,7 @@ pub struct BuildArguments {
     ///
     /// Useful for passing version numbers or configuration flags into the build script.
     /// Requires the ucom build script ('UnityBuilder.cs' or similar) to be present.
+    /// Not supported when the project is open in the Unity editor.
     #[arg(short = 'a', long, value_name = "STRING")]
     pub build_args: Option<String>,
 
@@ -94,21 +98,27 @@ pub struct BuildArguments {
     pub clean: bool,
 
     /// Control how the required build script (UnityBuilder.cs) is handled.
+    ///
+    /// Does not apply when the project is open in the Unity editor; building via the editor
+    /// requires the persistent build script.
     #[arg(short = 'i', long, value_name = "METHOD", default_value = "auto")]
     pub inject: InjectAction,
 
     /// Specify the execution mode for the Unity build process.
+    ///
+    /// Does not apply when the project is open in the Unity editor; the build then runs in that editor.
     #[arg(short = 'm', long, value_name = "MODE", default_value = "batch")]
     pub mode: BuildMode,
 
     /// The static C# function to execute for building (e.g., 'MyNamespace.MyBuilder.Build').
     ///
     /// Defaults to the function provided by the injected ucom build script.
+    /// Not supported when the project is open in the Unity editor.
     #[arg(
         short = 'f',
         long,
         value_name = "FUNCTION",
-        default_value = "Ucom.UnityBuilder.Build"
+        default_value = DEFAULT_BUILD_FUNCTION
     )]
     pub build_function: String,
 
@@ -135,6 +145,8 @@ pub struct BuildArguments {
     pub force_editor_build: bool,
 
     /// Additional arguments to pass directly to the Unity editor executable during the build.
+    ///
+    /// Not supported when the project is open in the Unity editor.
     #[arg(last = true, value_name = "UNITY_ARGS")]
     pub args: Option<Vec<String>>,
 }

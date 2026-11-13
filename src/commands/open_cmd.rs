@@ -2,7 +2,7 @@ use crate::cli::OpenArguments;
 use crate::commands::unity_command_builder::UnityCommandBuilder;
 use crate::commands::{execute_unity_command, report_version_issues};
 use crate::unity::installations::Installations;
-use crate::unity::{ProjectPath, build_command_line};
+use crate::unity::{ProjectPath, VersionPattern, build_command_line};
 use crate::utils::path_ext::PlatformConsistentPathExt;
 
 /// Opens the given Unity project in the Unity Editor.
@@ -13,10 +13,10 @@ pub fn open_project(arguments: OpenArguments) -> anyhow::Result<()> {
     let open_unity_version = match arguments.upgrade_version {
         // If a specific version is given, use that.
         Some(Some(pattern)) => Installations::latest_installed_version(Some(&pattern)),
-        // Otherwise, use the latest version.
-        Some(None) => Installations::latest_installed_version(Some(
-            &project_unity_version.to_major_minor_string(),
-        )),
+        // Otherwise, use the latest version in the project's `major.minor` series.
+        Some(None) => Installations::latest_installed_version(Some(&VersionPattern::series_of(
+            project_unity_version,
+        ))),
         // Otherwise, use the current version.
         None => Ok(project_unity_version),
     }?;

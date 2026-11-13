@@ -11,7 +11,7 @@ use crate::unity::release_api::{
     Releases, SortedReleases, UpdatePolicy, fetch_latest_releases, load_cached_releases,
 };
 use crate::unity::release_api_data::ReleaseData;
-use crate::unity::{ReleaseStream, Version, release_notes_url};
+use crate::unity::{ReleaseStream, Version, VersionPattern, release_notes_url};
 use crate::utils::formatter::FormatWhen;
 use crate::utils::report::{HeaderLevel, Report};
 use crate::utils::vec1::Vec1;
@@ -23,25 +23,25 @@ use crate::utils::vec1::Vec1;
 /// Lists installed Unity versions.
 pub fn list_versions(
     list_type: ListType,
-    version_prefix: Option<&str>,
+    pattern: Option<&VersionPattern>,
     mode: UpdatePolicy,
 ) -> anyhow::Result<()> {
     match list_type {
         ListType::Installed => {
-            let installed = Installations::find_installations(version_prefix)?;
+            let installed = Installations::find_installations(pattern)?;
             display_installed_versions(&installed, mode)
         }
         ListType::Updates => {
-            let installed = Installations::find_installations(version_prefix)?;
+            let installed = Installations::find_installations(pattern)?;
             display_updates(&installed, mode)
         }
         ListType::Latest => {
-            let installed = Installations::try_find_installations(version_prefix);
-            display_latest_versions(installed.as_ref(), version_prefix, mode)
+            let installed = Installations::try_find_installations(pattern);
+            display_latest_versions(installed.as_ref(), pattern, mode)
         }
         ListType::All => {
-            let installed = Installations::try_find_installations(version_prefix);
-            display_available_versions(installed.as_ref(), version_prefix, mode)
+            let installed = Installations::try_find_installations(pattern);
+            display_available_versions(installed.as_ref(), pattern, mode)
         }
     }
 }
@@ -69,7 +69,7 @@ fn display_installed_versions(installed: &Installations, mode: UpdatePolicy) -> 
     report.header(
         format_args!(
             "Unity versions in: {di} {sv}",
-            di = &installed
+            di = installed
                 .install_dir
                 .normalized_display()
                 .when(report.is_markdown())
@@ -269,7 +269,7 @@ fn collect_version_update_info<'a>(
 /// ```
 fn display_latest_versions(
     installed: Option<&Installations>,
-    version_prefix: Option<&str>,
+    pattern: Option<&VersionPattern>,
     mode: UpdatePolicy,
 ) -> anyhow::Result<()> {
     let releases = fetch_latest_releases(mode)?;
@@ -283,12 +283,12 @@ fn display_latest_versions(
     );
 
     // Get the latest version of each range.
-    let minor_releases = collect_latest_minor_releases(&releases, version_prefix);
+    let minor_releases = collect_latest_minor_releases(&releases, pattern);
 
     ensure!(
         !minor_releases.is_empty(),
         "No releases are available that match `{}`",
-        version_prefix.unwrap_or("*")
+        describe_filter(pattern)
     );
 
     let version_col_width = minor_releases
@@ -313,15 +313,13 @@ fn display_latest_versions(
         previous_major = Some(latest.version.major);
 
         // Find all installed versions in the same range as the latest version.
-        let installs_in_range = installed
-            .map(|i| {
-                i.versions
-                    .iter()
-                    .filter(|v| v.major == latest.version.major && v.minor == latest.version.minor)
-                    .copied()
-                    .collect_vec()
-            })
-            .unwrap_or_default();
+        let installs_in_range = installed.map_or_default(|i| {
+            i.versions
+                .iter()
+                .filter(|v| v.major == latest.version.major && v.minor == latest.version.minor)
+                .copied()
+                .collect_vec()
+        });
 
         if installs_in_range.is_empty() {
             // No installed versions in the range.
@@ -378,7 +376,7 @@ fn format_suggested_version(releases: &Releases) -> String {
 /// ```
 fn display_available_versions(
     installed: Option<&Installations>,
-    version_prefix: Option<&str>,
+    pattern: Option<&VersionPattern>,
     mode: UpdatePolicy,
 ) -> anyhow::Result<()> {
     let mut releases = fetch_latest_releases(mode)?;
@@ -391,15 +389,15 @@ fn display_available_versions(
         HeaderLevel::H1,
     );
 
-    if let Some(prefix) = version_prefix {
-        releases.retain(|rd| rd.version.to_interned_str().starts_with(prefix));
+    if let Some(pattern) = pattern {
+        releases.retain(|rd| pattern.matches(rd.version));
     }
 
     let Ok(versions) = SortedVersions::try_from(releases.iter().map(|rd| rd.version).collect_vec())
     else {
         bail!(
             "No releases are available that match `{}`",
-            version_prefix.unwrap_or("*")
+            describe_filter(pattern)
         );
     };
 
@@ -574,9 +572,7 @@ where
 }
 
 fn format_release_description(info: &VersionInfo, release: Option<&ReleaseData>) -> String {
-    let issue_suffix = release
-        .map(|rd| rd.issue().issue_tag_with_prefix(" "))
-        .unwrap_or_default();
+    let issue_suffix = release.map_or_default(|rd| rd.issue().issue_tag_with_prefix(" "));
 
     format!(
         "{}{}",
@@ -678,13 +674,18 @@ fn format_update_release_line(
     FormattedReleaseLine { stream, content }
 }
 
+/// Returns the version filter as text for messages, or `*` if there is none.
+fn describe_filter(pattern: Option<&VersionPattern>) -> String {
+    pattern.map_or_else(|| "*".to_string(), ToString::to_string)
+}
+
 fn collect_latest_minor_releases<'a>(
     releases: &'a SortedReleases,
-    version_prefix: Option<&str>,
+    pattern: Option<&VersionPattern>,
 ) -> Vec<&'a ReleaseData> {
     releases
         .iter()
-        .filter(|rd| version_prefix.is_none_or(|p| rd.version.to_interned_str().starts_with(p)))
+        .filter(|rd| pattern.is_none_or(|p| p.matches(rd.version)))
         .chunk_by(|rd| (rd.version.major, rd.version.minor))
         .into_iter()
         .filter_map(|(_, group)| group.last()) // Get the latest version of each range.

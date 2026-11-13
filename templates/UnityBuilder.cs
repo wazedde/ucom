@@ -570,6 +570,8 @@ namespace Ucom
 
                 _watcher.Created += OnCommandFileCreated;
                 _watcher.Changed += OnCommandFileCreated;
+                // ucom writes command files to a temporary name and renames them into place.
+                _watcher.Renamed += OnCommandFileCreated;
             }
             catch (Exception e)
             {
@@ -579,6 +581,9 @@ namespace Ucom
 
         private static void OnCommandFileCreated(object sender, FileSystemEventArgs e)
         {
+            if (!e.FullPath.EndsWith(".json", StringComparison.OrdinalIgnoreCase))
+                return;
+
             // Schedule processing on main thread
             EditorApplication.delayCall += () => ProcessCommandFile(e.FullPath);
         }
@@ -637,24 +642,34 @@ namespace Ucom
 
         private static void CleanupOldFiles()
         {
-            try
+            // Removes leftovers older than one hour: commands that were never processed,
+            // results that ucom stopped waiting for (e.g. after Ctrl+C), and temporary
+            // files from interrupted writes.
+            var cutoff = DateTime.UtcNow.AddHours(-1);
+
+            foreach (var dir in new[] { CommandDir, ResultDir })
             {
-                if (!Directory.Exists(CommandDir))
-                    return;
-
-                var cutoff = DateTime.UtcNow.AddHours(-1);
-
-                foreach (var file in Directory.GetFiles(CommandDir, "*.json"))
+                try
                 {
-                    if (File.GetLastWriteTimeUtc(file) < cutoff)
+                    if (!Directory.Exists(dir))
+                        continue;
+
+                    foreach (var file in Directory.GetFiles(dir))
                     {
-                        File.Delete(file);
+                        if (!file.EndsWith(".json", StringComparison.OrdinalIgnoreCase)
+                            && !file.EndsWith(".tmp", StringComparison.OrdinalIgnoreCase))
+                            continue;
+
+                        if (File.GetLastWriteTimeUtc(file) < cutoff)
+                        {
+                            File.Delete(file);
+                        }
                     }
                 }
-            }
-            catch (Exception e)
-            {
-                Debug.LogError($"[Ucom] Failed to cleanup old command files: {e.Message}");
+                catch (Exception e)
+                {
+                    Debug.LogError($"[Ucom] Failed to clean up old files in {dir}: {e.Message}");
+                }
             }
         }
 
@@ -903,7 +918,14 @@ namespace Ucom
             {
                 var json = JsonUtility.ToJson(result, true);
                 var resultPath = Path.Combine(ResultDir, $"build-{result.uuid}.json");
-                File.WriteAllText(resultPath, json);
+                var tempPath = Path.Combine(ResultDir, $"build-{result.uuid}.tmp");
+
+                // Write to a temporary file and rename it into place, so ucom never
+                // reads a partially written result.
+                File.WriteAllText(tempPath, json);
+                if (File.Exists(resultPath))
+                    File.Delete(resultPath);
+                File.Move(tempPath, resultPath);
             }
             catch (Exception e)
             {

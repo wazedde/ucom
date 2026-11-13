@@ -9,9 +9,7 @@ use crate::unity::release_api::UpdatePolicy;
 use anyhow::Context;
 use clap::Parser;
 use std::io::IsTerminal;
-use utils::content_cache::{
-    configure_cache_from_environment, delete_cache_directory, ucom_cache_dir,
-};
+use utils::content_cache::{delete_cache_directory, ucom_cache_dir};
 use yansi::Paint;
 
 mod cli;
@@ -37,9 +35,6 @@ fn main() -> anyhow::Result<()> {
         yansi::disable();
     }
 
-    configure_cache_from_environment()
-        .context("Cannot set cache from environment".paint(STYLE_ERROR))?;
-
     match command {
         Command::List {
             list_type,
@@ -51,7 +46,7 @@ fn main() -> anyhow::Result<()> {
             } else {
                 UpdatePolicy::Incremental
             };
-            list_versions(list_type, version_filter.as_deref(), mode).with_context(|| {
+            list_versions(list_type, version_filter.as_ref(), mode).with_context(|| {
                 format!("Cannot list `{list_type}`")
                     .paint(STYLE_ERROR)
                     .to_string()

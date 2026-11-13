@@ -3,7 +3,7 @@ use crate::commands::{MARK_AVAILABLE, MARK_UNAVAILABLE, install_latest_matching}
 use crate::style_definitions::*;
 use crate::unity::project::*;
 use crate::unity::release_api::{UpdatePolicy, fetch_latest_releases};
-use crate::unity::{BuildProfilesStatus, Version, release_notes_url};
+use crate::unity::{BuildProfilesStatus, Version, VersionPattern, release_notes_url};
 use crate::utils;
 use crate::utils::path_ext::PlatformConsistentPathExt;
 use crate::utils::report::{HeaderLevel, Report};
@@ -82,7 +82,7 @@ fn show_project_info(
     if !version.is_editor_installed()? {
         report.blank_line();
         if install_required {
-            install_latest_matching(version.to_interned_str(), mode)?;
+            install_latest_matching(&VersionPattern::from(version), mode)?;
         } else {
             report.paragraph(format_args!(
                 "Use the `{op}` flag to install Unity version {ve}",

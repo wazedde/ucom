@@ -8,6 +8,7 @@ use crate::cli_build::{BuildArguments, OpenTarget};
 use crate::cli_new::NewArguments;
 use crate::cli_run::RunArguments;
 use crate::cli_test::TestArguments;
+use crate::unity::VersionPattern;
 
 pub const ENV_BUILD_TARGET: &str = "UCOM_BUILD_TARGET";
 pub const ENV_PACKAGE_LEVEL: &str = "UCOM_PACKAGE_LEVEL";
@@ -34,9 +35,12 @@ pub enum Command {
         #[arg(value_enum, default_value = "installed")]
         list_type: ListType,
 
-        /// Filter versions by a prefix (e.g., '2021', '2022.3').
+        /// Filter versions by a version or pattern (e.g., '2022.3', '2022.3.5f1', '2022.3.*', '202*').
+        ///
+        /// Each given component must match as a whole number, so '2022.3.1' does not match
+        /// '2022.3.10f1'. Use '*' for wildcards.
         #[arg(short = 'u', long = "unity", value_name = "VERSION")]
-        version_filter: Option<String>,
+        version_filter: Option<VersionPattern>,
 
         /// Force download of release data from the Unity API, bypassing cache.
         #[arg(short = 'f', long)]
@@ -46,9 +50,13 @@ pub enum Command {
     /// Install a specific Unity version.
     #[command()]
     Install {
-        /// Version to install (e.g., '2023.1', '2021.1.0f1').
+        /// Version to install (e.g., '2021.1.0f1'), or a pattern (e.g., '2023.1', '2022.3.*')
+        /// to install the latest matching version.
+        ///
+        /// Each given component must match as a whole number, so '2022.3.1' does not match
+        /// '2022.3.10f1'. Use '*' for wildcards.
         #[arg(value_name = "VERSION")]
-        version: String,
+        version: VersionPattern,
     },
 
     /// Display information about a Unity project.
@@ -116,11 +124,9 @@ pub enum Command {
 
     /// Manage the download cache for Unity release data.
     ///
-    /// By default, cached files expire after one hour. The system will
-    /// automatically re-download required files after this timeout.
-    ///
-    /// Control caching behavior with the `UCOM_ENABLE_CACHE` environment variable.
-    /// Set it to 'false' to disable caching and always download fresh data.
+    /// Cached files are refreshed after one hour. Use `ucom list -f` to force a full
+    /// refresh of the release data, or `ucom cache clear` to remove all cached files.
+    /// If the cache cannot be written, ucom continues without it and prints a warning.
     #[command()]
     Cache {
         /// Action to perform on the cache.
@@ -137,9 +143,9 @@ pub struct OpenArguments {
 
     /// Upgrade the project to a newer Unity version before opening.
     /// If no version is specified, uses the latest installed version matching the project's `major.minor`.
-    /// A version prefix (e.g., '2021') selects the latest installed version in that release series.
+    /// A version pattern (e.g., '2022', '2022.3', '2022.3.*') selects the latest installed version that matches it.
     #[arg(long = "upgrade", value_name = "VERSION", num_args = 0..=1, require_equals = true, default_missing_value = None)]
-    pub upgrade_version: Option<Option<String>>, // Outer Option: present?, Inner Option: value provided?
+    pub upgrade_version: Option<Option<VersionPattern>>, // Outer Option: present?, Inner Option: value provided?
 
     /// Set the active build target.
     #[arg(short = 't', long, value_name = "NAME")]

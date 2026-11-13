@@ -1,16 +1,15 @@
 use crate::unity::Version;
 use crate::unity::release_api_data::{ReleaseData, ReleaseDataPage};
-use crate::utils::content_cache::ucom_cache_dir;
-use crate::utils::content_cache::{is_cached_file_stale, touch_file};
+use crate::utils::content_cache::{is_cached_file_stale, touch_file, ucom_cache_dir};
 use crate::utils::native_progress::{NativeProgressBar, NativeProgressState};
+use crate::utils::path_ext::PlatformConsistentPathExt;
 use crate::utils::status_line::StatusLine;
+use crate::utils::{warn_non_fatal, write_atomic_with};
 use anyhow::{Context, anyhow};
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
-use serde_json::json;
-use std::fs::{File, create_dir_all};
-use std::io::{BufReader, BufWriter};
-use std::path::Path;
+use std::fs::{self, File, create_dir_all};
+use std::io::{BufReader, ErrorKind};
 
 const RELEASES_API_URL: &str = "https://services.api.unity.com/unity/editor/release/v1/releases";
 const RELEASES_FILENAME: &str = "releases_dataset.json";
@@ -127,12 +126,35 @@ impl SortedReleases {
 }
 
 /// Loads the release info from the cache.
+///
+/// Returns an empty collection if there is no cache file or it cannot be opened.
+/// A cache file that cannot be parsed is removed, so that the next fetch rebuilds it
+/// instead of failing on every run. A file that cannot be opened is left in place,
+/// since the cause may be temporary.
 pub fn load_cached_releases() -> anyhow::Result<Releases> {
     let path = ucom_cache_dir()?.join(RELEASES_FILENAME);
-    if path.exists() {
-        load_release_info(&path)
-    } else {
-        Ok(Releases::default())
+
+    let file = match File::open(&path) {
+        Ok(file) => file,
+        Err(e) if e.kind() == ErrorKind::NotFound => return Ok(Releases::default()),
+        Err(e) => {
+            warn_non_fatal!(
+                "Could not read the release data cache at {}: {e}",
+                path.normalized_display()
+            );
+            return Ok(Releases::default());
+        }
+    };
+
+    match serde_json::from_reader(BufReader::new(file)) {
+        Ok(releases) => Ok(releases),
+        Err(e) => {
+            warn_non_fatal!(
+                "Discarding unreadable release data cache, it will be downloaded again: {e}"
+            );
+            let _ = fs::remove_file(&path);
+            Ok(Releases::default())
+        }
     }
 }
 
@@ -145,6 +167,9 @@ pub enum UpdatePolicy {
 }
 
 /// Downloads and caches the release info.
+///
+/// Writing the cache is best-effort: if it fails, a warning is printed and the
+/// downloaded data is still returned.
 pub fn fetch_latest_releases(mode: UpdatePolicy) -> anyhow::Result<SortedReleases> {
     const EXPIRATION_DAYS: i64 = 30;
     let releases_path = ucom_cache_dir()?.join(RELEASES_FILENAME);
@@ -185,18 +210,28 @@ pub fn fetch_latest_releases(mode: UpdatePolicy) -> anyhow::Result<SortedRelease
 
     if fetch_count > 0 {
         releases.last_update = Utc::now();
-        let sorted_releases = SortedReleases::new(releases);
-
-        create_dir_all(ucom_cache_dir()?)?;
-        serde_json::to_writer(
-            BufWriter::new(File::create(&releases_path)?),
-            &json!(sorted_releases.0),
-        )?;
-        Ok(sorted_releases)
-    } else {
-        touch_file(&releases_path)?;
-        Ok(SortedReleases::new(releases))
     }
+
+    let sorted_releases = SortedReleases::new(releases);
+
+    if fetch_count > 0 {
+        let stored = create_dir_all(ucom_cache_dir()?)
+            .map_err(anyhow::Error::from)
+            .and_then(|()| {
+                write_atomic_with(&releases_path, |writer| {
+                    Ok(serde_json::to_writer(writer, &sorted_releases.0)?)
+                })
+            });
+
+        if let Err(e) = stored {
+            warn_non_fatal!("Could not write the release data cache: {e:#}");
+        }
+    } else {
+        // A failed timestamp update only means the update check is repeated next time.
+        let _ = touch_file(&releases_path);
+    }
+
+    Ok(sorted_releases)
 }
 
 /// Fetches a page of releases from the Unity Release API in descending order by release date.
@@ -263,12 +298,4 @@ where
     }
 
     Ok(fetched)
-}
-
-/// Load release info from a file.
-fn load_release_info(path: &Path) -> anyhow::Result<Releases> {
-    let file = File::open(path)?;
-    let reader = BufReader::new(file);
-    let releases = serde_json::from_reader(reader)?;
-    Ok(releases)
 }

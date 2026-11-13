@@ -115,8 +115,11 @@ pub fn wait_with_log_output(mut cmd: Command, log_file: &Path) -> Result<(), Com
 }
 
 /// Spawns command and immediately returns without any output.
+///
+/// Output is discarded via the null device rather than unread pipes, so the
+/// child never writes into a closed pipe after the handles are dropped.
 pub fn spawn_and_forget(mut cmd: Command) -> Result<(), CommandError> {
-    cmd.stdout(Stdio::piped()).stderr(Stdio::piped()).spawn()?;
+    cmd.stdout(Stdio::null()).stderr(Stdio::null()).spawn()?;
     Ok(())
 }
 

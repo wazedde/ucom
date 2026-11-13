@@ -68,6 +68,18 @@ impl FromStr for BuildType {
 }
 
 impl BuildType {
+    /// Returns the [`BuildType`] for an exact short name (`a`, `b`, `rc`, `f` or `p`).
+    pub fn from_short_str(s: &str) -> Option<Self> {
+        match s {
+            "a" => Some(Self::Alpha),
+            "b" => Some(Self::Beta),
+            "rc" => Some(Self::ReleaseCandidate),
+            "f" => Some(Self::Final),
+            "p" => Some(Self::FinalPatch),
+            _ => None,
+        }
+    }
+
     /// Returns the short name of the [`BuildType`].
     pub const fn to_short_str(self) -> &'static str {
         match self {

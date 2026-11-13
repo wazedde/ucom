@@ -50,7 +50,7 @@ ucom updates                                       # Check for Unity updates
 ucom build webgl                                   # Build for WebGL
 ucom build android -d                              # Development build
 ucom build ios --mode editor-quit                  # Build in editor, then quit
-ucom build android --force-editor-build            # Build via open editor
+ucom build android --force-editor-build            # Allow platform switch in open editor
 ```
 
 ### Testing
@@ -68,8 +68,29 @@ ucom test playmode --categories "!Slow;UI"         # Filter by category
 ucom list                                          # List installed versions
 ucom list updates                                  # Check for updates
 ucom list latest                                   # Show latest releases
+ucom list all -u '2022.3.*'                        # Show all 2022.3 releases
 ucom install 2022.3.5f1                            # Install specific version
+ucom install 2022.3                                # Install latest 2022.3 release
 ```
+
+### Version Patterns
+
+Commands that take a Unity version (`new -u`, `run -u`, `list -u`, `install`, `open --upgrade=`) accept a full version
+or a pattern. A pattern selects the latest matching version, or filters the list for `list`.
+
+| Pattern      | Matches                                                  |
+|--------------|----------------------------------------------------------|
+| `2022.3.5f1` | Exactly 2022.3.5f1                                       |
+| `2022.3.5`   | 2022.3.5 with any build (`f1`, `f2`, ...), not 2022.3.50 |
+| `2022.3`     | Any 2022.3 release                                       |
+| `2022.3.62f` | 2022.3.62 final builds (`f1`, `f2`, ...)                 |
+| `2022.3.*`   | Any 2022.3 release (same as `2022.3`)                    |
+| `2022.3.6*`  | 2022.3.6 and 2022.3.60 to 2022.3.69                      |
+| `202*`       | Any 2020 to 2029 release                                 |
+
+Each number must match as a whole: `2022.3.1` does not match `2022.3.10f1`, and `202` does not match `2022`. Use `*` to
+match any digits, or `*`/`x` as a whole component to match any value. Quote patterns that contain `*` so the shell does
+not expand them.
 
 ### Helper Scripts
 
@@ -88,10 +109,20 @@ batch mode. This is faster and doesn't interrupt your workflow.
 Requirements:
 
 - Run `ucom add builder` to install the required script
+- After updating ucom, run `ucom add builder --force` to update the script in your project
 
 Flags:
 
 - `--force-editor-build` - Allow platform switching and play mode exit
+- `--dry-run` - Show the command that would be sent to the editor, without building
+- `--clean` - Clean the output directory after a successful build
+- `--quiet` - Show a status line instead of progress messages
+
+Not applicable when building via the open editor:
+
+- `--mode` and `--inject` - The build runs in the open editor, which needs the persistent build script
+- `--build-function`, `--build-args` and extra Unity arguments after `--` - Not supported over IPC; ucom prints a
+  warning when they are set
 
 ## Build Options
 
@@ -153,7 +184,6 @@ Available options: `Development`, `AllowDebugging`, `ConnectWithProfiler`, `Show
 - `UCOM_EDITOR_DIR` - Override Unity editor installation path
 - `UCOM_BUILD_TARGET` - Default build target
 - `UCOM_PACKAGE_LEVEL` - Package info detail level (none, no-unity, inc-unity, all)
-- `UCOM_ENABLE_CACHE` - Enable/disable release data caching (default: enabled, 1-hour TTL)
 
 ## Additional Commands
 
@@ -171,6 +201,10 @@ ucom run -u 2022.3 -- -createProject ~/path/to/project -quit
 ucom cache clear                                   # Clear cached release data
 ucom cache list                                    # List cached files
 ```
+
+Release data and release notes are cached and refreshed after one hour. Use `ucom list -f` to force a full refresh of
+the release data. A cache file that cannot be parsed is discarded and downloaded again when needed. If the cache
+directory is not writable, ucom continues without caching and prints a warning.
 
 ## Build Script Templates
 

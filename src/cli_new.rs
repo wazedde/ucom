@@ -3,13 +3,16 @@ use std::path::PathBuf;
 use crate::cli_build::OpenTarget;
 use clap::Args;
 
+use crate::unity::VersionPattern;
+
 #[derive(Args)]
 pub struct NewArguments {
     /// Specify the Unity version to use for the new project.
-    /// Accepts a full version (e.g., '2022.3.5f1') or a prefix (e.g., '2021', '2022.3').
-    /// A prefix will select the latest installed version matching that prefix. Required.
+    /// Accepts a full version (e.g., '2022.3.5f1') or a pattern (e.g., '2022', '2022.3', '2022.3.*').
+    /// A pattern selects the latest installed version that matches it; each given component
+    /// must match as a whole number. Required.
     #[arg(short = 'u', long = "unity", value_name = "VERSION", required = true)]
-    pub version_pattern: String,
+    pub version_pattern: VersionPattern,
 
     /// Path and name for the new project directory. This directory must not exist yet. Required.
     #[arg(

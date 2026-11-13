@@ -1,12 +1,15 @@
 use clap::Args;
 
+use crate::unity::VersionPattern;
+
 #[derive(Args)]
 pub struct RunArguments {
     /// Specify the Unity Editor version to execute.
-    /// Accepts a full version (e.g., '2022.3.5f1') or a prefix (e.g., '2021', '2022.3').
-    /// A prefix will select the latest installed version matching that prefix. Required.
+    /// Accepts a full version (e.g., '2022.3.5f1') or a pattern (e.g., '2022', '2022.3', '2022.3.*').
+    /// A pattern selects the latest installed version that matches it; each given component
+    /// must match as a whole number. Required.
     #[arg(short = 'u', long = "unity", value_name = "VERSION", required = true)]
-    pub version_pattern: String,
+    pub version_pattern: VersionPattern,
 
     /// Wait for the launched Unity Editor process to exit before this command returns.
     #[arg(short = 'w', long)]

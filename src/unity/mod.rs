@@ -1,6 +1,7 @@
 pub use crate::unity::project::*;
 pub use crate::unity::releases::*;
 pub use crate::unity::version::*;
+pub use crate::unity::version_pattern::VersionPattern;
 pub use crate::utils::spawn_cmd::*;
 
 use sysinfo::System;
@@ -11,6 +12,7 @@ pub mod release_api;
 pub mod release_api_data;
 pub mod releases;
 pub mod version;
+pub mod version_pattern;
 
 /// Checks if Unity Editor is running for the given project.
 ///

@@ -43,7 +43,7 @@ pub fn run_tests(arguments: &TestArguments) -> anyhow::Result<()> {
                 "Running",
                 format!(
                     "{} tests for project in {}",
-                    &arguments.platform,
+                    arguments.platform,
                     setup.project.normalized_display()
                 ),
             )
@@ -94,7 +94,7 @@ fn print_results(
         "Finished",
         format!(
             "{p} tests for project in {d}; total time {t:.2}s",
-            p = &arguments.platform,
+            p = arguments.platform,
             d = project.normalized_display(),
             t = Utc::now().signed_duration_since(start_time).as_seconds()
         ),

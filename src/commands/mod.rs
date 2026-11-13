@@ -59,14 +59,7 @@ static TAG_NEW: LazyLock<String> =
 static TAG_UP_TO_DATE: LazyLock<String> =
     LazyLock::new(|| format!("[{}]", "OK".paint(STYLE_UP_TO_DATE)));
 
-// A non-fatal warning macro that prints to stderr
-macro_rules! warn_non_fatal {
-    ($($arg:tt)*) => {
-        eprintln!("Warning: {}", format_args!($($arg)*));
-    };
-}
-
-pub(crate) use warn_non_fatal;
+pub(crate) use crate::utils::warn_non_fatal;
 
 trait TimeDeltaExt {
     fn as_seconds(&self) -> f64;
@@ -280,9 +273,9 @@ impl ReleaseIssue {
     }
 
     pub fn issue_tag_with_prefix(&self, prefix: &str) -> String {
-        self.label()
-            .map(|label| format!("{prefix}[{}]", format_label_with_url(label, self.style())))
-            .unwrap_or_default()
+        self.label().map_or_default(|label| {
+            format!("{prefix}[{}]", format_label_with_url(label, self.style()))
+        })
     }
 
     pub fn issue_tag(&self) -> String {

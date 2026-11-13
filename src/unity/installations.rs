@@ -1,4 +1,4 @@
-use crate::unity::Version;
+use crate::unity::{Version, VersionPattern};
 use crate::utils::path_ext::PlatformConsistentPathExt;
 use crate::utils::vec1::{Vec1, Vec1Error};
 use anyhow::{Context, anyhow, bail};
@@ -112,18 +112,18 @@ impl SortedVersions {
         })
     }
 
-    pub fn filter_by_prefix(self, version_prefix: Option<&str>) -> anyhow::Result<Self> {
-        let Some(version_prefix) = version_prefix else {
+    pub fn filter_by_pattern(self, pattern: Option<&VersionPattern>) -> anyhow::Result<Self> {
+        let Some(pattern) = pattern else {
             // No version to match, return the full list again.
             return Ok(self);
         };
 
         let mut versions = self.into_vec();
-        versions.retain(|v| v.to_interned_str().starts_with(version_prefix));
+        versions.retain(|&v| pattern.matches(v));
 
         // No need to sort again, since the list is already sorted.
         Vec1::try_from(versions).map(Self).map_err(|_| {
-            anyhow!("No Unity installation was found that matches version `{version_prefix}`.")
+            anyhow!("No Unity installation was found that matches version `{pattern}`.")
         })
     }
 }
@@ -140,9 +140,9 @@ pub struct Installations {
 
 impl Installations {
     /// Returns a list of installed Unity versions or an error if no versions are found.
-    pub fn find_installations(version_prefix: Option<&str>) -> anyhow::Result<Self> {
+    pub fn find_installations(pattern: Option<&VersionPattern>) -> anyhow::Result<Self> {
         let install_dir = Self::editor_parent_dir()?.to_path_buf();
-        let versions = SortedVersions::from_dir(&install_dir)?.filter_by_prefix(version_prefix)?;
+        let versions = SortedVersions::from_dir(&install_dir)?.filter_by_pattern(pattern)?;
         Ok(Self {
             install_dir,
             versions,
@@ -150,14 +150,14 @@ impl Installations {
     }
 
     /// Returns a list of installed Unity versions or `None` if no versions are found.
-    pub fn try_find_installations(version_prefix: Option<&str>) -> Option<Self> {
-        Self::find_installations(version_prefix).ok()
+    pub fn try_find_installations(pattern: Option<&VersionPattern>) -> Option<Self> {
+        Self::find_installations(pattern).ok()
     }
 
-    /// Returns the version of the latest-installed version that matches the given prefix.
-    pub fn latest_installed_version(version_prefix: Option<&str>) -> anyhow::Result<Version> {
+    /// Returns the latest installed version that matches the given pattern.
+    pub fn latest_installed_version(pattern: Option<&VersionPattern>) -> anyhow::Result<Version> {
         let version = *SortedVersions::from_dir(Self::editor_parent_dir()?)?
-            .filter_by_prefix(version_prefix)?
+            .filter_by_pattern(pattern)?
             .last();
         Ok(version)
     }
