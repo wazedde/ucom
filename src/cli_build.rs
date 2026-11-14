@@ -83,6 +83,8 @@ pub struct BuildArguments {
     /// Set specific Unity BuildOptions flags (space-separated, e.g., -O Development AllowDebugging).
     ///
     /// Use 'None' explicitly if needed, though it's the default if no flags are set.
+    /// Takes all the values that follow it, so put the project directory before -O
+    /// (e.g., 'ucom build webgl ./Game -O Development').
     #[arg(num_args(0..), short = 'O', long, value_name = "OPTION", default_value = "None")]
     pub build_options: Vec<BuildOptions>,
 

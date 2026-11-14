@@ -220,15 +220,11 @@ fn option_flags(args: &BuildArguments) -> BuildOptionFlags {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::unity::build_command_line;
+    use crate::cli::{Cli, Command as CliCommand};
+    use crate::commands::create_file;
+    use crate::unity::VERSION_SUB_PATH;
     use crate::utils::test_util::TempDir;
     use clap::Parser;
-
-    #[derive(Parser)]
-    struct TestCli {
-        #[command(flatten)]
-        args: BuildArguments,
-    }
 
     /// A directory with the minimum ucom needs to recognise a Unity project.
     struct TestProject {
@@ -239,37 +235,31 @@ mod tests {
     impl TestProject {
         fn new(label: &str) -> Self {
             let dir = TempDir::new(label);
-            fs_write(
-                dir.path(),
-                "ProjectSettings/ProjectVersion.txt",
+            create_file(
+                dir.path().join(VERSION_SUB_PATH),
                 "m_EditorVersion: 6000.6.8f1\n",
-            );
-            fs::create_dir_all(dir.path().join("Assets")).unwrap();
+            )
+            .unwrap();
             let project = ProjectPath::try_from(dir.path()).unwrap();
             Self { _dir: dir, project }
         }
 
-        /// Parses `ucom build <target> <project> <rest...>` and creates its plan.
+        /// Parses `ucom build <target> <project> <rest...>` with the real CLI and creates its plan.
         ///
         /// The project comes right after the target, since `-O` takes any number of values.
         fn plan(&self, args: &[&str]) -> anyhow::Result<BuildPlan<'static>> {
             let project = self.project.to_string_lossy().into_owned();
             let (target, rest) = args.split_first().unwrap();
-            let argv = ["ucom", target, project.as_str()]
+            let argv = ["ucom", "build", target, project.as_str()]
                 .into_iter()
                 .chain(rest.iter().copied());
-            let cli = TestCli::try_parse_from(argv).unwrap();
+            let Some(CliCommand::Build(build_args)) = Cli::try_parse_from(argv).unwrap().command
+            else {
+                panic!("not parsed as a build command");
+            };
             // Leaked so the plan can borrow the arguments for the rest of the test.
-            BuildPlan::new(Box::leak(Box::new(cli.args)), &self.project)
+            BuildPlan::new(Box::leak(Box::new(build_args)), &self.project)
         }
-    }
-
-    use std::fs;
-
-    fn fs_write(dir: &Path, relative: &str, contents: &str) {
-        let path = dir.join(relative);
-        fs::create_dir_all(path.parent().unwrap()).unwrap();
-        fs::write(path, contents).unwrap();
     }
 
     #[test]
@@ -358,6 +348,42 @@ mod tests {
         }
     }
 
+    /// Converts a variant name to kebab case the way clap's default renaming does
+    /// (`CompressWithLz4HC` to `compress-with-lz4-hc`).
+    fn kebab_case(name: &str) -> String {
+        let chars: Vec<char> = name.chars().collect();
+        let mut kebab = String::new();
+        for (i, &c) in chars.iter().enumerate() {
+            if c.is_uppercase() && i > 0 {
+                let previous = chars[i - 1];
+                let next_is_lower = chars.get(i + 1).is_some_and(|n| n.is_lowercase());
+                if previous.is_lowercase()
+                    || previous.is_ascii_digit()
+                    || (previous.is_uppercase() && next_is_lower)
+                {
+                    kebab.push('-');
+                }
+            }
+            kebab.extend(c.to_lowercase());
+        }
+        kebab
+    }
+
+    #[test]
+    fn every_build_option_accepts_its_kebab_case_name() {
+        use clap::ValueEnum;
+
+        assert_eq!(kebab_case("CompressWithLz4HC"), "compress-with-lz4-hc");
+        for option in BuildOptions::value_variants() {
+            let kebab = kebab_case(&format!("{option:?}"));
+            assert_eq!(
+                BuildOptions::from_str(&kebab, false).ok(),
+                Some(*option),
+                "no alias {kebab:?} for {option:?}"
+            );
+        }
+    }
+
     #[test]
     fn kebab_case_build_option_names_are_still_accepted() {
         let p = TestProject::new("plan-kebab-options");
@@ -383,28 +409,49 @@ mod tests {
         assert!(plan.options.is_empty());
     }
 
+    /// Returns the arguments of `command`, without the program.
+    fn command_args(command: &Command) -> Vec<String> {
+        command
+            .get_args()
+            .map(|a| a.to_string_lossy().into_owned())
+            .collect()
+    }
+
+    fn path_arg(path: &Path) -> String {
+        path.to_string_lossy().into_owned()
+    }
+
     #[test]
-    fn batch_command_line_for_defaults() {
+    fn batch_command_for_defaults() {
         let p = TestProject::new("plan-batch-default");
         let plan = p.plan(&["macos"]).unwrap();
 
-        let line = build_command_line(&plan.batch_command(&p.project, Path::new("/Unity")));
+        let command = plan.batch_command(&p.project, Path::new("Unity"));
 
-        let project = p.project.to_string_lossy();
+        assert_eq!(command.get_program(), "Unity");
         assert_eq!(
-            line,
-            format!(
-                "/Unity -projectPath {project} -buildTarget OSXUniversal \
-                 -logFile {project}/Logs/Build-OSXUniversal.log -batchmode -quit \
-                 -executeMethod Ucom.UnityBuilder.Build \
-                 --ucom-build-output {project}/Builds/Release/OSXUniversal \
-                 --ucom-build-target StandaloneOSX"
-            )
+            command_args(&command),
+            [
+                "-projectPath",
+                &path_arg(&p.project),
+                "-buildTarget",
+                "OSXUniversal",
+                "-logFile",
+                &path_arg(&plan.log_path),
+                "-batchmode",
+                "-quit",
+                "-executeMethod",
+                "Ucom.UnityBuilder.Build",
+                "--ucom-build-output",
+                &path_arg(&plan.output_path),
+                "--ucom-build-target",
+                "StandaloneOSX",
+            ]
         );
     }
 
     #[test]
-    fn batch_command_line_with_options_and_extra_arguments() {
+    fn batch_command_with_options_and_extra_arguments() {
         let p = TestProject::new("plan-batch-options");
         let plan = p
             .plan(&[
@@ -421,19 +468,32 @@ mod tests {
             ])
             .unwrap();
 
-        let line = build_command_line(&plan.batch_command(&p.project, Path::new("/Unity")));
+        let command = plan.batch_command(&p.project, Path::new("Unity"));
 
-        let project = p.project.to_string_lossy();
         assert_eq!(
-            line,
-            format!(
-                "/Unity -projectPath {project} -buildTarget Android \
-                 -logFile {project}/Logs/Build-Android.log -batchmode -nographics -quit \
-                 -executeMethod My.Builder.Build \
-                 --ucom-build-output {project}/Builds/Release/Android \
-                 --ucom-build-target Android --ucom-build-options 1 \
-                 --ucom-pre-build-args v1.2 -extraFlag"
-            )
+            command_args(&command),
+            [
+                "-projectPath",
+                &path_arg(&p.project),
+                "-buildTarget",
+                "Android",
+                "-logFile",
+                &path_arg(&plan.log_path),
+                "-batchmode",
+                "-nographics",
+                "-quit",
+                "-executeMethod",
+                "My.Builder.Build",
+                "--ucom-build-output",
+                &path_arg(&plan.output_path),
+                "--ucom-build-target",
+                "Android",
+                "--ucom-build-options",
+                "1",
+                "--ucom-pre-build-args",
+                "v1.2",
+                "-extraFlag",
+            ]
         );
     }
 
@@ -442,10 +502,9 @@ mod tests {
         let p = TestProject::new("plan-editor-mode");
         let plan = p.plan(&["macos", "-m", "editor"]).unwrap();
 
-        let line = build_command_line(&plan.batch_command(&p.project, Path::new("/Unity")));
+        let args = command_args(&plan.batch_command(&p.project, Path::new("Unity")));
 
-        assert!(!line.contains("-batchmode"));
-        assert!(!line.contains("-quit"));
+        assert!(!args.iter().any(|a| a == "-batchmode" || a == "-quit"));
         assert!(!plan.show_log());
     }
 

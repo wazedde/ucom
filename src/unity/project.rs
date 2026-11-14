@@ -13,7 +13,7 @@ use crate::unity::Version;
 use crate::utils::path_ext::PlatformConsistentPathExt;
 use crate::utils::resolve_absolute_dir_path;
 
-const VERSION_SUB_PATH: &str = "ProjectSettings/ProjectVersion.txt";
+pub(crate) const VERSION_SUB_PATH: &str = "ProjectSettings/ProjectVersion.txt";
 
 /// Returns an iterator over all directories in and including `root` that are not hidden.
 pub fn walk_visible_directories(
