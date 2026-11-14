@@ -196,7 +196,8 @@ pub fn execute_unity_command(cmd: Command, wait: bool, quiet: bool) -> anyhow::R
     }
 
     if wait {
-        crate::unity::wait_with_stdout(cmd)?;
+        // An interactive editor may have unsaved work, so Ctrl+C only stops waiting for it.
+        crate::unity::wait_with_stdout(cmd, crate::unity::OnCancel::Detach)?;
     } else {
         crate::unity::spawn_and_forget(cmd)?;
     }

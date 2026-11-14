@@ -18,11 +18,11 @@ use super::{clean_output_directory, start_build_status};
 use crate::cli_add::UnityTemplateFile;
 use crate::cli_build::{BuildOptions, BuildScriptTarget};
 use crate::commands::{ProjectSetup, TimeDeltaExt, report_version_issues, warn_non_fatal};
-use crate::unity::{Pid, ProjectPath, comparable_path, is_process_running};
+use crate::unity::{CommandError, Pid, ProjectPath, comparable_path, is_process_running};
 use crate::utils::native_progress::{NativeProgressBar, NativeProgressState};
 use crate::utils::path_ext::PlatformConsistentPathExt;
 use crate::utils::status_line::MessageType;
-use crate::utils::write_atomic;
+use crate::utils::{cancel, write_atomic};
 
 /// Builds the project in the Unity editor that already has it open, using file-based IPC.
 ///
@@ -78,8 +78,14 @@ pub(super) fn build_via_editor(
 
     let build_status = start_build_status("Building via editor", plan, setup);
 
-    let result = send_editor_command(&setup.project, uuid, &command_json, editor_pid)?;
+    let result = send_editor_command(&setup.project, uuid, &command_json, editor_pid);
     drop(build_status);
+    let Some(result) = result? else {
+        warn_non_fatal!(
+            "Stopped waiting for the Unity editor. If it has started the build, it will finish it."
+        );
+        return Err(CommandError::Cancelled.into());
+    };
 
     let log_file = install_editor_log(&result, &editor_log, &plan.log_path).unwrap_or_else(|e| {
         warn_non_fatal!("The build log was not written: {e:#}");
@@ -128,12 +134,18 @@ fn warn_unsupported_editor_build_flags(plan: &BuildPlan) {
 }
 
 /// Writes a command file for the editor and waits for the matching result file.
+///
+/// Returns `None` if the user cancelled. The command file is then removed, so an editor that
+/// has not picked it up yet does not start the build; a build already running in the editor
+/// cannot be stopped from here.
 fn send_editor_command(
     project: &ProjectPath,
     uuid: Uuid,
     command_json: &str,
     editor_pid: Pid,
-) -> anyhow::Result<EditorBuildResult> {
+) -> anyhow::Result<Option<EditorBuildResult>> {
+    // Covers writing the command file too, so a Ctrl+C then still removes it.
+    let _cancellable = cancel::CancellableWait::start();
     let command_dir = project.join("Temp").join("ucom-commands");
     let result_dir = editor_result_dir(project);
 
@@ -146,13 +158,14 @@ fn send_editor_command(
 
     write_atomic(&command_file, command_json)?;
 
-    let result = poll_for_result(&result_file, editor_pid)?;
-    // NOTE: When the user cancels the polling, files are left behind. Which is fine.
+    let result = poll_for_result(&result_file, editor_pid);
 
+    // After a cancellation the editor may still write a result and log; its hourly cleanup
+    // removes those.
     let _ = fs::remove_file(&command_file);
     let _ = fs::remove_file(&result_file);
 
-    Ok(result)
+    result
 }
 
 /// Returns the directory where the Unity editor writes build results and logs.
@@ -203,15 +216,21 @@ fn install_editor_log(
 
 /// Polls for a result file from the Unity editor.
 ///
-/// Returns the parsed result when the editor completes the build. There is no timeout, so
-/// long builds are supported; the user can press Ctrl+C to cancel. Every few seconds the
-/// editor process found at the start (`editor_pid`) is checked, and polling stops with an
+/// Returns the parsed result when the editor completes the build, or `None` if the user
+/// cancelled with Ctrl+C. There is no timeout, so long builds are supported. Every few seconds
+/// the editor process found at the start (`editor_pid`) is checked, and polling stops with an
 /// error once it has exited.
-fn poll_for_result(result_file: &Path, editor_pid: Pid) -> anyhow::Result<EditorBuildResult> {
+fn poll_for_result(
+    result_file: &Path,
+    editor_pid: Pid,
+) -> anyhow::Result<Option<EditorBuildResult>> {
     let _progress_guard = NativeProgressBar::with_state(NativeProgressState::Indeterminate);
-    wait_for_result(result_file, PollIntervals::DEFAULT, || {
-        is_process_running(editor_pid)
-    })
+    wait_for_result(
+        result_file,
+        PollIntervals::DEFAULT,
+        cancel::is_cancelled,
+        || is_process_running(editor_pid),
+    )
 }
 
 /// How often to look for the result file, and to check that the editor is still running.
@@ -229,7 +248,7 @@ impl PollIntervals {
 }
 
 /// Waits until `result_file` holds a result, or `editor_running` reports that the editor exited
-/// without writing one.
+/// without writing one. Returns `None` as soon as `cancelled` returns true.
 ///
 /// Current versions of `UnityBuilder.cs` write the result file atomically. Builder scripts
 /// installed in projects before that change write it in place, so a read may observe a
@@ -238,8 +257,9 @@ impl PollIntervals {
 fn wait_for_result(
     result_file: &Path,
     intervals: PollIntervals,
+    cancelled: impl Fn() -> bool,
     mut editor_running: impl FnMut() -> bool,
-) -> anyhow::Result<EditorBuildResult> {
+) -> anyhow::Result<Option<EditorBuildResult>> {
     const MAX_READ_ATTEMPTS: u32 = 10;
 
     let mut failed_reads = 0;
@@ -248,7 +268,7 @@ fn wait_for_result(
     loop {
         if result_file.exists() {
             match read_editor_build_result(result_file) {
-                Ok(result) => return Ok(result),
+                Ok(result) => return Ok(Some(result)),
                 Err(e) => {
                     failed_reads += 1;
                     if failed_reads >= MAX_READ_ATTEMPTS {
@@ -261,6 +281,10 @@ fn wait_for_result(
                     }
                 }
             }
+        }
+
+        if cancelled() {
+            return Ok(None);
         }
 
         if last_liveness_check.elapsed() >= intervals.liveness {
@@ -791,9 +815,14 @@ mod tests {
         let file = dir.path().join("build.json");
         fs::write(&file, result_json()).unwrap();
 
-        let result = wait_for_result(&file, FAST, || panic!("editor should not be checked"));
+        let result = wait_for_result(
+            &file,
+            FAST,
+            || false,
+            || panic!("editor should not be checked"),
+        );
 
-        assert_eq!(result.unwrap().status, EditorBuildStatus::Success);
+        assert_eq!(result.unwrap().unwrap().status, EditorBuildStatus::Success);
     }
 
     #[test]
@@ -803,15 +832,20 @@ mod tests {
         let mut checks = 0;
 
         // The result appears after a few liveness checks.
-        let result = wait_for_result(&file, FAST, || {
-            checks += 1;
-            if checks == 3 {
-                fs::write(&file, result_json()).unwrap();
-            }
-            true
-        });
+        let result = wait_for_result(
+            &file,
+            FAST,
+            || false,
+            || {
+                checks += 1;
+                if checks == 3 {
+                    fs::write(&file, result_json()).unwrap();
+                }
+                true
+            },
+        );
 
-        assert!(result.is_ok());
+        assert!(result.unwrap().is_some());
         assert_eq!(checks, 3);
     }
 
@@ -820,7 +854,7 @@ mod tests {
         let dir = TempDir::new("wait-exited");
         let file = dir.path().join("build.json");
 
-        let error = wait_for_result(&file, FAST, || false).unwrap_err();
+        let error = wait_for_result(&file, FAST, || false, || false).unwrap_err();
 
         assert!(error.to_string().contains("no longer running"));
     }
@@ -830,12 +864,38 @@ mod tests {
         let dir = TempDir::new("wait-exit-after-write");
         let file = dir.path().join("build.json");
 
-        let result = wait_for_result(&file, FAST, || {
-            fs::write(&file, result_json()).unwrap();
-            false
-        });
+        let result = wait_for_result(
+            &file,
+            FAST,
+            || false,
+            || {
+                fs::write(&file, result_json()).unwrap();
+                false
+            },
+        );
 
-        assert!(result.is_ok());
+        assert!(result.unwrap().is_some());
+    }
+
+    #[test]
+    fn wait_for_result_stops_when_cancelled() {
+        let dir = TempDir::new("wait-cancelled");
+        let file = dir.path().join("build.json");
+
+        let result = wait_for_result(&file, FAST, || true, || true);
+
+        assert!(result.unwrap().is_none());
+    }
+
+    #[test]
+    fn wait_for_result_prefers_a_result_that_is_there_when_cancelled() {
+        let dir = TempDir::new("wait-cancelled-present");
+        let file = dir.path().join("build.json");
+        fs::write(&file, result_json()).unwrap();
+
+        let result = wait_for_result(&file, FAST, || true, || true);
+
+        assert!(result.unwrap().is_some());
     }
 
     #[test]
@@ -846,12 +906,17 @@ mod tests {
         fs::write(&file, &json[..json.len() / 2]).unwrap();
 
         // An older builder script finishes writing the file in place.
-        let result = wait_for_result(&file, FAST, || {
-            fs::write(&file, &json).unwrap();
-            true
-        });
+        let result = wait_for_result(
+            &file,
+            FAST,
+            || false,
+            || {
+                fs::write(&file, &json).unwrap();
+                true
+            },
+        );
 
-        assert!(result.is_ok());
+        assert!(result.unwrap().is_some());
     }
 
     #[test]
@@ -860,7 +925,7 @@ mod tests {
         let file = dir.path().join("build.json");
         fs::write(&file, "{ not json").unwrap();
 
-        let error = wait_for_result(&file, FAST, || true).unwrap_err();
+        let error = wait_for_result(&file, FAST, || false, || true).unwrap_err();
 
         assert!(
             error

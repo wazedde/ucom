@@ -11,7 +11,8 @@ use crate::commands::{
     ProjectSetup, TimeDeltaExt, ensure_builder_supports, report_version_issues, warn_non_fatal,
 };
 use crate::unity::{
-    build_command_line, find_unity_editor_process, wait_with_log_output, wait_with_stdout,
+    CommandError, OnCancel, build_command_line, find_unity_editor_process, wait_with_log_output,
+    wait_with_stdout,
 };
 use crate::utils::native_progress::{NativeProgressBar, NativeProgressState};
 use crate::utils::path_ext::PlatformConsistentPathExt;
@@ -22,7 +23,7 @@ use chrono::Utc;
 use build_log::{collect_log_errors, print_build_report, remove_old_log_file};
 use editor::build_via_editor;
 use plan::BuildPlan;
-use script::csharp_build_script_injection_hooks;
+use script::inject_build_script;
 
 /// Runs the build command.
 pub fn build_project(arguments: &BuildArguments) -> anyhow::Result<()> {
@@ -59,20 +60,23 @@ pub fn build_project(arguments: &BuildArguments) -> anyhow::Result<()> {
 
     let _progress_guard = NativeProgressBar::with_state(NativeProgressState::Indeterminate);
 
-    let hooks = csharp_build_script_injection_hooks(&setup.project, plan.args.inject);
-
-    (hooks.inject_build_script)()?;
+    // Removes a temporary build script when dropped, including on Ctrl+C and early returns.
+    let injected_script = inject_build_script(&setup.project, plan.args.inject)?;
 
     remove_old_log_file(&plan.log_path)?;
 
     let build_result = if plan.show_log() {
         wait_with_log_output(build_command, &plan.log_path)
     } else {
-        wait_with_stdout(build_command)
+        wait_with_stdout(build_command, OnCancel::Kill)
     };
 
-    (hooks.cleanup_build_script)()?;
+    drop(injected_script);
     drop(build_status);
+
+    if let Err(e @ CommandError::Cancelled) = build_result {
+        return Err(e.into());
+    }
 
     let (build_status, log_tag) = if build_result.is_ok() {
         if plan.args.clean {

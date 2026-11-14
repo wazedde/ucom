@@ -10,8 +10,8 @@ use anyhow::Context;
 use clap::Parser;
 use std::io::IsTerminal;
 use std::process::ExitCode;
-use utils::ReportedFailure;
 use utils::content_cache::{delete_cache_directory, ucom_cache_dir};
+use utils::{ReportedFailure, cancel};
 use yansi::Paint;
 
 mod cli;
@@ -29,10 +29,18 @@ mod utils;
 fn main() -> ExitCode {
     // Commands return their errors instead of exiting, so destructors (status lines, progress
     // indicators, temporary files) have run by the time the exit code is chosen here.
-    match run(Cli::parse()) {
+    let cli = Cli::parse();
+    cancel::install_handler();
+
+    match run(cli) {
         Ok(()) => ExitCode::SUCCESS,
         Err(e) => match ReportedFailure::find(&e) {
-            Some(failure) => ExitCode::from(failure.exit_code),
+            Some(&ReportedFailure::Silent { exit_code, .. }) => ExitCode::from(exit_code),
+            Some(failure @ ReportedFailure::Interrupted) => {
+                eprintln!("{failure}");
+                // Everything has been dropped; end the way a shell expects after Ctrl+C.
+                cancel::exit_interrupted()
+            }
             None => {
                 // Same output as returning the error from `main`.
                 eprintln!("Error: {e:?}");

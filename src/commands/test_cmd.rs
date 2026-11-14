@@ -10,7 +10,7 @@ use crate::commands::unity_command_builder::UnityCommandBuilder;
 use crate::commands::{ProjectSetup, TimeDeltaExt};
 use crate::nunit::{TestCase, TestResult, TestRun};
 use crate::style_definitions::{STYLE_ERROR, STYLE_PLAIN};
-use crate::unity::{ProjectPath, build_command_line, wait_with_stdout};
+use crate::unity::{OnCancel, ProjectPath, build_command_line, wait_with_stdout};
 use crate::utils::ReportedFailure;
 use crate::utils::native_progress::{NativeProgressBar, NativeProgressState};
 use crate::utils::path_ext::PlatformConsistentPathExt;
@@ -50,15 +50,15 @@ pub fn run_tests(arguments: &TestArguments) -> anyhow::Result<()> {
             )
         };
         let _progress_guard = NativeProgressBar::with_state(NativeProgressState::Indeterminate);
-        wait_with_stdout(test_command)
+        wait_with_stdout(test_command, OnCancel::Kill)
     };
 
-    if let Err(e) = &tests_result {
-        // If the error was not caused by the command exiting with code 2 (tests failed), return it.
-        if e.exit_code() != Some(i32::from(TESTS_FAILED_EXIT_CODE)) {
-            bail!("{e}");
-        }
-    }
+    let tests_failed = match tests_result {
+        Ok(()) => false,
+        Err(e) if e.exit_code() == Some(i32::from(TESTS_FAILED_EXIT_CODE)) => true,
+        // Returned with its type, so that `main` recognises a cancellation.
+        Err(e) => return Err(e.into()),
+    };
 
     if !output_path.exists() {
         // Stupid workaround for Unity not returning an error when project is already open.
@@ -68,16 +68,17 @@ pub fn run_tests(arguments: &TestArguments) -> anyhow::Result<()> {
     }
 
     if !arguments.quiet {
-        let status = match tests_result {
-            Ok(()) => MessageType::Ok,
-            Err(_) => MessageType::Error,
+        let status = if tests_failed {
+            MessageType::Error
+        } else {
+            MessageType::Ok
         };
 
         print_results(arguments, &start_time, &setup.project, &output_path, status)?;
     }
 
-    if tests_result.is_err() {
-        return Err(tests_failed().into());
+    if tests_failed {
+        return Err(tests_failed_error().into());
     }
     Ok(())
 }
@@ -86,8 +87,11 @@ pub fn run_tests(arguments: &TestArguments) -> anyhow::Result<()> {
 const TESTS_FAILED_EXIT_CODE: u8 = 2;
 
 /// The error for a test run in which tests failed. The results have already been reported.
-fn tests_failed() -> ReportedFailure {
-    ReportedFailure::new(TESTS_FAILED_EXIT_CODE, "One or more tests failed")
+fn tests_failed_error() -> ReportedFailure {
+    ReportedFailure::Silent {
+        exit_code: TESTS_FAILED_EXIT_CODE,
+        description: "One or more tests failed",
+    }
 }
 
 fn print_results(
@@ -225,8 +229,11 @@ mod tests {
 
     #[test]
     fn failed_tests_are_reported_with_unitys_exit_code() {
-        let error = anyhow::Error::from(tests_failed()).context("Cannot run tests");
+        let error = anyhow::Error::from(tests_failed_error()).context("Cannot run tests");
         // Exit code 2 is part of ucom's command line contract, so it is spelled out here.
-        assert_eq!(ReportedFailure::find(&error).map(|f| f.exit_code), Some(2));
+        assert!(matches!(
+            ReportedFailure::find(&error),
+            Some(ReportedFailure::Silent { exit_code: 2, .. })
+        ));
     }
 }

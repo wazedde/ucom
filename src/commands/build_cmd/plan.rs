@@ -227,9 +227,7 @@ fn option_flags(args: &BuildArguments) -> BuildOptionFlags {
 mod tests {
     use super::*;
     use crate::cli::{Cli, Command as CliCommand};
-    use crate::commands::create_file;
-    use crate::unity::VERSION_SUB_PATH;
-    use crate::utils::test_util::TempDir;
+    use crate::utils::test_util::{TempDir, temp_project};
     use clap::Parser;
 
     /// A directory with the minimum ucom needs to recognise a Unity project.
@@ -240,13 +238,7 @@ mod tests {
 
     impl TestProject {
         fn new(label: &str) -> Self {
-            let dir = TempDir::new(label);
-            create_file(
-                dir.path().join(VERSION_SUB_PATH),
-                "m_EditorVersion: 6000.6.8f1\n",
-            )
-            .unwrap();
-            let project = ProjectPath::try_from(dir.path()).unwrap();
+            let (dir, project) = temp_project(label);
             Self { _dir: dir, project }
         }
 

@@ -6,6 +6,7 @@ use std::fs::{self, File};
 use std::io::{BufWriter, Write};
 use std::path::{Path, PathBuf};
 
+pub mod cancel;
 pub mod content_cache;
 pub mod formatter;
 pub mod native_progress;
@@ -27,22 +28,19 @@ macro_rules! warn_non_fatal {
 
 pub(crate) use warn_non_fatal;
 
-/// An error that the command has already reported to the user, and that only decides the exit
-/// code of ucom. `main` exits with `exit_code` without printing anything.
+/// An error that only decides how ucom ends, without the usual `Error:` output.
 #[derive(Debug)]
-pub struct ReportedFailure {
-    pub exit_code: u8,
-    description: &'static str,
+pub enum ReportedFailure {
+    /// The command has already reported the failure; `main` exits with `exit_code`.
+    Silent {
+        exit_code: u8,
+        description: &'static str,
+    },
+    /// The user pressed Ctrl+C; `main` prints a short notice and ends ucom as Ctrl+C would.
+    Interrupted,
 }
 
 impl ReportedFailure {
-    pub const fn new(exit_code: u8, description: &'static str) -> Self {
-        Self {
-            exit_code,
-            description,
-        }
-    }
-
     /// Returns the reported failure in the error's chain, if any.
     pub fn find(error: &anyhow::Error) -> Option<&Self> {
         error.chain().find_map(|e| e.downcast_ref::<Self>())
@@ -51,7 +49,10 @@ impl ReportedFailure {
 
 impl std::fmt::Display for ReportedFailure {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.write_str(self.description)
+        match self {
+            Self::Silent { description, .. } => f.write_str(description),
+            Self::Interrupted => f.write_str("Cancelled"),
+        }
     }
 }
 
