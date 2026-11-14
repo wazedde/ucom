@@ -1,5 +1,5 @@
 use std::path::Path;
-use std::process::{Command, exit};
+use std::process::Command;
 
 use anyhow::bail;
 use chrono::prelude::*;
@@ -11,6 +11,7 @@ use crate::commands::{ProjectSetup, TimeDeltaExt};
 use crate::nunit::{TestCase, TestResult, TestRun};
 use crate::style_definitions::{STYLE_ERROR, STYLE_PLAIN};
 use crate::unity::{ProjectPath, build_command_line, wait_with_stdout};
+use crate::utils::ReportedFailure;
 use crate::utils::native_progress::{NativeProgressBar, NativeProgressState};
 use crate::utils::path_ext::PlatformConsistentPathExt;
 use crate::utils::status_line::{MessageType, StatusLine};
@@ -54,7 +55,7 @@ pub fn run_tests(arguments: &TestArguments) -> anyhow::Result<()> {
 
     if let Err(e) = &tests_result {
         // If the error was not caused by the command exiting with code 2 (tests failed), return it.
-        if e.exit_code != 2 {
+        if e.exit_code() != Some(i32::from(TESTS_FAILED_EXIT_CODE)) {
             bail!("{e}");
         }
     }
@@ -76,11 +77,17 @@ pub fn run_tests(arguments: &TestArguments) -> anyhow::Result<()> {
     }
 
     if tests_result.is_err() {
-        // Unity returns exit code 2 when tests fail.
-        exit(2);
-    } else {
-        Ok(())
+        return Err(tests_failed().into());
     }
+    Ok(())
+}
+
+/// Unity's exit code when tests fail, which ucom passes on.
+const TESTS_FAILED_EXIT_CODE: u8 = 2;
+
+/// The error for a test run in which tests failed. The results have already been reported.
+fn tests_failed() -> ReportedFailure {
+    ReportedFailure::new(TESTS_FAILED_EXIT_CODE, "One or more tests failed")
 }
 
 fn print_results(
@@ -209,5 +216,17 @@ fn print_test_cases<'a>(test_cases: impl Iterator<Item = &'a TestCase>) {
             n = test_case.full_name.paint(name_style),
             t = test_case.duration,
         );
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn failed_tests_are_reported_with_unitys_exit_code() {
+        let error = anyhow::Error::from(tests_failed()).context("Cannot run tests");
+        // Exit code 2 is part of ucom's command line contract, so it is spelled out here.
+        assert_eq!(ReportedFailure::find(&error).map(|f| f.exit_code), Some(2));
     }
 }

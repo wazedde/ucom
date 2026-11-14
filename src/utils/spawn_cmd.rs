@@ -14,42 +14,61 @@ use std::{fs, io, thread};
 
 /// Errors that can occur when working with a [`Command`].
 #[derive(Debug)]
-pub struct CommandError {
-    pub exit_code: i32,
-    pub stderr: String,
+pub enum CommandError {
+    /// The command could not be started, or waiting for it failed.
+    Io(io::Error),
+    /// The command ran and did not succeed. `code` is `None` when it was ended by a signal.
+    Failed { code: Option<i32>, stderr: String },
 }
 
+impl CommandError {
+    /// The exit code of a command that ran and failed. `None` if it could not be started, or
+    /// was ended by a signal.
+    pub fn exit_code(&self) -> Option<i32> {
+        match self {
+            Self::Failed { code, .. } => *code,
+            Self::Io(_) => None,
+        }
+    }
+}
+
+// No `source`: the message already includes the I/O error, which would otherwise be printed
+// twice in an error chain.
 impl Error for CommandError {}
 
 impl From<std::process::Output> for CommandError {
     fn from(output: std::process::Output) -> Self {
-        let exit_code = output.status.code().unwrap_or(-1);
         let stderr = String::from_utf8(output.stderr).unwrap_or_else(|e| {
             // If the output is not valid UTF-8 convert it.
             // TODO: Unfortunately, this rechecks the UTF-8 validity. Atm there is no stable function to avoid this.
             String::from_utf8_lossy(e.as_bytes()).into_owned()
         });
 
-        Self { exit_code, stderr }
+        Self::Failed {
+            code: output.status.code(),
+            stderr,
+        }
     }
 }
 
 impl From<io::Error> for CommandError {
     fn from(err: io::Error) -> Self {
-        Self {
-            exit_code: err.raw_os_error().unwrap_or(-1),
-            stderr: err.to_string(),
-        }
+        Self::Io(err)
     }
 }
 
 impl Display for CommandError {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(
-            f,
-            "Command failed with exit code: {} {}",
-            self.exit_code, self.stderr
-        )
+        match self {
+            Self::Io(e) => write!(f, "Failed to run the command: {e}"),
+            Self::Failed {
+                code: Some(code),
+                stderr,
+            } => write!(f, "Command failed with exit code: {code} {stderr}"),
+            Self::Failed { code: None, stderr } => {
+                write!(f, "Command was terminated by a signal {stderr}")
+            }
+        }
     }
 }
 
@@ -101,10 +120,9 @@ pub fn wait_with_log_output(mut cmd: Command, log_file: &Path) -> Result<(), Com
     stop_monitoring.store(true, Ordering::Release);
 
     // Wait for the log monitor thread to finish.
-    log_monitor.join().map_err(|e| CommandError {
-        exit_code: -1,
-        stderr: format!("Echo runner thread panicked: {e:?}"),
-    })??;
+    log_monitor
+        .join()
+        .map_err(|e| io::Error::other(format!("Echo runner thread panicked: {e:?}")))??;
 
     let output = output?;
     output
@@ -189,4 +207,32 @@ fn monitor_log_file(
     }
 
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn a_spawn_error_has_no_exit_code() {
+        // Error code 2 is "file not found" on Unix and Windows, and must not be mistaken for a
+        // process that exited with code 2.
+        let error = CommandError::from(io::Error::from_raw_os_error(2));
+        assert_eq!(error.exit_code(), None);
+    }
+
+    #[test]
+    fn a_failed_process_keeps_its_exit_code() {
+        let cmd = if cfg!(windows) {
+            let mut cmd = Command::new("cmd");
+            cmd.args(["/C", "exit 2"]);
+            cmd
+        } else {
+            let mut cmd = Command::new("sh");
+            cmd.args(["-c", "exit 2"]);
+            cmd
+        };
+        let error = wait_with_stdout(cmd).unwrap_err();
+        assert_eq!(error.exit_code(), Some(2));
+    }
 }

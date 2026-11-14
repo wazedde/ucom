@@ -27,6 +27,36 @@ macro_rules! warn_non_fatal {
 
 pub(crate) use warn_non_fatal;
 
+/// An error that the command has already reported to the user, and that only decides the exit
+/// code of ucom. `main` exits with `exit_code` without printing anything.
+#[derive(Debug)]
+pub struct ReportedFailure {
+    pub exit_code: u8,
+    description: &'static str,
+}
+
+impl ReportedFailure {
+    pub const fn new(exit_code: u8, description: &'static str) -> Self {
+        Self {
+            exit_code,
+            description,
+        }
+    }
+
+    /// Returns the reported failure in the error's chain, if any.
+    pub fn find(error: &anyhow::Error) -> Option<&Self> {
+        error.chain().find_map(|e| e.downcast_ref::<Self>())
+    }
+}
+
+impl std::fmt::Display for ReportedFailure {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(self.description)
+    }
+}
+
+impl std::error::Error for ReportedFailure {}
+
 /// Writes `contents` to `path` so that readers never observe a partially written file.
 ///
 /// The data is first written to a uniquely named sibling file ending in `.tmp`, which is

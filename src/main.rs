@@ -9,6 +9,8 @@ use crate::unity::release_api::UpdatePolicy;
 use anyhow::Context;
 use clap::Parser;
 use std::io::IsTerminal;
+use std::process::ExitCode;
+use utils::ReportedFailure;
 use utils::content_cache::{delete_cache_directory, ucom_cache_dir};
 use yansi::Paint;
 
@@ -24,9 +26,23 @@ mod style_definitions;
 mod unity;
 mod utils;
 
-fn main() -> anyhow::Result<()> {
-    let cli = Cli::parse();
+fn main() -> ExitCode {
+    // Commands return their errors instead of exiting, so destructors (status lines, progress
+    // indicators, temporary files) have run by the time the exit code is chosen here.
+    match run(Cli::parse()) {
+        Ok(()) => ExitCode::SUCCESS,
+        Err(e) => match ReportedFailure::find(&e) {
+            Some(failure) => ExitCode::from(failure.exit_code),
+            None => {
+                // Same output as returning the error from `main`.
+                eprintln!("Error: {e:?}");
+                ExitCode::FAILURE
+            }
+        },
+    }
+}
 
+fn run(cli: Cli) -> anyhow::Result<()> {
     let Some(command) = cli.command else {
         return Ok(());
     };
