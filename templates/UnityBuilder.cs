@@ -197,12 +197,28 @@ namespace Ucom
                 return false;
             }
 
-            var summary = report.summary;
+            Environment.GetCommandLineArgs().TryGetArgValue("-logFile", out var logFile);
+            var succeeded = report.summary.result == BuildResult.Succeeded;
+            Log(FormatBuildResult(report.summary, logFile), succeeded ? LogType.Log : LogType.Error);
+            return succeeded;
+        }
 
+        /// <summary>
+        /// Formats the build result line followed by the "[Builder] Build Report" block that ucom
+        /// reads from the log, ending with an empty line.
+        /// </summary>
+        /// <param name="summary">The summary of the finished build.</param>
+        /// <param name="logFile">The log file to mention in the report, or <c>null</c> to leave it out.</param>
+        public static string FormatBuildResult(BuildSummary summary, string logFile)
+        {
             var sb = new StringBuilder();
 
             var buildStartTime = summary.buildStartedAt.ToLocalTime().ToString(CultureInfo.InvariantCulture);
-            sb.AppendLine("[Builder] Build Report")
+            sb.AppendLine(summary.result == BuildResult.Succeeded
+                    ? "[Builder] Build succeeded."
+                    : "[Builder] Build failed."
+                )
+                .AppendLine("[Builder] Build Report")
                 .AppendLine($"    Build result: {summary.result}")
                 .AppendLine($"    Platform:     {summary.platform}")
                 .AppendLine($"    Output path:  {summary.outputPath}")
@@ -212,23 +228,12 @@ namespace Ucom
                 .AppendLine($"    Errors:       {summary.totalErrors}")
                 .AppendLine($"    Warnings:     {summary.totalWarnings}");
 
-            if (Environment.GetCommandLineArgs().TryGetArgValue("-logFile", out var logFile))
+            if (!string.IsNullOrEmpty(logFile))
                 sb.AppendLine($"    Log file:     {logFile}");
 
             // End of build report.
             sb.AppendLine();
-
-            switch (summary.result)
-            {
-                case BuildResult.Succeeded:
-                    Log("[Builder] Build succeeded.");
-                    Log(sb.ToString());
-                    return true;
-                default:
-                    Log("[Builder] Build failed.", LogType.Error);
-                    Log(sb.ToString(), LogType.Error);
-                    return false;
-            }
+            return sb.ToString();
         }
 
         /// <summary>
@@ -643,9 +648,10 @@ namespace Ucom
         private static void CleanupOldFiles()
         {
             // Removes leftovers older than one hour: commands that were never processed,
-            // results that ucom stopped waiting for (e.g. after Ctrl+C), and temporary
-            // files from interrupted writes.
+            // results and build logs that ucom stopped waiting for (e.g. after Ctrl+C), and
+            // temporary files from interrupted writes.
             var cutoff = DateTime.UtcNow.AddHours(-1);
+            var extensions = new[] { ".json", ".log", ".tmp" };
 
             foreach (var dir in new[] { CommandDir, ResultDir })
             {
@@ -656,8 +662,7 @@ namespace Ucom
 
                     foreach (var file in Directory.GetFiles(dir))
                     {
-                        if (!file.EndsWith(".json", StringComparison.OrdinalIgnoreCase)
-                            && !file.EndsWith(".tmp", StringComparison.OrdinalIgnoreCase))
+                        if (!extensions.Any(ext => file.EndsWith(ext, StringComparison.OrdinalIgnoreCase)))
                             continue;
 
                         if (File.GetLastWriteTimeUtc(file) < cutoff)
@@ -706,6 +711,24 @@ namespace Ucom
         }
 
         private static void ProcessBuildCommand(CommandFile cmd)
+        {
+            // Always answer with a result: ucom waits until one arrives while the editor is running,
+            // and an exception here would also leave the command file to be processed again.
+            try
+            {
+                ValidateAndBuild(cmd);
+            }
+            catch (Exception e)
+            {
+                Debug.LogException(e);
+                WriteErrorResult(cmd.uuid,
+                    "INTERNAL_ERROR",
+                    $"Unexpected error while processing the build command: {e.Message}"
+                );
+            }
+        }
+
+        private static void ValidateAndBuild(CommandFile cmd)
         {
             // Validate: Check if in play mode
             if (EditorApplication.isPlaying)
@@ -808,23 +831,57 @@ namespace Ucom
 
         private static void ExecuteBuild(CommandFile cmd, BuildTarget target, bool needsSwitch)
         {
-            var originalPlatform = EditorUserBuildSettings.activeBuildTarget.ToString();
+            // Everything the editor logs from here on (platform switch, compilation, build)
+            // is copied to the log file that ucom asked for.
+            var hasConsoleLog = TryGetConsoleLogEnd(out var consoleLogPath, out var logStart);
 
             var result = new ResultFile
             {
                 uuid = cmd.uuid,
-                original_platform = originalPlatform
+                original_platform = EditorUserBuildSettings.activeBuildTarget.ToString(),
+                editor_log_path = consoleLogPath
             };
 
+            // The "[Builder]" lines are appended to the log file directly instead of being read back
+            // from the editor log: the editor may write error-level messages to its log only after
+            // the build has returned, which is after the log has been copied.
+            var builderLines = new StringBuilder();
+            try
+            {
+                SwitchPlatformAndBuild(cmd, target, needsSwitch, result, builderLines);
+            }
+            catch (Exception e)
+            {
+                SetFailed(result, builderLines, "BUILD_FAILED", $"Build exception: {e.Message}", e.ToString());
+            }
+
+            // ucom reads the log only after the result has been written, so it is written in place.
+            var lines = builderLines.ToString();
+            result.log_written = hasConsoleLog && TryCopyLogSince(consoleLogPath, logStart, lines, cmd.log_path);
+
+            // Logged after the copy, so the lines appear in the log file only once.
+            if (lines.Length > 0)
+                UnityBuilder.Log(lines.TrimEnd(), result.status == "success" ? LogType.Log : LogType.Error);
+
+            WriteResult(result);
+        }
+
+        /// <summary>
+        /// Switches the platform if needed and builds the player, filling in <paramref name="result"/>.
+        /// </summary>
+        /// <param name="builderLines">Receives the "[Builder]" lines for the log: errors and the build report.</param>
+        private static void SwitchPlatformAndBuild(CommandFile cmd,
+            BuildTarget target,
+            bool needsSwitch,
+            ResultFile result,
+            StringBuilder builderLines)
+        {
             // Handle platform switch if needed
             if (needsSwitch)
             {
                 if (!TrySwitchPlatform(target, out var switchError, out var switchTime))
                 {
-                    result.status = "failed";
-                    result.error_code = "PLATFORM_SWITCH_FAILED";
-                    result.message = switchError;
-                    WriteResult(result);
+                    SetFailed(result, builderLines, "PLATFORM_SWITCH_FAILED", switchError);
                     return;
                 }
 
@@ -840,37 +897,21 @@ namespace Ucom
                     out var locationPathName
                 ))
             {
-                result.status = "failed";
-                result.error_code = "BUILD_FAILED";
-                result.message = $"Build target '{target}' is not supported for building.";
-                WriteResult(result);
+                SetFailed(result, builderLines, "BUILD_FAILED", $"Build target '{target}' is not supported for building.");
                 return;
             }
 
             var buildStartTime = EditorApplication.timeSinceStartup;
 
-            // Build the player using BuildPipeline to get BuildReport
-            var buildPlayerOptions = new BuildPlayerOptions
+            // Build the player using BuildPipeline to get BuildReport.
+            // Exceptions are handled by the caller, which still copies the log.
+            var report = BuildPipeline.BuildPlayer(new BuildPlayerOptions
             {
                 scenes = UnityBuilder.GetActiveScenes(),
                 locationPathName = locationPathName,
                 target = target,
                 options = (BuildOptions)cmd.build_options
-            };
-
-            BuildReport report;
-            try
-            {
-                report = BuildPipeline.BuildPlayer(buildPlayerOptions);
-            }
-            catch (Exception e)
-            {
-                result.status = "failed";
-                result.error_code = "BUILD_FAILED";
-                result.message = $"Build exception: {e.Message}";
-                WriteResult(result);
-                return;
-            }
+            });
 
             result.build_time_seconds =
                 (float)(EditorApplication.timeSinceStartup - buildStartTime);
@@ -884,6 +925,9 @@ namespace Ucom
             result.total_errors = summary.totalErrors;
             result.total_warnings = summary.totalWarnings;
 
+            // The log file is left out: ucom prints its path once it has moved the log into place.
+            builderLines.Append(UnityBuilder.FormatBuildResult(summary, null));
+
             if (summary.result == BuildResult.Succeeded)
             {
                 result.status = "success";
@@ -895,8 +939,88 @@ namespace Ucom
                 result.error_code = "BUILD_FAILED";
                 result.message = "Build failed. Check Unity console for errors.";
             }
+        }
 
-            WriteResult(result);
+        /// <summary>
+        /// Marks the result as failed and adds an error line for the build log.
+        /// </summary>
+        /// <param name="detail">The text for the log line, if it differs from <paramref name="message"/>.</param>
+        private static void SetFailed(ResultFile result,
+            StringBuilder builderLines,
+            string errorCode,
+            string message,
+            string detail = null)
+        {
+            result.status = "failed";
+            result.error_code = errorCode;
+            result.message = message;
+            builderLines.AppendLine($"[Builder] Error: {detail ?? message}");
+        }
+
+        /// <summary>
+        /// Gets the path and current length of the log file the editor writes to.
+        /// </summary>
+        /// <returns><c>false</c> if the editor does not write a log file, or its length is unknown.</returns>
+        private static bool TryGetConsoleLogEnd(out string path, out long length)
+        {
+            path = null;
+            length = 0;
+#if UNITY_2019_1_OR_NEWER
+            try
+            {
+                var info = new FileInfo(Application.consoleLogPath);
+                if (!info.Exists)
+                    return false;
+
+                path = info.FullName;
+                length = info.Length;
+                return true;
+            }
+            catch (Exception)
+            {
+                // No log file (e.g. -logFile -), or an invalid path.
+                return false;
+            }
+#else
+            return false;
+#endif
+        }
+
+        /// <summary>
+        /// Copies the part of <paramref name="sourcePath"/> after <paramref name="startOffset"/>
+        /// to <paramref name="destinationPath"/>, followed by <paramref name="trailer"/>.
+        /// </summary>
+        /// <returns><c>true</c> if the log was copied; <c>false</c> otherwise.</returns>
+        private static bool TryCopyLogSince(string sourcePath, long startOffset, string trailer, string destinationPath)
+        {
+            if (string.IsNullOrEmpty(destinationPath))
+                return false;
+
+            try
+            {
+                // The editor keeps the log open for writing, so it has to be shared.
+                using (var source = new FileStream(sourcePath,
+                           FileMode.Open,
+                           FileAccess.Read,
+                           FileShare.ReadWrite | FileShare.Delete
+                       ))
+                using (var destination = new FileStream(destinationPath, FileMode.Create, FileAccess.Write))
+                {
+                    // Start from the beginning if the log was truncated or replaced during the build.
+                    source.Seek(startOffset <= source.Length ? startOffset : 0, SeekOrigin.Begin);
+                    source.CopyTo(destination);
+
+                    var trailerBytes = Encoding.UTF8.GetBytes(trailer);
+                    destination.Write(trailerBytes, 0, trailerBytes.Length);
+                }
+
+                return true;
+            }
+            catch (Exception e)
+            {
+                Debug.LogWarning($"[Ucom] Failed to write build log to {destinationPath}: {e.Message}");
+                return false;
+            }
         }
 
         private static void WriteErrorResult(string uuid, string errorCode, string message)
@@ -969,6 +1093,8 @@ namespace Ucom
         public ulong total_size;
         public int total_errors;
         public int total_warnings;
+        public bool log_written;
+        public string editor_log_path;
     }
 #endif // UNITY_EDITOR
 }

@@ -16,8 +16,8 @@ use crate::commands::{
     report_version_issues, warn_non_fatal,
 };
 use crate::unity::{
-    Pid, ProjectPath, build_command_line, find_unity_editor_process, is_process_running,
-    wait_with_log_output, wait_with_stdout,
+    Pid, ProjectPath, build_command_line, comparable_path, find_unity_editor_process,
+    is_process_running, wait_with_log_output, wait_with_stdout,
 };
 use crate::utils::native_progress::{NativeProgressBar, NativeProgressState};
 use crate::utils::path_ext::PlatformConsistentPathExt;
@@ -62,9 +62,7 @@ pub fn build_project(arguments: &BuildArguments) -> anyhow::Result<()> {
 
     (hooks.inject_build_script)()?;
 
-    if log_path.exists() {
-        fs::remove_file(&log_path)?;
-    }
+    remove_old_log_file(&log_path)?;
 
     let build_result = if arguments.show_log() {
         wait_with_log_output(build_command, &log_path)
@@ -274,9 +272,7 @@ impl BuildArguments {
 fn print_build_report(log_path: &Path, status: MessageType) {
     if let Ok(file) = File::open(log_path) {
         // Iterate over lines from the build report in the log file.
-        BufReader::new(file)
-            .lines()
-            .map_while(Result::ok)
+        log_lines(file)
             .skip_while(|l| !l.starts_with("[Builder] Build Report")) // Find marker.
             .skip(1) // Skip the marker.
             .take_while(|l| !l.is_empty()) // Read until empty line.
@@ -310,20 +306,44 @@ fn clean_output_directory(path: &Path) -> anyhow::Result<()> {
     Ok(())
 }
 
-/// Returns errors from the given log file as one collected Err.
-fn collect_log_errors(log_file: &Path) -> anyhow::Error {
-    let Ok(log_file) = File::open(log_file) else {
-        return anyhow!("Failed to open log file: {}", log_file.normalized_display());
-    };
-
-    let errors = BufReader::new(log_file)
-        .lines()
+/// Returns the lines of a log file.
+///
+/// Invalid UTF-8, which native plugins or the OS can write in a local code page, is replaced
+/// instead of ending the iteration.
+fn log_lines(file: File) -> impl Iterator<Item = String> {
+    BufReader::new(file)
+        .split(b'\n')
         .map_while(Result::ok)
+        .map(|line| {
+            let mut line = String::from_utf8(line)
+                .unwrap_or_else(|e| String::from_utf8_lossy(e.as_bytes()).into_owned());
+            if line.ends_with('\r') {
+                line.pop();
+            }
+            line
+        })
+}
+
+/// Returns the unique error lines in the given log file.
+fn find_log_errors(log_file: &Path) -> std::io::Result<Vec<String>> {
+    let file = File::open(log_file)?;
+    Ok(log_lines(file)
         .filter(|l| line_contains_error(l))
         .unique()
-        .collect_vec();
+        .collect_vec())
+}
 
-    match &errors[..] {
+/// Returns errors from the given log file as one collected Err.
+fn collect_log_errors(log_file: &Path) -> anyhow::Error {
+    match find_log_errors(log_file) {
+        Ok(errors) => format_log_errors(&errors),
+        Err(_) => anyhow!("Failed to open log file: {}", log_file.normalized_display()),
+    }
+}
+
+/// Combines error lines from a log into one error.
+fn format_log_errors(errors: &[String]) -> anyhow::Error {
+    match errors {
         [] => anyhow!("No errors found in log"),
         [single_error] => anyhow!("{single_error}"),
         _ => {
@@ -479,13 +499,17 @@ fn build_via_editor(
     let output_path = args.output_path(&setup.project)?;
     let log_path = args.full_log_path(&setup.project)?;
 
+    // The editor writes the build log next to the result, and ucom moves it to `log_path`.
+    let uuid = Uuid::new_v4().to_string();
+    let editor_log = editor_result_dir(&setup.project).join(format!("build-{uuid}.log"));
+
     let command = EditorCommand {
         command: "build".to_string(),
-        uuid: Uuid::new_v4().to_string(),
+        uuid,
         timestamp: Utc::now().to_rfc3339(),
         platform: BuildScriptTarget::from(args.target).as_ref().to_string(),
         output_path: output_path.to_string_lossy().to_string(),
-        log_path: log_path.to_string_lossy().to_string(),
+        log_path: editor_log.to_string_lossy().to_string(),
         build_options: args.build_option_flags(),
         development_build: args.development_build,
         force_platform_switch: args.force_editor_build,
@@ -505,11 +529,16 @@ fn build_via_editor(
     let result = send_editor_command(&setup.project, &command, editor_pid)?;
     drop(build_status);
 
+    let log_file = install_editor_log(&result, &editor_log, &log_path).unwrap_or_else(|e| {
+        warn_non_fatal!("The build log was not written: {e:#}");
+        None
+    });
+
     if result.status == "success" && args.clean {
         clean_output_directory(&output_path)?;
     }
 
-    let outcome = handle_editor_build_result(result, setup, start_time);
+    let outcome = handle_editor_build_result(&result, setup, start_time, log_file.as_deref());
     report_version_issues(setup.unity_version);
     outcome
 }
@@ -566,9 +595,8 @@ fn send_editor_command(
     command: &EditorCommand,
     editor_pid: Pid,
 ) -> anyhow::Result<EditorBuildResult> {
-    let temp_dir = project.join("Temp");
-    let command_dir = temp_dir.join("ucom-commands");
-    let result_dir = temp_dir.join("ucom-results");
+    let command_dir = project.join("Temp").join("ucom-commands");
+    let result_dir = editor_result_dir(project);
 
     fs::create_dir_all(&command_dir)?;
     fs::create_dir_all(&result_dir)?;
@@ -586,6 +614,52 @@ fn send_editor_command(
     let _ = fs::remove_file(&result_file);
 
     Ok(result)
+}
+
+/// Returns the directory where the Unity editor writes build results and logs.
+fn editor_result_dir(project: &ProjectPath) -> PathBuf {
+    project.join("Temp").join("ucom-results")
+}
+
+/// Moves the build log that the editor wrote to `editor_log` into place at `log_path`.
+///
+/// Returns the path of the log, or `None` if the editor wrote none. As with batch builds, a log
+/// from an earlier build at `log_path` is removed first, unless `log_path` is the log file the
+/// editor itself writes to.
+fn install_editor_log(
+    result: &EditorBuildResult,
+    editor_log: &Path,
+    log_path: &Path,
+) -> anyhow::Result<Option<PathBuf>> {
+    let outcome = (|| -> anyhow::Result<Option<PathBuf>> {
+        if result
+            .editor_log_path
+            .as_deref()
+            .is_some_and(|p| comparable_path(Path::new(p)) == comparable_path(log_path))
+        {
+            bail!(
+                "{} is the log file of the Unity editor itself",
+                log_path.normalized_display()
+            );
+        }
+
+        remove_old_log_file(log_path)?;
+        if !result.log_written {
+            return Ok(None);
+        }
+
+        if let Some(parent) = log_path.parent() {
+            fs::create_dir_all(parent)?;
+        }
+        // Renaming fails when the log path is on another volume.
+        if fs::rename(editor_log, log_path).is_err() {
+            fs::copy(editor_log, log_path)?;
+        }
+        Ok(Some(log_path.to_path_buf()))
+    })();
+
+    let _ = fs::remove_file(editor_log);
+    outcome
 }
 
 /// Polls for a result file from the Unity editor.
@@ -648,23 +722,22 @@ fn read_editor_build_result(result_file: &Path) -> anyhow::Result<EditorBuildRes
 ///
 /// Returns `Ok(())` if the build succeeded, `Err` otherwise.
 fn handle_editor_build_result(
-    result: EditorBuildResult,
+    result: &EditorBuildResult,
     setup: &ProjectSetup,
     start_time: chrono::DateTime<Utc>,
+    log_file: Option<&Path>,
 ) -> anyhow::Result<()> {
     match result.status.as_str() {
         "error" => bail!("{}", result.message),
         "failed" => {
             // Check for platform switch failure specifically
             if result.error_code.as_deref() == Some("PLATFORM_SWITCH_FAILED") {
-                bail!(
-                    "Platform switch failed: {}\n\n\
-                     This may happen if:\n\
+                return Err(editor_build_error(result, log_file).context(
+                    "Platform switch failed. This may happen if:\n\
                      - The target platform is not installed\n\
                      - The user cancelled the operation\n\
                      - Unity encountered an error during the switch",
-                    result.message
-                );
+                ));
             }
 
             MessageType::print_line(
@@ -676,6 +749,11 @@ fn handle_editor_build_result(
                 ),
                 MessageType::Error,
             );
+
+            // Only builds that ran have a report.
+            if result.build_result.is_some() {
+                print_editor_build_report(result, MessageType::Error, log_file);
+            }
         }
         "success" => {
             if result.platform_switched {
@@ -707,7 +785,7 @@ fn handle_editor_build_result(
             );
 
             // Print build report
-            print_editor_build_report(&result, MessageType::Ok);
+            print_editor_build_report(result, MessageType::Ok, log_file);
         }
         _ => {}
     }
@@ -728,12 +806,47 @@ fn handle_editor_build_result(
     if result.status == "success" {
         Ok(())
     } else {
-        bail!("Build failed")
+        Err(editor_build_error(result, log_file))
+    }
+}
+
+/// Returns the error for a failed editor build: the errors from its log if there are any,
+/// otherwise the editor's message.
+fn editor_build_error(result: &EditorBuildResult, log_file: Option<&Path>) -> anyhow::Error {
+    // Older builder scripts do not write a log file.
+    let Some(log_path) = log_file else {
+        return anyhow!("{}", result.message);
+    };
+
+    match find_log_errors(log_path) {
+        Ok(errors) if !errors.is_empty() => format_log_errors(&errors),
+        _ => anyhow!(
+            "{}\nSee the build log: {}",
+            result.message,
+            log_path.normalized_display()
+        ),
+    }
+}
+
+/// Removes the log file of a previous build, so a stale log is never reported.
+fn remove_old_log_file(log_path: &Path) -> anyhow::Result<()> {
+    match fs::remove_file(log_path) {
+        Err(e) if e.kind() != std::io::ErrorKind::NotFound => Err(e).with_context(|| {
+            format!(
+                "Failed to remove old log file: {}",
+                log_path.normalized_display()
+            )
+        }),
+        _ => Ok(()),
     }
 }
 
 /// Prints the build report from editor build result.
-fn print_editor_build_report(result: &EditorBuildResult, status: MessageType) {
+fn print_editor_build_report(
+    result: &EditorBuildResult,
+    status: MessageType,
+    log_file: Option<&Path>,
+) {
     if let Some(build_result) = &result.build_result {
         MessageType::print_line("Build result", build_result, status);
     }
@@ -761,6 +874,14 @@ fn print_editor_build_report(result: &EditorBuildResult, status: MessageType) {
         format!("{:.2}s", result.build_time_seconds),
         status,
     );
+
+    if let Some(log_file) = log_file {
+        MessageType::print_line(
+            "Log file",
+            log_file.normalized_display().to_string(),
+            status,
+        );
+    }
 }
 
 /// Command structure sent to Unity editor via JSON file.
@@ -785,16 +906,226 @@ struct EditorBuildResult {
     uuid: String,
     status: String,
     message: String,
+    #[serde(default, deserialize_with = "empty_string_as_none")]
     error_code: Option<String>,
     platform_switched: bool,
+    #[serde(default, deserialize_with = "empty_string_as_none")]
     original_platform: Option<String>,
+    #[serde(default, deserialize_with = "empty_string_as_none")]
     switched_to: Option<String>,
     build_time_seconds: f32,
     platform_switch_time_seconds: f32,
     output_path: String,
+    #[serde(default, deserialize_with = "empty_string_as_none")]
     build_result: Option<String>,
+    #[serde(default, deserialize_with = "empty_string_as_none")]
     platform: Option<String>,
     total_size: Option<u64>,
     total_errors: Option<i32>,
     total_warnings: Option<i32>,
+    /// Whether the editor wrote the build log to the command's `log_path`. Older builder scripts
+    /// do not write a log, and leave this out.
+    #[serde(default)]
+    log_written: bool,
+    /// The log file the editor itself writes to, if any.
+    #[serde(default, deserialize_with = "empty_string_as_none")]
+    editor_log_path: Option<String>,
+}
+
+/// Deserializes an optional string, treating `""` as `None`.
+///
+/// Unity's `JsonUtility` writes unset string fields as empty strings instead of `null`.
+fn empty_string_as_none<'de, D>(deserializer: D) -> Result<Option<String>, D::Error>
+where
+    D: serde::Deserializer<'de>,
+{
+    let value = Option::<String>::deserialize(deserializer)?;
+    Ok(value.filter(|s| !s.is_empty()))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::utils::test_util::TempDir;
+
+    /// Returns the fields every result from the editor has.
+    fn base_result_json() -> serde_json::Value {
+        serde_json::json!({
+            "uuid": "1234",
+            "status": "success",
+            "message": "ok",
+            "platform_switched": false,
+            "build_time_seconds": 1.0,
+            "platform_switch_time_seconds": 0.0,
+            "output_path": "/tmp/out",
+        })
+    }
+
+    /// Returns a failed build result, as `UnityBuilder.cs` writes it.
+    fn failed_result() -> EditorBuildResult {
+        let mut json = base_result_json();
+        json["status"] = "failed".into();
+        json["message"] = "Build failed. Check Unity console for errors.".into();
+        json["error_code"] = "BUILD_FAILED".into();
+        serde_json::from_value(json).unwrap()
+    }
+
+    /// Returns a result in which the editor reports its own log file and whether it wrote the build log.
+    fn result_with_log(editor_log_path: &Path, log_written: bool) -> EditorBuildResult {
+        let mut json = base_result_json();
+        json["editor_log_path"] = editor_log_path.to_string_lossy().into_owned().into();
+        json["log_written"] = log_written.into();
+        serde_json::from_value(json).unwrap()
+    }
+
+    #[test]
+    fn editor_build_result_treats_empty_strings_as_none() {
+        // Shaped like the output of Unity's `JsonUtility` for a build without a platform switch.
+        let json = r#"{
+            "uuid": "1234",
+            "status": "success",
+            "message": "ok",
+            "error_code": "",
+            "platform_switched": false,
+            "original_platform": "StandaloneOSX",
+            "switched_to": "",
+            "build_time_seconds": 1.5,
+            "platform_switch_time_seconds": 0.0,
+            "output_path": "/tmp/out",
+            "build_result": "Succeeded",
+            "platform": "StandaloneOSX",
+            "total_size": 0,
+            "total_errors": 0,
+            "total_warnings": 0,
+            "log_written": true,
+            "editor_log_path": ""
+        }"#;
+
+        let result: EditorBuildResult = serde_json::from_str(json).unwrap();
+
+        assert_eq!(result.editor_log_path, None);
+        assert_eq!(result.error_code, None);
+        assert_eq!(result.switched_to, None);
+        assert_eq!(result.original_platform.as_deref(), Some("StandaloneOSX"));
+        assert_eq!(result.build_result.as_deref(), Some("Succeeded"));
+        assert!(result.log_written);
+    }
+
+    #[test]
+    fn editor_build_result_accepts_missing_and_null_optional_fields() {
+        let mut json = base_result_json();
+        json["switched_to"] = serde_json::Value::Null;
+
+        let result: EditorBuildResult = serde_json::from_value(json).unwrap();
+
+        assert_eq!(result.original_platform, None);
+        assert_eq!(result.switched_to, None);
+        assert_eq!(result.platform, None);
+        assert!(!result.log_written);
+    }
+
+    #[test]
+    fn remove_old_log_file_removes_existing_and_ignores_missing() {
+        let dir = TempDir::new("remove-old-log");
+        let log_path = dir.path().join("Build-macos.log");
+
+        remove_old_log_file(&log_path).unwrap();
+
+        fs::write(&log_path, "old log").unwrap();
+        remove_old_log_file(&log_path).unwrap();
+        assert!(!log_path.exists());
+    }
+
+    #[test]
+    fn install_editor_log_moves_the_log_into_place() {
+        let dir = TempDir::new("install-log-move");
+        let editor_log = dir.path().join("build-1234.log");
+        let log_path = dir.path().join("Logs").join("Build.log");
+        fs::write(&editor_log, "new log").unwrap();
+
+        let result = result_with_log(&dir.path().join("Editor.log"), true);
+        let installed = install_editor_log(&result, &editor_log, &log_path).unwrap();
+
+        assert_eq!(installed.as_deref(), Some(log_path.as_path()));
+        assert_eq!(fs::read_to_string(&log_path).unwrap(), "new log");
+        assert!(!editor_log.exists());
+    }
+
+    #[test]
+    fn install_editor_log_removes_stale_log_when_none_was_written() {
+        let dir = TempDir::new("install-log-stale");
+        let log_path = dir.path().join("Build.log");
+        fs::write(&log_path, "old log").unwrap();
+
+        let result = result_with_log(&dir.path().join("Editor.log"), false);
+        let installed =
+            install_editor_log(&result, &dir.path().join("build-1234.log"), &log_path).unwrap();
+
+        assert_eq!(installed, None);
+        assert!(!log_path.exists());
+    }
+
+    #[test]
+    fn install_editor_log_leaves_the_editors_own_log_alone() {
+        let dir = TempDir::new("install-log-editor");
+        let editor_log = dir.path().join("build-1234.log");
+        let editor_own_log = dir.path().join("Editor.log");
+        fs::write(&editor_log, "new log").unwrap();
+        fs::write(&editor_own_log, "editor log").unwrap();
+
+        let result = result_with_log(&editor_own_log, true);
+
+        assert!(install_editor_log(&result, &editor_log, &editor_own_log).is_err());
+        assert_eq!(fs::read_to_string(&editor_own_log).unwrap(), "editor log");
+        assert!(!editor_log.exists());
+    }
+
+    #[test]
+    fn editor_build_error_uses_errors_from_log() {
+        let dir = TempDir::new("editor-error-log");
+        let log_path = dir.path().join("Build.log");
+        fs::write(
+            &log_path,
+            "Compiling\nAssets/A.cs(5,31): error CS0029: Cannot convert\nError building Player because scripts had compiler errors\n",
+        )
+        .unwrap();
+
+        let error = editor_build_error(&failed_result(), Some(&log_path)).to_string();
+
+        assert!(error.contains("1: Assets/A.cs(5,31): error CS0029: Cannot convert"));
+        assert!(error.contains("2: Error building Player"));
+    }
+
+    #[test]
+    fn editor_build_error_falls_back_to_message_when_log_has_no_errors() {
+        let dir = TempDir::new("editor-error-no-errors");
+        let log_path = dir.path().join("Build.log");
+        fs::write(&log_path, "Build Finished, Result: Failure.\n").unwrap();
+
+        let error = editor_build_error(&failed_result(), Some(&log_path)).to_string();
+
+        assert!(error.starts_with("Build failed. Check Unity console for errors."));
+        assert!(error.contains("Build.log"));
+    }
+
+    #[test]
+    fn editor_build_error_uses_message_without_log() {
+        let error = editor_build_error(&failed_result(), None).to_string();
+        assert_eq!(error, "Build failed. Check Unity console for errors.");
+    }
+
+    #[test]
+    fn find_log_errors_reads_past_invalid_utf8() {
+        let dir = TempDir::new("log-invalid-utf8");
+        let log_path = dir.path().join("Build.log");
+        fs::write(
+            &log_path,
+            b"Plugin says \xE9t\xE9\r\nAssets/A.cs(1,1): error CS1002: ; expected\r\n",
+        )
+        .unwrap();
+
+        let errors = find_log_errors(&log_path).unwrap();
+
+        assert_eq!(errors, ["Assets/A.cs(1,1): error CS1002: ; expected"]);
+    }
 }

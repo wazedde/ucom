@@ -134,7 +134,7 @@ fn select_top_level_process(matches: &[(Pid, Option<Pid>)]) -> Option<Pid> {
 /// components are resolved, and on case-insensitive file systems the spelling stored on disk
 /// is used, so paths that differ only in case compare equal there but not on case-sensitive
 /// volumes.
-fn comparable_path(path: &Path) -> PathBuf {
+pub fn comparable_path(path: &Path) -> PathBuf {
     fs::canonicalize(path).unwrap_or_else(|_| path.to_path_buf())
 }
 
