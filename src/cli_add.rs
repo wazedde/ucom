@@ -23,6 +23,7 @@ pub struct AddArguments {
     pub project_dir: PathBuf,
 
     /// Overwrite the target file if it already exists in the project directory.
+    /// For builder-menu, this also overwrites the builder script it requires.
     #[arg(
         short = 'f',
         long,

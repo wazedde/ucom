@@ -40,10 +40,11 @@ pub fn add_to_project(args: &AddArguments) -> anyhow::Result<()> {
     }
 
     if args.template == UnityTemplateFile::BuilderMenu {
-        // The build menu requires the builder script to be added as well.
+        // The build menu requires the builder script to be added as well. With `--force` it is
+        // replaced too, so the menu never runs against an older builder.
         let builder_script = UnityTemplateFile::Builder.as_asset();
         let local_path = &destination_dir.join(builder_script.filename);
-        if project.join(local_path).exists() {
+        if project.join(local_path).exists() && !args.force {
             warn_non_fatal!(
                 "{INDENT}Already exists:   {}",
                 local_path.normalized_display()
