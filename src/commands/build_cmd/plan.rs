@@ -345,7 +345,7 @@ mod tests {
     fn option_flags_combine_shortcuts_and_build_options() {
         let p = TestProject::new("plan-options");
         let plan = p
-            .plan(&["macos", "-d", "-r", "-O", "allow-debugging", "none"])
+            .plan(&["macos", "-d", "-r", "-O", "AllowDebugging", "None"])
             .unwrap();
 
         assert!(plan.options.contains(BuildOptions::Development));
@@ -354,6 +354,33 @@ mod tests {
         assert!(!plan.options.contains(BuildOptions::ShowBuiltPlayer));
         assert!(!plan.options.contains(BuildOptions::None));
         assert_eq!(plan.options.bits(), 1 | 4 | 0x200);
+    }
+
+    #[test]
+    fn build_option_values_are_the_unity_names() {
+        use clap::ValueEnum;
+
+        for option in BuildOptions::value_variants() {
+            let value = option.to_possible_value().unwrap();
+            assert_eq!(value.get_name(), format!("{option:?}"));
+        }
+    }
+
+    #[test]
+    fn kebab_case_build_option_names_are_still_accepted() {
+        let p = TestProject::new("plan-kebab-options");
+        let plan = p
+            .plan(&[
+                "macos",
+                "-O",
+                "show-built-player",
+                "compress-with-lz4-hc",
+                "none",
+            ])
+            .unwrap();
+
+        assert!(plan.options.contains(BuildOptions::ShowBuiltPlayer));
+        assert!(plan.options.contains(BuildOptions::CompressWithLz4HC));
     }
 
     #[test]

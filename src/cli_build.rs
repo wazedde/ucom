@@ -83,7 +83,7 @@ pub struct BuildArguments {
     /// Set specific Unity BuildOptions flags (space-separated, e.g., -O Development AllowDebugging).
     ///
     /// Use 'None' explicitly if needed, though it's the default if no flags are set.
-    #[arg(num_args(0..), short = 'O', long, value_name = "OPTION", default_value = "none")]
+    #[arg(num_args(0..), short = 'O', long, value_name = "OPTION", default_value = "None")]
     pub build_options: Vec<BuildOptions>,
 
     /// Custom argument string passed to methods marked with the [UcomPreProcessBuild] attribute.
@@ -285,80 +285,109 @@ impl From<BuildOpenTarget> for BuildScriptTarget {
 }
 
 /// Flags corresponding to UnityEditor.BuildOptions, controlling build characteristics.
+///
+/// The values are Unity's own `BuildOptions` names (`-O ShowBuiltPlayer`). The kebab-case names
+/// (`show-built-player`), clap's default, are accepted as hidden aliases.
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, ValueEnum)]
+#[value(rename_all = "verbatim")]
 pub enum BuildOptions {
     /// Perform a default build with no special options.
+    #[value(alias = "none")]
     None = 0,
 
     /// Build a development version with debug symbols and profiler capabilities.
+    #[value(alias = "development")]
     Development = 1,
 
     /// Automatically run the built player after the build finishes.
+    #[value(alias = "auto-run-player")]
     AutoRunPlayer = 4,
 
     /// Reveal the built player in the OS file explorer (Windows/macOS).
+    #[value(alias = "show-built-player")]
     ShowBuiltPlayer = 8,
 
     /// Include non-main scenes marked in Build Settings as streamed scenes in AssetBundles. (Less common)
+    #[value(alias = "build-additional-streamed-scenes")]
     BuildAdditionalStreamedScenes = 16, // 0x00000010
 
     /// Allow patching of the generated Xcode (iOS) or Gradle (Android) project.
+    #[value(alias = "accept-external-modifications-to-player")]
     AcceptExternalModificationsToPlayer = 32, // 0x00000020
 
     /// Force a clean build, discarding any cached build data.
+    #[value(alias = "clean-build-cache")]
     CleanBuildCache = 0x0000_0080,
 
     /// Enable the profiler and auto-connect the player to the Editor.
+    #[value(alias = "connect-with-profiler")]
     ConnectWithProfiler = 0x0000_0100,
 
     /// Allow script debugging connections to the built player.
+    #[value(alias = "allow-debugging")]
     AllowDebugging = 0x0000_0200,
 
     /// Create symlinks for script files instead of copying them (Platform dependent).
+    #[value(alias = "symlink-sources")]
     SymlinkSources = 0x0000_0400, // Deprecated/Renamed in recent Unity versions? Verify. Often SymlinkLibraries.
 
     /// Build asset bundles without compression.
+    #[value(alias = "uncompressed-asset-bundle")]
     UncompressedAssetBundle = 0x0000_0800,
 
     /// Make the player attempt to connect back to the Editor that initiated the build.
+    #[value(alias = "connect-to-host")]
     ConnectToHost = 0x0000_1000,
 
     /// Use a custom connection ID for player-editor communication. (Advanced)
+    #[value(alias = "custom-connection-id")]
     CustomConnectionId = 0x0000_2000,
 
     /// Compile scripts only, do not build player data.
+    #[value(alias = "build-scripts-only")]
     BuildScriptsOnly = 0x0000_8000,
 
     /// Create a patch package for Android development builds.
+    #[value(alias = "patch-package")]
     PatchPackage = 0x0001_0000,
 
     /// Use LZ4 compression for player data (default for many platforms).
+    #[value(alias = "compress-with-lz4")]
     CompressWithLz4 = 0x0004_0000,
 
     /// Use LZ4 high-compression for player data (slower build, potentially smaller size).
+    #[value(alias = "compress-with-lz4-hc")]
     CompressWithLz4HC = 0x0008_0000,
 
     /// Treat any build errors as fatal, failing the build immediately.
+    #[value(alias = "strict-mode")]
     StrictMode = 0x0020_0000,
 
     /// Include assemblies marked for testing in the build.
+    #[value(alias = "include-test-assemblies")]
     IncludeTestAssemblies = 0x0040_0000,
 
     /// Use a fixed, zero GUID for the build (internal use).
+    #[value(alias = "no-unique-identifier")]
     NoUniqueIdentifier = 0x0080_0000,
 
     /// Make the player wait for a debugger/profiler connection on startup.
+    #[value(alias = "wait-for-player-connection")]
     WaitForPlayerConnection = 0x0200_0000,
 
     /// Enable code coverage data collection in the build.
+    #[value(alias = "enable-code-coverage")]
     EnableCodeCoverage = 0x0400_0000,
 
     /// Enable deep profiling support in the player (increases overhead).
+    #[value(alias = "enable-deep-profiling-support")]
     EnableDeepProfilingSupport = 0x1000_0000,
 
     /// Generate a detailed report about the build process and assets included.
+    #[value(alias = "detailed-build-report")]
     DetailedBuildReport = 0x2000_0000,
 
     /// Enable shader live-link support for faster shader iteration (requires editor connection).
+    #[value(alias = "shader-livelink-support")]
     ShaderLivelinkSupport = 0x4000_0000,
 }
