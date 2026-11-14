@@ -12,9 +12,10 @@ use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
 use super::build_log::{find_log_errors, format_log_errors, remove_old_log_file};
+use super::plan::BuildPlan;
 use super::{clean_output_directory, start_build_status};
 use crate::cli_add::UnityTemplateFile;
-use crate::cli_build::{BuildArguments, BuildScriptTarget, DEFAULT_BUILD_FUNCTION};
+use crate::cli_build::{BuildOptions, BuildScriptTarget};
 use crate::commands::{
     PERSISTENT_BUILD_SCRIPT_ROOT, ProjectSetup, TimeDeltaExt, report_version_issues, warn_non_fatal,
 };
@@ -30,16 +31,13 @@ use crate::utils::write_atomic;
 /// apply here. Flags that would change the build but cannot be sent to the editor produce a
 /// warning.
 pub(super) fn build_via_editor(
-    args: &BuildArguments,
+    plan: &BuildPlan,
     setup: &ProjectSetup,
     editor_pid: Pid,
     start_time: chrono::DateTime<Utc>,
 ) -> anyhow::Result<()> {
     ensure_editor_builder_installed(setup)?;
-    warn_unsupported_editor_build_flags(args);
-
-    let output_path = args.output_path(&setup.project)?;
-    let log_path = args.full_log_path(&setup.project)?;
+    warn_unsupported_editor_build_flags(plan);
 
     // The editor writes the build log next to the result, and ucom moves it to `log_path`.
     let uuid = Uuid::new_v4();
@@ -49,16 +47,16 @@ pub(super) fn build_via_editor(
         command: EditorCommandKind::Build,
         uuid,
         timestamp: Utc::now(),
-        platform: BuildScriptTarget::from(args.target),
-        output_path: output_path.clone(),
+        platform: plan.script_target(),
+        output_path: plan.output_path.clone(),
         log_path: editor_log.clone(),
-        build_options: args.build_option_flags(),
-        development_build: args.development_build,
-        force_platform_switch: args.force_editor_build,
-        force_play_mode_exit: args.force_editor_build,
+        build_options: plan.options.bits(),
+        development_build: plan.options.contains(BuildOptions::Development),
+        force_platform_switch: plan.force_editor_build,
+        force_play_mode_exit: plan.force_editor_build,
     };
 
-    if args.dry_run {
+    if plan.dry_run {
         println!(
             "The project is open in the Unity editor. This build command would be sent to it:"
         );
@@ -66,18 +64,18 @@ pub(super) fn build_via_editor(
         return Ok(());
     }
 
-    let build_status = start_build_status("Building via editor", args, setup);
+    let build_status = start_build_status("Building via editor", plan, setup);
 
     let result = send_editor_command(&setup.project, &command, editor_pid)?;
     drop(build_status);
 
-    let log_file = install_editor_log(&result, &editor_log, &log_path).unwrap_or_else(|e| {
+    let log_file = install_editor_log(&result, &editor_log, &plan.log_path).unwrap_or_else(|e| {
         warn_non_fatal!("The build log was not written: {e:#}");
         None
     });
 
-    if result.status == EditorBuildStatus::Success && args.clean {
-        clean_output_directory(&output_path)?;
+    if result.status == EditorBuildStatus::Success && plan.clean {
+        clean_output_directory(&plan.output_path)?;
     }
 
     let outcome = handle_editor_build_result(&result, setup, start_time, log_file.as_deref());
@@ -111,18 +109,8 @@ fn ensure_editor_builder_installed(setup: &ProjectSetup) -> anyhow::Result<()> {
 }
 
 /// Warns about flags that change the build but are not supported when building via the editor.
-fn warn_unsupported_editor_build_flags(args: &BuildArguments) {
-    let mut unsupported = Vec::new();
-    if args.build_function != DEFAULT_BUILD_FUNCTION {
-        unsupported.push("--build-function");
-    }
-    if args.build_args.is_some() {
-        unsupported.push("--build-args");
-    }
-    if args.args.as_ref().is_some_and(|a| !a.is_empty()) {
-        unsupported.push("additional Unity arguments");
-    }
-
+fn warn_unsupported_editor_build_flags(plan: &BuildPlan) {
+    let unsupported = plan.unsupported_in_editor();
     if !unsupported.is_empty() {
         warn_non_fatal!(
             "Ignored when building via the running Unity editor: {}",

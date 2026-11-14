@@ -113,15 +113,10 @@ pub struct BuildArguments {
 
     /// The static C# function to execute for building (e.g., 'MyNamespace.MyBuilder.Build').
     ///
-    /// Defaults to the function provided by the injected ucom build script.
-    /// Not supported when the project is open in the Unity editor.
-    #[arg(
-        short = 'f',
-        long,
-        value_name = "FUNCTION",
-        default_value = DEFAULT_BUILD_FUNCTION
-    )]
-    pub build_function: String,
+    /// Defaults to 'Ucom.UnityBuilder.Build', the function provided by the injected ucom build
+    /// script. Not supported when the project is open in the Unity editor.
+    #[arg(short = 'f', long, value_name = "FUNCTION")]
+    pub build_function: Option<String>,
 
     /// Redirect Unity's build log output to a specific file path.
     ///
