@@ -233,6 +233,7 @@ Most commands have short aliases:
 - Git required for `ucom new` with version control
 - iOS builds export Xcode project but don't compile it
 - Editor IPC builds require `UnityBuilder.cs` in project
+- The build script (`UnityBuilder.cs`, `EditorMenu.cs`) requires Unity 2021.3 or newer; `build`, `add builder`, `add builder-menu` and `new --add-builder-menu` refuse older versions, except batch builds with `--inject off` and your own `--build-function`
 
 ## Help
 

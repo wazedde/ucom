@@ -9,7 +9,8 @@ use crate::cli_add::UnityTemplateFile;
 use crate::cli_new::NewArguments;
 use crate::commands::unity_command_builder::UnityCommandBuilder;
 use crate::commands::{
-    PERSISTENT_BUILD_SCRIPT_ROOT, add_file_to_project, execute_unity_command, report_version_issues,
+    PERSISTENT_BUILD_SCRIPT_ROOT, add_file_to_project, ensure_builder_supports,
+    execute_unity_command, report_version_issues,
 };
 use crate::unity::build_command_line;
 use crate::unity::installations::Installations;
@@ -35,6 +36,11 @@ pub fn new_project(arguments: NewArguments) -> anyhow::Result<()> {
     }
 
     let version = Installations::latest_installed_version(Some(&arguments.version_pattern))?;
+    if arguments.add_builder_menu {
+        // Checked before the project is created, so an unsupported version leaves nothing behind.
+        ensure_builder_supports(version)?;
+    }
+
     let editor_exe = version.editor_executable_path()?;
 
     let mut builder = UnityCommandBuilder::new(editor_exe)

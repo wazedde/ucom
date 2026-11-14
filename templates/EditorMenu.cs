@@ -16,10 +16,11 @@
  * limitations under the License.
  */
 
-#if UNITY_2018_3_OR_NEWER
+#if UNITY_2021_3_OR_NEWER
 using System.Collections.Generic;
 using System.Linq;
 using UnityEditor;
+using UnityEditor.Build;
 using UnityEngine;
 
 // ReSharper disable once CheckNamespace
@@ -70,7 +71,9 @@ namespace Ucom
         /// <returns>True if the scripting define symbol is defined; False otherwise.</returns>
         public static bool HasDefine(string define, BuildTargetGroup buildTargetGroup)
         {
-            var symbols = PlayerSettings.GetScriptingDefineSymbolsForGroup(buildTargetGroup).Split(';');
+            var symbols = PlayerSettings
+                .GetScriptingDefineSymbols(NamedBuildTarget.FromBuildTargetGroup(buildTargetGroup))
+                .Split(';');
             return symbols.Contains(define);
         }
 
@@ -82,7 +85,8 @@ namespace Ucom
         /// <param name="buildTargetGroup"></param>
         public static void SetDefine(string define, bool enabled, BuildTargetGroup buildTargetGroup)
         {
-            var symbols = PlayerSettings.GetScriptingDefineSymbolsForGroup(buildTargetGroup);
+            var namedBuildTarget = NamedBuildTarget.FromBuildTargetGroup(buildTargetGroup);
+            var symbols = PlayerSettings.GetScriptingDefineSymbols(namedBuildTarget);
             var symbolList = symbols.Split(';');
 
             switch (enabled)
@@ -97,7 +101,7 @@ namespace Ucom
                     return;
             }
 
-            PlayerSettings.SetScriptingDefineSymbolsForGroup(buildTargetGroup, symbols);
+            PlayerSettings.SetScriptingDefineSymbols(namedBuildTarget, symbols);
         }
     }
 
@@ -180,7 +184,6 @@ namespace Ucom
             Debug.Log("[Builder] Finished Release build");
         }
 
-#if UNITY_2019_3_OR_NEWER
         /// <summary>
         /// Builds a debug build for deep profiling.
         /// </summary>
@@ -202,7 +205,6 @@ namespace Ucom
 
             Debug.Log("[Builder] Finished Debug (Deep Profiling) build");
         }
-#endif // UNITY_2019_3_OR_NEWER
 
         /// <summary>
         /// Opens the Builds directory in the project root.
@@ -247,7 +249,6 @@ namespace Ucom
             return false;
         }
 
-#if UNITY_2019_1_OR_NEWER
         /// <summary>
         /// Builds a development for script debugging.
         /// </summary>
@@ -289,9 +290,8 @@ namespace Ucom
 
             Debug.Log("[Builder] Finished Debug (Profiling) build");
         }
-#endif // UNITY_2019_1_OR_NEWER
     }
 }
 #endif // !DISABLE_UCOM_MENU
 
-#endif // UNITY_2018_3_OR_NEWER
+#endif // UNITY_2021_3_OR_NEWER

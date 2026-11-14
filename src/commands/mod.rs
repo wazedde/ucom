@@ -1,6 +1,6 @@
 use crate::cli_add::UnityTemplateFile;
 use crate::utils::path_ext::PlatformConsistentPathExt;
-use anyhow::{Context, anyhow};
+use anyhow::{Context, anyhow, bail};
 use chrono::TimeDelta;
 use std::borrow::Cow;
 use std::fmt::{Display, Formatter};
@@ -25,7 +25,7 @@ use crate::style_definitions::{
 };
 use crate::unity::release_api::{UpdatePolicy, fetch_latest_releases};
 use crate::unity::release_api_data::{LabelElement, ReleaseIssue};
-use crate::unity::{ProjectPath, Version};
+use crate::unity::{Major, Minor, ProjectPath, Version};
 use crate::utils::report::{HeaderLevel, Report, WrapMode};
 
 mod add_cmd;
@@ -42,6 +42,22 @@ pub mod test_cmd;
 mod unity_command_builder;
 
 pub const PERSISTENT_BUILD_SCRIPT_ROOT: &str = "Assets/Plugins/Ucom/Editor";
+
+/// The oldest Unity version (major, minor) that the builder scripts (`UnityBuilder.cs` and
+/// `EditorMenu.cs`) support. Keep in sync with their `#if UNITY_2021_3_OR_NEWER` guards.
+const MIN_BUILDER_VERSION: (Major, Minor) = (2021, 3);
+
+/// Returns an error if the builder scripts do not support the project's Unity version.
+pub fn ensure_builder_supports(unity_version: Version) -> anyhow::Result<()> {
+    let (major, minor) = MIN_BUILDER_VERSION;
+    if (unity_version.major, unity_version.minor) < MIN_BUILDER_VERSION {
+        bail!(
+            "The ucom build script requires Unity {major}.{minor} or newer; this project uses Unity {unity_version}"
+        );
+    }
+    Ok(())
+}
+
 pub const INDENT: &str = "  ";
 pub const MARK_NO_INFO: &str = "?";
 pub const MARK_BULLET: &str = "-";
@@ -280,5 +296,21 @@ impl ReleaseIssue {
 
     pub fn issue_tag(&self) -> String {
         self.issue_tag_with_prefix("")
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn builder_requires_unity_2021_3_or_newer() {
+        let supports = |v: &str| ensure_builder_supports(v.parse().unwrap()).is_ok();
+
+        assert!(!supports("2020.3.48f1"));
+        assert!(!supports("2021.2.19f1"));
+        assert!(supports("2021.3.0f1"));
+        assert!(supports("2022.1.0b1"));
+        assert!(supports("6000.6.8f1"));
     }
 }

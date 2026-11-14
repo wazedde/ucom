@@ -3,7 +3,10 @@ use std::path::PathBuf;
 use anyhow::bail;
 
 use crate::cli_add::{AddArguments, AssetSource, UnityTemplateFile};
-use crate::commands::{INDENT, PERSISTENT_BUILD_SCRIPT_ROOT, add_file_to_project, warn_non_fatal};
+use crate::commands::{
+    INDENT, PERSISTENT_BUILD_SCRIPT_ROOT, add_file_to_project, ensure_builder_supports,
+    warn_non_fatal,
+};
 use crate::unity::project::ProjectPath;
 use crate::utils::path_ext::PlatformConsistentPathExt;
 
@@ -23,6 +26,7 @@ pub fn add_to_project(args: &AddArguments) -> anyhow::Result<()> {
 
     let destination_dir = match args.template {
         UnityTemplateFile::Builder | UnityTemplateFile::BuilderMenu => {
+            ensure_builder_supports(project.unity_version()?)?;
             PathBuf::from(PERSISTENT_BUILD_SCRIPT_ROOT)
         }
         UnityTemplateFile::GitIgnore | UnityTemplateFile::GitAttributes => PathBuf::default(),

@@ -7,7 +7,9 @@ use std::fs;
 use std::path::Path;
 
 use crate::cli_build::BuildArguments;
-use crate::commands::{ProjectSetup, TimeDeltaExt, report_version_issues};
+use crate::commands::{
+    ProjectSetup, TimeDeltaExt, ensure_builder_supports, report_version_issues, warn_non_fatal,
+};
 use crate::unity::{
     build_command_line, find_unity_editor_process, wait_with_log_output, wait_with_stdout,
 };
@@ -28,8 +30,20 @@ pub fn build_project(arguments: &BuildArguments) -> anyhow::Result<()> {
     let setup = ProjectSetup::new(&arguments.project_dir)?;
     let plan = BuildPlan::new(arguments, &setup.project)?;
 
+    let editor_pid = find_unity_editor_process(&setup.project);
+
+    // A dry run still shows what would be run.
+    if editor_pid.is_some() || plan.batch_uses_builder() {
+        match ensure_builder_supports(setup.unity_version) {
+            Err(e) if plan.args.dry_run => {
+                warn_non_fatal!("{e}");
+            }
+            result => result?,
+        }
+    }
+
     // If the project is open in the Unity editor, build there via IPC.
-    if let Some(editor_pid) = find_unity_editor_process(&setup.project) {
+    if let Some(editor_pid) = editor_pid {
         return build_via_editor(&plan, &setup, editor_pid, start_time);
     }
 

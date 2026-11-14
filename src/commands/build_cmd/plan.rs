@@ -9,7 +9,7 @@ use path_absolutize::Absolutize;
 
 use crate::cli_build::{
     BuildArguments, BuildMode, BuildOpenTarget, BuildOptions, BuildOutputType, BuildScriptTarget,
-    DEFAULT_BUILD_FUNCTION,
+    DEFAULT_BUILD_FUNCTION, InjectAction,
 };
 use crate::commands::unity_command_builder::UnityCommandBuilder;
 use crate::unity::ProjectPath;
@@ -79,6 +79,12 @@ impl<'a> BuildPlan<'a> {
             .build_function
             .as_deref()
             .filter(|&f| f != DEFAULT_BUILD_FUNCTION)
+    }
+
+    /// Returns true if a build in a new Unity process uses ucom's build script: the script is
+    /// injected, or the default build function is called. Editor builds always use it.
+    pub(super) fn batch_uses_builder(&self) -> bool {
+        self.args.inject != InjectAction::Off || self.build_function().is_none()
     }
 
     /// Returns the additional arguments for the Unity process.
@@ -260,6 +266,18 @@ mod tests {
             // Leaked so the plan can borrow the arguments for the rest of the test.
             BuildPlan::new(Box::leak(Box::new(build_args)), &self.project)
         }
+    }
+
+    #[test]
+    fn batch_uses_builder_unless_not_injected_and_another_function() {
+        let p = TestProject::new("plan-uses-builder");
+        let uses = |args: &[&str]| p.plan(args).unwrap().batch_uses_builder();
+
+        assert!(uses(&["macos"]));
+        assert!(uses(&["macos", "-f", "My.Builder.Build"]));
+        assert!(uses(&["macos", "-i", "off"]));
+        assert!(uses(&["macos", "-i", "off", "-f", DEFAULT_BUILD_FUNCTION]));
+        assert!(!uses(&["macos", "-i", "off", "-f", "My.Builder.Build"]));
     }
 
     #[test]

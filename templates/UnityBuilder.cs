@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-#if UNITY_2018_3_OR_NEWER
+#if UNITY_2021_3_OR_NEWER
 using System;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
@@ -382,31 +382,8 @@ namespace Ucom
         /// <param name="logType">The <see cref="LogType"/>.</param>
         public static void Log(string message, LogType logType = LogType.Log)
         {
-#if UNITY_2019_1_OR_NEWER
-            Debug.LogFormat(logType, LogOption.NoStacktrace, null, message);
-#else // UNITY_2019_1_OR_NEWER
-            switch (logType)
-            {
-                case LogType.Error:
-                    Debug.LogError(message);
-                    break;
-                case LogType.Assert:
-                    Debug.LogAssertion(message);
-                    break;
-                case LogType.Warning:
-                    Debug.LogWarning(message);
-                    break;
-                case LogType.Log:
-                    Debug.Log(message);
-                    break;
-                case LogType.Exception:
-                    Debug.LogException(new Exception(message));
-                    break;
-                default:
-                    Debug.Log(message);
-                    break;
-            }
-#endif // UNITY_2019_1_OR_NEWER
+            // The message is an argument, not the format string: it can contain braces (paths, exceptions).
+            Debug.LogFormat(logType, LogOption.NoStacktrace, null, "{0}", message);
         }
 
         /// <summary>
@@ -470,35 +447,40 @@ namespace Ucom
 
         private static bool RunPreProcessBuildMethod(string arg)
         {
-            var methods = AppDomain.CurrentDomain
-                .GetAssemblies()
-                .SelectMany(assembly => assembly.GetTypes())
-                .SelectMany(GetPreProcessBuildMethods)
+            var methods = TypeCache.GetMethodsWithAttribute<UcomPreProcessBuildAttribute>()
+                .Where(m => m.IsStatic)
                 .ToList();
-            if (!methods.Any())
+            if (methods.Count == 0)
                 return true;
 
+            if (methods.Count > 1)
+            {
+                var m = string.Join(", ", methods.Select(MethodName));
+                Log(
+                    $"[Builder] Error: Multiple {nameof(UcomPreProcessBuildAttribute)} methods found, there should only be one: {m}",
+                    LogType.Error
+                );
+                return false;
+            }
+
+            var method = methods[0];
             try
             {
-                var method = methods.Single();
                 return InvokeMethod(method, arg);
             }
-            catch (Exception)
+            catch (Exception e)
             {
-                var m = string.Join(", ", methods.Select(m => $"{m.ReflectedType?.FullName}.{m.Name}"));
+                // Invoke wraps what the method throws in a TargetInvocationException.
+                var error = (e as TargetInvocationException)?.InnerException ?? e;
                 Log(
-                    $"[Builder] Multiple {nameof(UcomPreProcessBuildAttribute)} methods found, there should only be one: {m}",
+                    $"[Builder] Error: {MethodName(method)} failed: {error}",
                     LogType.Error
                 );
                 return false;
             }
         }
 
-        private static IEnumerable<MethodInfo> GetPreProcessBuildMethods(Type type)
-        {
-            return type.GetMethods(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Static)
-                .Where(m => m.GetCustomAttributes(typeof(UcomPreProcessBuildAttribute), false).Any());
-        }
+        private static string MethodName(MethodBase method) => $"{method.ReflectedType?.FullName}.{method.Name}";
 
         private static bool InvokeMethod(MethodBase method, string args)
         {
@@ -510,7 +492,7 @@ namespace Ucom
             }
 
             Log(
-                $"[Builder] Invalid method signature for UcomPreProcessBuildAttribute: {method.ReflectedType?.FullName}.{method.Name}",
+                $"[Builder] Error: Invalid method signature for UcomPreProcessBuildAttribute: {MethodName(method)}",
                 LogType.Error
             );
             return false;
@@ -1037,7 +1019,6 @@ namespace Ucom
         {
             path = null;
             length = 0;
-#if UNITY_2019_1_OR_NEWER
             try
             {
                 var info = new FileInfo(Application.consoleLogPath);
@@ -1053,9 +1034,6 @@ namespace Ucom
                 // No log file (e.g. -logFile -), or an invalid path.
                 return false;
             }
-#else
-            return false;
-#endif
         }
 
         /// <summary>
@@ -1215,5 +1193,5 @@ namespace Ucom
 #endif // UNITY_EDITOR
 }
 #else
-#error "Ucom command line building is not supported for this version of Unity; version 2018.3 or newer is required."
-#endif // UNITY_2018_3_OR_NEWER
+#error "Ucom command line building is not supported for this version of Unity; version 2021.3 or newer is required."
+#endif // UNITY_2021_3_OR_NEWER
