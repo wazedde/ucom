@@ -24,7 +24,7 @@ pub fn run_tests(arguments: &TestArguments) -> anyhow::Result<()> {
     let test_results = format!(
         "tests-{}-{}.xml",
         arguments.platform,
-        Utc::now().format("%Y%m%d%H%M%S")
+        Local::now().format("%Y%m%d%H%M%S")
     );
 
     let output_path = setup.project.join(test_results);
