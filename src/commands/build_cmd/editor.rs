@@ -35,7 +35,13 @@ pub(super) fn build_via_editor(
     editor_pid: Pid,
     start_time: chrono::DateTime<Utc>,
 ) -> anyhow::Result<()> {
-    ensure_editor_builder_installed(setup)?;
+    if let Err(e) = ensure_editor_builder_installed(setup) {
+        if !plan.args.dry_run {
+            return Err(e);
+        }
+        // A dry run still shows the command, and reports the missing script as a warning.
+        warn_non_fatal!("{e:#}");
+    }
     warn_unsupported_editor_build_flags(plan);
 
     // The editor writes the build log next to the result, and ucom moves it to `log_path`.
@@ -54,18 +60,25 @@ pub(super) fn build_via_editor(
         force_platform_switch: plan.args.force_editor_build,
         force_play_mode_exit: plan.args.force_editor_build,
     };
+    let command_json = serde_json::to_string_pretty(&command).context(
+        "Failed to create the build command for the Unity editor; are all paths valid UTF-8?",
+    )?;
 
     if plan.args.dry_run {
         println!(
             "The project is open in the Unity editor. This build command would be sent to it:"
         );
-        println!("{}", serde_json::to_string_pretty(&command)?);
+        println!("{command_json}");
+        println!(
+            "The editor writes the build log to the log_path above; ucom then moves it to: {}",
+            plan.log_path.normalized_display()
+        );
         return Ok(());
     }
 
     let build_status = start_build_status("Building via editor", plan, setup);
 
-    let result = send_editor_command(&setup.project, &command, editor_pid)?;
+    let result = send_editor_command(&setup.project, uuid, &command_json, editor_pid)?;
     drop(build_status);
 
     let log_file = install_editor_log(&result, &editor_log, &plan.log_path).unwrap_or_else(|e| {
@@ -117,7 +130,8 @@ fn warn_unsupported_editor_build_flags(plan: &BuildPlan) {
 /// Writes a command file for the editor and waits for the matching result file.
 fn send_editor_command(
     project: &ProjectPath,
-    command: &EditorCommand,
+    uuid: Uuid,
+    command_json: &str,
     editor_pid: Pid,
 ) -> anyhow::Result<EditorBuildResult> {
     let command_dir = project.join("Temp").join("ucom-commands");
@@ -126,11 +140,11 @@ fn send_editor_command(
     fs::create_dir_all(&command_dir)?;
     fs::create_dir_all(&result_dir)?;
 
-    let file_name = format!("build-{}.json", command.uuid);
+    let file_name = format!("build-{uuid}.json");
     let command_file = command_dir.join(&file_name);
     let result_file = result_dir.join(&file_name);
 
-    write_atomic(&command_file, serde_json::to_string_pretty(command)?)?;
+    write_atomic(&command_file, command_json)?;
 
     let result = poll_for_result(&result_file, editor_pid)?;
     // NOTE: When the user cancels the polling, files are left behind. Which is fine.
