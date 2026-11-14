@@ -33,3 +33,9 @@ yansi = { version = "1.0", features = ["hyperlink"] }
 
 [target."cfg(unix)".dependencies]
 libc = "0.2"
+
+# End-to-end tests against a fake Unity. The test program is also the fake, so it has its own
+# `main` instead of the standard test harness.
+[[test]]
+name = "fake_unity"
+harness = false
