@@ -9,7 +9,7 @@ use path_absolutize::Absolutize;
 
 use crate::cli_build::{
     BuildArguments, BuildMode, BuildOpenTarget, BuildOptions, BuildOutputType, BuildScriptTarget,
-    DEFAULT_BUILD_FUNCTION, InjectAction,
+    DEFAULT_BUILD_FUNCTION,
 };
 use crate::commands::unity_command_builder::UnityCommandBuilder;
 use crate::unity::ProjectPath;
@@ -43,30 +43,20 @@ impl FromIterator<BuildOptions> for BuildOptionFlags {
     }
 }
 
-/// A validated build: what to build, where to, and how.
+/// A validated build: the command line arguments, plus the values derived from them once.
 #[derive(Debug)]
-pub(super) struct BuildPlan {
-    pub(super) target: BuildOpenTarget,
+pub(super) struct BuildPlan<'a> {
+    pub(super) args: &'a BuildArguments,
     pub(super) output_path: PathBuf,
     pub(super) log_path: PathBuf,
     pub(super) options: BuildOptionFlags,
-    /// The C# build function, if one other than the default was given.
-    pub(super) build_function: Option<String>,
-    pub(super) build_args: Option<String>,
-    pub(super) unity_args: Vec<String>,
-    pub(super) mode: BuildMode,
-    pub(super) inject: InjectAction,
-    pub(super) quiet: bool,
-    pub(super) clean: bool,
-    pub(super) dry_run: bool,
-    pub(super) force_editor_build: bool,
 }
 
-impl BuildPlan {
+impl<'a> BuildPlan<'a> {
     /// Creates the plan for building `project` with the given arguments.
-    pub(super) fn new(args: &BuildArguments, project: &ProjectPath) -> anyhow::Result<Self> {
+    pub(super) fn new(args: &'a BuildArguments, project: &ProjectPath) -> anyhow::Result<Self> {
         Ok(Self {
-            target: args.target,
+            args,
             output_path: resolve_output_path(
                 args.build_path.as_deref(),
                 args.output_type,
@@ -75,43 +65,44 @@ impl BuildPlan {
             )?,
             log_path: resolve_log_path(args.log_file.as_deref(), args.target, project)?,
             options: option_flags(args),
-            build_function: args
-                .build_function
-                .clone()
-                .filter(|f| f != DEFAULT_BUILD_FUNCTION),
-            build_args: args.build_args.clone(),
-            unity_args: args.args.clone().unwrap_or_default(),
-            mode: args.mode,
-            inject: args.inject,
-            quiet: args.quiet,
-            clean: args.clean,
-            dry_run: args.dry_run,
-            force_editor_build: args.force_editor_build,
         })
     }
 
     /// Returns the build target as the name of `UnityEditor.BuildTarget`.
     pub(super) fn script_target(&self) -> BuildScriptTarget {
-        BuildScriptTarget::from(self.target)
+        BuildScriptTarget::from(self.args.target)
+    }
+
+    /// Returns the C# build function, if one other than the default was given.
+    fn build_function(&self) -> Option<&str> {
+        self.args
+            .build_function
+            .as_deref()
+            .filter(|&f| f != DEFAULT_BUILD_FUNCTION)
+    }
+
+    /// Returns the additional arguments for the Unity process.
+    fn unity_args(&self) -> &[String] {
+        self.args.args.as_deref().unwrap_or_default()
     }
 
     /// Returns true if the Unity log should be shown while building in a new Unity process.
     pub(super) fn show_log(&self) -> bool {
-        !self.quiet && matches!(self.mode, BuildMode::Batch | BuildMode::BatchNoGraphics)
+        !self.args.quiet
+            && matches!(
+                self.args.mode,
+                BuildMode::Batch | BuildMode::BatchNoGraphics
+            )
     }
 
     /// Returns the command that builds the project in a new Unity process.
     pub(super) fn batch_command(&self, project: &ProjectPath, editor_exe: &Path) -> Command {
         let mut builder = UnityCommandBuilder::new(editor_exe.to_path_buf())
             .with_project_path(project.to_path_buf())
-            .with_build_target(self.target.as_ref())
+            .with_build_target(self.args.target.as_ref())
             .with_log_file(&self.log_path)
             .add_arg("-executeMethod")
-            .add_arg(
-                self.build_function
-                    .as_deref()
-                    .unwrap_or(DEFAULT_BUILD_FUNCTION),
-            )
+            .add_arg(self.build_function().unwrap_or(DEFAULT_BUILD_FUNCTION))
             .add_arg("--ucom-build-output")
             .add_arg(self.output_path.to_string_lossy().to_string())
             .add_arg("--ucom-build-target")
@@ -123,30 +114,30 @@ impl BuildPlan {
                 .add_arg(self.options.bits().to_string());
         }
 
-        if let Some(build_args) = &self.build_args {
+        if let Some(build_args) = &self.args.build_args {
             builder = builder.add_arg("--ucom-pre-build-args").add_arg(build_args);
         }
 
-        builder = match self.mode {
+        builder = match self.args.mode {
             BuildMode::BatchNoGraphics => builder.batch_mode(true).no_graphics(true).quit(true),
             BuildMode::Batch => builder.batch_mode(true).quit(true),
             BuildMode::EditorQuit => builder.quit(true),
             BuildMode::Editor => builder,
         };
 
-        builder.add_args(self.unity_args.iter().cloned()).build()
+        builder.add_args(self.unity_args().iter().cloned()).build()
     }
 
     /// Returns the flags that change the build but cannot be sent to a running editor.
     pub(super) fn unsupported_in_editor(&self) -> Vec<&'static str> {
         let mut unsupported = Vec::new();
-        if self.build_function.is_some() {
+        if self.build_function().is_some() {
             unsupported.push("--build-function");
         }
-        if self.build_args.is_some() {
+        if self.args.build_args.is_some() {
             unsupported.push("--build-args");
         }
-        if !self.unity_args.is_empty() {
+        if !self.unity_args().is_empty() {
             unsupported.push("additional Unity arguments");
         }
         unsupported
@@ -261,14 +252,15 @@ mod tests {
         /// Parses `ucom build <target> <project> <rest...>` and creates its plan.
         ///
         /// The project comes right after the target, since `-O` takes any number of values.
-        fn plan(&self, args: &[&str]) -> anyhow::Result<BuildPlan> {
+        fn plan(&self, args: &[&str]) -> anyhow::Result<BuildPlan<'static>> {
             let project = self.project.to_string_lossy().into_owned();
             let (target, rest) = args.split_first().unwrap();
             let argv = ["ucom", target, project.as_str()]
                 .into_iter()
                 .chain(rest.iter().copied());
             let cli = TestCli::try_parse_from(argv).unwrap();
-            BuildPlan::new(&cli.args, &self.project)
+            // Leaked so the plan can borrow the arguments for the rest of the test.
+            BuildPlan::new(Box::leak(Box::new(cli.args)), &self.project)
         }
     }
 
@@ -470,7 +462,7 @@ mod tests {
         // Passing the default build function explicitly counts as not set.
         let plan = p.plan(&["macos", "-f", DEFAULT_BUILD_FUNCTION]).unwrap();
         assert!(plan.unsupported_in_editor().is_empty());
-        assert_eq!(plan.build_function, None);
+        assert_eq!(plan.build_function(), None);
     }
 
     #[test]

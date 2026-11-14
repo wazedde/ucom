@@ -13,12 +13,11 @@ use uuid::Uuid;
 
 use super::build_log::{find_log_errors, format_log_errors, remove_old_log_file};
 use super::plan::BuildPlan;
+use super::script::persistent_builder_path;
 use super::{clean_output_directory, start_build_status};
 use crate::cli_add::UnityTemplateFile;
 use crate::cli_build::{BuildOptions, BuildScriptTarget};
-use crate::commands::{
-    PERSISTENT_BUILD_SCRIPT_ROOT, ProjectSetup, TimeDeltaExt, report_version_issues, warn_non_fatal,
-};
+use crate::commands::{ProjectSetup, TimeDeltaExt, report_version_issues, warn_non_fatal};
 use crate::unity::{Pid, ProjectPath, comparable_path, is_process_running};
 use crate::utils::native_progress::{NativeProgressBar, NativeProgressState};
 use crate::utils::path_ext::PlatformConsistentPathExt;
@@ -52,11 +51,11 @@ pub(super) fn build_via_editor(
         log_path: editor_log.clone(),
         build_options: plan.options.bits(),
         development_build: plan.options.contains(BuildOptions::Development),
-        force_platform_switch: plan.force_editor_build,
-        force_play_mode_exit: plan.force_editor_build,
+        force_platform_switch: plan.args.force_editor_build,
+        force_play_mode_exit: plan.args.force_editor_build,
     };
 
-    if plan.dry_run {
+    if plan.args.dry_run {
         println!(
             "The project is open in the Unity editor. This build command would be sent to it:"
         );
@@ -74,7 +73,7 @@ pub(super) fn build_via_editor(
         None
     });
 
-    if result.status == EditorBuildStatus::Success && plan.clean {
+    if result.status == EditorBuildStatus::Success && plan.args.clean {
         clean_output_directory(&plan.output_path)?;
     }
 
@@ -87,12 +86,8 @@ pub(super) fn build_via_editor(
 /// is not installed in the project.
 fn ensure_editor_builder_installed(setup: &ProjectSetup) -> anyhow::Result<()> {
     let builder_file_name = UnityTemplateFile::Builder.as_asset().filename;
-    let builder_script_path = setup
-        .project
-        .join(PERSISTENT_BUILD_SCRIPT_ROOT)
-        .join(builder_file_name);
 
-    if !builder_script_path.exists() {
+    if !persistent_builder_path(&setup.project).exists() {
         bail!(
             "Unity editor is running, but {} not installed.\n\n\
              To enable building via the running editor, install the builder script:\n\

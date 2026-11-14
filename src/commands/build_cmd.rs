@@ -37,7 +37,7 @@ pub fn build_project(arguments: &BuildArguments) -> anyhow::Result<()> {
     let editor_path = setup.editor_executable()?;
     let build_command = plan.batch_command(&setup.project, &editor_path);
 
-    if plan.dry_run {
+    if plan.args.dry_run {
         println!("{}", build_command_line(&build_command));
         return Ok(());
     }
@@ -45,7 +45,7 @@ pub fn build_project(arguments: &BuildArguments) -> anyhow::Result<()> {
 
     let _progress_guard = NativeProgressBar::with_state(NativeProgressState::Indeterminate);
 
-    let hooks = csharp_build_script_injection_hooks(&setup.project, plan.inject);
+    let hooks = csharp_build_script_injection_hooks(&setup.project, plan.args.inject);
 
     (hooks.inject_build_script)()?;
 
@@ -61,7 +61,7 @@ pub fn build_project(arguments: &BuildArguments) -> anyhow::Result<()> {
     drop(build_status);
 
     let (build_status, log_tag) = if build_result.is_ok() {
-        if plan.clean {
+        if plan.args.clean {
             clean_output_directory(&plan.output_path)?;
         }
         (MessageType::Ok, "Succeeded")
@@ -74,7 +74,7 @@ pub fn build_project(arguments: &BuildArguments) -> anyhow::Result<()> {
         format!(
             "building Unity {} {} project in {}",
             setup.unity_version,
-            plan.target,
+            plan.args.target,
             setup.project.normalized_display()
         ),
         build_status,
@@ -100,11 +100,11 @@ fn start_build_status(label: &str, plan: &BuildPlan, setup: &ProjectSetup) -> St
     let build_text = format!(
         "Unity {} {} project in {}",
         setup.unity_version,
-        plan.target,
+        plan.args.target,
         setup.project.normalized_display()
     );
 
-    if plan.quiet {
+    if plan.args.quiet {
         StatusLine::new(label, &build_text)
     } else {
         MessageType::print_line(label, &build_text, MessageType::Info);

@@ -7,7 +7,7 @@ use strum::{AsRefStr, Display};
 /// The build method provided by the ucom build script (`UnityBuilder.cs`).
 pub const DEFAULT_BUILD_FUNCTION: &str = "Ucom.UnityBuilder.Build";
 
-#[derive(Args)]
+#[derive(Args, Debug)]
 pub struct BuildArguments {
     /// Target platform to build the project for (e.g., win64, android, webgl). Required.
     #[arg(value_enum, env = crate::cli::ENV_BUILD_TARGET)]
@@ -249,9 +249,7 @@ pub enum BuildOpenTarget {
 
 /// Internal enum representing UnityEditor.BuildTarget, used by the build script.
 /// Maps from the user-facing BuildOpenTarget. Serializes as the `BuildTarget` name.
-#[derive(
-    Display, AsRefStr, Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, ValueEnum, Serialize,
-)]
+#[derive(AsRefStr, Debug, Copy, Clone, PartialEq, Eq, Serialize)]
 #[allow(non_camel_case_types)]
 pub enum BuildScriptTarget {
     /// UnityEditor.BuildTarget.StandaloneOSX

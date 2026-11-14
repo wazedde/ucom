@@ -43,15 +43,19 @@ impl BuildHooks {
     }
 }
 
+/// Returns the path of the persistent build script, which also contains the editor command watcher.
+pub(super) fn persistent_builder_path(project: &ProjectPath) -> PathBuf {
+    project
+        .join(PERSISTENT_BUILD_SCRIPT_ROOT)
+        .join(UnityTemplateFile::Builder.as_asset().filename)
+}
+
 /// Creates actions that inject a script into the project before and after the build.
 pub(super) fn csharp_build_script_injection_hooks(
     project: &ProjectPath,
     inject: InjectAction,
 ) -> BuildHooks {
-    let persistent_script_exists = project
-        .join(PERSISTENT_BUILD_SCRIPT_ROOT)
-        .join(UnityTemplateFile::Builder.as_asset().filename)
-        .exists();
+    let persistent_script_exists = persistent_builder_path(project).exists();
 
     match inject {
         // Build script is already present, no need to inject.
