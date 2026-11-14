@@ -1,6 +1,7 @@
 use std::path::PathBuf;
 
 use clap::{Args, ValueEnum};
+use serde::Serialize;
 use strum::{AsRefStr, Display};
 
 /// The build method provided by the ucom build script (`UnityBuilder.cs`).
@@ -252,8 +253,10 @@ pub enum BuildOpenTarget {
 }
 
 /// Internal enum representing UnityEditor.BuildTarget, used by the build script.
-/// Maps from the user-facing BuildOpenTarget.
-#[derive(Display, AsRefStr, Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, ValueEnum)]
+/// Maps from the user-facing BuildOpenTarget. Serializes as the `BuildTarget` name.
+#[derive(
+    Display, AsRefStr, Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, ValueEnum, Serialize,
+)]
 #[allow(non_camel_case_types)]
 pub enum BuildScriptTarget {
     /// UnityEditor.BuildTarget.StandaloneOSX

@@ -24,9 +24,10 @@ use crate::utils::path_ext::PlatformConsistentPathExt;
 use crate::utils::status_line::{MessageType, StatusLine};
 use crate::utils::write_atomic;
 use anyhow::{Context, anyhow, bail};
-use chrono::Utc;
+use chrono::{DateTime, Utc};
 use itertools::Itertools;
 use path_absolutize::Absolutize;
+use serde::de::IntoDeserializer;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
@@ -500,16 +501,16 @@ fn build_via_editor(
     let log_path = args.full_log_path(&setup.project)?;
 
     // The editor writes the build log next to the result, and ucom moves it to `log_path`.
-    let uuid = Uuid::new_v4().to_string();
+    let uuid = Uuid::new_v4();
     let editor_log = editor_result_dir(&setup.project).join(format!("build-{uuid}.log"));
 
     let command = EditorCommand {
-        command: "build".to_string(),
+        command: EditorCommandKind::Build,
         uuid,
-        timestamp: Utc::now().to_rfc3339(),
-        platform: BuildScriptTarget::from(args.target).as_ref().to_string(),
-        output_path: output_path.to_string_lossy().to_string(),
-        log_path: editor_log.to_string_lossy().to_string(),
+        timestamp: Utc::now(),
+        platform: BuildScriptTarget::from(args.target),
+        output_path: output_path.clone(),
+        log_path: editor_log.clone(),
         build_options: args.build_option_flags(),
         development_build: args.development_build,
         force_platform_switch: args.force_editor_build,
@@ -534,7 +535,7 @@ fn build_via_editor(
         None
     });
 
-    if result.status == "success" && args.clean {
+    if result.status == EditorBuildStatus::Success && args.clean {
         clean_output_directory(&output_path)?;
     }
 
@@ -727,11 +728,11 @@ fn handle_editor_build_result(
     start_time: chrono::DateTime<Utc>,
     log_file: Option<&Path>,
 ) -> anyhow::Result<()> {
-    match result.status.as_str() {
-        "error" => bail!("{}", result.message),
-        "failed" => {
+    match result.status {
+        EditorBuildStatus::Error => bail!("{}", result.message),
+        EditorBuildStatus::Failed => {
             // Check for platform switch failure specifically
-            if result.error_code.as_deref() == Some("PLATFORM_SWITCH_FAILED") {
+            if result.error_code == Some(EditorErrorCode::PlatformSwitchFailed) {
                 return Err(editor_build_error(result, log_file).context(
                     "Platform switch failed. This may happen if:\n\
                      - The target platform is not installed\n\
@@ -755,7 +756,7 @@ fn handle_editor_build_result(
                 print_editor_build_report(result, MessageType::Error, log_file);
             }
         }
-        "success" => {
+        EditorBuildStatus::Success => {
             if result.platform_switched {
                 MessageType::print_line(
                     "Platform switched",
@@ -787,8 +788,10 @@ fn handle_editor_build_result(
             // Print build report
             print_editor_build_report(result, MessageType::Ok, log_file);
         }
-        _ => {}
+        EditorBuildStatus::Unknown => {}
     }
+
+    let succeeded = result.status == EditorBuildStatus::Success;
 
     MessageType::print_line(
         "Total time",
@@ -796,14 +799,14 @@ fn handle_editor_build_result(
             "{t:.2}s",
             t = Utc::now().signed_duration_since(start_time).as_seconds()
         ),
-        if result.status == "success" {
+        if succeeded {
             MessageType::Ok
         } else {
             MessageType::Error
         },
     );
 
-    if result.status == "success" {
+    if succeeded {
         Ok(())
     } else {
         Err(editor_build_error(result, log_file))
@@ -885,29 +888,40 @@ fn print_editor_build_report(
 }
 
 /// Command structure sent to Unity editor via JSON file.
+///
+/// Read by `CommandFile` in `UnityBuilder.cs`, which treats every field as a plain string,
+/// number or boolean.
 #[derive(Serialize, Debug)]
 struct EditorCommand {
-    command: String,
-    uuid: String,
-    timestamp: String,
-    platform: String,
-    output_path: String,
-    log_path: String,
+    command: EditorCommandKind,
+    uuid: Uuid,
+    timestamp: DateTime<Utc>,
+    platform: BuildScriptTarget,
+    output_path: PathBuf,
+    log_path: PathBuf,
     build_options: i32,
     development_build: bool,
     force_platform_switch: bool,
     force_play_mode_exit: bool,
 }
 
-/// Result structure received from Unity editor via JSON file.
+/// The commands the editor command watcher understands.
+#[derive(Serialize, Debug, Clone, Copy, PartialEq, Eq)]
+#[serde(rename_all = "lowercase")]
+enum EditorCommandKind {
+    Build,
+}
+
+/// Result structure received from Unity editor via JSON file (`ResultFile` in `UnityBuilder.cs`).
+///
+/// Unity's `JsonUtility` writes every field, using `""` for unset strings and `0` for unset
+/// numbers. Unknown fields are ignored, so newer builder scripts stay readable.
 #[derive(Deserialize, Debug)]
-#[allow(dead_code)]
 struct EditorBuildResult {
-    uuid: String,
-    status: String,
+    status: EditorBuildStatus,
     message: String,
     #[serde(default, deserialize_with = "empty_string_as_none")]
-    error_code: Option<String>,
+    error_code: Option<EditorErrorCode>,
     platform_switched: bool,
     #[serde(default, deserialize_with = "empty_string_as_none")]
     original_platform: Option<String>,
@@ -932,15 +946,52 @@ struct EditorBuildResult {
     editor_log_path: Option<String>,
 }
 
-/// Deserializes an optional string, treating `""` as `None`.
+/// The outcome of an editor command.
+#[derive(Deserialize, Debug, Clone, Copy, PartialEq, Eq)]
+#[serde(rename_all = "lowercase")]
+enum EditorBuildStatus {
+    /// The build succeeded.
+    Success,
+    /// The build ran, or started to run, and failed.
+    Failed,
+    /// The command was rejected before building, for example because the editor is in Play Mode.
+    Error,
+    /// A status from a newer builder script.
+    #[serde(other)]
+    Unknown,
+}
+
+/// Error codes written by `UnityBuilder.cs`.
+#[derive(Deserialize, Debug, Clone, Copy, PartialEq, Eq)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+enum EditorErrorCode {
+    PlatformMismatch,
+    InPlayMode,
+    Compiling,
+    InvalidPlatform,
+    PlatformSwitchFailed,
+    BuildFailed,
+    UnknownCommand,
+    InternalError,
+    /// A code from a newer builder script.
+    #[serde(other)]
+    Unknown,
+}
+
+/// Deserializes an optional value from a string, treating `""` as `None`.
 ///
 /// Unity's `JsonUtility` writes unset string fields as empty strings instead of `null`.
-fn empty_string_as_none<'de, D>(deserializer: D) -> Result<Option<String>, D::Error>
+fn empty_string_as_none<'de, D, T>(deserializer: D) -> Result<Option<T>, D::Error>
 where
     D: serde::Deserializer<'de>,
+    T: Deserialize<'de>,
 {
-    let value = Option::<String>::deserialize(deserializer)?;
-    Ok(value.filter(|s| !s.is_empty()))
+    match Option::<String>::deserialize(deserializer)? {
+        Some(s) if !s.is_empty() => {
+            T::deserialize(IntoDeserializer::<D::Error>::into_deserializer(s)).map(Some)
+        }
+        _ => Ok(None),
+    }
 }
 
 #[cfg(test)]
@@ -1009,6 +1060,79 @@ mod tests {
         assert_eq!(result.original_platform.as_deref(), Some("StandaloneOSX"));
         assert_eq!(result.build_result.as_deref(), Some("Succeeded"));
         assert!(result.log_written);
+    }
+
+    #[test]
+    fn editor_build_result_reads_rejected_command() {
+        // Written by `WriteErrorResult` in `UnityBuilder.cs`: only a few fields are set.
+        let json = r#"{
+            "uuid": "1234",
+            "status": "error",
+            "message": "Unity editor is in Play Mode. Use --force-editor-build to exit play mode.",
+            "error_code": "IN_PLAY_MODE",
+            "platform_switched": false,
+            "original_platform": "",
+            "switched_to": "",
+            "build_time_seconds": 0.0,
+            "platform_switch_time_seconds": 0.0,
+            "output_path": "",
+            "build_result": "",
+            "platform": "",
+            "total_size": 0,
+            "total_errors": 0,
+            "total_warnings": 0,
+            "log_written": false,
+            "editor_log_path": ""
+        }"#;
+
+        let result: EditorBuildResult = serde_json::from_str(json).unwrap();
+
+        assert_eq!(result.status, EditorBuildStatus::Error);
+        assert_eq!(result.error_code, Some(EditorErrorCode::InPlayMode));
+        assert_eq!(result.build_result, None);
+    }
+
+    #[test]
+    fn editor_build_result_maps_unrecognised_status_and_code_to_unknown() {
+        let mut json = base_result_json();
+        json["status"] = "cancelled".into();
+        json["error_code"] = "SOMETHING_NEW".into();
+
+        let result: EditorBuildResult = serde_json::from_value(json).unwrap();
+
+        assert_eq!(result.status, EditorBuildStatus::Unknown);
+        assert_eq!(result.error_code, Some(EditorErrorCode::Unknown));
+    }
+
+    #[test]
+    fn editor_command_serializes_as_the_builder_script_expects() {
+        let uuid = Uuid::parse_str("0b5c3a3e-5f37-4c2b-9d0a-2f1f4c8e9a10").unwrap();
+        let command = EditorCommand {
+            command: EditorCommandKind::Build,
+            uuid,
+            timestamp: DateTime::parse_from_rfc3339("2026-11-14T10:37:05Z")
+                .unwrap()
+                .with_timezone(&Utc),
+            platform: BuildScriptTarget::StandaloneOSX,
+            output_path: PathBuf::from("/project/Builds/Release/OSXUniversal"),
+            log_path: PathBuf::from("/project/Temp/ucom-results/build-1.log"),
+            build_options: 1,
+            development_build: true,
+            force_platform_switch: false,
+            force_play_mode_exit: false,
+        };
+
+        let json = serde_json::to_value(&command).unwrap();
+
+        // `CommandFile` in `UnityBuilder.cs` reads these as plain strings.
+        assert_eq!(json["command"], "build");
+        assert_eq!(json["uuid"], "0b5c3a3e-5f37-4c2b-9d0a-2f1f4c8e9a10");
+        assert_eq!(json["timestamp"], "2026-11-14T10:37:05Z");
+        assert_eq!(json["platform"], "StandaloneOSX");
+        assert_eq!(json["output_path"], "/project/Builds/Release/OSXUniversal");
+        assert_eq!(json["log_path"], "/project/Temp/ucom-results/build-1.log");
+        assert_eq!(json["build_options"], 1);
+        assert_eq!(json["development_build"], true);
     }
 
     #[test]
