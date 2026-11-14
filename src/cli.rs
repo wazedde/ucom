@@ -18,7 +18,7 @@ pub const ENV_PACKAGE_LEVEL: &str = "UCOM_PACKAGE_LEVEL";
 #[command(author, version, about)]
 #[command(arg_required_else_help = true)]
 pub struct Cli {
-    /// Suppress colored output in the terminal.
+    /// Suppress colored output in the terminal. Setting the NO_COLOR environment variable does the same.
     #[arg(long, short = 'n')]
     pub no_color: bool,
 

@@ -32,6 +32,13 @@ fn main() -> ExitCode {
     let cli = Cli::parse();
     cancel::install_handler();
 
+    // Errors go to stderr, so whether they are coloured depends on stderr, not stdout.
+    let colour = colour_allowed(cli.no_color);
+    let colour_errors = colour && std::io::stderr().is_terminal();
+    if !colour || !std::io::stdout().is_terminal() {
+        yansi::disable();
+    }
+
     match run(cli) {
         Ok(()) => ExitCode::SUCCESS,
         Err(e) => match ReportedFailure::find(&e) {
@@ -42,11 +49,43 @@ fn main() -> ExitCode {
                 cancel::exit_interrupted()
             }
             None => {
-                // Same output as returning the error from `main`.
-                eprintln!("Error: {e:?}");
+                // `DEFAULT`, not `enable()`: on Windows it first switches the console to ANSI
+                // mode, and leaves colour off if that fails.
+                yansi::whenever(if colour_errors {
+                    yansi::Condition::DEFAULT
+                } else {
+                    yansi::Condition::NEVER
+                });
+                eprintln!(
+                    "{}",
+                    format_error(&e, |headline| headline.paint(STYLE_ERROR).to_string())
+                );
                 ExitCode::FAILURE
             }
         },
+    }
+}
+
+/// Whether colour may be used at all: not with `--no-color`, nor when the `NO_COLOR`
+/// environment variable is set to a non-empty value (<https://no-color.org>).
+fn colour_allowed(no_color_flag: bool) -> bool {
+    colour_allowed_by(no_color_flag, std::env::var_os("NO_COLOR").as_deref())
+}
+
+fn colour_allowed_by(no_color_flag: bool, no_color_env: Option<&std::ffi::OsStr>) -> bool {
+    !no_color_flag && no_color_env.is_none_or(|v| v.is_empty())
+}
+
+/// Formats an error as returning it from `main` would (`Error: ...`, then `Caused by:` and the
+/// causes), with the headline passed through `style`.
+fn format_error(error: &anyhow::Error, style: impl Fn(&str) -> String) -> String {
+    let headline = error.to_string();
+    let full = format!("{error:?}");
+    // The debug output starts with the headline; only that part is styled. Should that ever
+    // change, the unstyled output still shows every cause.
+    match full.strip_prefix(&headline) {
+        Some(rest) => format!("Error: {}{rest}", style(&headline)),
+        None => format!("Error: {full}"),
     }
 }
 
@@ -54,10 +93,6 @@ fn run(cli: Cli) -> anyhow::Result<()> {
     let Some(command) = cli.command else {
         return Ok(());
     };
-
-    if cli.no_color || !std::io::stdout().is_terminal() {
-        yansi::disable();
-    }
 
     match command {
         Command::List {
@@ -70,16 +105,13 @@ fn run(cli: Cli) -> anyhow::Result<()> {
             } else {
                 UpdatePolicy::Incremental
             };
-            list_versions(list_type, version_filter.as_ref(), mode).with_context(|| {
-                format!("Cannot list `{list_type}`")
-                    .paint(STYLE_ERROR)
-                    .to_string()
-            })
+            list_versions(list_type, version_filter.as_ref(), mode)
+                .with_context(|| format!("Cannot list `{list_type}`"))
         }
 
         Command::Install { version } => {
             install_latest_matching(&version, UpdatePolicy::Incremental)
-                .context("Cannot install the Unity version".paint(STYLE_ERROR))
+                .context("Cannot install the Unity version")
         }
 
         Command::Info {
@@ -96,7 +128,7 @@ fn run(cli: Cli) -> anyhow::Result<()> {
             report,
             UpdatePolicy::Incremental,
         )
-        .context("Cannot show project info".paint(STYLE_ERROR)),
+        .context("Cannot show project info"),
 
         Command::Updates {
             project_dir,
@@ -108,30 +140,23 @@ fn run(cli: Cli) -> anyhow::Result<()> {
             report,
             UpdatePolicy::Incremental,
         )
-        .context("Cannot show Unity updates for the project".paint(STYLE_ERROR)),
+        .context("Cannot show Unity updates for the project"),
 
-        Command::Run(settings) => {
-            run_unity(settings).context("Cannot run Unity".paint(STYLE_ERROR))
-        }
+        Command::Run(settings) => run_unity(settings).context("Cannot run Unity"),
 
         Command::New(settings) => {
-            new_project(settings).context("Cannot create the new Unity project".paint(STYLE_ERROR))
+            new_project(settings).context("Cannot create the new Unity project")
         }
 
-        Command::Open(settings) => {
-            open_project(settings).context("Cannot open the Unity project".paint(STYLE_ERROR))
-        }
+        Command::Open(settings) => open_project(settings).context("Cannot open the Unity project"),
 
-        Command::Build(settings) => {
-            build_project(&settings).context("Cannot build the project".paint(STYLE_ERROR))
-        }
+        Command::Build(settings) => build_project(&settings).context("Cannot build the project"),
 
-        Command::Test(settings) => {
-            run_tests(&settings).context("Cannot run tests".paint(STYLE_ERROR))
-        }
+        Command::Test(settings) => run_tests(&settings).context("Cannot run tests"),
 
-        Command::Add(arguments) => add_to_project(&arguments)
-            .context("Cannot add the file to the project".paint(STYLE_ERROR)),
+        Command::Add(arguments) => {
+            add_to_project(&arguments).context("Cannot add the file to the project")
+        }
 
         Command::Cache { action: command } => {
             match command {
@@ -154,5 +179,42 @@ fn run(cli: Cli) -> anyhow::Result<()> {
             }
             Ok(())
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn only_the_error_headline_is_styled() {
+        let error = anyhow::anyhow!("Path does not exist").context("Cannot show project info");
+
+        let text = format_error(&error, |h| format!("<{h}>"));
+
+        assert_eq!(
+            text,
+            "Error: <Cannot show project info>\n\nCaused by:\n    Path does not exist"
+        );
+    }
+
+    #[test]
+    fn no_color_turns_colour_off_unless_empty() {
+        use std::ffi::OsStr;
+
+        assert!(colour_allowed_by(false, None));
+        assert!(!colour_allowed_by(false, Some(OsStr::new("1"))));
+        // An empty value does not count, as https://no-color.org specifies.
+        assert!(colour_allowed_by(false, Some(OsStr::new(""))));
+        assert!(!colour_allowed_by(true, None));
+    }
+
+    #[test]
+    fn an_error_without_causes_is_one_line() {
+        let error = anyhow::anyhow!("Something went wrong");
+        assert_eq!(
+            format_error(&error, |h| format!("<{h}>")),
+            "Error: <Something went wrong>"
+        );
     }
 }
