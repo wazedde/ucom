@@ -198,17 +198,41 @@ fn install_editor_log(
 /// long builds are supported; the user can press Ctrl+C to cancel. Every few seconds the
 /// editor process found at the start (`editor_pid`) is checked, and polling stops with an
 /// error once it has exited.
+fn poll_for_result(result_file: &Path, editor_pid: Pid) -> anyhow::Result<EditorBuildResult> {
+    let _progress_guard = NativeProgressBar::with_state(NativeProgressState::Indeterminate);
+    wait_for_result(result_file, PollIntervals::DEFAULT, || {
+        is_process_running(editor_pid)
+    })
+}
+
+/// How often to look for the result file, and to check that the editor is still running.
+#[derive(Debug, Clone, Copy)]
+struct PollIntervals {
+    result: Duration,
+    liveness: Duration,
+}
+
+impl PollIntervals {
+    const DEFAULT: Self = Self {
+        result: Duration::from_millis(500),
+        liveness: Duration::from_secs(5),
+    };
+}
+
+/// Waits until `result_file` holds a result, or `editor_running` reports that the editor exited
+/// without writing one.
 ///
 /// Current versions of `UnityBuilder.cs` write the result file atomically. Builder scripts
 /// installed in projects before that change write it in place, so a read may observe a
 /// partially written file. Read and parse failures are therefore retried for a short grace
 /// period before being reported.
-fn poll_for_result(result_file: &Path, editor_pid: Pid) -> anyhow::Result<EditorBuildResult> {
-    const POLL_INTERVAL: Duration = Duration::from_millis(500);
+fn wait_for_result(
+    result_file: &Path,
+    intervals: PollIntervals,
+    mut editor_running: impl FnMut() -> bool,
+) -> anyhow::Result<EditorBuildResult> {
     const MAX_READ_ATTEMPTS: u32 = 10;
-    const LIVENESS_CHECK_INTERVAL: Duration = Duration::from_secs(5);
 
-    let _progress_guard = NativeProgressBar::with_state(NativeProgressState::Indeterminate);
     let mut failed_reads = 0;
     let mut last_liveness_check = Instant::now();
 
@@ -230,15 +254,15 @@ fn poll_for_result(result_file: &Path, editor_pid: Pid) -> anyhow::Result<Editor
             }
         }
 
-        if last_liveness_check.elapsed() >= LIVENESS_CHECK_INTERVAL {
+        if last_liveness_check.elapsed() >= intervals.liveness {
             last_liveness_check = Instant::now();
             // The editor may have written the result just before exiting, so check for it again.
-            if !is_process_running(editor_pid) && !result_file.exists() {
+            if !editor_running() && !result_file.exists() {
                 bail!("The Unity editor is no longer running; no build result was received.");
             }
         }
 
-        std::thread::sleep(POLL_INTERVAL);
+        std::thread::sleep(intervals.result);
     }
 }
 
@@ -740,5 +764,99 @@ mod tests {
     fn editor_build_error_uses_message_without_log() {
         let error = editor_build_error(&failed_result(), None).to_string();
         assert_eq!(error, "Build failed. Check Unity console for errors.");
+    }
+
+    /// Intervals that make `wait_for_result` check the editor on every poll.
+    const FAST: PollIntervals = PollIntervals {
+        result: Duration::from_millis(1),
+        liveness: Duration::ZERO,
+    };
+
+    fn result_json() -> String {
+        base_result_json().to_string()
+    }
+
+    #[test]
+    fn wait_for_result_returns_a_result_that_is_already_there() {
+        let dir = TempDir::new("wait-present");
+        let file = dir.path().join("build.json");
+        fs::write(&file, result_json()).unwrap();
+
+        let result = wait_for_result(&file, FAST, || panic!("editor should not be checked"));
+
+        assert_eq!(result.unwrap().status, EditorBuildStatus::Success);
+    }
+
+    #[test]
+    fn wait_for_result_waits_while_the_editor_runs() {
+        let dir = TempDir::new("wait-running");
+        let file = dir.path().join("build.json");
+        let mut checks = 0;
+
+        // The result appears after a few liveness checks.
+        let result = wait_for_result(&file, FAST, || {
+            checks += 1;
+            if checks == 3 {
+                fs::write(&file, result_json()).unwrap();
+            }
+            true
+        });
+
+        assert!(result.is_ok());
+        assert_eq!(checks, 3);
+    }
+
+    #[test]
+    fn wait_for_result_stops_when_the_editor_exits_without_a_result() {
+        let dir = TempDir::new("wait-exited");
+        let file = dir.path().join("build.json");
+
+        let error = wait_for_result(&file, FAST, || false).unwrap_err();
+
+        assert!(error.to_string().contains("no longer running"));
+    }
+
+    #[test]
+    fn wait_for_result_accepts_a_result_written_just_before_the_editor_exits() {
+        let dir = TempDir::new("wait-exit-after-write");
+        let file = dir.path().join("build.json");
+
+        let result = wait_for_result(&file, FAST, || {
+            fs::write(&file, result_json()).unwrap();
+            false
+        });
+
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn wait_for_result_retries_a_partially_written_result() {
+        let dir = TempDir::new("wait-partial");
+        let file = dir.path().join("build.json");
+        let json = result_json();
+        fs::write(&file, &json[..json.len() / 2]).unwrap();
+
+        // An older builder script finishes writing the file in place.
+        let result = wait_for_result(&file, FAST, || {
+            fs::write(&file, &json).unwrap();
+            true
+        });
+
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn wait_for_result_gives_up_on_a_result_that_stays_unreadable() {
+        let dir = TempDir::new("wait-unreadable");
+        let file = dir.path().join("build.json");
+        fs::write(&file, "{ not json").unwrap();
+
+        let error = wait_for_result(&file, FAST, || true).unwrap_err();
+
+        assert!(
+            error
+                .to_string()
+                .starts_with("Failed to read build result from the editor")
+        );
     }
 }

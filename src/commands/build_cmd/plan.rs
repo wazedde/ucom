@@ -225,3 +225,241 @@ fn option_flags(args: &BuildArguments) -> BuildOptionFlags {
         .chain(args.build_options.iter().copied())
         .collect()
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::unity::build_command_line;
+    use crate::utils::test_util::TempDir;
+    use clap::Parser;
+
+    #[derive(Parser)]
+    struct TestCli {
+        #[command(flatten)]
+        args: BuildArguments,
+    }
+
+    /// A directory with the minimum ucom needs to recognise a Unity project.
+    struct TestProject {
+        _dir: TempDir,
+        project: ProjectPath,
+    }
+
+    impl TestProject {
+        fn new(label: &str) -> Self {
+            let dir = TempDir::new(label);
+            fs_write(
+                dir.path(),
+                "ProjectSettings/ProjectVersion.txt",
+                "m_EditorVersion: 6000.6.8f1\n",
+            );
+            fs::create_dir_all(dir.path().join("Assets")).unwrap();
+            let project = ProjectPath::try_from(dir.path()).unwrap();
+            Self { _dir: dir, project }
+        }
+
+        /// Parses `ucom build <target> <project> <rest...>` and creates its plan.
+        ///
+        /// The project comes right after the target, since `-O` takes any number of values.
+        fn plan(&self, args: &[&str]) -> anyhow::Result<BuildPlan> {
+            let project = self.project.to_string_lossy().into_owned();
+            let (target, rest) = args.split_first().unwrap();
+            let argv = ["ucom", target, project.as_str()]
+                .into_iter()
+                .chain(rest.iter().copied());
+            let cli = TestCli::try_parse_from(argv).unwrap();
+            BuildPlan::new(&cli.args, &self.project)
+        }
+    }
+
+    use std::fs;
+
+    fn fs_write(dir: &Path, relative: &str, contents: &str) {
+        let path = dir.join(relative);
+        fs::create_dir_all(path.parent().unwrap()).unwrap();
+        fs::write(path, contents).unwrap();
+    }
+
+    #[test]
+    fn default_paths_are_in_the_project() {
+        let p = TestProject::new("plan-default-paths");
+        let plan = p.plan(&["macos"]).unwrap();
+
+        assert_eq!(
+            plan.output_path,
+            p.project
+                .join("Builds")
+                .join("Release")
+                .join("OSXUniversal")
+        );
+        assert_eq!(
+            plan.log_path,
+            p.project.join("Logs").join("Build-OSXUniversal.log")
+        );
+    }
+
+    #[test]
+    fn output_type_and_bare_log_name_use_the_default_directories() {
+        let p = TestProject::new("plan-type-log");
+        let plan = p
+            .plan(&["webgl", "-t", "debug", "-l", "custom.log"])
+            .unwrap();
+
+        assert_eq!(
+            plan.output_path,
+            p.project.join("Builds").join("Debug").join("WebGL")
+        );
+        assert_eq!(plan.log_path, p.project.join("Logs").join("custom.log"));
+    }
+
+    #[test]
+    fn explicit_paths_are_used_as_given() {
+        let p = TestProject::new("plan-explicit-paths");
+        let out = p.project.join("out");
+        let log = p.project.join("logs").join("build.log");
+        let plan = p
+            .plan(&[
+                "win64",
+                "-o",
+                out.to_str().unwrap(),
+                "-l",
+                log.to_str().unwrap(),
+            ])
+            .unwrap();
+
+        assert_eq!(plan.output_path, out);
+        assert_eq!(plan.log_path, log);
+    }
+
+    #[test]
+    fn output_path_cannot_be_the_project_directory() {
+        let p = TestProject::new("plan-output-is-project");
+        let project = p.project.to_string_lossy().into_owned();
+
+        let error = p.plan(&["macos", "-o", &project]).unwrap_err().to_string();
+
+        assert!(error.starts_with("Output directory cannot be the same as the project directory"));
+    }
+
+    #[test]
+    fn option_flags_combine_shortcuts_and_build_options() {
+        let p = TestProject::new("plan-options");
+        let plan = p
+            .plan(&["macos", "-d", "-r", "-O", "allow-debugging", "none"])
+            .unwrap();
+
+        assert!(plan.options.contains(BuildOptions::Development));
+        assert!(plan.options.contains(BuildOptions::AutoRunPlayer));
+        assert!(plan.options.contains(BuildOptions::AllowDebugging));
+        assert!(!plan.options.contains(BuildOptions::ShowBuiltPlayer));
+        assert!(!plan.options.contains(BuildOptions::None));
+        assert_eq!(plan.options.bits(), 1 | 4 | 0x200);
+    }
+
+    #[test]
+    fn no_options_is_empty() {
+        let p = TestProject::new("plan-no-options");
+        let plan = p.plan(&["macos"]).unwrap();
+
+        assert!(plan.options.is_empty());
+    }
+
+    #[test]
+    fn batch_command_line_for_defaults() {
+        let p = TestProject::new("plan-batch-default");
+        let plan = p.plan(&["macos"]).unwrap();
+
+        let line = build_command_line(&plan.batch_command(&p.project, Path::new("/Unity")));
+
+        let project = p.project.to_string_lossy();
+        assert_eq!(
+            line,
+            format!(
+                "/Unity -projectPath {project} -buildTarget OSXUniversal \
+                 -logFile {project}/Logs/Build-OSXUniversal.log -batchmode -quit \
+                 -executeMethod Ucom.UnityBuilder.Build \
+                 --ucom-build-output {project}/Builds/Release/OSXUniversal \
+                 --ucom-build-target StandaloneOSX"
+            )
+        );
+    }
+
+    #[test]
+    fn batch_command_line_with_options_and_extra_arguments() {
+        let p = TestProject::new("plan-batch-options");
+        let plan = p
+            .plan(&[
+                "android",
+                "-d",
+                "-a",
+                "v1.2",
+                "-f",
+                "My.Builder.Build",
+                "-m",
+                "batch-nogfx",
+                "--",
+                "-extraFlag",
+            ])
+            .unwrap();
+
+        let line = build_command_line(&plan.batch_command(&p.project, Path::new("/Unity")));
+
+        let project = p.project.to_string_lossy();
+        assert_eq!(
+            line,
+            format!(
+                "/Unity -projectPath {project} -buildTarget Android \
+                 -logFile {project}/Logs/Build-Android.log -batchmode -nographics -quit \
+                 -executeMethod My.Builder.Build \
+                 --ucom-build-output {project}/Builds/Release/Android \
+                 --ucom-build-target Android --ucom-build-options 1 \
+                 --ucom-pre-build-args v1.2 -extraFlag"
+            )
+        );
+    }
+
+    #[test]
+    fn editor_mode_does_not_add_batch_flags() {
+        let p = TestProject::new("plan-editor-mode");
+        let plan = p.plan(&["macos", "-m", "editor"]).unwrap();
+
+        let line = build_command_line(&plan.batch_command(&p.project, Path::new("/Unity")));
+
+        assert!(!line.contains("-batchmode"));
+        assert!(!line.contains("-quit"));
+        assert!(!plan.show_log());
+    }
+
+    #[test]
+    fn default_build_has_no_flags_unsupported_in_the_editor() {
+        let p = TestProject::new("plan-editor-supported");
+
+        assert!(
+            p.plan(&["macos"])
+                .unwrap()
+                .unsupported_in_editor()
+                .is_empty()
+        );
+        // Passing the default build function explicitly counts as not set.
+        let plan = p.plan(&["macos", "-f", DEFAULT_BUILD_FUNCTION]).unwrap();
+        assert!(plan.unsupported_in_editor().is_empty());
+        assert_eq!(plan.build_function, None);
+    }
+
+    #[test]
+    fn flags_unsupported_in_the_editor_are_listed() {
+        let p = TestProject::new("plan-editor-unsupported");
+        let plan = p
+            .plan(&["macos", "-f", "My.Builder.Build", "-a", "x", "--", "-extra"])
+            .unwrap();
+
+        assert_eq!(
+            plan.unsupported_in_editor(),
+            [
+                "--build-function",
+                "--build-args",
+                "additional Unity arguments"
+            ]
+        );
+    }
+}
