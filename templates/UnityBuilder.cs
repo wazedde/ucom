@@ -199,19 +199,24 @@ namespace Ucom
 
             Environment.GetCommandLineArgs().TryGetArgValue("-logFile", out var logFile);
             var succeeded = report.summary.result == BuildResult.Succeeded;
-            Log(FormatBuildResult(report.summary, logFile), succeeded ? LogType.Log : LogType.Error);
+            Log(FormatBuildResult(report, logFile), succeeded ? LogType.Log : LogType.Error);
             return succeeded;
         }
 
         /// <summary>
-        /// Formats the build result line followed by the "[Builder] Build Report" block that ucom
-        /// reads from the log, ending with an empty line.
+        /// Formats the build's error messages, the build result line and the "[Builder] Build Report"
+        /// block that ucom reads from the log, ending with an empty line.
         /// </summary>
-        /// <param name="summary">The summary of the finished build.</param>
+        /// <param name="report">The report of the finished build.</param>
         /// <param name="logFile">The log file to mention in the report, or <c>null</c> to leave it out.</param>
-        public static string FormatBuildResult(BuildSummary summary, string logFile)
+        public static string FormatBuildResult(BuildReport report, string logFile)
         {
+            var summary = report.summary;
             var sb = new StringBuilder();
+
+            // Unity logs these in many different forms; ucom finds them by the "[Builder] Error:" prefix.
+            foreach (var error in GetBuildErrors(report))
+                sb.AppendLine($"[Builder] Error: {error}");
 
             var buildStartTime = summary.buildStartedAt.ToLocalTime().ToString(CultureInfo.InvariantCulture);
             sb.AppendLine(summary.result == BuildResult.Succeeded
@@ -234,6 +239,33 @@ namespace Ucom
             // End of build report.
             sb.AppendLine();
             return sb.ToString();
+        }
+
+        /// <summary>
+        /// Returns the distinct error messages of a build, one line each.
+        /// </summary>
+        private static IEnumerable<string> GetBuildErrors(BuildReport report)
+        {
+            return report.steps
+                .SelectMany(step => step.messages)
+                .Where(message => message.type == LogType.Error
+                    || message.type == LogType.Exception
+                    || message.type == LogType.Assert)
+                .Select(message => FirstLine(message.content))
+                .Where(line => line.Length > 0)
+                .Distinct();
+        }
+
+        /// <summary>
+        /// Returns the first line of a message, without surrounding whitespace.
+        /// </summary>
+        private static string FirstLine(string message)
+        {
+            if (string.IsNullOrEmpty(message))
+                return string.Empty;
+
+            var end = message.IndexOf('\n');
+            return (end < 0 ? message : message.Substring(0, end)).Trim();
         }
 
         /// <summary>
@@ -532,6 +564,8 @@ namespace Ucom
     public class EditorCommandWatcher
     {
         private static FileSystemWatcher _watcher;
+        // Command and result files are named <prefix><uuid>.json; ucom uses the same names (build_cmd/editor.rs).
+        private const string CommandFilePrefix = "build-";
         private static readonly string CommandDir;
         private static readonly string ResultDir;
         private static double _lastPollTime;
@@ -541,6 +575,13 @@ namespace Ucom
         private static CommandFile _deferredCommand;
         private static bool _waitingForPlayModeExit;
         private static bool _waitingForCompilation;
+
+        // Command files whose read failure has been logged, so a file that stays unreadable
+        // is logged once instead of on every poll.
+        private static readonly HashSet<string> UnreadableCommandFiles = new HashSet<string>();
+
+        // Invalid command files that could not be deleted; they are already answered and skipped.
+        private static readonly HashSet<string> RejectedCommandFiles = new HashSet<string>();
 
         static EditorCommandWatcher()
         {
@@ -680,14 +721,45 @@ namespace Ucom
 
         private static void ProcessCommandFile(string commandFilePath)
         {
-            if (!File.Exists(commandFilePath))
+            if (RejectedCommandFiles.Contains(commandFilePath) || !File.Exists(commandFilePath))
                 return;
+
+            string json;
+            try
+            {
+                json = File.ReadAllText(commandFilePath);
+                UnreadableCommandFiles.Remove(commandFilePath);
+            }
+            catch (Exception e)
+            {
+                // For example locked by another process; tried again on the next poll.
+                if (UnreadableCommandFiles.Add(commandFilePath))
+                    Debug.LogWarning($"[Ucom] Cannot read command file {commandFilePath}, will retry: {e.Message}");
+                return;
+            }
+
+            if (!TryParseCommand(json, out var command, out var parseError))
+            {
+                // Removed rather than tried again: it would fail on every poll,
+                // and ucom would wait for a result that never comes.
+                Debug.LogError($"[Ucom] Invalid command file {commandFilePath}: {parseError}");
+                if (!TryDeleteFile(commandFilePath))
+                    RejectedCommandFiles.Add(commandFilePath);
+
+                var uuid = UuidFromCommandFileName(commandFilePath);
+                if (uuid != null)
+                {
+                    WriteErrorResult(uuid,
+                        "INTERNAL_ERROR",
+                        $"The editor could not read the build command: {parseError}"
+                    );
+                }
+
+                return;
+            }
 
             try
             {
-                var json = File.ReadAllText(commandFilePath);
-                var command = JsonUtility.FromJson<CommandFile>(json);
-
                 switch (command.command)
                 {
                     case "build":
@@ -926,7 +998,7 @@ namespace Ucom
             result.total_warnings = summary.totalWarnings;
 
             // The log file is left out: ucom prints its path once it has moved the log into place.
-            builderLines.Append(UnityBuilder.FormatBuildResult(summary, null));
+            builderLines.Append(UnityBuilder.FormatBuildResult(report, null));
 
             if (summary.result == BuildResult.Succeeded)
             {
@@ -1023,6 +1095,50 @@ namespace Ucom
             }
         }
 
+        private static bool TryParseCommand(string json, out CommandFile command, out string error)
+        {
+            try
+            {
+                command = JsonUtility.FromJson<CommandFile>(json);
+            }
+            catch (Exception e) // JsonUtility throws ArgumentException for invalid JSON.
+            {
+                command = null;
+                error = e.Message;
+                return false;
+            }
+
+            error = command == null ? "The file is empty." : null;
+            return command != null;
+        }
+
+        /// <summary>
+        /// Returns the uuid in a command file name (<c>build-&lt;uuid&gt;.json</c>), or <c>null</c>.
+        /// </summary>
+        private static string UuidFromCommandFileName(string commandFilePath)
+        {
+            var name = Path.GetFileNameWithoutExtension(commandFilePath);
+            if (!name.StartsWith(CommandFilePrefix, StringComparison.Ordinal))
+                return null;
+
+            var uuid = name.Substring(CommandFilePrefix.Length);
+            return Guid.TryParse(uuid, out _) ? uuid : null;
+        }
+
+        private static bool TryDeleteFile(string path)
+        {
+            try
+            {
+                File.Delete(path);
+                return true;
+            }
+            catch (Exception e)
+            {
+                Debug.LogError($"[Ucom] Failed to delete {path}: {e.Message}");
+                return false;
+            }
+        }
+
         private static void WriteErrorResult(string uuid, string errorCode, string message)
         {
             var result = new ResultFile
@@ -1041,8 +1157,8 @@ namespace Ucom
             try
             {
                 var json = JsonUtility.ToJson(result, true);
-                var resultPath = Path.Combine(ResultDir, $"build-{result.uuid}.json");
-                var tempPath = Path.Combine(ResultDir, $"build-{result.uuid}.tmp");
+                var resultPath = Path.Combine(ResultDir, $"{CommandFilePrefix}{result.uuid}.json");
+                var tempPath = Path.Combine(ResultDir, $"{CommandFilePrefix}{result.uuid}.tmp");
 
                 // Write to a temporary file and rename it into place, so ucom never
                 // reads a partially written result.

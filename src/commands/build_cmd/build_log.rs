@@ -45,13 +45,48 @@ fn log_lines(file: File) -> impl Iterator<Item = String> {
         })
 }
 
-/// Returns the unique error lines in the given log file.
+/// Prefix of the error lines that the builder script writes, including the errors from Unity's
+/// build report, which usually also appear in the log as Unity wrote them.
+const BUILDER_ERROR_PREFIX: &str = "[Builder] Error: ";
+
+/// Returns the unique error lines in the given log file, without the builder's prefix.
 pub(super) fn find_log_errors(log_file: &Path) -> std::io::Result<Vec<String>> {
     let file = File::open(log_file)?;
-    Ok(log_lines(file)
-        .filter(|l| line_contains_error(l))
+    Ok(error_lines(log_lines(file)))
+}
+
+/// Returns the unique error lines, without the builder's prefix.
+///
+/// A line Unity wrote is left out when a builder error line repeats it, with or without extra
+/// text on either side, so an error from the build report is listed once.
+fn error_lines(lines: impl Iterator<Item = String>) -> Vec<String> {
+    let errors = lines.filter(|l| line_contains_error(l)).collect_vec();
+    // Each line with its builder error text, if it is a builder error line.
+    let parsed = errors
+        .iter()
+        .map(|l| (l.as_str(), l.strip_prefix(BUILDER_ERROR_PREFIX)))
+        .collect_vec();
+    let builder_errors = parsed
+        .iter()
+        .filter_map(|&(_, error)| error)
+        .filter(|e| !e.is_empty())
+        .collect_vec();
+
+    parsed
+        .into_iter()
+        .filter_map(|(line, error)| match error {
+            Some(error) => Some(error),
+            None if builder_errors
+                .iter()
+                .any(|e| line.contains(e) || e.contains(line)) =>
+            {
+                None
+            }
+            None => Some(line),
+        })
         .unique()
-        .collect_vec())
+        .map(str::to_owned)
+        .collect_vec()
 }
 
 /// Returns errors from the given log file as one collected Err.
@@ -82,7 +117,7 @@ pub(super) fn format_log_errors(errors: &[String]) -> anyhow::Error {
 /// Returns true if the given line is an error.
 fn line_contains_error(line: &str) -> bool {
     const ERROR_PREFIXES: &[&str] = &[
-        "[Builder] Error:",
+        BUILDER_ERROR_PREFIX,
         "error CS",
         "Fatal Error",
         "Error building Player",
@@ -111,6 +146,32 @@ pub(super) fn remove_old_log_file(log_path: &Path) -> anyhow::Result<()> {
 mod tests {
     use super::*;
     use crate::utils::test_util::TempDir;
+
+    #[test]
+    fn error_lines_drop_the_builder_prefix_and_repeated_errors() {
+        let log = [
+            "Assets/A.cs(1,2): error CS0103: The name 'x' does not exist",
+            "Assets/B.cs(3,4): error CS1002: ; expected (in player build)",
+            "Some other line",
+            "Error building Player: 1 error",
+            "[Builder] Error: Assets/A.cs(1,2): error CS0103: The name 'x' does not exist",
+            "[Builder] Error: Assets/B.cs(3,4): error CS1002: ; expected",
+            "[Builder] Error: Failed to create output directory",
+            "[Builder] Build failed.",
+        ]
+        .map(String::from);
+
+        assert_eq!(
+            error_lines(log.into_iter()),
+            [
+                "Error building Player: 1 error",
+                "Assets/A.cs(1,2): error CS0103: The name 'x' does not exist",
+                "Assets/B.cs(3,4): error CS1002: ; expected",
+                "Failed to create output directory",
+            ]
+        );
+    }
+
     #[test]
     fn remove_old_log_file_removes_existing_and_ignores_missing() {
         let dir = TempDir::new("remove-old-log");
