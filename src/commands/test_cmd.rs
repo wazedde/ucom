@@ -179,19 +179,18 @@ impl TestArguments {
             builder = builder.add_arg("-forgetProjectPath");
         }
 
-        // Add test filters
+        // Add test filters. Each value is passed as one argument without a shell, so it must not
+        // be quoted: Unity would take the quotes as part of the filter and match nothing.
         if let Some(s) = &self.categories {
-            builder = builder.add_arg("-testCategory").add_arg(format!("\"{s}\""));
+            builder = builder.add_arg("-testCategory").add_arg(s.clone());
         }
 
         if let Some(s) = &self.tests {
-            builder = builder.add_arg("-testFilter").add_arg(format!("\"{s}\""));
+            builder = builder.add_arg("-testFilter").add_arg(s.clone());
         }
 
         if let Some(s) = &self.assemblies {
-            builder = builder
-                .add_arg("-assemblyNames")
-                .add_arg(format!("\"{s}\""));
+            builder = builder.add_arg("-assemblyNames").add_arg(s.clone());
         }
 
         // Add test results path
@@ -248,6 +247,39 @@ fn result_message(test_case: &TestCase) -> Option<&str> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::cli::{Cli, Command as CliCommand};
+    use crate::utils::test_util::temp_project;
+    use clap::Parser;
+
+    /// The value after `flag` in the Unity command line for `ucom test editmode <extra>`.
+    fn unity_arg_after(extra: &[&str], flag: &str) -> Option<String> {
+        let (_dir, project) = temp_project("test-args");
+        let cli = Cli::try_parse_from(["ucom", "test", "editmode"].iter().chain(extra)).unwrap();
+        let Some(CliCommand::Test(arguments)) = cli.command else {
+            unreachable!("parsed a test command")
+        };
+        let cmd = arguments.build_cmd(&project, Path::new("Unity"), Path::new("results.xml"));
+        let args: Vec<_> = cmd
+            .get_args()
+            .map(|a| a.to_string_lossy().into_owned())
+            .collect();
+        let i = args.iter().position(|a| a == flag)?;
+        args.get(i + 1).cloned()
+    }
+
+    #[test]
+    fn test_filters_are_passed_to_unity_without_quotes() {
+        let after = |option: &str, flag| unity_arg_after(&[option, "!Slow;UI"], flag);
+        assert_eq!(
+            after("--categories", "-testCategory").as_deref(),
+            Some("!Slow;UI")
+        );
+        assert_eq!(after("--tests", "-testFilter").as_deref(), Some("!Slow;UI"));
+        assert_eq!(
+            after("--assemblies", "-assemblyNames").as_deref(),
+            Some("!Slow;UI")
+        );
+    }
 
     #[test]
     fn failed_tests_are_reported_with_unitys_exit_code() {
