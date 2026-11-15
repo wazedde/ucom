@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="utf-8"?>
+<test-run id="2" testcasecount="3" result="Failed(Child)" total="3" passed="1" failed="1" inconclusive="0" skipped="1" asserts="0" engine-version="3.5.0.0" clr-version="4.0.30319.42000" start-time="2026-11-15 19:19:39Z" end-time="2026-11-15 19:19:39Z" duration="0.0282259">
+  <test-suite type="TestSuite" id="1007" name="minimal" fullname="minimal" runstate="Runnable" testcasecount="3" result="Failed" site="Child" start-time="2026-11-15 19:19:39Z" end-time="2026-11-15 19:19:39Z" duration="0.028226" total="3" passed="1" failed="1" inconclusive="0" skipped="1" asserts="0">
+    <properties />
+    <failure>
+      <message><![CDATA[One or more child tests had errors]]></message>
+    </failure>
+    <test-suite type="Assembly" id="1012" name="MinimalProject.EditModeTests.dll" fullname="/path/to/minimal/Library/ScriptAssemblies/MinimalProject.EditModeTests.dll" runstate="Runnable" testcasecount="3" result="Failed" site="Child" start-time="2026-11-15 19:19:39Z" end-time="2026-11-15 19:19:39Z" duration="0.016173" total="3" passed="1" failed="1" inconclusive="0" skipped="1" asserts="0">
+      <properties>
+        <property name="_PID" value="2113" />
+        <property name="_APPDOMAIN" value="Unity Child Domain" />
+        <property name="platform" value="EditMode" />
+      </properties>
+      <failure>
+        <message><![CDATA[One or more child tests had errors]]></message>
+      </failure>
+      <test-suite type="TestFixture" id="1008" name="EditModeTests" fullname="EditModeTests" classname="EditModeTests" runstate="Runnable" testcasecount="3" result="Failed" site="Child" start-time="2026-11-15 19:19:39Z" end-time="2026-11-15 19:19:39Z" duration="0.015108" total="3" passed="1" failed="1" inconclusive="0" skipped="1" asserts="0">
+        <properties />
+        <failure>
+          <message><![CDATA[One or more child tests had errors]]></message>
+        </failure>
+        <test-case id="1011" name="FailsOnPurpose" fullname="EditModeTests.FailsOnPurpose" methodname="FailsOnPurpose" classname="EditModeTests" runstate="Runnable" seed="1777004173" result="Failed" start-time="2026-11-15 19:19:39Z" end-time="2026-11-15 19:19:39Z" duration="0.004061" asserts="0">
+          <properties>
+            <property name="Category" value="Failing" />
+          </properties>
+          <failure>
+            <message><![CDATA[Failing on purpose]]></message>
+            <stack-trace><![CDATA[at EditModeTests.FailsOnPurpose () [0x00000] in /path/to/minimal/Assets/Tests/EditMode/EditModeTests.cs:19
+]]></stack-trace>
+          </failure>
+        </test-case>
+        <test-case id="1010" name="IsSkipped" fullname="EditModeTests.IsSkipped" methodname="IsSkipped" classname="EditModeTests" runstate="Ignored" seed="467573179" result="Skipped" label="Ignored" start-time="2026-11-15 19:19:39Z" end-time="2026-11-15 19:19:39Z" duration="0.000067" asserts="0">
+          <properties>
+            <property name="_SKIPREASON" value="Always skipped, to give ucom a skipped result" />
+          </properties>
+          <reason>
+            <message><![CDATA[Always skipped, to give ucom a skipped result]]></message>
+          </reason>
+        </test-case>
+        <test-case id="1009" name="Passes" fullname="EditModeTests.Passes" methodname="Passes" classname="EditModeTests" runstate="Runnable" seed="1693903513" result="Passed" start-time="2026-11-15 19:19:39Z" end-time="2026-11-15 19:19:39Z" duration="0.005264" asserts="0">
+          <properties />
+        </test-case>
+      </test-suite>
+    </test-suite>
+  </test-suite>
+</test-run>

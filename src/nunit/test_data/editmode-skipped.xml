@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="utf-8"?>
+<test-run id="2" testcasecount="2" result="Skipped:Ignored" total="2" passed="1" failed="0" inconclusive="0" skipped="1" asserts="0" engine-version="3.5.0.0" clr-version="4.0.30319.42000" start-time="2026-11-15 19:19:29Z" end-time="2026-11-15 19:19:29Z" duration="0.0285304">
+  <test-suite type="TestSuite" id="1007" name="minimal" fullname="minimal" runstate="Runnable" testcasecount="3" result="Skipped" label="Ignored" start-time="2026-11-15 19:19:29Z" end-time="2026-11-15 19:19:29Z" duration="0.028530" total="2" passed="1" failed="0" inconclusive="0" skipped="1" asserts="0">
+    <properties />
+    <reason>
+      <message><![CDATA[One or more child tests were ignored]]></message>
+    </reason>
+    <test-suite type="Assembly" id="1012" name="MinimalProject.EditModeTests.dll" fullname="/path/to/minimal/Library/ScriptAssemblies/MinimalProject.EditModeTests.dll" runstate="Runnable" testcasecount="3" result="Skipped" label="Ignored" start-time="2026-11-15 19:19:29Z" end-time="2026-11-15 19:19:29Z" duration="0.016384" total="2" passed="1" failed="0" inconclusive="0" skipped="1" asserts="0">
+      <properties>
+        <property name="_PID" value="2056" />
+        <property name="_APPDOMAIN" value="Unity Child Domain" />
+        <property name="platform" value="EditMode" />
+      </properties>
+      <reason>
+        <message><![CDATA[One or more child tests were ignored]]></message>
+      </reason>
+      <test-suite type="TestFixture" id="1008" name="EditModeTests" fullname="EditModeTests" classname="EditModeTests" runstate="Runnable" testcasecount="3" result="Skipped" label="Ignored" start-time="2026-11-15 19:19:29Z" end-time="2026-11-15 19:19:29Z" duration="0.015328" total="2" passed="1" failed="0" inconclusive="0" skipped="1" asserts="0">
+        <properties />
+        <reason>
+          <message><![CDATA[One or more child tests were ignored]]></message>
+        </reason>
+        <test-case id="1010" name="IsSkipped" fullname="EditModeTests.IsSkipped" methodname="IsSkipped" classname="EditModeTests" runstate="Ignored" seed="187408191" result="Skipped" label="Ignored" start-time="2026-11-15 19:19:29Z" end-time="2026-11-15 19:19:29Z" duration="0.000527" asserts="0">
+          <properties>
+            <property name="_SKIPREASON" value="Always skipped, to give ucom a skipped result" />
+          </properties>
+          <reason>
+            <message><![CDATA[Always skipped, to give ucom a skipped result]]></message>
+          </reason>
+        </test-case>
+        <test-case id="1009" name="Passes" fullname="EditModeTests.Passes" methodname="Passes" classname="EditModeTests" runstate="Runnable" seed="2098739463" result="Passed" start-time="2026-11-15 19:19:29Z" end-time="2026-11-15 19:19:29Z" duration="0.008381" asserts="0">
+          <properties />
+        </test-case>
+      </test-suite>
+    </test-suite>
+  </test-suite>
+</test-run>

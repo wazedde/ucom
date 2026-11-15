@@ -8,6 +8,7 @@ use uuid::Uuid;
 use yansi::Paint;
 
 use crate::cli_test::{ShowResults, TestArguments};
+use crate::commands::output::INDENT;
 use crate::commands::project_setup::ProjectSetup;
 use crate::commands::unity_command_builder::UnityCommandBuilder;
 use crate::nunit::{TestCase, TestResult, TestRun};
@@ -226,7 +227,22 @@ fn print_test_cases<'a>(test_cases: impl Iterator<Item = &'a TestCase>) {
             n = test_case.full_name.paint(name_style),
             t = test_case.duration,
         );
+
+        if let Some(message) = result_message(test_case) {
+            for line in message.lines() {
+                println!("{INDENT}{line}");
+            }
+        }
     }
+}
+
+/// The message that explains a result other than passed: the failure message, or why the
+/// test was skipped.
+fn result_message(test_case: &TestCase) -> Option<&str> {
+    [&test_case.failure_message, &test_case.skip_reason]
+        .into_iter()
+        .map(|m| m.trim())
+        .find(|m| !m.is_empty())
 }
 
 #[cfg(test)]

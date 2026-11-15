@@ -39,6 +39,52 @@ mod test_run_tests {
         assert_eq!(tc.len(), 72);
     }
 
+    fn test_case<'a>(tr: &'a TestRun, name: &str) -> &'a crate::nunit::TestCase {
+        tr.test_cases.iter().find(|tc| tc.name == name).unwrap()
+    }
+
+    /// A skipped test has a `<reason>` element, and so do its suites when no test failed.
+    /// From `test-projects/minimal` on Unity 2021.3, with `--categories "!Failing"`.
+    #[test]
+    fn test_deserialize_editmode_with_skipped_test() {
+        let tr = TestRun::from_file("./src/nunit/test_data/editmode-skipped.xml").unwrap();
+        let stats = &tr.stats;
+
+        assert_eq!(stats.result, TestResult::Skipped);
+        assert_eq!(stats.total, 2);
+        assert_eq!(stats.passed, 1);
+        assert_eq!(stats.failed, 0);
+        assert_eq!(stats.skipped, 1);
+
+        let skipped = test_case(&tr, "IsSkipped");
+        assert_eq!(skipped.result, TestResult::Skipped);
+        assert_eq!(
+            skipped.skip_reason,
+            "Always skipped, to give ucom a skipped result"
+        );
+        assert_eq!(test_case(&tr, "Passes").result, TestResult::Passed);
+    }
+
+    /// The same project with all tests, including the failing one: the suites have a
+    /// `<failure>` instead.
+    #[test]
+    fn test_deserialize_editmode_with_skipped_and_failed_tests() {
+        let tr = TestRun::from_file("./src/nunit/test_data/editmode-skipped-fail.xml").unwrap();
+        let stats = &tr.stats;
+
+        assert_eq!(stats.result, TestResult::Failed);
+        assert_eq!(stats.total, 3);
+        assert_eq!(stats.passed, 1);
+        assert_eq!(stats.failed, 1);
+        assert_eq!(stats.skipped, 1);
+
+        let failed = test_case(&tr, "FailsOnPurpose");
+        assert_eq!(failed.result, TestResult::Failed);
+        assert_eq!(failed.failure_message, "Failing on purpose");
+        assert_eq!(test_case(&tr, "IsSkipped").result, TestResult::Skipped);
+        assert_eq!(test_case(&tr, "Passes").result, TestResult::Passed);
+    }
+
     #[test]
     fn test_deserialize_standalone_fail() {
         let tr = TestRun::from_file("./src/nunit/test_data/standalone-fail.xml").unwrap();

@@ -81,4 +81,6 @@ pub struct TestCase {
     pub failure_message: String,
     pub failure_stack_trace: String,
     pub failure_text: String,
+    /// Why the test was skipped or ignored, for example the message of `[Ignore]`.
+    pub skip_reason: String,
 }
