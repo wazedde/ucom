@@ -5,6 +5,9 @@ mod script;
 
 use std::fs;
 use std::path::Path;
+use std::time::Instant;
+
+use anyhow::Context;
 
 use crate::cli_build::BuildArguments;
 use crate::commands::builder_script::{ensure_builder_supports, warn_if_builder_outdated};
@@ -18,8 +21,6 @@ use crate::utils::spawn_cmd::{
 };
 use crate::utils::status_line::{MessageType, StatusLine};
 use crate::utils::warn_non_fatal;
-use anyhow::Context;
-use chrono::Utc;
 
 use build_log::{collect_log_errors, print_build_report, remove_old_log_file};
 use editor::build_via_editor;
@@ -28,7 +29,7 @@ use script::inject_build_script;
 
 /// Runs the build command.
 pub fn build_project(arguments: &BuildArguments) -> anyhow::Result<()> {
-    let start_time = Utc::now();
+    let start_time = Instant::now();
     let setup = ProjectSetup::new(&arguments.project_dir)?;
     let plan = BuildPlan::new(arguments, &setup.project)?;
 
@@ -102,12 +103,7 @@ pub fn build_project(arguments: &BuildArguments) -> anyhow::Result<()> {
 
     MessageType::print_line(
         "Total time",
-        format!(
-            "{t:.2}s",
-            t = Utc::now()
-                .signed_duration_since(start_time)
-                .as_seconds_f64()
-        ),
+        format!("{t:.2}s", t = start_time.elapsed().as_secs_f64()),
         build_status,
     );
 

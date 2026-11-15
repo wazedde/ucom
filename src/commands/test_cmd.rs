@@ -1,8 +1,10 @@
 use std::path::Path;
 use std::process::Command;
+use std::time::Instant;
 
 use anyhow::bail;
-use chrono::prelude::*;
+use chrono::Local;
+use uuid::Uuid;
 use yansi::Paint;
 
 use crate::cli_test::{ShowResults, TestArguments};
@@ -18,15 +20,18 @@ use crate::utils::spawn_cmd::{OnCancel, build_command_line, wait_with_stdout};
 use crate::utils::status_line::{MessageType, StatusLine};
 
 pub fn run_tests(arguments: &TestArguments) -> anyhow::Result<()> {
-    let start_time = Utc::now();
+    let start_time = Instant::now();
     let setup = ProjectSetup::new(&arguments.project_dir)?;
     let editor_exe = setup.editor_executable()?;
     setup.project.ensure_assets_directory_exists()?;
 
+    // The random suffix keeps two runs started in the same second apart, and makes sure the
+    // file checked for after the run is this run's.
     let test_results = format!(
-        "tests-{}-{}.xml",
+        "tests-{}-{}-{}.xml",
         arguments.platform,
-        Local::now().format("%Y%m%d%H%M%S")
+        Local::now().format("%Y%m%d%H%M%S"),
+        &Uuid::new_v4().simple().to_string()[..8]
     );
 
     let output_path = setup.project.join(test_results);
@@ -75,7 +80,7 @@ pub fn run_tests(arguments: &TestArguments) -> anyhow::Result<()> {
             MessageType::Ok
         };
 
-        print_results(arguments, &start_time, &setup.project, &output_path, status)?;
+        print_results(arguments, start_time, &setup.project, &output_path, status)?;
     }
 
     if tests_failed {
@@ -97,7 +102,7 @@ fn tests_failed_error() -> ReportedFailure {
 
 fn print_results(
     arguments: &TestArguments,
-    start_time: &DateTime<Utc>,
+    start_time: Instant,
     project: &ProjectPath,
     output_path: &Path,
     status: MessageType,
@@ -108,9 +113,7 @@ fn print_results(
             "{p} tests for project in {d}; total time {t:.2}s",
             p = arguments.platform,
             d = project.normalized_display(),
-            t = Utc::now()
-                .signed_duration_since(start_time)
-                .as_seconds_f64()
+            t = start_time.elapsed().as_secs_f64()
         ),
         status,
     );

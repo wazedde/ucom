@@ -37,7 +37,7 @@ pub(super) fn build_via_editor(
     plan: &BuildPlan,
     setup: &ProjectSetup,
     editor_pid: Pid,
-    start_time: chrono::DateTime<Utc>,
+    start_time: Instant,
 ) -> anyhow::Result<()> {
     if let Err(e) = ensure_editor_builder_installed(setup) {
         if !plan.args.dry_run {
@@ -327,7 +327,7 @@ fn read_editor_build_result(result_file: &Path) -> anyhow::Result<EditorBuildRes
 fn handle_editor_build_result(
     result: &EditorBuildResult,
     setup: &ProjectSetup,
-    start_time: chrono::DateTime<Utc>,
+    start_time: Instant,
     log_file: Option<&Path>,
 ) -> anyhow::Result<()> {
     match result.status {
@@ -397,12 +397,7 @@ fn handle_editor_build_result(
 
     MessageType::print_line(
         "Total time",
-        format!(
-            "{t:.2}s",
-            t = Utc::now()
-                .signed_duration_since(start_time)
-                .as_seconds_f64()
-        ),
+        format!("{t:.2}s", t = start_time.elapsed().as_secs_f64()),
         if succeeded {
             MessageType::Ok
         } else {
