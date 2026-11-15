@@ -1,23 +1,10 @@
-/*
- * This file is part of the ucom command line tool (https://github.com/jakkovanhunen/ucom).
- *
- * Copyright 2022-2026 Jakko van Hunen
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
+// This file is part of the ucom command line tool (https://github.com/wazedde/ucom).
+// Copyright 2022-2026 Jakko van Hunen
+// SPDX-License-Identifier: Apache-2.0
 
 #if UNITY_2021_3_OR_NEWER
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using UnityEditor;
 using UnityEditor.Build;
@@ -34,75 +21,53 @@ namespace Ucom
         private const string DefineSymbol = "DISABLE_UCOM_MENU";
 
         [SettingsProvider]
-        public static SettingsProvider CreateUcomSettings()
+        public static SettingsProvider CreateUcomSettings() => new("Project/Ucom", SettingsScope.Project)
         {
-            var provider = new SettingsProvider("Project/Ucom", SettingsScope.Project)
+            label = "Ucom",
+            guiHandler = _ =>
             {
-                label = "Ucom",
-                guiHandler = _ =>
-                {
-                    var targetGroup = BuildPipeline.GetBuildTargetGroup(EditorUserBuildSettings.activeBuildTarget);
-                    var isEnabled = !ScriptingDefines.HasDefine(DefineSymbol, targetGroup);
-                    var newIsEnabled = EditorGUILayout.Toggle("Enable Ucom Menu", isEnabled);
+                var targetGroup = BuildPipeline.GetBuildTargetGroup(EditorUserBuildSettings.activeBuildTarget);
+                var isEnabled = !ScriptingDefines.HasDefine(DefineSymbol, targetGroup);
+                var newIsEnabled = EditorGUILayout.Toggle("Enable Ucom Menu", isEnabled);
 
-                    EditorGUILayout.LabelField(
-                        $"Disabling the menu adds the {DefineSymbol} compiler symbol to the current build target ({targetGroup}).",
-                        EditorStyles.wordWrappedLabel
-                    );
+                EditorGUILayout.LabelField(
+                    $"Disabling the menu adds the {DefineSymbol} compiler symbol to the current build target ({targetGroup}).",
+                    EditorStyles.wordWrappedLabel);
 
-                    if (newIsEnabled != isEnabled)
-                        ScriptingDefines.SetDefine(DefineSymbol, !newIsEnabled, targetGroup);
-                },
-
-                keywords = new HashSet<string>(new[] { "ucom", "menu", "build" }),
-            };
-
-            return provider;
-        }
+                if (newIsEnabled != isEnabled)
+                    ScriptingDefines.SetDefine(DefineSymbol, !newIsEnabled, targetGroup);
+            },
+            keywords = new HashSet<string>(new[] { "ucom", "menu", "build" }),
+        };
     }
 
     public static class ScriptingDefines
     {
         /// <summary>
-        /// Returns true if the given scripting define symbol is defined in the build settings.
+        /// Returns true if the given scripting define symbol is defined for the build target group.
         /// </summary>
-        /// <param name="define">The scripting define symbol to check.</param>
-        /// <param name="buildTargetGroup">The <see cref="BuildTargetGroup"/> to check.</param>
-        /// <returns>True if the scripting define symbol is defined; False otherwise.</returns>
-        public static bool HasDefine(string define, BuildTargetGroup buildTargetGroup)
-        {
-            var symbols = PlayerSettings
-                .GetScriptingDefineSymbols(NamedBuildTarget.FromBuildTargetGroup(buildTargetGroup))
-                .Split(';');
-            return symbols.Contains(define);
-        }
+        public static bool HasDefine(string define, BuildTargetGroup buildTargetGroup) =>
+            GetDefines(buildTargetGroup).Contains(define);
 
         /// <summary>
-        /// Adds or removes the given scripting define symbol from the build settings.
+        /// Adds (<paramref name="enabled"/> is true) or removes the scripting define symbol for the build target group.
         /// </summary>
-        /// <param name="define">The scripting define symbol to add or remove.</param>
-        /// <param name="enabled">If true, the scripting define symbol will be added; if false, the symbol will be removed.</param>
-        /// <param name="buildTargetGroup"></param>
         public static void SetDefine(string define, bool enabled, BuildTargetGroup buildTargetGroup)
         {
-            var namedBuildTarget = NamedBuildTarget.FromBuildTargetGroup(buildTargetGroup);
-            var symbols = PlayerSettings.GetScriptingDefineSymbols(namedBuildTarget);
-            var symbolList = symbols.Split(';');
+            var defines = GetDefines(buildTargetGroup);
+            if (defines.Contains(define) == enabled)
+                return;
 
-            switch (enabled)
-            {
-                case true when !symbolList.Contains(define):
-                    symbols += ";" + define;
-                    break;
-                case false when symbolList.Contains(define):
-                    symbols = string.Join(";", symbolList.Where(s => s != define));
-                    break;
-                default:
-                    return;
-            }
-
-            PlayerSettings.SetScriptingDefineSymbols(namedBuildTarget, symbols);
+            var newDefines = enabled ? defines.Append(define) : defines.Where(s => s != define);
+            PlayerSettings.SetScriptingDefineSymbols(NamedBuildTarget.FromBuildTargetGroup(buildTargetGroup),
+                string.Join(";", newDefines));
         }
+
+        private static string[] GetDefines(BuildTargetGroup buildTargetGroup) => PlayerSettings
+            .GetScriptingDefineSymbols(NamedBuildTarget.FromBuildTargetGroup(buildTargetGroup))
+            .Split(';')
+            .Where(s => s.Length > 0)
+            .ToArray();
     }
 
     /// <summary>
@@ -124,16 +89,12 @@ namespace Ucom
         public const string PlatformName = "Linux";
 #elif UNITY_WEBGL
         public const string PlatformName = "WebGL";
+#else
+        public const string PlatformName = "Unsupported";
 #endif
     }
-}
-
 
 #if !DISABLE_UCOM_MENU
-namespace Ucom
-{
-    using System.IO;
-
     /// <summary>
     /// Menu options for building the project.
     /// Also serves as example usage of the <see cref="UnityBuilder"/> class for building with your own settings.
@@ -142,156 +103,106 @@ namespace Ucom
     public static class EditorMenu
     {
         private const string PlatformMenu = MenuConstants.MenuName + "/Platform: " + MenuConstants.PlatformName;
+        private const string ReleaseMenu = MenuConstants.MenuName + "/Release/";
+        private const string DebugMenu = MenuConstants.MenuName + "/Debug/";
+
+        private const BuildOptions DebugOptions = BuildOptions.AutoRunPlayer
+                                                  | BuildOptions.Development
+                                                  | BuildOptions.WaitForPlayerConnection
+                                                  | BuildOptions.ConnectToHost;
+
+        private const BuildOptions ProfilingOptions = DebugOptions | BuildOptions.ConnectWithProfiler;
 
         [MenuItem(PlatformMenu + "/Build Settings...", false, 0)]
-        public static void BuildSettings()
-        {
+        public static void BuildSettings() =>
             EditorWindow.GetWindow(System.Type.GetType("UnityEditor.BuildPlayerWindow,UnityEditor"));
-        }
 
         [MenuItem(PlatformMenu + "/Player Settings...", false, 0)]
-        public static void PlatformSettings()
-        {
-            SettingsService.OpenProjectSettings("Project/Player");
-        }
+        public static void PlatformSettings() => SettingsService.OpenProjectSettings("Project/Player");
 
         /// <summary>
-        /// Builds the project to the Builds directory in the project root.
+        /// Builds the project to the Builds directory in the project root and shows the build in the file browser.
         /// </summary>
-        [MenuItem(MenuConstants.MenuName + "/Release/Build", false, 1)]
+        [MenuItem(ReleaseMenu + "Build", false, 1)]
         public static void Build()
         {
-            if (!TryGetOutputPath(out var outputDirectory, OutputType.Release) || !ValidateActiveScenes())
-                return;
-
-            if (UnityBuilder.Build(outputDirectory, UnityBuilder.GetActiveScenes()))
-                EditorUtility.OpenWithDefaultApp(outputDirectory);
-
-            Debug.Log("[Builder] Finished Release build");
+            if (BuildTo(OutputType.Release, BuildOptions.None, "Release", out var locationPath))
+                EditorUtility.RevealInFinder(locationPath);
         }
 
         /// <summary>
         /// Builds the project to the Builds directory in the project root and runs it.
         /// </summary>
-        [MenuItem(MenuConstants.MenuName + "/Release/Build and Run", false, 1)]
-        public static void BuildAndRun()
-        {
-            if (!TryGetOutputPath(out var outputDirectory, OutputType.Release) || !ValidateActiveScenes())
-                return;
+        [MenuItem(ReleaseMenu + "Build and Run", false, 1)]
+        public static void BuildAndRun() => BuildTo(OutputType.Release, BuildOptions.AutoRunPlayer, "Release", out _);
 
-            UnityBuilder.Build(outputDirectory, UnityBuilder.GetActiveScenes(), BuildOptions.AutoRunPlayer);
+        /// <summary>
+        /// Builds a development build for script debugging.
+        /// </summary>
+        [MenuItem(DebugMenu + "Build and Run", false, 2)]
+        public static void DebugBuild() =>
+            BuildTo(OutputType.Debug, DebugOptions | BuildOptions.AllowDebugging, "Debug", out _);
 
-            Debug.Log("[Builder] Finished Release build");
-        }
+        /// <summary>
+        /// Builds a debug build for profiling.
+        /// </summary>
+        [MenuItem(DebugMenu + "Build and Run (Profiling)", false, 2)]
+        public static void ProfilingBuild() => BuildTo(OutputType.Debug, ProfilingOptions, "Debug (Profiling)", out _);
 
         /// <summary>
         /// Builds a debug build for deep profiling.
         /// </summary>
-        [MenuItem(MenuConstants.MenuName + "/Debug/Build and Run (Deep Profiling)", false, 2)]
-        public static void DeepProfilingBuild()
-        {
-            if (!TryGetOutputPath(out var outputDirectory, OutputType.Debug) || !ValidateActiveScenes())
-                return;
-
-            UnityBuilder.Build(outputDirectory,
-                UnityBuilder.GetActiveScenes(),
-                BuildOptions.AutoRunPlayer |
-                BuildOptions.Development |
-                BuildOptions.ConnectWithProfiler |
-                BuildOptions.EnableDeepProfilingSupport |
-                BuildOptions.WaitForPlayerConnection |
-                BuildOptions.ConnectToHost
-            );
-
-            Debug.Log("[Builder] Finished Debug (Deep Profiling) build");
-        }
+        [MenuItem(DebugMenu + "Build and Run (Deep Profiling)", false, 2)]
+        public static void DeepProfilingBuild() => BuildTo(OutputType.Debug,
+            ProfilingOptions | BuildOptions.EnableDeepProfilingSupport,
+            "Debug (Deep Profiling)",
+            out _);
 
         /// <summary>
         /// Opens the Builds directory in the project root.
         /// </summary>
         [MenuItem(MenuConstants.MenuName + "/Open Builds Directory")]
-        public static void OpenBuildDirectory()
-        {
-            EditorUtility.OpenWithDefaultApp(UnityBuilder.GetBuildsDirectoryPath());
-        }
+        public static void OpenBuildDirectory() => EditorUtility.OpenWithDefaultApp(UnityBuilder.GetBuildsDirectoryPath());
 
         [MenuItem(MenuConstants.MenuName + "/Open Builds Directory", true)]
         public static bool ValidateOpenBuildDirectory() => Directory.Exists(UnityBuilder.GetBuildsDirectoryPath());
 
-        private static bool TryGetOutputPath(out string outputDirectory, OutputType outputType)
+        /// <summary>
+        /// Builds the active scenes for the active build target to <c>Builds/&lt;outputType&gt;/&lt;target&gt;</c>.
+        /// </summary>
+        /// <param name="label">The name of the build in the log message.</param>
+        /// <param name="locationPath">The path of the build output.</param>
+        /// <returns><c>true</c> if the build succeeded; <c>false</c> otherwise.</returns>
+        private static bool BuildTo(OutputType outputType, BuildOptions options, string label, out string locationPath)
         {
-            if (UnityBuilder.TryGetDefaultBuildOutputPath(out var outputPath, outputType)
-                && UnityBuilder.TryGetBuildLocationPath(outputPath,
-                    Application.productName,
-                    EditorUserBuildSettings.activeBuildTarget,
-                    out outputDirectory
-                ))
+            var target = EditorUserBuildSettings.activeBuildTarget;
+            if (!UnityBuilder.TryGetDefaultBuildOutputPath(out var outputPath, outputType))
             {
-                return true;
+                UnityBuilder.Log($"[Builder] Error: Unsupported build target {target}", LogType.Error);
+                locationPath = null;
+                return false;
             }
 
-            UnityBuilder.Log($"[Builder] Unsupported build target{EditorUserBuildSettings.activeBuildTarget}",
-                LogType.Error
-            );
-            outputDirectory = null;
-            return false;
-        }
+            // Cannot fail: TryGetDefaultBuildOutputPath has already checked that the target is supported.
+            UnityBuilder.TryGetBuildLocationPath(outputPath, Application.productName, target, out locationPath);
 
-        private static bool ValidateActiveScenes()
-        {
-            if (UnityBuilder.GetActiveScenes().Length > 0)
-                return true;
+            var scenes = UnityBuilder.GetActiveScenes();
+            if (scenes.Length == 0)
+            {
+                EditorUtility.DisplayDialog("No Active Scenes to Build",
+                    "Add at least one active scene to the Build Settings.",
+                    "Ok");
+                return false;
+            }
 
-            EditorUtility.DisplayDialog("No Active Scenes to Build",
-                "Add at least one active scene to the Build Settings.",
-                "Ok"
-            );
-            return false;
-        }
+            // On failure, UnityBuilder.Build has already logged the errors.
+            if (!UnityBuilder.Build(locationPath, scenes, options))
+                return false;
 
-        /// <summary>
-        /// Builds a development for script debugging.
-        /// </summary>
-        [MenuItem(MenuConstants.MenuName + "/Debug/Build and Run", false, 2)]
-        public static void DebugBuild()
-        {
-            if (!TryGetOutputPath(out var outputDirectory, OutputType.Debug) || !ValidateActiveScenes())
-                return;
-
-            UnityBuilder.Build(outputDirectory,
-                UnityBuilder.GetActiveScenes(),
-                BuildOptions.AutoRunPlayer |
-                BuildOptions.Development |
-                BuildOptions.AllowDebugging |
-                BuildOptions.WaitForPlayerConnection |
-                BuildOptions.ConnectToHost
-            );
-
-            Debug.Log("[Builder] Finished Debug build");
-        }
-
-        /// <summary>
-        /// Builds a debug build for profiling.
-        /// </summary>
-        [MenuItem(MenuConstants.MenuName + "/Debug/Build and Run (Profiling)", false, 2)]
-        public static void ProfilingBuild()
-        {
-            if (!TryGetOutputPath(out var outputDirectory, OutputType.Debug) || !ValidateActiveScenes())
-                return;
-
-            UnityBuilder.Build(outputDirectory,
-                UnityBuilder.GetActiveScenes(),
-                BuildOptions.AutoRunPlayer |
-                BuildOptions.Development |
-                BuildOptions.ConnectWithProfiler |
-                BuildOptions.WaitForPlayerConnection |
-                BuildOptions.ConnectToHost
-            );
-
-            Debug.Log("[Builder] Finished Debug (Profiling) build");
+            Debug.Log($"[Builder] Finished {label} build");
+            return true;
         }
     }
-}
 #endif // !DISABLE_UCOM_MENU
-
+}
 #endif // UNITY_2021_3_OR_NEWER

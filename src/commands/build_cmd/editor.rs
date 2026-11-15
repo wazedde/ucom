@@ -59,6 +59,7 @@ pub(super) fn build_via_editor(
         development_build: plan.options.contains(BuildOptions::Development),
         force_platform_switch: plan.args.force_editor_build,
         force_play_mode_exit: plan.args.force_editor_build,
+        wait_for_compilation: plan.args.force_editor_build,
     };
     let command_json = serde_json::to_string_pretty(&command).context(
         "Failed to create the build command for the Unity editor; are all paths valid UTF-8?",
@@ -476,6 +477,8 @@ struct EditorCommand {
     development_build: bool,
     force_platform_switch: bool,
     force_play_mode_exit: bool,
+    /// Builder scripts from before this field wait for compilation if `force_platform_switch` is set.
+    wait_for_compilation: bool,
 }
 
 /// The commands the editor command watcher understands.
@@ -693,6 +696,7 @@ mod tests {
             development_build: true,
             force_platform_switch: false,
             force_play_mode_exit: false,
+            wait_for_compilation: true,
         };
 
         let json = serde_json::to_value(&command).unwrap();
@@ -706,6 +710,7 @@ mod tests {
         assert_eq!(json["log_path"], "/project/Temp/ucom-results/build-1.log");
         assert_eq!(json["build_options"], 1);
         assert_eq!(json["development_build"], true);
+        assert_eq!(json["wait_for_compilation"], true);
     }
 
     #[test]
