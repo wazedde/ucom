@@ -103,7 +103,9 @@ fn write_and_rename(
     let mut writer = BufWriter::new(File::create(tmp_path)?);
     write(&mut writer)?;
     // Flush explicitly: errors from flushing on drop would be lost.
-    writer.into_inner().map_err(|e| e.into_error())?;
+    writer
+        .into_inner()
+        .map_err(std::io::IntoInnerError::into_error)?;
     fs::rename(tmp_path, path)?;
     Ok(())
 }

@@ -1,7 +1,12 @@
 use crate::cli::PackagesInfoLevel;
-use crate::commands::{MARK_AVAILABLE, MARK_UNAVAILABLE, install_latest_matching};
-use crate::style_definitions::*;
-use crate::unity::project::*;
+use crate::commands::install_latest_matching;
+use crate::commands::output::{MARK_AVAILABLE, MARK_UNAVAILABLE};
+use crate::commands::release_issue::{ReleaseIssueDisplay, report_error_description};
+use crate::style_definitions::{STYLE_ERROR, STYLE_LINK, STYLE_SUCCESS, STYLE_WARNING};
+use crate::unity::project::{
+    PackageInfo, PackageSource, Packages, PackagesAvailability, ProjectPath, ProjectSettings,
+    walk_visible_directories,
+};
 use crate::unity::release_api::{UpdatePolicy, fetch_latest_releases};
 use crate::unity::{BuildProfilesStatus, Version, VersionPattern, release_notes_url};
 use crate::utils;
@@ -152,7 +157,7 @@ fn print_project_info(
     );
 
     if issue.has_issue() {
-        crate::commands::report_error_description(report, &issue);
+        report_error_description(report, &issue);
     }
 
     // Print the available build profiles

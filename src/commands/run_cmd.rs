@@ -1,8 +1,8 @@
 use crate::cli_run::RunArguments;
-use crate::commands::execute_unity_command;
 use crate::commands::unity_command_builder::UnityCommandBuilder;
-use crate::unity::build_command_line;
+use crate::commands::unity_command_builder::execute_unity_command;
 use crate::unity::installations::Installations;
+use crate::utils::spawn_cmd::build_command_line;
 
 /// Runs the Unity Editor with the given arguments.
 pub fn run_unity(arguments: RunArguments) -> anyhow::Result<()> {

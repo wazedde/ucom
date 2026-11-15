@@ -13,15 +13,19 @@ use uuid::Uuid;
 
 use super::build_log::{find_log_errors, format_log_errors, remove_old_log_file};
 use super::plan::BuildPlan;
-use super::script::{installed_builder_version, persistent_builder_path};
 use super::{clean_output_directory, start_build_status};
 use crate::cli_add::UnityTemplateFile;
 use crate::cli_build::{BuildOptions, BuildScriptTarget};
-use crate::commands::{ProjectSetup, TimeDeltaExt, report_version_issues, warn_non_fatal};
-use crate::unity::{CommandError, Pid, ProjectPath, comparable_path, is_process_running};
+use crate::commands::builder_script::{installed_builder_version, persistent_builder_path};
+use crate::commands::project_setup::ProjectSetup;
+use crate::commands::release_issue::report_version_issues;
+use crate::unity::ProjectPath;
+use crate::unity::editor_process::{Pid, comparable_path, is_process_running};
 use crate::utils::native_progress::{NativeProgressBar, NativeProgressState};
 use crate::utils::path_ext::PlatformConsistentPathExt;
+use crate::utils::spawn_cmd::CommandError;
 use crate::utils::status_line::MessageType;
+use crate::utils::warn_non_fatal;
 use crate::utils::{cancel, write_atomic};
 
 /// Builds the project in the Unity editor that already has it open, using file-based IPC.
@@ -395,7 +399,9 @@ fn handle_editor_build_result(
         "Total time",
         format!(
             "{t:.2}s",
-            t = Utc::now().signed_duration_since(start_time).as_seconds()
+            t = Utc::now()
+                .signed_duration_since(start_time)
+                .as_seconds_f64()
         ),
         if succeeded {
             MessageType::Ok

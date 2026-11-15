@@ -3,7 +3,8 @@
 use std::fs;
 use std::path::{Path, PathBuf};
 
-use crate::unity::{ProjectPath, VERSION_SUB_PATH};
+use crate::unity::ProjectPath;
+use crate::unity::project::VERSION_SUB_PATH;
 
 /// A uniquely named directory under the system temp directory, removed when dropped,
 /// including when a test panics.

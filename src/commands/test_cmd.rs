@@ -6,14 +6,15 @@ use chrono::prelude::*;
 use yansi::Paint;
 
 use crate::cli_test::{ShowResults, TestArguments};
+use crate::commands::project_setup::ProjectSetup;
 use crate::commands::unity_command_builder::UnityCommandBuilder;
-use crate::commands::{ProjectSetup, TimeDeltaExt};
 use crate::nunit::{TestCase, TestResult, TestRun};
 use crate::style_definitions::{STYLE_ERROR, STYLE_PLAIN};
-use crate::unity::{OnCancel, ProjectPath, build_command_line, wait_with_stdout};
+use crate::unity::ProjectPath;
 use crate::utils::ReportedFailure;
 use crate::utils::native_progress::{NativeProgressBar, NativeProgressState};
 use crate::utils::path_ext::PlatformConsistentPathExt;
+use crate::utils::spawn_cmd::{OnCancel, build_command_line, wait_with_stdout};
 use crate::utils::status_line::{MessageType, StatusLine};
 
 pub fn run_tests(arguments: &TestArguments) -> anyhow::Result<()> {
@@ -107,7 +108,9 @@ fn print_results(
             "{p} tests for project in {d}; total time {t:.2}s",
             p = arguments.platform,
             d = project.normalized_display(),
-            t = Utc::now().signed_duration_since(start_time).as_seconds()
+            t = Utc::now()
+                .signed_duration_since(start_time)
+                .as_seconds_f64()
         ),
         status,
     );

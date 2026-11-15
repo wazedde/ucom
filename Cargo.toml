@@ -10,6 +10,7 @@ strip = true
 
 [lints.clippy]
 trivially_copy_pass_by_ref = "warn"
+mod_module_files = "warn"
 
 [dependencies]
 anyhow = "1.0"

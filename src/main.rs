@@ -1,8 +1,7 @@
 use crate::cli::{CacheAction, Cli, Command};
-use crate::commands::test_cmd::run_tests;
 use crate::commands::{
     INDENT, add_to_project, build_project, find_project_updates, install_latest_matching,
-    list_versions, new_project, open_project, project_info, run_unity,
+    list_versions, new_project, open_project, project_info, run_tests, run_unity,
 };
 use crate::style_definitions::STYLE_ERROR;
 use crate::unity::release_api::UpdatePolicy;
@@ -73,7 +72,7 @@ fn colour_allowed(no_color_flag: bool) -> bool {
 }
 
 fn colour_allowed_by(no_color_flag: bool, no_color_env: Option<&std::ffi::OsStr>) -> bool {
-    !no_color_flag && no_color_env.is_none_or(|v| v.is_empty())
+    !no_color_flag && no_color_env.is_none_or(std::ffi::OsStr::is_empty)
 }
 
 /// Formats an error as returning it from `main` would (`Error: ...`, then `Caused by:` and the

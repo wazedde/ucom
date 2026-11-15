@@ -3,11 +3,14 @@ use std::path::Path;
 use yansi::Paint;
 
 use crate::commands::install_cmd::install_version;
-use crate::commands::*;
+use crate::commands::output::{AlignedVersion, MARK_AVAILABLE, MARK_BULLET, MARK_UNAVAILABLE};
+use crate::commands::project_setup::ProjectSetup;
+use crate::commands::release_issue::{ReleaseIssueDisplay, report_error_description};
 use crate::style_definitions::{
     STYLE_ERROR, STYLE_LINK, STYLE_OUTDATED, STYLE_SUCCESS, STYLE_UP_TO_DATE, STYLE_UPDATE_VERSION,
     STYLE_WARNING,
 };
+use crate::unity::ProjectPath;
 use crate::unity::release_api::{SortedReleases, UpdatePolicy};
 use crate::unity::{ProjectSettings, ReleaseUpdates, find_available_updates, release_notes_url};
 use crate::utils::content_cache;
@@ -231,7 +234,7 @@ fn print_available_updates(releases: &ReleaseUpdates, report: &Report) -> anyhow
                     is = issue.issue_tag(),
                     in = "installed".bold(),
                 ),
-                issue.issue_marker_or(|| MARK_BULLET),
+                issue.issue_marker_or(MARK_BULLET),
             );
         } else {
             report.marked_item(
@@ -242,7 +245,7 @@ fn print_available_updates(releases: &ReleaseUpdates, report: &Report) -> anyhow
                     rn = release_notes_url(release.version).paint(STYLE_LINK),
                     is = issue.issue_tag_with_prefix(" "),
                 ),
-                issue.issue_marker_or(|| MARK_BULLET),
+                issue.issue_marker_or(MARK_BULLET),
             );
         }
     }

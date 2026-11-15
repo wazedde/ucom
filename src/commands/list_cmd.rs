@@ -4,15 +4,21 @@ use std::fmt::{Display, Formatter};
 use yansi::{Condition, Paint};
 
 use crate::cli::ListType;
-use crate::commands::*;
-use crate::style_definitions::*;
+use crate::commands::output::{
+    AlignedVersion, MARK_BULLET, MARK_NO_INFO, TAG_NEW, TAG_OUTDATED, TAG_UP_TO_DATE,
+};
+use crate::commands::release_issue::ReleaseIssueDisplay;
+use crate::style_definitions::{
+    STYLE_LINK, STYLE_NO_UPDATE_INFO, STYLE_OUTDATED, STYLE_UP_TO_DATE, STYLE_UPDATE_VERSION,
+};
 use crate::unity::installations::{Installations, SortedVersions};
 use crate::unity::release_api::{
     Releases, SortedReleases, UpdatePolicy, fetch_latest_releases, load_cached_releases,
 };
-use crate::unity::release_api_data::ReleaseData;
+use crate::unity::release_api_data::{ReleaseData, ReleaseIssue};
 use crate::unity::{ReleaseStream, Version, VersionPattern, release_notes_url};
 use crate::utils::formatter::FormatWhen;
+use crate::utils::path_ext::PlatformConsistentPathExt;
 use crate::utils::report::{HeaderLevel, Report};
 use crate::utils::vec1::Vec1;
 
@@ -604,7 +610,7 @@ fn format_installed_release_line(
                 || "----------".to_string(),
                 |rd| rd.release_date.format("%Y-%m-%d").to_string(),
             ),
-            mk = issue.issue_marker_or(|| { MARK_BULLET }),
+            mk = issue.issue_marker_or(MARK_BULLET),
             description = format_release_description(info, release),
         )
         .bold()
@@ -641,13 +647,13 @@ fn format_update_release_line(
                 format!(
                     "{stream} {vs} ({release_date}) {mk}",
                     vs = version.paint(issue.issue_style_or(STYLE_UP_TO_DATE)),
-                    mk = issue.issue_tag_or(|| TAG_UP_TO_DATE.as_str()),
+                    mk = issue.issue_tag_or(TAG_UP_TO_DATE.as_str()),
                 )
             } else {
                 format!(
                     "{stream} {vs} ({release_date}) {mk}",
                     vs = version.paint(issue.issue_style_or(STYLE_OUTDATED)),
-                    mk = issue.issue_tag_or(|| TAG_OUTDATED.as_str()),
+                    mk = issue.issue_tag_or(TAG_OUTDATED.as_str()),
                 )
             }
         }
@@ -655,7 +661,7 @@ fn format_update_release_line(
             format!(
                 "{stream} {vs} ({release_date}) {mk} {rd}",
                 vs = version.paint(issue.issue_style_or(STYLE_UPDATE_VERSION)),
-                mk = issue.issue_tag_or(|| TAG_NEW.as_str()),
+                mk = issue.issue_tag_or(TAG_NEW.as_str()),
                 rd = format_release_description(info, Some(release_info)),
             )
         }

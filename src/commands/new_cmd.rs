@@ -7,14 +7,13 @@ use path_absolutize::Absolutize;
 
 use crate::cli_add::UnityTemplateFile;
 use crate::cli_new::NewArguments;
-use crate::commands::unity_command_builder::UnityCommandBuilder;
-use crate::commands::{
-    PERSISTENT_BUILD_SCRIPT_ROOT, add_file_to_project, ensure_builder_supports,
-    execute_unity_command, report_version_issues,
-};
-use crate::unity::build_command_line;
+use crate::commands::builder_script::{PERSISTENT_BUILD_SCRIPT_ROOT, ensure_builder_supports};
+use crate::commands::project_files::add_file_to_project;
+use crate::commands::release_issue::report_version_issues;
+use crate::commands::unity_command_builder::{UnityCommandBuilder, execute_unity_command};
 use crate::unity::installations::Installations;
 use crate::utils::path_ext::PlatformConsistentPathExt;
+use crate::utils::spawn_cmd::build_command_line;
 use crate::utils::status_line::StatusLine;
 
 /// Version of `println!` that writes bold text.

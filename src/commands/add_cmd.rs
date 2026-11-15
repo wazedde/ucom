@@ -3,12 +3,12 @@ use std::path::PathBuf;
 use anyhow::bail;
 
 use crate::cli_add::{AddArguments, AssetSource, UnityTemplateFile};
-use crate::commands::{
-    INDENT, PERSISTENT_BUILD_SCRIPT_ROOT, add_file_to_project, ensure_builder_supports,
-    warn_non_fatal,
-};
+use crate::commands::builder_script::{PERSISTENT_BUILD_SCRIPT_ROOT, ensure_builder_supports};
+use crate::commands::output::INDENT;
+use crate::commands::project_files::add_file_to_project;
 use crate::unity::project::ProjectPath;
 use crate::utils::path_ext::PlatformConsistentPathExt;
+use crate::utils::warn_non_fatal;
 
 pub fn add_to_project(args: &AddArguments) -> anyhow::Result<()> {
     if args.display_content {

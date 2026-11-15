@@ -1,9 +1,10 @@
 use crate::cli::OpenArguments;
-use crate::commands::unity_command_builder::UnityCommandBuilder;
-use crate::commands::{execute_unity_command, report_version_issues};
+use crate::commands::release_issue::report_version_issues;
+use crate::commands::unity_command_builder::{UnityCommandBuilder, execute_unity_command};
 use crate::unity::installations::Installations;
-use crate::unity::{ProjectPath, VersionPattern, build_command_line};
+use crate::unity::{ProjectPath, VersionPattern};
 use crate::utils::path_ext::PlatformConsistentPathExt;
+use crate::utils::spawn_cmd::build_command_line;
 
 /// Opens the given Unity project in the Unity Editor.
 pub fn open_project(arguments: OpenArguments) -> anyhow::Result<()> {

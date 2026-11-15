@@ -7,23 +7,24 @@ use std::fs;
 use std::path::Path;
 
 use crate::cli_build::BuildArguments;
-use crate::commands::{
-    ProjectSetup, TimeDeltaExt, ensure_builder_supports, report_version_issues, warn_non_fatal,
-};
-use crate::unity::{
-    CommandError, OnCancel, build_command_line, find_unity_editor_process, wait_with_log_output,
-    wait_with_stdout,
-};
+use crate::commands::builder_script::{ensure_builder_supports, warn_if_builder_outdated};
+use crate::commands::project_setup::ProjectSetup;
+use crate::commands::release_issue::report_version_issues;
+use crate::unity::find_unity_editor_process;
 use crate::utils::native_progress::{NativeProgressBar, NativeProgressState};
 use crate::utils::path_ext::PlatformConsistentPathExt;
+use crate::utils::spawn_cmd::{
+    CommandError, OnCancel, build_command_line, wait_with_log_output, wait_with_stdout,
+};
 use crate::utils::status_line::{MessageType, StatusLine};
+use crate::utils::warn_non_fatal;
 use anyhow::Context;
 use chrono::Utc;
 
 use build_log::{collect_log_errors, print_build_report, remove_old_log_file};
 use editor::build_via_editor;
 use plan::BuildPlan;
-use script::{inject_build_script, warn_if_builder_outdated};
+use script::inject_build_script;
 
 /// Runs the build command.
 pub fn build_project(arguments: &BuildArguments) -> anyhow::Result<()> {
@@ -103,7 +104,9 @@ pub fn build_project(arguments: &BuildArguments) -> anyhow::Result<()> {
         "Total time",
         format!(
             "{t:.2}s",
-            t = Utc::now().signed_duration_since(start_time).as_seconds()
+            t = Utc::now()
+                .signed_duration_since(start_time)
+                .as_seconds_f64()
         ),
         build_status,
     );

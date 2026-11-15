@@ -1,23 +1,12 @@
-pub use crate::unity::project::*;
-pub use crate::unity::releases::*;
-pub use crate::unity::version::*;
-pub use crate::unity::version_pattern::VersionPattern;
-pub use crate::utils::spawn_cmd::*;
+//! Detection of an interactive Unity editor that has a project open.
 
+use crate::unity::ProjectPath;
 use std::collections::HashSet;
 use std::ffi::{OsStr, OsString};
 use std::fs;
 use std::path::{Path, PathBuf};
 pub use sysinfo::Pid;
 use sysinfo::{ProcessRefreshKind, ProcessStatus, ProcessesToUpdate, System, UpdateKind};
-
-pub mod installations;
-pub mod project;
-pub mod release_api;
-pub mod release_api_data;
-pub mod releases;
-pub mod version;
-pub mod version_pattern;
 
 /// Returns the process ID of an interactive Unity editor that has the given project open,
 /// or `None` if there is none.

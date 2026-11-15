@@ -247,9 +247,7 @@ impl Version {
 
 #[cfg(test)]
 mod version_tests {
-    use crate::unity::ParseError;
-
-    use super::{BuildType, Version};
+    use super::{BuildType, ParseError, Version};
 
     #[test]
     fn test_version_from_string_f() {

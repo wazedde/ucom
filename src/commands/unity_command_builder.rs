@@ -1,6 +1,8 @@
 use std::path::PathBuf;
 use std::process::Command;
 
+use crate::utils::spawn_cmd;
+
 /// Builder pattern for constructing Unity editor commands.
 ///
 /// This abstraction consolidates the repeated pattern of building Unity command-line invocations
@@ -127,4 +129,20 @@ impl UnityCommandBuilder {
 
         cmd
     }
+}
+
+/// Runs a Unity command, printing its command line unless `quiet`, and waits for it to exit
+/// if `wait`.
+pub fn execute_unity_command(cmd: Command, wait: bool, quiet: bool) -> anyhow::Result<()> {
+    if !quiet {
+        println!("Running: {}", spawn_cmd::build_command_line(&cmd));
+    }
+
+    if wait {
+        // An interactive editor may have unsaved work, so Ctrl+C only stops waiting for it.
+        spawn_cmd::wait_with_stdout(cmd, spawn_cmd::OnCancel::Detach)?;
+    } else {
+        spawn_cmd::spawn_and_forget(cmd)?;
+    }
+    Ok(())
 }
