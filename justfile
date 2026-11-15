@@ -87,3 +87,47 @@ clean:
 [group('unity')]
 cache-clear:
     cargo run -- cache clear
+
+# Build and test test-projects/minimal with a real Unity 2021.3 (needs that editor installed).
+# The Unity editor must not have the project open.
+[group('unity')]
+real-unity:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    cargo build -q
+    ucom=target/debug/ucom
+    project=test-projects/minimal
+    target={{ if os() == "macos" { "macos" } else if os() == "windows" { "win64" } else { "linux64" } }}
+    # Builds go to a temporary directory, so player builds do not pile up in the checkout.
+    out=$(mktemp -d)
+    trap 'rm -rf "$out"; rm -f "$project"/tests-*.xml' EXIT
+
+    echo "== Installing the current builder script"
+    "$ucom" add builder --force "$project"
+
+    echo "== Batch build ($target)"
+    "$ucom" build "$target" "$project" -q -o "$out/build" -l "$out/build.log"
+
+    echo "== Batch build with a failing pre-build hook (must fail because of the hook)"
+    if output=$("$ucom" build "$target" "$project" -q -o "$out/hook" -l "$out/hook.log" \
+        --build-args fail 2>&1); then
+        echo "Expected the build to fail" >&2; exit 1
+    fi
+    if ! grep -q "asked to fail" <<<"$output"; then
+        echo "The build failed, but not because of the hook:" >&2; echo "$output" >&2; exit 1
+    fi
+
+    echo "== EditMode tests without the Failing category"
+    "$ucom" test editmode "$project" -r errors --categories '!Failing'
+
+    echo "== EditMode tests in the Failing category (must exit with 2)"
+    status=0
+    "$ucom" test editmode "$project" -r errors --categories Failing || status=$?
+    if [ "$status" -ne 2 ]; then
+        echo "Expected exit code 2, got $status" >&2; exit 1
+    fi
+
+    echo "== PlayMode tests"
+    "$ucom" test playmode "$project" -r errors
+
+    echo "== All real Unity checks passed"
