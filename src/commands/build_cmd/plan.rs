@@ -140,9 +140,6 @@ impl<'a> BuildPlan<'a> {
         if self.build_function().is_some() {
             unsupported.push("--build-function");
         }
-        if self.args.build_args.is_some() {
-            unsupported.push("--build-args");
-        }
         if !self.unity_args().is_empty() {
             unsupported.push("additional Unity arguments");
         }
@@ -541,13 +538,10 @@ mod tests {
             .plan(&["macos", "-f", "My.Builder.Build", "-a", "x", "--", "-extra"])
             .unwrap();
 
+        // `--build-args` is sent to the editor.
         assert_eq!(
             plan.unsupported_in_editor(),
-            [
-                "--build-function",
-                "--build-args",
-                "additional Unity arguments"
-            ]
+            ["--build-function", "additional Unity arguments"]
         );
     }
 }

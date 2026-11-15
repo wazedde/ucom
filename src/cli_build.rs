@@ -91,8 +91,9 @@ pub struct BuildArguments {
     /// Custom argument string passed to methods marked with the [UcomPreProcessBuild] attribute.
     ///
     /// Useful for passing version numbers or configuration flags into the build script.
+    /// That method runs before every build, also in an open Unity editor; without this flag its
+    /// argument is empty.
     /// Requires the ucom build script ('UnityBuilder.cs' or similar) to be present.
-    /// Not supported when the project is open in the Unity editor.
     #[arg(short = 'a', long, value_name = "STRING")]
     pub build_args: Option<String>,
 

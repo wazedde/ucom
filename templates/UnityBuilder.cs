@@ -20,13 +20,12 @@ using Debug = UnityEngine.Debug;
 // ReSharper disable once CheckNamespace
 namespace Ucom
 {
-    /// <summary>
-    /// Build companion script for ucom.<br/>
-    /// - Lines after "[Builder] Build Report" until an empty line are printed to the console after the build finishes.<br/>
-    /// - Lines starting with "[Builder] Error:" are printed to the console if the build fails.<br/>
-    /// </summary>
+    /// <summary>Build companion script for ucom, which reads its "[Builder]" lines from the build log.</summary>
     public static class UnityBuilder
     {
+        /// <summary>Script version; ucom warns about older copies (BUILDER_SCRIPT_VERSION in build_cmd/script.rs).</summary>
+        public const int ScriptVersion = 2;
+
         // Command line arguments that ucom passes to Build().
         private const string BuildOutputArg = "--ucom-build-output"; // The output directory.
         private const string BuildTargetArg = "--ucom-build-target"; // A BuildTarget name.
@@ -47,9 +46,7 @@ namespace Ucom
             [BuildTarget.WebGL] = ("WebGL", null),
         };
 
-        /// <summary>
-        /// This method is called by ucom to build the project.
-        /// </summary>
+        /// <summary>This method is called by ucom to build the project.</summary>
         [UsedImplicitly]
         public static void Build()
         {
@@ -97,9 +94,7 @@ namespace Ucom
                 EditorApplication.Exit(succeeded ? 0 : 1);
         }
 
-        /// <summary>
-        /// Builds the application for the <see cref="EditorUserBuildSettings.activeBuildTarget"/>.
-        /// </summary>
+        /// <summary>Builds the application for the <see cref="EditorUserBuildSettings.activeBuildTarget"/>.</summary>
         /// <param name="locationPathName">The path where the application will be built.</param>
         /// <param name="scenes">The scenes to include in the build</param>
         /// <param name="options">Building options. Multiple options can be combined together.</param>
@@ -127,8 +122,12 @@ namespace Ucom
                 target = EditorUserBuildSettings.activeBuildTarget,
             };
 
-            if (!RunPreProcessBuildMethod(preBuildArgs))
+            var preBuildError = RunPreProcessBuildMethod(preBuildArgs);
+            if (preBuildError != null)
+            {
+                Log($"[Builder] Error: {preBuildError}", LogType.Error);
                 return false;
+            }
 
             BuildReport report;
             try
@@ -147,10 +146,7 @@ namespace Ucom
             return succeeded;
         }
 
-        /// <summary>
-        /// Formats the build's error messages, the build result line and the "[Builder] Build Report"
-        /// block that ucom reads from the log, ending with an empty line.
-        /// </summary>
+        /// <summary>Formats the error lines and the "[Builder] Build Report" block that ucom reads.</summary>
         /// <param name="report">The report of the finished build.</param>
         /// <param name="logFile">The log file to mention in the report, or <c>null</c> to leave it out.</param>
         public static string FormatBuildResult(BuildReport report, string logFile)
@@ -181,19 +177,19 @@ namespace Ucom
             return sb.AppendLine().ToString();
         }
 
-        /// <summary>
-        /// Returns the distinct error messages of a build, one line each.
-        /// </summary>
+        /// <summary>Returns the distinct error messages of a build, one line each.</summary>
         private static IEnumerable<string> GetBuildErrors(BuildReport report) => report.steps
             .SelectMany(step => step.messages)
             .Where(message => message.type is LogType.Error or LogType.Exception or LogType.Assert)
-            .Select(message => string.IsNullOrEmpty(message.content) ? "" : message.content.Split('\n')[0].Trim())
+            .Select(message => FirstLine(message.content))
             .Where(line => line.Length > 0)
             .Distinct();
 
-        /// <summary>
-        /// Tries to get the full path of the build location: <paramref name="buildRootPath"/> plus the app file name.
-        /// </summary>
+        /// <summary>Returns the first line of a message, without surrounding whitespace.</summary>
+        private static string FirstLine(string message) =>
+            string.IsNullOrEmpty(message) ? "" : message.Split('\n')[0].Trim();
+
+        /// <summary>Tries to get the build location: <paramref name="buildRootPath"/> plus the app file name.</summary>
         /// <returns>True if the build target is supported; False otherwise.</returns>
         public static bool TryGetBuildLocationPath(string buildRootPath,
             string appName,
@@ -205,9 +201,7 @@ namespace Ucom
             return supported;
         }
 
-        /// <summary>
-        /// Tries to get the file name of the application, without characters that are invalid in file names.
-        /// </summary>
+        /// <summary>Tries to get the app file name, without characters that are invalid in file names.</summary>
         /// <returns>True if the build target is supported; False otherwise.</returns>
         public static bool TryGetAppFileName(string appName, BuildTarget buildTarget, out string fileName)
         {
@@ -225,17 +219,12 @@ namespace Ucom
             return true;
         }
 
-        /// <summary>
-        /// Returns the paths of the active scenes in the build settings.
-        /// </summary>
+        /// <summary>Returns the paths of the active scenes in the build settings.</summary>
         [JetBrains.Annotations.NotNull]
         public static string[] GetActiveScenes() =>
             EditorBuildSettings.scenes.Where(scene => scene.enabled).Select(scene => scene.path).ToArray();
 
-        /// <summary>
-        /// Tries to get the default build output path for the current build target:
-        /// <c>Builds/&lt;output type&gt;/&lt;target&gt;</c> in the project root.
-        /// </summary>
+        /// <summary>Tries to get <c>Builds/&lt;type&gt;/&lt;target&gt;</c> for the active build target.</summary>
         /// <returns>True if current build target is supported; False otherwise.</returns>
         public static bool TryGetDefaultBuildOutputPath(out string outputPath,
             OutputType outputTypeType = OutputType.Release)
@@ -246,26 +235,18 @@ namespace Ucom
             return outputPath != null;
         }
 
-        /// <summary>
-        /// Returns the project root path.
-        /// </summary>
+        /// <summary>Returns the project root path.</summary>
         public static string GetProjectRootPath() => new DirectoryInfo(Application.dataPath).Parent?.FullName;
 
-        /// <summary>
-        /// Returns the builds directory path.
-        /// </summary>
+        /// <summary>Returns the builds directory path.</summary>
         public static string GetBuildsDirectoryPath() => Path.Combine(GetProjectRootPath(), "Builds");
 
-        /// <summary>
-        /// Logs a message to the Unity console without the stack trace.
-        /// </summary>
+        /// <summary>Logs a message to the Unity console without the stack trace.</summary>
         public static void Log(string message, LogType logType = LogType.Log) =>
             // The message is an argument, not the format string: it can contain braces (paths, exceptions).
             Debug.LogFormat(logType, LogOption.NoStacktrace, null, "{0}", message);
 
-        /// <summary>
-        /// Tries to get the value of the specified argument (the next argument in the array).
-        /// </summary>
+        /// <summary>Tries to get the value of the specified argument (the next argument in the array).</summary>
         /// <returns>True if the argument was found; False otherwise.</returns>
         public static bool TryGetArgValue(this string[] source, string arg, out string value)
         {
@@ -274,51 +255,47 @@ namespace Ucom
             return value != null;
         }
 
-        private static bool RunPreProcessBuildMethod(string arg)
+        /// <summary>Runs the method with the <see cref="UcomPreProcessBuildAttribute"/>, if there is one.</summary>
+        /// <returns>An error message, or <c>null</c> if the method ran or there is none.</returns>
+        internal static string RunPreProcessBuildMethod(string arg)
         {
             const string attribute = nameof(UcomPreProcessBuildAttribute);
             var methods = TypeCache.GetMethodsWithAttribute<UcomPreProcessBuildAttribute>()
                 .Where(m => m.IsStatic)
                 .ToList();
             if (methods.Count == 0)
-                return true;
+                return null;
 
             if (methods.Count > 1)
             {
                 var names = string.Join(", ", methods.Select(MethodName));
-                Log($"[Builder] Error: Multiple {attribute} methods found, there should only be one: {names}", LogType.Error);
-                return false;
+                return $"Multiple {attribute} methods found, there should only be one: {names}";
             }
 
             var method = methods[0];
             var parameters = method.GetParameters();
             if (parameters.Length != 1 || parameters[0].ParameterType != typeof(string))
-            {
-                Log($"[Builder] Error: Invalid method signature for {attribute}: {MethodName(method)}", LogType.Error);
-                return false;
-            }
+                return $"Invalid method signature for {attribute}: {MethodName(method)}";
 
             try
             {
                 method.Invoke(null, new object[] { arg });
-                return true;
+                return null;
             }
             catch (Exception e)
             {
                 // Invoke wraps what the method throws in a TargetInvocationException.
+                // The stack trace goes to the log; the returned message is one line.
                 var error = (e as TargetInvocationException)?.InnerException ?? e;
-                Log($"[Builder] Error: {MethodName(method)} failed: {error}", LogType.Error);
-                return false;
+                Debug.LogException(error);
+                return $"{MethodName(method)} failed: {error.GetType().Name}: {FirstLine(error.Message)}";
             }
         }
 
         private static string MethodName(MethodBase method) => $"{method.ReflectedType?.FullName}.{method.Name}";
     }
 
-    /// <summary>
-    /// This is mainly a flag used in the output directory, it doesn't dictate the physical type of build.
-    /// The default value for builds is <see cref="OutputType.Release"/>.
-    /// </summary>
+    /// <summary>Names the Builds subdirectory for a build; it does not change the build itself.</summary>
     public enum OutputType
     {
         /// <summary>Build will be outputted to the <c>Builds/Release</c> directory.</summary>
@@ -328,31 +305,13 @@ namespace Ucom
         Debug,
     }
 
-    /// <summary>
-    /// Add this attribute to a method to get a notification just before building the player.
-    /// <remarks>
-    /// There can only be one method with this attribute in the project and it must be static with a single string parameter.
-    /// The string parameter will be the argument passed in from the command line.
-    /// </remarks>
-    /// </summary>
-    /// <example>
-    /// <code>
-    /// <![CDATA[
-    /// [UcomPreProcessBuild]
-    /// public static void PreProcessBuild(string args)
-    /// {
-    ///     Debug.Log(args);
-    /// }
-    /// ]]>
-    /// </code>
-    /// </example>
+    /// <summary>Marks the method that runs just before each build, with the --build-args string.</summary>
+    /// <remarks>There can be only one such method; it must be static and take a single string.</remarks>
+    /// <example><c>[UcomPreProcessBuild] public static void PreProcessBuild(string args) { }</c></example>
     [AttributeUsage(AttributeTargets.Method)]
     public class UcomPreProcessBuildAttribute : Attribute { }
 
-    /// <summary>
-    /// Editor script that watches for ucom command files and executes them.
-    /// This enables ucom to communicate with an already-running Unity editor.
-    /// </summary>
+    /// <summary>Runs ucom's command files, so ucom can build in an already open Unity editor.</summary>
     [InitializeOnLoad]
     public class EditorCommandWatcher
     {
@@ -522,9 +481,7 @@ namespace Ucom
                 WriteErrorResult(command.uuid, "UNKNOWN_COMMAND", $"Unknown command: {command.command}");
         }
 
-        /// <summary>
-        /// Returns <c>true</c> if the command has to wait for play mode to exit or compilation to finish.
-        /// </summary>
+        /// <summary>True if the command has to wait for play mode to exit or compilation to end.</summary>
         private static bool MustWait(CommandFile cmd)
         {
             if (EditorApplication.isPlaying && cmd.force_play_mode_exit)
@@ -625,9 +582,7 @@ namespace Ucom
             WriteResult(result);
         }
 
-        /// <summary>
-        /// Switches the platform if needed and builds the player, filling in <paramref name="result"/>.
-        /// </summary>
+        /// <summary>Switches the platform if needed and builds, filling in <paramref name="result"/>.</summary>
         /// <param name="builderLines">Receives the "[Builder]" lines for the log: errors and the build report.</param>
         private static void SwitchPlatformAndBuild(CommandFile cmd,
             BuildTarget target,
@@ -654,11 +609,27 @@ namespace Ucom
                 return;
             }
 
+            // Checked before the pre-build method runs, as in a batch build.
+            var scenes = UnityBuilder.GetActiveScenes();
+            if (scenes.Length == 0)
+            {
+                SetFailed(result, builderLines, "BUILD_FAILED", "No scenes to build specified.");
+                return;
+            }
+
+            // Run after the platform switch, as in a batch build, which starts on the build target.
+            var preBuildError = UnityBuilder.RunPreProcessBuildMethod(cmd.pre_build_args ?? "");
+            if (preBuildError != null)
+            {
+                SetFailed(result, builderLines, "BUILD_FAILED", preBuildError);
+                return;
+            }
+
             // Exceptions are handled by the caller, which still copies the log.
             var buildStart = EditorApplication.timeSinceStartup;
             var report = BuildPipeline.BuildPlayer(new BuildPlayerOptions
             {
-                scenes = UnityBuilder.GetActiveScenes(),
+                scenes = scenes,
                 locationPathName = path,
                 target = target,
                 options = (BuildOptions)cmd.build_options
@@ -695,9 +666,7 @@ namespace Ucom
             return error == null;
         }
 
-        /// <summary>
-        /// Marks the result as failed and adds an error line for the build log.
-        /// </summary>
+        /// <summary>Marks the result as failed and adds an error line for the build log.</summary>
         /// <param name="detail">The text for the log line, if it differs from <paramref name="message"/>.</param>
         private static void SetFailed(ResultFile result,
             StringBuilder builderLines,
@@ -711,9 +680,7 @@ namespace Ucom
             builderLines.AppendLine($"[Builder] Error: {detail ?? message}");
         }
 
-        /// <summary>
-        /// Gets the path and current length of the log file the editor writes to.
-        /// </summary>
+        /// <summary>Gets the path and current length of the log file the editor writes to.</summary>
         /// <returns><c>false</c> if the editor does not write a log file, or its length is unknown.</returns>
         private static bool TryGetConsoleLogEnd(out string path, out long length)
         {
@@ -736,10 +703,7 @@ namespace Ucom
             }
         }
 
-        /// <summary>
-        /// Copies the part of <paramref name="sourcePath"/> after <paramref name="startOffset"/>
-        /// to <paramref name="destinationPath"/>, followed by <paramref name="trailer"/>.
-        /// </summary>
+        /// <summary>Copies the log after <paramref name="startOffset"/> to the destination, then the trailer.</summary>
         private static bool TryCopyLogSince(string sourcePath, long startOffset, string trailer, string destinationPath)
         {
             if (string.IsNullOrEmpty(destinationPath))
@@ -769,9 +733,7 @@ namespace Ucom
             }
         }
 
-        /// <summary>
-        /// Returns the uuid in a command file name (<c>build-&lt;uuid&gt;.json</c>), or <c>null</c>.
-        /// </summary>
+        /// <summary>Returns the uuid in a command file name (<c>build-&lt;uuid&gt;.json</c>), or <c>null</c>.</summary>
         private static string UuidFromCommandFileName(string commandFilePath)
         {
             var name = Path.GetFileNameWithoutExtension(commandFilePath);
@@ -836,6 +798,7 @@ namespace Ucom
         public bool force_platform_switch;
         public bool force_play_mode_exit;
         public bool wait_for_compilation;
+        public string pre_build_args;
     }
 
     // The result ucom reads (EditorBuildResult in build_cmd/editor.rs).

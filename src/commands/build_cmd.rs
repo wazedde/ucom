@@ -23,7 +23,7 @@ use chrono::Utc;
 use build_log::{collect_log_errors, print_build_report, remove_old_log_file};
 use editor::build_via_editor;
 use plan::BuildPlan;
-use script::inject_build_script;
+use script::{inject_build_script, warn_if_builder_outdated};
 
 /// Runs the build command.
 pub fn build_project(arguments: &BuildArguments) -> anyhow::Result<()> {
@@ -41,6 +41,7 @@ pub fn build_project(arguments: &BuildArguments) -> anyhow::Result<()> {
             }
             result => result?,
         }
+        warn_if_builder_outdated(&setup.project);
     }
 
     // If the project is open in the Unity editor, build there via IPC.

@@ -13,9 +13,7 @@ using UnityEngine;
 // ReSharper disable once CheckNamespace
 namespace Ucom
 {
-    /// <summary>
-    /// The Ucom settings in the Unity Editor.
-    /// </summary>
+    /// <summary>The Ucom settings in the Unity Editor.</summary>
     internal static class MenuSettings
     {
         private const string DefineSymbol = "DISABLE_UCOM_MENU";
@@ -43,15 +41,11 @@ namespace Ucom
 
     public static class ScriptingDefines
     {
-        /// <summary>
-        /// Returns true if the given scripting define symbol is defined for the build target group.
-        /// </summary>
+        /// <summary>Returns true if the given scripting define symbol is defined for the build target group.</summary>
         public static bool HasDefine(string define, BuildTargetGroup buildTargetGroup) =>
             GetDefines(buildTargetGroup).Contains(define);
 
-        /// <summary>
-        /// Adds (<paramref name="enabled"/> is true) or removes the scripting define symbol for the build target group.
-        /// </summary>
+        /// <summary>Adds (if <paramref name="enabled"/>) or removes the scripting define symbol for the group.</summary>
         public static void SetDefine(string define, bool enabled, BuildTargetGroup buildTargetGroup)
         {
             var defines = GetDefines(buildTargetGroup);
@@ -70,9 +64,7 @@ namespace Ucom
             .ToArray();
     }
 
-    /// <summary>
-    /// Constants for the menu.
-    /// </summary>
+    /// <summary>Constants for the menu.</summary>
     public static class MenuConstants
     {
         public const string MenuName = "Builder";
@@ -95,11 +87,7 @@ namespace Ucom
     }
 
 #if !DISABLE_UCOM_MENU
-    /// <summary>
-    /// Menu options for building the project.
-    /// Also serves as example usage of the <see cref="UnityBuilder"/> class for building with your own settings.
-    /// E.g. you can create menu options for building specific scenes only or a debug build.
-    /// </summary>
+    /// <summary>Builder menu items; also an example of using <see cref="UnityBuilder"/> with your own settings.</summary>
     public static class EditorMenu
     {
         private const string PlatformMenu = MenuConstants.MenuName + "/Platform: " + MenuConstants.PlatformName;
@@ -120,9 +108,7 @@ namespace Ucom
         [MenuItem(PlatformMenu + "/Player Settings...", false, 0)]
         public static void PlatformSettings() => SettingsService.OpenProjectSettings("Project/Player");
 
-        /// <summary>
-        /// Builds the project to the Builds directory in the project root and shows the build in the file browser.
-        /// </summary>
+        /// <summary>Builds to the Builds directory in the project root and shows the build in the file browser.</summary>
         [MenuItem(ReleaseMenu + "Build", false, 1)]
         public static void Build()
         {
@@ -130,46 +116,34 @@ namespace Ucom
                 EditorUtility.RevealInFinder(locationPath);
         }
 
-        /// <summary>
-        /// Builds the project to the Builds directory in the project root and runs it.
-        /// </summary>
+        /// <summary>Builds the project to the Builds directory in the project root and runs it.</summary>
         [MenuItem(ReleaseMenu + "Build and Run", false, 1)]
         public static void BuildAndRun() => BuildTo(OutputType.Release, BuildOptions.AutoRunPlayer, "Release", out _);
 
-        /// <summary>
-        /// Builds a development build for script debugging.
-        /// </summary>
+        /// <summary>Builds a development build for script debugging.</summary>
         [MenuItem(DebugMenu + "Build and Run", false, 2)]
         public static void DebugBuild() =>
             BuildTo(OutputType.Debug, DebugOptions | BuildOptions.AllowDebugging, "Debug", out _);
 
-        /// <summary>
-        /// Builds a debug build for profiling.
-        /// </summary>
+        /// <summary>Builds a debug build for profiling.</summary>
         [MenuItem(DebugMenu + "Build and Run (Profiling)", false, 2)]
         public static void ProfilingBuild() => BuildTo(OutputType.Debug, ProfilingOptions, "Debug (Profiling)", out _);
 
-        /// <summary>
-        /// Builds a debug build for deep profiling.
-        /// </summary>
+        /// <summary>Builds a debug build for deep profiling.</summary>
         [MenuItem(DebugMenu + "Build and Run (Deep Profiling)", false, 2)]
         public static void DeepProfilingBuild() => BuildTo(OutputType.Debug,
             ProfilingOptions | BuildOptions.EnableDeepProfilingSupport,
             "Debug (Deep Profiling)",
             out _);
 
-        /// <summary>
-        /// Opens the Builds directory in the project root.
-        /// </summary>
+        /// <summary>Opens the Builds directory in the project root.</summary>
         [MenuItem(MenuConstants.MenuName + "/Open Builds Directory")]
         public static void OpenBuildDirectory() => EditorUtility.OpenWithDefaultApp(UnityBuilder.GetBuildsDirectoryPath());
 
         [MenuItem(MenuConstants.MenuName + "/Open Builds Directory", true)]
         public static bool ValidateOpenBuildDirectory() => Directory.Exists(UnityBuilder.GetBuildsDirectoryPath());
 
-        /// <summary>
-        /// Builds the active scenes for the active build target to <c>Builds/&lt;outputType&gt;/&lt;target&gt;</c>.
-        /// </summary>
+        /// <summary>Builds the active scenes to <c>Builds/&lt;outputType&gt;/&lt;target&gt;</c>.</summary>
         /// <param name="label">The name of the build in the log message.</param>
         /// <param name="locationPath">The path of the build output.</param>
         /// <returns><c>true</c> if the build succeeded; <c>false</c> otherwise.</returns>

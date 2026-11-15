@@ -113,7 +113,9 @@ Requirements:
 
 Flags:
 
-- `--force-editor-build` - Allow platform switching and play mode exit
+- `--force-editor-build` - Allow platform switching and play mode exit, and wait for script compilation
+- `--build-args` - Passed to the `[UcomPreProcessBuild]` method. As in batch builds, that method runs before every
+  build, with an empty argument when `--build-args` is not set
 - `--dry-run` - Show the command that would be sent to the editor, without building
 - `--clean` - Clean the output directory after a successful build
 - `--quiet` - Show a status line instead of progress messages
@@ -121,8 +123,8 @@ Flags:
 Not applicable when building via the open editor:
 
 - `--mode` and `--inject` - The build runs in the open editor, which needs the persistent build script
-- `--build-function`, `--build-args` and extra Unity arguments after `--` - Not supported over IPC; ucom prints a
-  warning when they are set
+- `--build-function` and extra Unity arguments after `--` - Not supported over IPC; ucom prints a warning when
+  they are set
 
 ## Build Options
 

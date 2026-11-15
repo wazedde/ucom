@@ -13,7 +13,7 @@ use uuid::Uuid;
 
 use super::build_log::{find_log_errors, format_log_errors, remove_old_log_file};
 use super::plan::BuildPlan;
-use super::script::persistent_builder_path;
+use super::script::{installed_builder_version, persistent_builder_path};
 use super::{clean_output_directory, start_build_status};
 use crate::cli_add::UnityTemplateFile;
 use crate::cli_build::{BuildOptions, BuildScriptTarget};
@@ -42,7 +42,7 @@ pub(super) fn build_via_editor(
         // A dry run still shows the command, and reports the missing script as a warning.
         warn_non_fatal!("{e:#}");
     }
-    warn_unsupported_editor_build_flags(plan);
+    warn_unsupported_editor_build_flags(plan, installed_builder_version(&setup.project));
 
     // The editor writes the build log next to the result, and ucom moves it to `log_path`.
     let uuid = Uuid::new_v4();
@@ -60,6 +60,7 @@ pub(super) fn build_via_editor(
         force_platform_switch: plan.args.force_editor_build,
         force_play_mode_exit: plan.args.force_editor_build,
         wait_for_compilation: plan.args.force_editor_build,
+        pre_build_args: plan.args.build_args.clone().unwrap_or_default(),
     };
     let command_json = serde_json::to_string_pretty(&command).context(
         "Failed to create the build command for the Unity editor; are all paths valid UTF-8?",
@@ -123,9 +124,18 @@ fn ensure_editor_builder_installed(setup: &ProjectSetup) -> anyhow::Result<()> {
     Ok(())
 }
 
-/// Warns about flags that change the build but are not supported when building via the editor.
-fn warn_unsupported_editor_build_flags(plan: &BuildPlan) {
-    let unsupported = plan.unsupported_in_editor();
+/// The builder script version from which the editor runs the pre-build method with `--build-args`.
+const PRE_BUILD_ARGS_SCRIPT_VERSION: u32 = 2;
+
+/// Warns about flags that change the build but are not supported when building via the editor,
+/// also by the installed builder script (`script_version`).
+fn warn_unsupported_editor_build_flags(plan: &BuildPlan, script_version: Option<u32>) {
+    let mut unsupported = plan.unsupported_in_editor();
+    if plan.args.build_args.is_some()
+        && script_version.is_some_and(|v| v < PRE_BUILD_ARGS_SCRIPT_VERSION)
+    {
+        unsupported.push("--build-args (the installed UnityBuilder.cs is too old)");
+    }
     if !unsupported.is_empty() {
         warn_non_fatal!(
             "Ignored when building via the running Unity editor: {}",
@@ -251,17 +261,18 @@ impl PollIntervals {
 /// Waits until `result_file` holds a result, or `editor_running` reports that the editor exited
 /// without writing one. Returns `None` as soon as `cancelled` returns true.
 ///
-/// Current versions of `UnityBuilder.cs` write the result file atomically. Builder scripts
-/// installed in projects before that change write it in place, so a read may observe a
-/// partially written file. Read and parse failures are therefore retried for a short grace
-/// period before being reported.
+/// `UnityBuilder.cs` writes the result to a temporary file and renames it into place, so a result
+/// file that exists is complete. A read can still fail for a moment, for example while a virus
+/// scanner holds the new file on Windows, so a failed read is retried a few times before it is
+/// reported. (Builder scripts before version 2 write the file in place; the retries cover most
+/// of those writes too.)
 fn wait_for_result(
     result_file: &Path,
     intervals: PollIntervals,
     cancelled: impl Fn() -> bool,
     mut editor_running: impl FnMut() -> bool,
 ) -> anyhow::Result<Option<EditorBuildResult>> {
-    const MAX_READ_ATTEMPTS: u32 = 10;
+    const MAX_READ_ATTEMPTS: u32 = 5;
 
     let mut failed_reads = 0;
     let mut last_liveness_check = Instant::now();
@@ -479,6 +490,9 @@ struct EditorCommand {
     force_play_mode_exit: bool,
     /// Builder scripts from before this field wait for compilation if `force_platform_switch` is set.
     wait_for_compilation: bool,
+    /// Passed to the `[UcomPreProcessBuild]` method, as `--ucom-pre-build-args` is for batch builds.
+    /// Builder scripts from before this field ignore it and do not run that method.
+    pre_build_args: String,
 }
 
 /// The commands the editor command watcher understands.
@@ -697,6 +711,7 @@ mod tests {
             force_platform_switch: false,
             force_play_mode_exit: false,
             wait_for_compilation: true,
+            pre_build_args: "1.2.3".to_string(),
         };
 
         let json = serde_json::to_value(&command).unwrap();
@@ -711,6 +726,7 @@ mod tests {
         assert_eq!(json["build_options"], 1);
         assert_eq!(json["development_build"], true);
         assert_eq!(json["wait_for_compilation"], true);
+        assert_eq!(json["pre_build_args"], "1.2.3");
     }
 
     #[test]
@@ -904,19 +920,18 @@ mod tests {
     }
 
     #[test]
-    fn wait_for_result_retries_a_partially_written_result() {
-        let dir = TempDir::new("wait-partial");
+    fn wait_for_result_retries_a_result_that_cannot_be_read_yet() {
+        let dir = TempDir::new("wait-retry");
         let file = dir.path().join("build.json");
-        let json = result_json();
-        fs::write(&file, &json[..json.len() / 2]).unwrap();
+        fs::write(&file, "{ not json").unwrap();
 
-        // An older builder script finishes writing the file in place.
+        // The file becomes readable before the retries run out.
         let result = wait_for_result(
             &file,
             FAST,
             || false,
             || {
-                fs::write(&file, &json).unwrap();
+                fs::write(&file, result_json()).unwrap();
                 true
             },
         );
