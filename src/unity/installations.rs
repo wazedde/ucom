@@ -225,14 +225,14 @@ impl Version {
     /// Returns true if the editor is installed.
     pub fn is_editor_installed(self) -> anyhow::Result<bool> {
         Ok(Installations::editor_parent_dir()?
-            .join(self.to_interned_str())
+            .join(self.to_string())
             .exists())
     }
 
     /// Returns the path to the editor executable.
     pub fn editor_executable_path(self) -> anyhow::Result<PathBuf> {
         let exe_path = Installations::editor_parent_dir()?
-            .join(self.to_interned_str())
+            .join(self.to_string())
             .join(platform::UNITY_EDITOR_EXE);
 
         if exe_path.exists() {

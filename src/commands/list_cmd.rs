@@ -4,9 +4,7 @@ use std::fmt::{Display, Formatter};
 use yansi::{Condition, Paint};
 
 use crate::cli::ListType;
-use crate::commands::output::{
-    AlignedVersion, MARK_BULLET, MARK_NO_INFO, TAG_NEW, TAG_OUTDATED, TAG_UP_TO_DATE,
-};
+use crate::commands::output::{MARK_BULLET, MARK_NO_INFO, TAG_NEW, TAG_OUTDATED, TAG_UP_TO_DATE};
 use crate::commands::release_issue::ReleaseIssueDisplay;
 use crate::style_definitions::{
     STYLE_LINK, STYLE_NO_UPDATE_INFO, STYLE_OUTDATED, STYLE_UP_TO_DATE, STYLE_UPDATE_VERSION,
@@ -107,7 +105,7 @@ fn display_basic_list(installed: &SortedVersions, report: &Report) {
 
             report.paragraph(format_args!(
                 "{connector}─ {vs:<version_col_width$} - {rn}",
-                vs = info.version.to_interned_str(),
+                vs = info.version,
                 rn = release_notes_url(info.version).paint(STYLE_LINK)
             ));
         }
@@ -299,7 +297,7 @@ fn display_latest_versions(
 
     let version_col_width = minor_releases
         .iter()
-        .map(|rd| rd.version.to_interned_str().len())
+        .map(|rd| rd.version.format_len())
         .max()
         .unwrap_or(0);
 
@@ -332,9 +330,9 @@ fn display_latest_versions(
             let stream = latest.stream;
 
             report.paragraph(format_args!(
-                "{bp}{stream} {vs} ({rd})",
+                "{bp}{stream} {vs:<version_col_width$} ({rd})",
                 bp = BranchPrefix(connector, stream),
-                vs = AlignedVersion(latest.version, version_col_width),
+                vs = latest.version,
                 rd = latest.release_date.format("%Y-%m-%d"),
             ));
         } else {
@@ -420,7 +418,7 @@ fn display_available_versions(
             let is_installed = installed.is_some_and(|i| i.versions.contains(&info.version));
             let release = releases.get_by_version(info.version)?;
             let release_date = release.release_date.format("%Y-%m-%d");
-            let version = AlignedVersion(release.version, version_col_width);
+            let version = release.version;
             let stream = release.stream;
 
             let issue = release.issue();
@@ -434,13 +432,13 @@ fn display_available_versions(
                 ds = if is_installed {
                     let style = issue.issue_style_or(STYLE_UP_TO_DATE);
                     format!(
-                        "{stream} {vs} ({release_date}) {mark} {description} > installed",
+                        "{stream} {vs:<version_col_width$} ({release_date}) {mark} {description} > installed",
                         vs = version.paint(style),
                     )
                 } else {
                     let style = issue.style();
                     format!(
-                        "{stream} {vs} ({release_date}) {mark} {description}",
+                        "{stream} {vs:<version_col_width$} ({release_date}) {mark} {description}",
                         vs = version.paint(style)
                     )
                 }
@@ -467,19 +465,19 @@ fn display_installed_versions_line(
             .is_some_and(|&v| v > latest.version);
 
     let stream = latest.stream;
-    let version = AlignedVersion(latest.version, version_col_width);
+    let version = latest.version;
     let release_date = latest.release_date.format("%Y-%m-%d");
     let joined_versions = installed_in_range.iter().join(", ");
 
     let release_info = if is_up_to_date {
         format_args!(
-            "{stream} {vs} ({release_date}) Installed: {joined_versions} {tg}",
+            "{stream} {vs:<version_col_width$} ({release_date}) Installed: {joined_versions} {tg}",
             vs = version.paint(STYLE_UP_TO_DATE),
             tg = TAG_UP_TO_DATE.as_str(),
         )
     } else {
         format_args!(
-            "{stream} {vs} ({release_date}) Installed: {joined_versions} {tg}",
+            "{stream} {vs:<version_col_width$} ({release_date}) Installed: {joined_versions} {tg}",
             vs = version.paint(STYLE_OUTDATED),
             tg = TAG_OUTDATED.as_str()
         )
@@ -535,7 +533,7 @@ fn find_max_version_length(version_groups: &VersionInfoGroups<'_>) -> usize {
     version_groups
         .iter()
         .flat_map(|v| v.iter())
-        .map(|vi| vi.version.to_interned_str().len())
+        .map(|vi| vi.version.format_len())
         .max()
         .unwrap_or(0)
 }
@@ -604,8 +602,8 @@ fn format_installed_release_line(
     FormattedReleaseLine {
         stream,
         content: format!(
-            "{stream} {vs} ({rd}) {mk} {description}",
-            vs = AlignedVersion(info.version, version_col_width).paint(issue.style()),
+            "{stream} {vs:<version_col_width$} ({rd}) {mk} {description}",
+            vs = info.version.paint(issue.style()),
             rd = release.map_or_else(
                 || "----------".to_string(),
                 |rd| rd.release_date.format("%Y-%m-%d").to_string(),
@@ -627,14 +625,14 @@ fn format_update_release_line(
 ) -> FormattedReleaseLine {
     let stream = release.stream;
     let release_date = release.release_date.format("%Y-%m-%d");
-    let version = AlignedVersion(info.version, version_col_width);
+    let version = info.version;
     let issue = release.issue();
 
     let content = match &info.version_type {
         VersionType::HasLaterInstalled => {
             if issue.has_issue() {
                 format!(
-                    "{stream} {vs} ({release_date}) {mk}",
+                    "{stream} {vs:<version_col_width$} ({release_date}) {mk}",
                     vs = version.paint(issue.style()),
                     mk = issue.issue_tag(),
                 )
@@ -645,13 +643,13 @@ fn format_update_release_line(
         VersionType::LatestInstalled => {
             if is_last_version_in_group {
                 format!(
-                    "{stream} {vs} ({release_date}) {mk}",
+                    "{stream} {vs:<version_col_width$} ({release_date}) {mk}",
                     vs = version.paint(issue.issue_style_or(STYLE_UP_TO_DATE)),
                     mk = issue.issue_tag_or(TAG_UP_TO_DATE.as_str()),
                 )
             } else {
                 format!(
-                    "{stream} {vs} ({release_date}) {mk}",
+                    "{stream} {vs:<version_col_width$} ({release_date}) {mk}",
                     vs = version.paint(issue.issue_style_or(STYLE_OUTDATED)),
                     mk = issue.issue_tag_or(TAG_OUTDATED.as_str()),
                 )
@@ -659,7 +657,7 @@ fn format_update_release_line(
         }
         VersionType::UpdateToLatest(release_info) => {
             format!(
-                "{stream} {vs} ({release_date}) {mk} {rd}",
+                "{stream} {vs:<version_col_width$} ({release_date}) {mk} {rd}",
                 vs = version.paint(issue.issue_style_or(STYLE_UPDATE_VERSION)),
                 mk = issue.issue_tag_or(TAG_NEW.as_str()),
                 rd = format_release_description(info, Some(release_info)),

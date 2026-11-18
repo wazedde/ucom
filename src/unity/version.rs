@@ -1,7 +1,5 @@
 use serde::{Deserialize, Deserializer};
 use serde::{Serialize, Serializer, de};
-use std::cell::RefCell;
-use std::collections::HashMap;
 use std::fmt;
 use std::fmt::{Display, Formatter};
 use std::str::FromStr;
@@ -139,8 +137,22 @@ impl FromStr for Version {
 }
 
 impl Display for Version {
+    /// Writes the version, for example `2022.3.5f1`. Width, fill and alignment are honoured.
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-        write!(f, "{}", self.to_interned_str())
+        let Self {
+            major,
+            minor,
+            patch,
+            build_type,
+            build,
+        } = self;
+        let build_type = build_type.to_short_str();
+
+        if f.width().is_none() && f.precision().is_none() {
+            write!(f, "{major}.{minor}.{patch}{build_type}{build}")
+        } else {
+            f.pad(&format!("{major}.{minor}.{patch}{build_type}{build}"))
+        }
     }
 }
 
@@ -161,7 +173,7 @@ impl Serialize for Version {
     where
         S: Serializer,
     {
-        serializer.serialize_str(&self.format_version())
+        serializer.collect_str(self)
     }
 }
 
@@ -171,73 +183,21 @@ impl Version {
         format!("{}.{}", self.major, self.minor)
     }
 
-    /// Returns the version as a static string.
-    pub fn to_interned_str(self) -> &'static str {
-        // Use a thread-local cache as usage is predominantly single-threaded. This avoids having to use a Mutex.
-        thread_local! {
-            static VERSION_STRINGS: RefCell<HashMap<Version, &'static str>> = RefCell::new(HashMap::with_capacity(100));
-        }
-
-        VERSION_STRINGS.with(|versions| {
-            // Avoid borrow_mut if we already have a cached version.
-            let borrow = versions.borrow();
-            if let Some(&cached) = borrow.get(&self) {
-                return cached;
-            }
-            drop(borrow);
-
-            // If we don't have a cached version, insert it.
-            let mut borrow = versions.borrow_mut();
-            *borrow
-                .entry(self)
-                .or_insert_with(|| Box::leak(self.format_version().into_boxed_str()))
-        })
-    }
-
-    /// Returns the length of the string representation of this version.
-    const fn format_len(self) -> usize {
-        Self::count_digits(self.major as usize)
-            + Self::count_digits(self.minor as usize)
-            + Self::count_digits(self.patch as usize)
+    /// Returns the length of the string representation of this version, without formatting it.
+    pub const fn format_len(self) -> usize {
+        Self::count_digits(self.major as u32)
+            + Self::count_digits(self.minor as u32)
+            + Self::count_digits(self.patch as u32)
             + self.build_type.to_short_str().len()
-            + Self::count_digits(self.build as usize)
+            + Self::count_digits(self.build as u32)
             + 2 // The 2 dots
     }
 
-    const fn count_digits(number: usize) -> usize {
-        match number {
-            0..=9 => 1,
-            10..=99 => 2,
-            100..=999 => 3,
-            1_000..=9_999 => 4,
-            10_000..=99_999 => 5,
-            100_000..=999_999 => 6,
-            _ => {
-                // Fall back to a loop for larger numbers (this is rare in Unity versions)
-                let mut count = 0;
-                let mut n = number;
-                while n > 0 {
-                    count += 1;
-                    n /= 10;
-                }
-                count
-            }
+    const fn count_digits(number: u32) -> usize {
+        match number.checked_ilog10() {
+            Some(log) => log as usize + 1,
+            None => 1,
         }
-    }
-
-    /// Formats this version into a string.
-    fn format_version(self) -> String {
-        let capacity = self.format_len();
-        let mut s = String::with_capacity(capacity);
-        // major.minor.patch.build_type.build
-        s.push_str(&self.major.to_string());
-        s.push('.');
-        s.push_str(&self.minor.to_string());
-        s.push('.');
-        s.push_str(&self.patch.to_string());
-        s.push_str(self.build_type.to_short_str());
-        s.push_str(&self.build.to_string());
-        s
     }
 }
 
@@ -297,6 +257,15 @@ mod version_tests {
     #[test]
     fn test_version_from_string_invalid() {
         assert_eq!("2021.1.1".parse::<Version>(), Err(ParseError));
+    }
+
+    #[test]
+    fn test_version_display_honours_width() {
+        let v = "2022.3.5f1".parse::<Version>().unwrap();
+        assert_eq!(format!("{v:<12}|"), "2022.3.5f1  |");
+        assert_eq!(format!("{v:>12}|"), "  2022.3.5f1|");
+        assert_eq!(format!("{v:<4}|"), "2022.3.5f1|");
+        assert_eq!(format!("{v}|"), "2022.3.5f1|");
     }
 
     #[test]

@@ -3,7 +3,7 @@ use std::path::Path;
 use yansi::Paint;
 
 use crate::commands::install_cmd::install_version;
-use crate::commands::output::{AlignedVersion, MARK_AVAILABLE, MARK_BULLET, MARK_UNAVAILABLE};
+use crate::commands::output::{MARK_AVAILABLE, MARK_BULLET, MARK_UNAVAILABLE};
 use crate::commands::project_setup::ProjectSetup;
 use crate::commands::release_issue::{ReleaseIssueDisplay, report_error_description};
 use crate::style_definitions::{
@@ -213,7 +213,7 @@ fn print_available_updates(releases: &ReleaseUpdates, report: &Report) -> anyhow
     let version_col_width = releases
         .newer_releases
         .iter()
-        .map(|rd| rd.version.to_interned_str().len())
+        .map(|rd| rd.version.format_len())
         .max()
         .ok_or_else(|| anyhow!("No releases"))?;
 
@@ -225,8 +225,8 @@ fn print_available_updates(releases: &ReleaseUpdates, report: &Report) -> anyhow
         if is_installed {
             report.marked_item(
                 format_args!(
-                    "{vs} ({rd}) - {rn}{is} > {in}",
-                    vs = AlignedVersion(release.version, version_col_width)
+                    "{vs:<version_col_width$} ({rd}) - {rn}{is} > {in}",
+                    vs = release.version
                         .paint(version_style)
                         .bold(),
                     rd = release.release_date.format("%Y-%m-%d"),
@@ -239,8 +239,8 @@ fn print_available_updates(releases: &ReleaseUpdates, report: &Report) -> anyhow
         } else {
             report.marked_item(
                 format_args!(
-                    "{vs} ({rd}) - {rn}{is}",
-                    vs = AlignedVersion(release.version, version_col_width).paint(version_style),
+                    "{vs:<version_col_width$} ({rd}) - {rn}{is}",
+                    vs = release.version.paint(version_style),
                     rd = release.release_date.format("%Y-%m-%d"),
                     rn = release_notes_url(release.version).paint(STYLE_LINK),
                     is = issue.issue_tag_with_prefix(" "),

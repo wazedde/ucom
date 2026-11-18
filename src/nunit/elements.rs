@@ -206,7 +206,7 @@ struct TextElement {
 
 /// The text of an optional element, or an empty string.
 fn text_of(element: Option<&TextElement>) -> String {
-    element.map(|e| e.text.clone()).unwrap_or_default()
+    element.map_or_default(|e| e.text.clone())
 }
 
 #[derive(Debug, Clone, Deserialize, PartialEq)]
@@ -308,7 +308,7 @@ impl From<&TestCase> for nunit::TestCase {
             text: value.text().unwrap_or_default(),
             failure_message: text_of(failure.and_then(|f| f.message.as_ref())),
             failure_stack_trace: text_of(failure.and_then(|f| f.stack_trace.as_ref())),
-            failure_text: failure.map(|f| f.text.clone()).unwrap_or_default(),
+            failure_text: failure.map_or_default(|f| f.text.clone()),
             skip_reason: text_of(value.reason().and_then(|r| r.message.as_ref())),
         }
     }
