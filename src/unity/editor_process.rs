@@ -18,7 +18,8 @@ use sysinfo::{ProcessRefreshKind, ProcessStatus, ProcessesToUpdate, System, Upda
 pub fn find_unity_editor_process(project: &ProjectPath) -> Option<Pid> {
     // First list processes with their names only, which is cheap, then read command lines
     // and working directories just for the processes running the Unity editor executable.
-    let mut system = System::new();
+    // If process information is unavailable, act as if no editor is open.
+    let mut system = System::new().ok()?;
     system.refresh_processes_specifics(
         ProcessesToUpdate::All,
         true,
@@ -59,9 +60,12 @@ pub fn find_unity_editor_process(project: &ProjectPath) -> Option<Pid> {
 /// Returns true if the process with the given ID exists and has not terminated.
 ///
 /// Only that one process is queried, and no command line is read, so the check does not
-/// depend on access to other processes' details.
+/// depend on access to other processes' details. If process information is unavailable,
+/// the process is assumed to be running, so a caller keeps waiting rather than giving up.
 pub fn is_process_running(pid: Pid) -> bool {
-    let mut system = System::new();
+    let Ok(mut system) = System::new() else {
+        return true;
+    };
     system.refresh_processes_specifics(
         ProcessesToUpdate::Some(&[pid]),
         true,
