@@ -12,7 +12,7 @@ impl ProjectSetup {
     /// Initialise project and validate Unity version
     pub fn new(project_dir: &Path) -> anyhow::Result<Self> {
         let project =
-            ProjectPath::try_from(project_dir).context("Failed to locate Unity project")?;
+            ProjectPath::from_dir(project_dir).context("Failed to locate Unity project")?;
         let unity_version = project
             .unity_version()
             .context("Failed to read Unity version from project")?;

@@ -13,7 +13,7 @@ use uuid::Uuid;
 
 use super::build_log::{find_log_errors, format_log_errors, remove_old_log_file};
 use super::plan::BuildPlan;
-use super::{clean_output_directory, start_build_status};
+use super::{finish_build, start_build_status};
 use crate::cli_add::UnityTemplateFile;
 use crate::cli_build::{BuildOptions, BuildScriptTarget};
 use crate::commands::builder_script::{installed_builder_version, persistent_builder_path};
@@ -98,13 +98,7 @@ pub(super) fn build_via_editor(
         None
     });
 
-    if result.status == EditorBuildStatus::Success && plan.args.clean {
-        clean_output_directory(&plan.output_path)?;
-    }
-
-    let outcome = handle_editor_build_result(&result, setup, start_time, log_file.as_deref());
-    report_version_issues(setup.unity_version);
-    outcome
+    handle_editor_build_result(&result, plan, setup, start_time, log_file.as_deref())
 }
 
 /// Returns an error if the build script, which contains the editor command watcher,
@@ -323,92 +317,66 @@ fn read_editor_build_result(result_file: &Path) -> anyhow::Result<EditorBuildRes
 
 /// Handles the result from an editor build, displaying appropriate messages.
 ///
+/// Every build the editor started is reported as a batch build is (`finish_build`).
 /// Returns `Ok(())` if the build succeeded, `Err` otherwise.
 fn handle_editor_build_result(
     result: &EditorBuildResult,
+    plan: &BuildPlan,
     setup: &ProjectSetup,
     start_time: Instant,
     log_file: Option<&Path>,
 ) -> anyhow::Result<()> {
-    match result.status {
-        EditorBuildStatus::Error => bail!("{}", result.message),
-        EditorBuildStatus::Failed => {
-            // Check for platform switch failure specifically
-            if result.error_code == Some(EditorErrorCode::PlatformSwitchFailed) {
-                return Err(editor_build_error(result, log_file).context(
-                    "Platform switch failed. This may happen if:\n\
-                     - The target platform is not installed\n\
-                     - The user cancelled the operation\n\
-                     - Unity encountered an error during the switch",
-                ));
-            }
-
-            MessageType::print_line(
-                "Failed",
-                format!(
-                    "building Unity {} {} project",
-                    setup.unity_version,
-                    result.original_platform.as_deref().unwrap_or("Unknown")
-                ),
-                MessageType::Error,
-            );
-
-            // Only builds that ran have a report.
-            if result.build_result.is_some() {
-                print_editor_build_report(result, MessageType::Error, log_file);
-            }
-        }
-        EditorBuildStatus::Success => {
-            if result.platform_switched {
-                MessageType::print_line(
-                    "Platform switched",
-                    format!(
-                        "{} → {} ({:.1}s)",
-                        result.original_platform.as_deref().unwrap_or("Unknown"),
-                        result.switched_to.as_deref().unwrap_or("Unknown"),
-                        result.platform_switch_time_seconds
-                    ),
-                    MessageType::Info,
-                );
-            }
-
-            MessageType::print_line(
-                "Succeeded",
-                format!(
-                    "building Unity {} {} project in {}",
-                    setup.unity_version,
-                    result
-                        .switched_to
-                        .as_deref()
-                        .or(result.original_platform.as_deref())
-                        .unwrap_or("Unknown"),
-                    setup.project.normalized_display()
-                ),
-                MessageType::Ok,
-            );
-
-            // Print build report
-            print_editor_build_report(result, MessageType::Ok, log_file);
-        }
-        EditorBuildStatus::Unknown => {}
+    // The command was rejected before building, so there is no outcome to report.
+    if result.status == EditorBuildStatus::Error {
+        report_version_issues(setup.unity_version);
+        bail!("{}", result.message);
     }
 
     let succeeded = result.status == EditorBuildStatus::Success;
 
-    MessageType::print_line(
-        "Total time",
-        format!("{t:.2}s", t = start_time.elapsed().as_secs_f64()),
-        if succeeded {
-            MessageType::Ok
-        } else {
-            MessageType::Error
-        },
-    );
+    if succeeded && result.platform_switched {
+        MessageType::print_line(
+            "Platform switched",
+            format!(
+                "{} → {} ({:.1}s)",
+                result.original_platform.as_deref().unwrap_or("Unknown"),
+                result.switched_to.as_deref().unwrap_or("Unknown"),
+                result.platform_switch_time_seconds
+            ),
+            MessageType::Info,
+        );
+    }
 
-    if succeeded {
-        Ok(())
+    finish_build(plan, setup, start_time, succeeded, |status| {
+        // Only builds that ran have a report.
+        if succeeded || result.build_result.is_some() {
+            print_editor_build_report(result, status, log_file);
+        }
+    });
+
+    match result.status {
+        EditorBuildStatus::Success => Ok(()),
+        EditorBuildStatus::Unknown => Err(unknown_status_error(result)),
+        _ if result.error_code == Some(EditorErrorCode::PlatformSwitchFailed) => {
+            Err(editor_build_error(result, log_file).context(
+                "Platform switch failed. This may happen if:\n\
+                 - The target platform is not installed\n\
+                 - The user cancelled the operation\n\
+                 - Unity encountered an error during the switch",
+            ))
+        }
+        _ => Err(editor_build_error(result, log_file)),
+    }
+}
+
+/// Returns the error for a result whose status this version of ucom does not know, which
+/// a newer builder script can write.
+fn unknown_status_error(result: &EditorBuildResult) -> anyhow::Error {
+    let error = "The Unity editor reported a build status that ucom does not recognise";
+    if result.message.is_empty() {
+        anyhow!("{error}")
     } else {
-        Err(editor_build_error(result, log_file))
+        anyhow!("{error}: {}", result.message)
     }
 }
 
@@ -813,6 +781,27 @@ mod tests {
 
         assert!(error.starts_with("Build failed. Check Unity console for errors."));
         assert!(error.contains("Build.log"));
+    }
+
+    #[test]
+    fn unknown_status_error_includes_the_message_if_there_is_one() {
+        let mut json = base_result_json();
+        json["status"] = "cancelled".into();
+        json["message"] = "Cancelled by the user".into();
+        let result: EditorBuildResult = serde_json::from_value(json.clone()).unwrap();
+        assert!(
+            unknown_status_error(&result)
+                .to_string()
+                .ends_with("does not recognise: Cancelled by the user")
+        );
+
+        json["message"] = "".into();
+        let result: EditorBuildResult = serde_json::from_value(json).unwrap();
+        assert!(
+            unknown_status_error(&result)
+                .to_string()
+                .ends_with("does not recognise")
+        );
     }
 
     #[test]

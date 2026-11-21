@@ -22,7 +22,7 @@ pub fn add_to_project(args: &AddArguments) -> anyhow::Result<()> {
         bail!("File does not have a URL source");
     }
 
-    let project = ProjectPath::try_from(&args.project_dir)?;
+    let project = ProjectPath::from_dir(&args.project_dir)?;
 
     let destination_dir = match args.template {
         UnityTemplateFile::Builder | UnityTemplateFile::BuilderMenu => {

@@ -8,7 +8,7 @@ use crate::utils::spawn_cmd::build_command_line;
 
 /// Opens the given Unity project in the Unity Editor.
 pub fn open_project(arguments: OpenArguments) -> anyhow::Result<()> {
-    let project = ProjectPath::try_from(&arguments.project_dir)?;
+    let project = ProjectPath::from_dir(&arguments.project_dir)?;
     let project_unity_version = project.unity_version()?;
 
     let open_unity_version = match arguments.upgrade_version {

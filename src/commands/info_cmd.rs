@@ -52,7 +52,7 @@ fn show_recursive_project_info(
 
     let mut directories = walk_visible_directories(path, 5);
     while let Some(Ok(entry)) = directories.next() {
-        if let Ok(path) = ProjectPath::try_from(entry.path()) {
+        if let Ok(path) = ProjectPath::from_dir(entry.path()) {
             report.blank_line();
             if let Err(err) = print_project_info(&path, packages_level, &report, show_release_notes)
             {
@@ -78,7 +78,7 @@ fn show_project_info(
         Report::Terminal
     };
     let version = print_project_info(
-        &ProjectPath::try_from(path)?,
+        &ProjectPath::from_dir(path)?,
         packages_level,
         &report,
         show_release_notes,

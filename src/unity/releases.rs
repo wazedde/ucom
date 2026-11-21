@@ -50,11 +50,7 @@ pub fn find_available_updates(
 ) -> anyhow::Result<ReleaseUpdates> {
     let mut releases = fetch_latest_releases(mode)?;
 
-    releases.retain(|rd| {
-        rd.version.major == version.major
-            && rd.version.minor == version.minor
-            && rd.version >= version
-    });
+    releases.retain(|rd| rd.version.same_minor(version) && rd.version >= version);
 
     let index = releases
         .iter()

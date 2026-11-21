@@ -1,4 +1,3 @@
-use std::env;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
@@ -78,11 +77,11 @@ pub fn new_project(arguments: NewArguments) -> anyhow::Result<()> {
         git_init(project_dir, arguments.include_lfs)?;
     }
 
-    let _status = if arguments.wait && arguments.quit && !arguments.quiet {
-        StatusLine::new("Creating", "project...")
-    } else {
-        StatusLine::new_silent()
-    };
+    let _status = StatusLine::new_if(
+        arguments.wait && arguments.quit && !arguments.quiet,
+        "Creating",
+        "project...",
+    );
 
     execute_unity_command(cmd, arguments.wait, arguments.quiet)?;
 
@@ -114,13 +113,13 @@ fn git_init(project_dir: impl AsRef<Path>, include_lfs: bool) -> anyhow::Result<
 
     if include_lfs {
         println!("Initializing Git LFS:");
-        env::set_current_dir(project_dir)?;
 
         let lfs_context =
             "Could not initialize Git LFS. Make sure LFS is available or don't add the --lfs flag.";
         let output = Command::new("git")
             .arg("lfs")
             .arg("install")
+            .current_dir(project_dir)
             .output()
             .context(lfs_context)?;
 

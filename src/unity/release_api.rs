@@ -1,7 +1,7 @@
 use crate::unity::Version;
 use crate::unity::release_api_data::{ReleaseData, ReleaseDataPage};
 use crate::utils::content_cache::{
-    is_cached_file_stale, store_in_cache, touch_file, ucom_cache_dir,
+    http_agent, is_cached_file_stale, store_in_cache, touch_file, ucom_cache_dir,
 };
 use crate::utils::native_progress::{NativeProgressBar, NativeProgressState};
 use crate::utils::path_ext::PlatformConsistentPathExt;
@@ -226,7 +226,8 @@ pub fn fetch_latest_releases(mode: UpdatePolicy) -> anyhow::Result<SortedRelease
 
 /// Fetches a page of releases from the Unity Release API in descending order by release date.
 fn fetch_releases_page(limit: usize, offset: usize) -> anyhow::Result<ReleaseDataPage> {
-    let body = ureq::get(RELEASES_API_URL)
+    let body = http_agent()
+        .get(RELEASES_API_URL)
         .query("limit", limit.to_string())
         .query("offset", offset.to_string())
         .query("order", "RELEASE_DATE_DESC")

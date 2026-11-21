@@ -224,18 +224,16 @@ fn collect_version_update_info<'a>(
     for group in version_groups.iter_mut() {
         let latest_installed_version = group.last().version;
 
-        let has_releases = releases.iter().any(|rd| {
-            rd.version.major == latest_installed_version.major
-                && rd.version.minor == latest_installed_version.minor
-        });
+        let has_releases = releases
+            .iter()
+            .any(|rd| rd.version.same_minor(latest_installed_version));
 
         if has_releases {
             // Add update info to the group (if there are any)
             releases
                 .iter()
                 .filter(|rd| {
-                    rd.version.major == latest_installed_version.major
-                        && rd.version.minor == latest_installed_version.minor
+                    rd.version.same_minor(latest_installed_version)
                         && rd.version > latest_installed_version
                 })
                 .for_each(|rd| {
@@ -320,7 +318,7 @@ fn display_latest_versions(
         let installs_in_range = installed.map_or_default(|i| {
             i.versions
                 .iter()
-                .filter(|v| v.major == latest.version.major && v.minor == latest.version.minor)
+                .filter(|v| v.same_minor(latest.version))
                 .copied()
                 .collect_vec()
         });

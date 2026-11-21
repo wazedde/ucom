@@ -228,7 +228,7 @@ impl AsRef<Path> for ProjectPath {
 impl ProjectPath {
     /// Creates a new `ProjectPath` from the given directory.
     /// Fails if the directory does not contain a Unity project.
-    pub fn try_from(path: impl AsRef<Path>) -> anyhow::Result<Self> {
+    pub fn from_dir(path: impl AsRef<Path>) -> anyhow::Result<Self> {
         let path = resolve_absolute_dir_path(&path)?;
         if Self::contains_unity_project(&path) {
             Ok(Self(path.to_path_buf()))

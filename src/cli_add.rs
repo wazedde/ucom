@@ -75,7 +75,7 @@ pub enum AssetSource {
 }
 
 impl TemplateAsset {
-    pub fn load_content<'a>(&self) -> anyhow::Result<Cow<'a, str>> {
+    pub fn load_content(&self) -> anyhow::Result<Cow<'static, str>> {
         match self.content {
             AssetSource::Static(content) => Ok(Cow::Borrowed(content)),
             AssetSource::Remote(url) => {

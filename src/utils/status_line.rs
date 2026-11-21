@@ -31,9 +31,13 @@ impl StatusLine {
         }
     }
 
-    /// Creates a new `StatusLine` that does not output anything.
-    pub const fn new_silent() -> Self {
-        Self::Silent
+    /// Creates a `StatusLine` as [`StatusLine::new`] does if `show` is true, otherwise a silent one.
+    pub fn new_if(show: bool, label: impl AsRef<str>, msg: impl AsRef<str>) -> Self {
+        if show {
+            Self::new(label, msg)
+        } else {
+            Self::Silent
+        }
     }
 
     /// Updates the status line with the given label and message.

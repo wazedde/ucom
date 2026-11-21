@@ -3,11 +3,10 @@ mod editor;
 mod plan;
 mod script;
 
+use std::fmt::Display;
 use std::fs;
 use std::path::Path;
 use std::time::Instant;
-
-use anyhow::Context;
 
 use crate::cli_build::BuildArguments;
 use crate::commands::builder_script::{ensure_builder_supports, warn_if_builder_outdated};
@@ -81,71 +80,105 @@ pub fn build_project(arguments: &BuildArguments) -> anyhow::Result<()> {
         return Err(e.into());
     }
 
-    let (build_status, log_tag) = if build_result.is_ok() {
-        if plan.args.clean {
-            clean_output_directory(&plan.output_path)?;
-        }
-        (MessageType::Ok, "Succeeded")
+    finish_build(&plan, &setup, start_time, build_result.is_ok(), |status| {
+        print_build_report(&plan.log_path, status);
+    });
+    build_result.map_err(|_| collect_log_errors(&plan.log_path))
+}
+
+/// Describes a build for the lines that announce it and report its outcome.
+fn build_description(setup: &ProjectSetup, target: impl Display) -> String {
+    format!(
+        "Unity {} {target} project in {}",
+        setup.unity_version,
+        setup.project.normalized_display()
+    )
+}
+
+/// Reports a finished build, in the same order for batch and editor builds: the outcome, the
+/// build report (printed by `print_report`), the total time and known issues of the Unity
+/// version. Then, if the build succeeded, removes the folders `--clean` asks for.
+fn finish_build(
+    plan: &BuildPlan,
+    setup: &ProjectSetup,
+    start_time: Instant,
+    succeeded: bool,
+    print_report: impl FnOnce(MessageType),
+) {
+    let (label, status) = if succeeded {
+        ("Succeeded", MessageType::Ok)
     } else {
-        (MessageType::Error, "Failed")
+        ("Failed", MessageType::Error)
     };
-
     MessageType::print_line(
-        log_tag,
-        format!(
-            "building Unity {} {} project in {}",
-            setup.unity_version,
-            plan.args.target,
-            setup.project.normalized_display()
-        ),
-        build_status,
+        label,
+        format!("building {}", build_description(setup, plan.args.target)),
+        status,
     );
-
+    print_report(status);
     MessageType::print_line(
         "Total time",
         format!("{t:.2}s", t = start_time.elapsed().as_secs_f64()),
-        build_status,
+        status,
     );
-
-    print_build_report(&plan.log_path, build_status);
     report_version_issues(setup.unity_version);
-    build_result.map_err(|_| collect_log_errors(&plan.log_path))
+
+    if succeeded && plan.args.clean {
+        clean_output_directory(&plan.output_path);
+    }
 }
 
 /// Announces the start of a build: a status line in quiet mode, otherwise a printed message.
 /// The status line is cleared when the returned value is dropped.
 fn start_build_status(label: &str, plan: &BuildPlan, setup: &ProjectSetup) -> StatusLine {
-    let build_text = format!(
-        "Unity {} {} project in {}",
-        setup.unity_version,
-        plan.args.target,
-        setup.project.normalized_display()
-    );
+    let build_text = build_description(setup, plan.args.target);
 
-    if plan.args.quiet {
-        StatusLine::new(label, &build_text)
-    } else {
+    if !plan.args.quiet {
         MessageType::print_line(label, &build_text, MessageType::Info);
-        StatusLine::new_silent()
     }
+    StatusLine::new_if(plan.args.quiet, label, &build_text)
 }
 
-fn clean_output_directory(path: &Path) -> anyhow::Result<()> {
-    let to_delete = fs::read_dir(path)?
+/// Name endings of the folders Unity writes next to a player that must not be shipped.
+const DO_NOT_SHIP_SUFFIXES: [&str; 2] = [
+    "_BurstDebugInformation_DoNotShip",
+    "_BackUpThisFolder_ButDontShipItWithYourGame",
+];
+
+/// Removes the folders Unity writes next to a player that must not be shipped.
+///
+/// Runs after a successful build has been reported, so a folder that cannot be removed is only
+/// a warning.
+fn clean_output_directory(path: &Path) {
+    let entries = match fs::read_dir(path) {
+        Ok(entries) => entries,
+        Err(e) => {
+            warn_non_fatal!(
+                "Could not clean the output directory {}: {e}",
+                path.normalized_display()
+            );
+            return;
+        }
+    };
+
+    let to_delete = entries
         .flatten()
-        .map(|de| de.path())
-        .filter(|p| p.is_dir()) // Only directories.
-        .filter(|p| {
-            let dir_str = p.to_string_lossy();
-            dir_str.ends_with("_BurstDebugInformation_DoNotShip")
-                || dir_str.ends_with("_BackUpThisFolder_ButDontShipItWithYourGame")
-        });
+        .filter(|entry| {
+            entry
+                .file_name()
+                .to_str()
+                .is_some_and(|name| DO_NOT_SHIP_SUFFIXES.iter().any(|s| name.ends_with(s)))
+        })
+        .map(|entry| entry.path())
+        .filter(|p| p.is_dir());
 
     for dir in to_delete {
         println!("Removing directory: {}", dir.normalized_display());
-        fs::remove_dir_all(&dir)
-            .with_context(|| format!("Could not remove directory: {}", dir.normalized_display()))?;
+        if let Err(e) = fs::remove_dir_all(&dir) {
+            warn_non_fatal!(
+                "Could not remove directory {}: {e}",
+                dir.normalized_display()
+            );
+        }
     }
-
-    Ok(())
 }

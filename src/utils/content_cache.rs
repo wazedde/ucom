@@ -2,12 +2,13 @@ use std::fs;
 use std::fs::{File, create_dir_all};
 use std::io::{BufWriter, Write};
 use std::path::{Path, PathBuf};
-use std::time::SystemTime;
+use std::sync::OnceLock;
+use std::time::{Duration, SystemTime};
 
 use crate::utils::path_ext::PlatformConsistentPathExt;
 use crate::utils::{warn_non_fatal, write_atomic_with};
 use anyhow::{Context, anyhow};
-use chrono::{DateTime, Duration, TimeDelta, Utc};
+use chrono::{DateTime, TimeDelta, Utc};
 use dirs::cache_dir;
 
 const CACHE_REFRESH_SECONDS: i64 = 3600;
@@ -34,25 +35,21 @@ pub fn fetch_content(url: &str, change_check: RemoteChangeCheck) -> anyhow::Resu
     let cache_dir = ucom_cache_dir()?;
     let filename = cache_dir.join(sanitize_filename(url));
 
-    match determine_cache_status(url, &filename, change_check)? {
-        CacheState::Stale => fetch_and_store_in_cache(url, &filename),
-        CacheState::Fresh => fs::read_to_string(&filename).with_context(|| {
-            format!(
-                "Failed to read cached file: {}",
-                filename.normalized_display()
-            )
-        }),
+    match determine_cache_status(url, &filename, change_check) {
+        CacheState::Stale => return fetch_and_store_in_cache(url, &filename),
+        CacheState::Fresh => {}
         CacheState::Touched => {
             // A failed timestamp update only means the remote check is repeated next time.
             let _ = touch_file(&filename);
-            fs::read_to_string(&filename).with_context(|| {
-                format!(
-                    "Failed to read cached file: {}",
-                    filename.normalized_display()
-                )
-            })
         }
     }
+
+    fs::read_to_string(&filename).with_context(|| {
+        format!(
+            "Failed to read cached file: {}",
+            filename.normalized_display()
+        )
+    })
 }
 
 /// Writes a cache file atomically, creating the cache directory if needed.
@@ -91,18 +88,19 @@ pub fn ucom_cache_dir() -> anyhow::Result<PathBuf> {
 
 /// Returns whether the given file is too old to be considered valid.
 pub fn is_cached_file_stale(path: &Path) -> bool {
-    let cached_time: DateTime<Utc> = match path.metadata().and_then(|m| m.modified()) {
-        Ok(modified) => DateTime::<Utc>::from(modified),
-        Err(_) => return true, // Cannot get modification time; consider stale.
-    };
+    // A file whose modification time cannot be read is stale.
+    !modified_time(path).is_ok_and(is_fresh)
+}
 
-    let delta_time = Utc::now() - cached_time;
+/// Returns whether a cache file modified at `modified` is recent enough to use without checking
+/// the source. A modification time in the future is not fresh.
+fn is_fresh(modified: SystemTime) -> bool {
+    let age = Utc::now() - DateTime::<Utc>::from(modified);
+    age >= TimeDelta::zero() && age <= TimeDelta::seconds(CACHE_REFRESH_SECONDS)
+}
 
-    if delta_time < Duration::zero() {
-        return true; // Modification time is in the future; consider stale
-    }
-
-    delta_time > Duration::seconds(CACHE_REFRESH_SECONDS)
+fn modified_time(path: &Path) -> std::io::Result<SystemTime> {
+    path.metadata()?.modified()
 }
 
 /// Touches the timestamp of the given file.
@@ -138,33 +136,23 @@ fn is_timestamp_permission_error(_err: &std::io::Error) -> bool {
 }
 
 /// Checks if the cached content is up to date.
-fn determine_cache_status(
-    url: &str,
-    cached: &Path,
-    change_check: RemoteChangeCheck,
-) -> anyhow::Result<CacheState> {
-    let state = if cached.exists() {
-        let cached_time = cached.metadata()?.modified()?;
-        let delta_time = Utc::now() - DateTime::<Utc>::from(cached_time);
-
-        if delta_time <= TimeDelta::try_seconds(CACHE_REFRESH_SECONDS).unwrap_or(TimeDelta::zero())
-        {
-            // Local file is still fresh enough
-            CacheState::Fresh
-        } else if change_check == RemoteChangeCheck::Validate
-            && !is_remote_content_newer(url, cached_time).unwrap_or(true)
-        {
-            // Local file is newer than remote Last-Modified
-            CacheState::Touched
-        } else {
-            // Local file is out of date
-            CacheState::Stale
-        }
-    } else {
-        // Has no cache file
-        CacheState::Stale
+///
+/// A missing cache file, or one whose modification time cannot be read, is stale.
+fn determine_cache_status(url: &str, cached: &Path, change_check: RemoteChangeCheck) -> CacheState {
+    let Ok(cached_time) = modified_time(cached) else {
+        return CacheState::Stale;
     };
-    Ok(state)
+
+    if is_fresh(cached_time) {
+        CacheState::Fresh
+    } else if change_check == RemoteChangeCheck::Validate
+        && !is_remote_content_newer(url, cached_time).unwrap_or(true)
+    {
+        // The local file is newer than the remote Last-Modified time.
+        CacheState::Touched
+    } else {
+        CacheState::Stale
+    }
 }
 
 /// Checks if the remote page has been updated since the given time.
@@ -180,12 +168,29 @@ fn sanitize_filename(filename: &str) -> String {
     filename.replace(|c: char| !c.is_ascii_alphanumeric(), "_")
 }
 
+/// Returns the HTTP agent for all of ucom's requests.
+///
+/// The timeouts keep an unresponsive server from blocking ucom forever. They are generous,
+/// because the Unity release API can be slow.
+pub fn http_agent() -> &'static ureq::Agent {
+    static AGENT: OnceLock<ureq::Agent> = OnceLock::new();
+    AGENT.get_or_init(|| {
+        ureq::Agent::config_builder()
+            .timeout_connect(Some(Duration::from_secs(15)))
+            .timeout_recv_response(Some(Duration::from_secs(60)))
+            .timeout_recv_body(Some(Duration::from_secs(120)))
+            .build()
+            .into()
+    })
+}
+
 /// Downloads the content from the given URL and saves it to the given filename.
 ///
 /// Storing the content in the cache is best-effort: if the cache cannot be written,
 /// a warning is printed and the downloaded content is still returned.
 fn fetch_and_store_in_cache(url: &str, filename: &Path) -> anyhow::Result<String> {
-    let content = ureq::get(url)
+    let content = http_agent()
+        .get(url)
         .call()
         .with_context(|| format!("Failed to fetch {url}"))?
         .into_body()
@@ -197,7 +202,8 @@ fn fetch_and_store_in_cache(url: &str, filename: &Path) -> anyhow::Result<String
 }
 
 fn fetch_last_modified_time(url: &str) -> anyhow::Result<DateTime<Utc>> {
-    let response = ureq::head(url)
+    let response = http_agent()
+        .head(url)
         .call()
         .with_context(|| format!("Failed to fetch Last-Modified header from {url}"))?;
 

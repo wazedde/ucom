@@ -178,6 +178,11 @@ impl Serialize for Version {
 }
 
 impl Version {
+    /// Returns whether both versions have the same major and minor version.
+    pub const fn same_minor(self, other: Self) -> bool {
+        self.major == other.major && self.minor == other.minor
+    }
+
     /// Returns the `major.minor` part of this version.
     pub fn to_major_minor_string(self) -> String {
         format!("{}.{}", self.major, self.minor)

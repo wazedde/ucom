@@ -36,6 +36,6 @@ pub fn temp_project(label: &str) -> (TempDir, ProjectPath) {
     let version_file = dir.path().join(VERSION_SUB_PATH);
     fs::create_dir_all(version_file.parent().unwrap()).unwrap();
     fs::write(version_file, "m_EditorVersion: 6000.6.8f1\n").unwrap();
-    let project = ProjectPath::try_from(dir.path()).expect("not detected as a Unity project");
+    let project = ProjectPath::from_dir(dir.path()).expect("not detected as a Unity project");
     (dir, project)
 }

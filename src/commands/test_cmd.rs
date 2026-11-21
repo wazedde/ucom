@@ -44,18 +44,15 @@ pub fn run_tests(arguments: &TestArguments) -> anyhow::Result<()> {
     }
 
     let tests_result = {
-        let _status = if arguments.quiet {
-            StatusLine::new_silent()
-        } else {
-            StatusLine::new(
-                "Running",
-                format!(
-                    "{} tests for project in {}",
-                    arguments.platform,
-                    setup.project.normalized_display()
-                ),
-            )
-        };
+        let _status = StatusLine::new_if(
+            !arguments.quiet,
+            "Running",
+            format!(
+                "{} tests for project in {}",
+                arguments.platform,
+                setup.project.normalized_display()
+            ),
+        );
         let _progress_guard = NativeProgressBar::with_state(NativeProgressState::Indeterminate);
         wait_with_stdout(test_command, OnCancel::Kill)
     };
