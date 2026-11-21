@@ -12,13 +12,14 @@ use crate::cli_build::BuildArguments;
 use crate::commands::builder_script::{ensure_builder_supports, warn_if_builder_outdated};
 use crate::commands::project_setup::ProjectSetup;
 use crate::commands::release_issue::report_version_issues;
+use crate::style_definitions::Tone;
 use crate::unity::find_unity_editor_process;
 use crate::utils::native_progress::{NativeProgressBar, NativeProgressState};
 use crate::utils::path_ext::PlatformConsistentPathExt;
 use crate::utils::spawn_cmd::{
     CommandError, OnCancel, build_command_line, wait_with_log_output, wait_with_stdout,
 };
-use crate::utils::status_line::{MessageType, StatusLine};
+use crate::utils::status_line::{StatusLine, print_status};
 use crate::utils::warn_non_fatal;
 
 use build_log::{collect_log_errors, print_build_report, remove_old_log_file};
@@ -103,23 +104,23 @@ fn finish_build(
     setup: &ProjectSetup,
     start_time: Instant,
     succeeded: bool,
-    print_report: impl FnOnce(MessageType),
+    print_report: impl FnOnce(Tone),
 ) {
-    let (label, status) = if succeeded {
-        ("Succeeded", MessageType::Ok)
+    let (label, tone) = if succeeded {
+        ("Succeeded", Tone::Success)
     } else {
-        ("Failed", MessageType::Error)
+        ("Failed", Tone::Error)
     };
-    MessageType::print_line(
+    print_status(
+        tone,
         label,
-        format!("building {}", build_description(setup, plan.args.target)),
-        status,
+        format_args!("building {}", build_description(setup, plan.args.target)),
     );
-    print_report(status);
-    MessageType::print_line(
+    print_report(tone);
+    print_status(
+        tone,
         "Total time",
-        format!("{t:.2}s", t = start_time.elapsed().as_secs_f64()),
-        status,
+        format_args!("{t:.2}s", t = start_time.elapsed().as_secs_f64()),
     );
     report_version_issues(setup.unity_version);
 
@@ -134,7 +135,7 @@ fn start_build_status(label: &str, plan: &BuildPlan, setup: &ProjectSetup) -> St
     let build_text = build_description(setup, plan.args.target);
 
     if !plan.args.quiet {
-        MessageType::print_line(label, &build_text, MessageType::Info);
+        print_status(Tone::Info, label, &build_text);
     }
     StatusLine::new_if(plan.args.quiet, label, &build_text)
 }

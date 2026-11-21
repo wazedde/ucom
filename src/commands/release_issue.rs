@@ -1,83 +1,90 @@
 //! How the commands show known issues of a Unity release.
 
-use crate::commands::output::{MARK_BULLET, MARK_ERROR, MARK_WARNING};
-use crate::style_definitions::{STYLE_ERROR, STYLE_LINK, STYLE_PLAIN, STYLE_WARNING};
+use crate::commands::output::{Mark, Tag};
+use crate::style_definitions::{Styled, Tone};
 use crate::unity::Version;
 use crate::unity::release_api::{UpdatePolicy, fetch_latest_releases};
 use crate::unity::release_api_data::{LabelElement, ReleaseIssue};
 use crate::utils::report::{HeaderLevel, Report, WrapMode};
 use crate::utils::warn_non_fatal;
-use std::borrow::Cow;
-use yansi::{Paint, Style};
+use std::fmt::{self, Display, Formatter};
+use std::io::IsTerminal;
 
-/// Terminal styling for a [`ReleaseIssue`].
-pub trait ReleaseIssueDisplay {
-    /// The style for the issue: error, warning, or plain without an issue.
-    fn style(&self) -> Style;
+/// Terminal styling for a release's issue.
+impl ReleaseIssue {
+    /// The tone for the issue: error, warning, or plain without an issue.
+    pub fn tone(&self) -> Tone {
+        self.tone_or(Tone::Plain)
+    }
 
-    /// Like [`style`](Self::style), but `style` when there is no issue.
-    fn issue_style_or(&self, style: Style) -> Style;
+    /// Like [`tone`](Self::tone), but `tone` when there is no issue.
+    pub fn tone_or(&self, tone: Tone) -> Tone {
+        match self {
+            ReleaseIssue::NoIssue => tone,
+            ReleaseIssue::Error(_) => Tone::Error,
+            ReleaseIssue::Warning(_) => Tone::Warning,
+        }
+    }
 
-    /// A styled mark for the issue; a bullet without an issue.
-    fn marker(&self) -> String;
+    /// The mark for the issue; a bullet without an issue.
+    pub fn mark(&self) -> Mark {
+        self.mark_or(Mark::Bullet)
+    }
 
-    /// Like [`marker`](Self::marker), but `fallback` when there is no issue.
-    fn issue_marker_or(&self, fallback: &'static str) -> Cow<'static, str>;
+    /// Like [`mark`](Self::mark), but `fallback` when there is no issue.
+    pub fn mark_or(&self, fallback: Mark) -> Mark {
+        match self {
+            ReleaseIssue::NoIssue => fallback,
+            ReleaseIssue::Error(_) => Mark::Error,
+            ReleaseIssue::Warning(_) => Mark::Warning,
+        }
+    }
+
+    /// The issue's label as a tag after a space, such as ` [SECURITY ALERT]`; nothing without
+    /// an issue.
+    pub fn issue_tag(&self) -> IssueTag<'_> {
+        IssueTag {
+            label: self.label(),
+            tone: self.tone(),
+            fallback: None,
+        }
+    }
 
     /// Like [`issue_tag`](Self::issue_tag), but `fallback` when there is no issue.
-    fn issue_tag_or(&self, fallback: &'static str) -> Cow<'static, str>;
-
-    /// The issue's label as a styled tag after `prefix`; empty without an issue.
-    fn issue_tag_with_prefix(&self, prefix: &str) -> String;
-
-    /// The issue's label as a styled tag; empty without an issue.
-    fn issue_tag(&self) -> String {
-        self.issue_tag_with_prefix("")
+    pub fn issue_tag_or(&self, fallback: Tag) -> IssueTag<'_> {
+        IssueTag {
+            fallback: Some(fallback),
+            ..self.issue_tag()
+        }
     }
 }
 
-impl ReleaseIssueDisplay for ReleaseIssue {
-    fn style(&self) -> Style {
-        self.issue_style_or(STYLE_PLAIN)
-    }
+/// A release's issue label as a tag after a space, such as ` [SECURITY ALERT]`, linked to the
+/// first URL in its description. Shows the fallback tag, or nothing, for a release without an
+/// issue.
+pub struct IssueTag<'a> {
+    label: Option<&'a LabelElement>,
+    tone: Tone,
+    fallback: Option<Tag>,
+}
 
-    fn issue_style_or(&self, style: Style) -> Style {
-        match self {
-            ReleaseIssue::NoIssue => style,
-            ReleaseIssue::Error(_) => STYLE_ERROR,
-            ReleaseIssue::Warning(_) => STYLE_WARNING,
+impl Display for IssueTag<'_> {
+    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
+        match (self.label, self.fallback) {
+            (Some(label), _) => {
+                let text = label.label_text.to_uppercase();
+                let text = text.tone(self.tone);
+                // A link only on a terminal: forced colour must not put link codes in logs.
+                match extract_first_url(&label.description) {
+                    Some(url) if std::io::stdout().is_terminal() => {
+                        write!(f, " [{}]", text.link(url))
+                    }
+                    _ => write!(f, " [{text}]"),
+                }
+            }
+            (None, Some(tag)) => write!(f, " {tag}"),
+            (None, None) => Ok(()),
         }
-    }
-
-    fn marker(&self) -> String {
-        let mark = match self {
-            ReleaseIssue::NoIssue => MARK_BULLET,
-            ReleaseIssue::Error(_) => MARK_ERROR,
-            ReleaseIssue::Warning(_) => MARK_WARNING,
-        };
-        mark.paint(self.style()).to_string()
-    }
-
-    fn issue_marker_or(&self, fallback: &'static str) -> Cow<'static, str> {
-        if self.has_issue() {
-            Cow::Owned(self.marker())
-        } else {
-            Cow::Borrowed(fallback)
-        }
-    }
-
-    fn issue_tag_or(&self, fallback: &'static str) -> Cow<'static, str> {
-        if self.has_issue() {
-            Cow::Owned(self.issue_tag())
-        } else {
-            Cow::Borrowed(fallback)
-        }
-    }
-
-    fn issue_tag_with_prefix(&self, prefix: &str) -> String {
-        self.label().map_or_default(|label| {
-            format!("{prefix}[{}]", format_label_with_url(label, self.style()))
-        })
     }
 }
 
@@ -88,11 +95,11 @@ pub fn report_error_description(report: &Report, issue: &ReleaseIssue) {
 
     report.blank_line();
     report.header(
-        format_args!("{}", label.label_text.to_uppercase()).paint(issue.style()),
+        format_args!("{}", label.label_text.to_uppercase()).tone(issue.tone()),
         HeaderLevel::H2,
     );
 
-    let description = report.render_links(&label.description, STYLE_PLAIN, STYLE_LINK);
+    let description = report.render_links(&label.description, Tone::Plain, Tone::Link);
     let description = report.wrap_text(&description, WrapMode::TerminalWidth);
     report.paragraph(&description);
 }
@@ -121,19 +128,6 @@ pub fn report_version_issues(unity_version: Version) {
         report_error_description(&report, &issue);
         report.blank_line();
     }
-}
-
-fn format_label_with_url(le: &LabelElement, style: Style) -> String {
-    extract_first_url(&le.description).map_or_else(
-        || le.label_text.to_uppercase().paint(style).to_string(),
-        |url| {
-            le.label_text
-                .to_uppercase()
-                .paint(style)
-                .link(url)
-                .to_string()
-        },
-    )
 }
 
 fn extract_first_url(text: &str) -> Option<&str> {

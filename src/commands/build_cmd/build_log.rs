@@ -7,10 +7,11 @@ use std::path::Path;
 use anyhow::{Context, anyhow};
 use itertools::Itertools;
 
+use crate::style_definitions::Tone;
 use crate::utils::path_ext::PlatformConsistentPathExt;
-use crate::utils::status_line::MessageType;
+use crate::utils::status_line::print_status;
 
-pub(super) fn print_build_report(log_path: &Path, status: MessageType) {
+pub(super) fn print_build_report(log_path: &Path, tone: Tone) {
     if let Ok(file) = File::open(log_path) {
         // Iterate over lines from the build report in the log file.
         log_lines(file)
@@ -19,7 +20,7 @@ pub(super) fn print_build_report(log_path: &Path, status: MessageType) {
             .take_while(|l| !l.is_empty()) // Read until empty line.
             .for_each(|l| {
                 if let Some((key, value)) = l.split_once(':') {
-                    MessageType::print_line(key.trim(), value.trim(), status);
+                    print_status(tone, key.trim(), value.trim());
                 } else {
                     println!("{l}");
                 }

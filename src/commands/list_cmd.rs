@@ -1,14 +1,10 @@
 use anyhow::{bail, ensure};
 use itertools::Itertools;
 use std::fmt::{Display, Formatter};
-use yansi::{Condition, Paint};
 
 use crate::cli::ListType;
-use crate::commands::output::{MARK_BULLET, MARK_NO_INFO, TAG_NEW, TAG_OUTDATED, TAG_UP_TO_DATE};
-use crate::commands::release_issue::ReleaseIssueDisplay;
-use crate::style_definitions::{
-    STYLE_LINK, STYLE_NO_UPDATE_INFO, STYLE_OUTDATED, STYLE_UP_TO_DATE, STYLE_UPDATE_VERSION,
-};
+use crate::commands::output::{Mark, Tag};
+use crate::style_definitions::{Styled, Tone};
 use crate::unity::installations::{Installations, SortedVersions};
 use crate::unity::release_api::{
     Releases, SortedReleases, UpdatePolicy, fetch_latest_releases, load_cached_releases,
@@ -106,7 +102,7 @@ fn display_basic_list(installed: &SortedVersions, report: &Report) {
             report.paragraph(format_args!(
                 "{connector}─ {vs:<version_col_width$} - {rn}",
                 vs = info.version,
-                rn = release_notes_url(info.version).paint(STYLE_LINK)
+                rn = release_notes_url(info.version).tone(Tone::Link)
             ));
         }
     }
@@ -202,10 +198,7 @@ fn display_updates(installed: &Installations, mode: UpdatePolicy) -> anyhow::Res
                     ),
                     line.stream,
                 ),
-                ri = line
-                    .content
-                    .bold()
-                    .whenever(Condition::cached(is_suggested)),
+                ri = line.content.bold_if(is_suggested),
             ));
         }
     }
@@ -422,26 +415,22 @@ fn display_available_versions(
             let issue = release.issue();
 
             let description = format_release_description(info, Some(release));
-            let mark = issue.marker();
+            let mark = issue.mark();
+            let tone = issue.tone_or(if is_installed {
+                Tone::Success
+            } else {
+                Tone::Plain
+            });
+            let installed_suffix = if is_installed { " > installed" } else { "" };
+            let line = format!(
+                "{stream} {vs:<version_col_width$} ({release_date}) {mark} {description}{installed_suffix}",
+                vs = version.tone(tone),
+            );
 
             report.paragraph(format_args!(
                 "{bp}{ds}",
                 bp = BranchPrefix(connector, stream),
-                ds = if is_installed {
-                    let style = issue.issue_style_or(STYLE_UP_TO_DATE);
-                    format!(
-                        "{stream} {vs:<version_col_width$} ({release_date}) {mark} {description} > installed",
-                        vs = version.paint(style),
-                    )
-                } else {
-                    let style = issue.style();
-                    format!(
-                        "{stream} {vs:<version_col_width$} ({release_date}) {mark} {description}",
-                        vs = version.paint(style)
-                    )
-                }
-                .bold()
-                .whenever(Condition::cached(is_installed))
+                ds = line.bold_if(is_installed),
             ));
         }
     }
@@ -467,23 +456,19 @@ fn display_installed_versions_line(
     let release_date = latest.release_date.format("%Y-%m-%d");
     let joined_versions = installed_in_range.iter().join(", ");
 
-    let release_info = if is_up_to_date {
-        format_args!(
-            "{stream} {vs:<version_col_width$} ({release_date}) Installed: {joined_versions} {tg}",
-            vs = version.paint(STYLE_UP_TO_DATE),
-            tg = TAG_UP_TO_DATE.as_str(),
-        )
+    let tag = if is_up_to_date {
+        Tag::UpToDate
     } else {
-        format_args!(
-            "{stream} {vs:<version_col_width$} ({release_date}) Installed: {joined_versions} {tg}",
-            vs = version.paint(STYLE_OUTDATED),
-            tg = TAG_OUTDATED.as_str()
-        )
+        Tag::Outdated
     };
+    let release_info = format_args!(
+        "{stream} {vs:<version_col_width$} ({release_date}) Installed: {joined_versions} {tag}",
+        vs = version.tone(tag.tone()),
+    );
     report.paragraph(format_args!(
         "{bp}{ri}",
         bp = BranchPrefix(line_marker, stream),
-        ri = release_info.bold()
+        ri = release_info.bold_all()
     ));
 }
 
@@ -574,12 +559,12 @@ where
 }
 
 fn format_release_description(info: &VersionInfo, release: Option<&ReleaseData>) -> String {
-    let issue_suffix = release.map_or_default(|rd| rd.issue().issue_tag_with_prefix(" "));
+    let issue = release.map_or(ReleaseIssue::NoIssue, ReleaseData::issue);
 
     format!(
         "{}{}",
-        release_notes_url(info.version).paint(STYLE_LINK),
-        issue_suffix
+        release_notes_url(info.version).tone(Tone::Link),
+        issue.issue_tag()
     )
 }
 
@@ -601,16 +586,15 @@ fn format_installed_release_line(
         stream,
         content: format!(
             "{stream} {vs:<version_col_width$} ({rd}) {mk} {description}",
-            vs = info.version.paint(issue.style()),
+            vs = info.version.tone(issue.tone()),
             rd = release.map_or_else(
                 || "----------".to_string(),
                 |rd| rd.release_date.format("%Y-%m-%d").to_string(),
             ),
-            mk = issue.issue_marker_or(MARK_BULLET),
+            mk = issue.mark(),
             description = format_release_description(info, release),
         )
-        .bold()
-        .whenever(Condition::cached(is_suggested))
+        .bold_if(is_suggested)
         .to_string(),
     }
 }
@@ -630,8 +614,8 @@ fn format_update_release_line(
         VersionType::HasLaterInstalled => {
             if issue.has_issue() {
                 format!(
-                    "{stream} {vs:<version_col_width$} ({release_date}) {mk}",
-                    vs = version.paint(issue.style()),
+                    "{stream} {vs:<version_col_width$} ({release_date}){mk}",
+                    vs = version.tone(issue.tone()),
                     mk = issue.issue_tag(),
                 )
             } else {
@@ -639,36 +623,34 @@ fn format_update_release_line(
             }
         }
         VersionType::LatestInstalled => {
-            if is_last_version_in_group {
-                format!(
-                    "{stream} {vs:<version_col_width$} ({release_date}) {mk}",
-                    vs = version.paint(issue.issue_style_or(STYLE_UP_TO_DATE)),
-                    mk = issue.issue_tag_or(TAG_UP_TO_DATE.as_str()),
-                )
+            let tag = if is_last_version_in_group {
+                Tag::UpToDate
             } else {
-                format!(
-                    "{stream} {vs:<version_col_width$} ({release_date}) {mk}",
-                    vs = version.paint(issue.issue_style_or(STYLE_OUTDATED)),
-                    mk = issue.issue_tag_or(TAG_OUTDATED.as_str()),
-                )
-            }
+                Tag::Outdated
+            };
+            format!(
+                "{stream} {vs:<version_col_width$} ({release_date}){mk}",
+                vs = version.tone(issue.tone_or(tag.tone())),
+                mk = issue.issue_tag_or(tag),
+            )
         }
         VersionType::UpdateToLatest(release_info) => {
             format!(
-                "{stream} {vs:<version_col_width$} ({release_date}) {mk} {rd}",
-                vs = version.paint(issue.issue_style_or(STYLE_UPDATE_VERSION)),
-                mk = issue.issue_tag_or(TAG_NEW.as_str()),
+                "{stream} {vs:<version_col_width$} ({release_date}){mk} {rd}",
+                vs = version.tone(issue.tone_or(Tag::New.tone())),
+                mk = issue.issue_tag_or(Tag::New),
                 rd = format_release_description(info, Some(release_info)),
             )
         }
         VersionType::NoReleaseInfo => {
             format!(
-                "{stream} {version} ({release_date}) {MARK_NO_INFO} {}",
+                "{stream} {version} ({release_date}) {} {}",
+                Mark::NoInfo,
                 format_args!(
                     "No {bt} update info available",
                     bt = info.version.build_type,
                 )
-                .paint(STYLE_NO_UPDATE_INFO)
+                .tone(Tone::Muted)
             )
         }
     };

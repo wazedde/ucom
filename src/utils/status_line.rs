@@ -1,11 +1,11 @@
 use std::io;
 use std::io::{IsTerminal, Write, stdout};
 
+use crate::style_definitions::{Styled, Tone};
 use crossterm::ExecutableCommand;
 use crossterm::cursor::{RestorePosition, SavePosition};
 use crossterm::terminal::{Clear, ClearType};
-use strum::{AsRefStr, Display};
-use yansi::{Color, Paint, Painted, Style};
+use std::fmt::Display;
 
 //
 // Status line
@@ -25,7 +25,7 @@ impl StatusLine {
     /// If stdout is not a terminal, it will not output anything.
     pub fn new(label: impl AsRef<str>, msg: impl AsRef<str>) -> Self {
         if stdout().is_terminal() {
-            Self::Stdout(StdoutStatusLine::new(label, msg, MessageType::Info))
+            Self::Stdout(StdoutStatusLine::new(label, msg))
         } else {
             Self::Silent
         }
@@ -65,26 +65,22 @@ impl Drop for StdoutStatusLine {
 }
 
 impl StdoutStatusLine {
-    pub fn new(label: impl AsRef<str>, msg: impl AsRef<str>, message_type: MessageType) -> Self {
+    pub fn new(label: impl AsRef<str>, msg: impl AsRef<str>) -> Self {
         let status_line = Self {};
-        Self::print_line(label, msg, message_type).ok();
+        Self::print_line(label, msg).ok();
         status_line
     }
 
     pub fn update_line(label: impl AsRef<str>, msg: impl AsRef<str>) {
         Self::clear_last_line().ok();
-        Self::print_line(label, msg, MessageType::Info).ok();
+        Self::print_line(label, msg).ok();
     }
 
-    fn print_line(
-        label: impl AsRef<str>,
-        msg: impl AsRef<str>,
-        status: MessageType,
-    ) -> io::Result<()> {
+    fn print_line(label: impl AsRef<str>, msg: impl AsRef<str>) -> io::Result<()> {
         stdout().execute(SavePosition).and_then(|o| {
             print!(
                 "{:>LABEL_PADDING$} {}",
-                MessageType::format_text(label.as_ref(), status),
+                label.as_ref().tone(Tone::Info).bold(),
                 msg.as_ref()
             );
             o.execute(RestorePosition)?.flush()
@@ -99,39 +95,11 @@ impl StdoutStatusLine {
 }
 
 //
-// Message type
+// Status messages
 //
 
-/// The type of message to display.
-#[allow(dead_code)]
-#[derive(Display, AsRefStr, Debug, Clone, Copy, PartialEq, Eq)]
-pub enum MessageType {
-    Plain,
-    Ok,
-    Error,
-    Warning,
-    Info,
-}
-
-impl MessageType {
-    /// Applies a style to the given string based on the message type.
-    pub fn format_text(s: &str, message_type: Self) -> Painted<&str> {
-        let color = match message_type {
-            Self::Plain => Style::new().bold(),
-            Self::Ok => Color::Green.bold(),
-            Self::Error => Color::Red.bold(),
-            Self::Warning => Color::Yellow.bold(),
-            Self::Info => Color::Blue.bold(),
-        };
-        s.paint(color)
-    }
-
-    /// Prints a status line with the given label and message.
-    pub fn print_line(label: impl AsRef<str>, msg: impl AsRef<str>, message_type: Self) {
-        println!(
-            "{:>LABEL_PADDING$} {}",
-            Self::format_text(label.as_ref(), message_type),
-            msg.as_ref()
-        );
-    }
+/// Prints a status message, as cargo does: `label` in bold in the colour of `tone`, right-aligned,
+/// then `msg`.
+pub fn print_status(tone: Tone, label: &str, msg: impl Display) {
+    println!("{:>LABEL_PADDING$} {msg}", label.tone(tone).bold());
 }

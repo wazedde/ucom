@@ -3,13 +3,10 @@ use std::path::Path;
 use yansi::Paint;
 
 use crate::commands::install_cmd::install_version;
-use crate::commands::output::{MARK_AVAILABLE, MARK_BULLET, MARK_UNAVAILABLE};
+use crate::commands::output::Mark;
 use crate::commands::project_setup::ProjectSetup;
-use crate::commands::release_issue::{ReleaseIssueDisplay, report_error_description};
-use crate::style_definitions::{
-    STYLE_ERROR, STYLE_LINK, STYLE_OUTDATED, STYLE_SUCCESS, STYLE_UP_TO_DATE, STYLE_UPDATE_VERSION,
-    STYLE_WARNING,
-};
+use crate::commands::release_issue::report_error_description;
+use crate::style_definitions::{Styled, Tone};
 use crate::unity::ProjectPath;
 use crate::unity::release_api::{SortedReleases, UpdatePolicy};
 use crate::unity::{ProjectSettings, ReleaseUpdates, find_available_updates, release_notes_url};
@@ -134,8 +131,8 @@ fn print_project_header(project: &ProjectPath, report: &Report) {
         Err(e) => {
             report.list_item(format!(
                 "{}: {}",
-                "Could not read project settings".paint(STYLE_WARNING),
-                e.paint(STYLE_WARNING),
+                "Could not read project settings".tone(Tone::Warning),
+                e.tone(Tone::Warning),
             ));
         }
     }
@@ -151,40 +148,26 @@ fn print_project_version(
 
     let issue = release.issue();
 
-    let (status, version_label) = match (is_installed, updates.newer_releases.is_empty()) {
-        (true, true) => (
-            "installed (latest version)".paint(STYLE_UP_TO_DATE),
-            updates.current_release.version.paint(STYLE_UP_TO_DATE),
-        ),
-        (true, false) => (
-            "installed (update available)".paint(STYLE_OUTDATED),
-            updates.current_release.version.paint(STYLE_OUTDATED),
-        ),
-        (false, true) => (
-            "not installed (latest version)".paint(STYLE_ERROR),
-            updates.current_release.version.paint(STYLE_ERROR),
-        ),
-        (false, false) => (
-            "not installed (outdated version)".paint(STYLE_ERROR),
-            updates.current_release.version.paint(STYLE_ERROR),
-        ),
+    let (status, tone) = match (is_installed, updates.newer_releases.is_empty()) {
+        (true, true) => ("installed (latest version)", Tone::Success),
+        (true, false) => ("installed (update available)", Tone::Outdated),
+        (false, true) => ("not installed (latest version)", Tone::Error),
+        (false, false) => ("not installed (outdated version)", Tone::Error),
     };
+    let version_label = updates.current_release.version.tone(tone);
 
-    report.header(format!("Unity editor status: {status}"), HeaderLevel::H2);
+    report.header(
+        format_args!("Unity editor status: {}", status.tone(tone)),
+        HeaderLevel::H2,
+    );
 
-    let installed_marker = if issue.has_issue() {
-        issue.marker()
-    } else if is_installed {
-        MARK_AVAILABLE.paint(STYLE_SUCCESS).to_string()
-    } else {
-        MARK_UNAVAILABLE.paint(STYLE_ERROR).to_string()
-    };
+    let installed_marker = issue.mark_or(Mark::installed(is_installed));
 
     report.marked_item(
         format_args!(
             "{version_label} ({}) - {}{}",
             updates.current_release.release_date.format("%Y-%m-%d"),
-            release_notes_url(updates.current_release.version).paint(STYLE_LINK),
+            release_notes_url(updates.current_release.version).tone(Tone::Link),
             if is_installed {
                 // The editor used by the project is installed, finish the line.
                 String::default()
@@ -219,35 +202,25 @@ fn print_available_updates(releases: &ReleaseUpdates, report: &Report) -> anyhow
 
     for release in releases.newer_releases.iter() {
         let issue = release.issue();
-        let version_style = issue.issue_style_or(STYLE_UPDATE_VERSION);
+        let version_tone = issue.tone_or(Tone::Update);
         let is_installed = release.version.is_editor_installed()?;
 
-        if is_installed {
-            report.marked_item(
-                format_args!(
-                    "{vs:<version_col_width$} ({rd}) - {rn}{is} > {in}",
-                    vs = release.version
-                        .paint(version_style)
-                        .bold(),
-                    rd = release.release_date.format("%Y-%m-%d"),
-                    rn = release_notes_url(release.version).paint(STYLE_LINK),
-                    is = issue.issue_tag(),
-                    in = "installed".bold(),
-                ),
-                issue.issue_marker_or(MARK_BULLET),
-            );
+        let version = release.version.tone(version_tone);
+        let (version, installed) = if is_installed {
+            (version.bold(), format!(" > {}", "installed".bold()))
         } else {
-            report.marked_item(
-                format_args!(
-                    "{vs:<version_col_width$} ({rd}) - {rn}{is}",
-                    vs = release.version.paint(version_style),
-                    rd = release.release_date.format("%Y-%m-%d"),
-                    rn = release_notes_url(release.version).paint(STYLE_LINK),
-                    is = issue.issue_tag_with_prefix(" "),
-                ),
-                issue.issue_marker_or(MARK_BULLET),
-            );
-        }
+            (version, String::new())
+        };
+
+        report.marked_item(
+            format_args!(
+                "{version:<version_col_width$} ({rd}) - {rn}{is}{installed}",
+                rd = release.release_date.format("%Y-%m-%d"),
+                rn = release_notes_url(release.version).tone(Tone::Link),
+                is = issue.issue_tag(),
+            ),
+            issue.mark(),
+        );
     }
 
     Ok(())

@@ -1,6 +1,6 @@
+use crate::style_definitions::{Styled, Tone};
 use std::borrow::Cow;
 use std::fmt::Display;
-use yansi::{Paint, Style};
 
 /// Represents the level of a header.
 #[allow(dead_code)]
@@ -54,7 +54,7 @@ impl Report {
     /// Prints a header.
     pub fn header(&self, text: impl Display, level: HeaderLevel) -> &Self {
         match self {
-            Report::Terminal => println!("{}", text.bold()),
+            Report::Terminal => println!("{}", text.bold_all()),
             Report::Markdown => println!("{} {}\n", level.as_str(), text),
             Report::Null => {}
         }
@@ -123,15 +123,15 @@ impl Report {
     pub fn render_links<'a>(
         &self,
         text: &'a str,
-        anchor_style: Style,
-        url_style: Style,
+        anchor_tone: Tone,
+        url_tone: Tone,
     ) -> Cow<'a, str> {
         match self {
             Report::Terminal => convert_html_links(text, |anchor, url| {
                 format!(
                     "{anchor}: {url}",
-                    anchor = anchor.paint(anchor_style),
-                    url = url.paint(url_style)
+                    anchor = anchor.tone(anchor_tone),
+                    url = url.tone(url_tone)
                 )
             }),
             Report::Markdown => {

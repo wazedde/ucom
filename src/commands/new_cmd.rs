@@ -10,17 +10,11 @@ use crate::commands::builder_script::{PERSISTENT_BUILD_SCRIPT_ROOT, ensure_build
 use crate::commands::project_files::add_file_to_project;
 use crate::commands::release_issue::report_version_issues;
 use crate::commands::unity_command_builder::{UnityCommandBuilder, execute_unity_command};
+use crate::style_definitions::Styled;
 use crate::unity::installations::Installations;
 use crate::utils::path_ext::PlatformConsistentPathExt;
 use crate::utils::spawn_cmd::build_command_line;
 use crate::utils::status_line::StatusLine;
-
-/// Version of `println!` that writes bold text.
-macro_rules! println_bold {
-    ($($arg:tt)*) => {
-        println!("{}", yansi::Paint::new(format_args!($($arg)*)).bold());
-    };
-}
 
 /// Creates a new Unity project and optional Git repository in the given directory.
 pub fn new_project(arguments: NewArguments) -> anyhow::Result<()> {
@@ -59,10 +53,13 @@ pub fn new_project(arguments: NewArguments) -> anyhow::Result<()> {
     }
 
     if !arguments.quiet {
-        println_bold!(
-            "Create new Unity {v} project in: {p}",
-            v = version,
-            p = project_dir.normalized_display()
+        println!(
+            "{}",
+            format_args!(
+                "Create new Unity {version} project in: {}",
+                project_dir.normalized_display()
+            )
+            .bold_all()
         );
         report_version_issues(version);
     }

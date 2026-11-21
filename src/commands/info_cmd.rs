@@ -1,8 +1,8 @@
 use crate::cli::PackagesInfoLevel;
 use crate::commands::install_latest_matching;
-use crate::commands::output::{MARK_AVAILABLE, MARK_UNAVAILABLE};
-use crate::commands::release_issue::{ReleaseIssueDisplay, report_error_description};
-use crate::style_definitions::{STYLE_ERROR, STYLE_LINK, STYLE_SUCCESS, STYLE_WARNING};
+use crate::commands::output::Mark;
+use crate::commands::release_issue::report_error_description;
+use crate::style_definitions::{Styled, Tone};
 use crate::unity::project::{
     PackageInfo, PackageSource, Packages, PackagesAvailability, ProjectPath, ProjectSettings,
     walk_visible_directories,
@@ -56,7 +56,7 @@ fn show_recursive_project_info(
             report.blank_line();
             if let Err(err) = print_project_info(&path, packages_level, &report, show_release_notes)
             {
-                report.list_item(format_args!("{la} {err}", la = "Error:".paint(STYLE_ERROR)));
+                report.list_item(format_args!("{la} {err}", la = "Error:".tone(Tone::Error)));
             }
             directories.skip_current_dir();
         }
@@ -122,8 +122,8 @@ fn print_project_info(
         Err(err) => {
             report.list_item(format_args!(
                 "{m}: {e}",
-                m = "Could not read project settings".paint(STYLE_WARNING),
-                e = err.paint(STYLE_WARNING),
+                m = "Could not read project settings".tone(Tone::Warning),
+                e = err.tone(Tone::Warning),
             ));
         }
     }
@@ -134,26 +134,20 @@ fn print_project_info(
 
     let issue = release.issue();
 
-    let version_marker = if issue.has_issue() {
-        issue.marker().bold().to_string()
-    } else if is_installed {
-        MARK_AVAILABLE.paint(STYLE_SUCCESS).bold().to_string()
-    } else {
-        MARK_UNAVAILABLE.paint(STYLE_ERROR).bold().to_string()
-    };
+    let version_marker = issue.mark_or(Mark::installed(is_installed));
 
     report.marked_item(
         format_args!(
             "Unity version: {vs} - {rn} ({st})",
-            vs = unity_version.paint(issue.style()).bold(),
-            rn = release_notes_url(unity_version).paint(STYLE_LINK),
+            vs = unity_version.tone(issue.tone()).bold(),
+            rn = release_notes_url(unity_version).tone(Tone::Link),
             st = if is_installed {
                 "installed"
             } else {
                 "not installed"
             }
         ),
-        version_marker,
+        version_marker.bold_all(),
     );
 
     if issue.has_issue() {
@@ -202,21 +196,21 @@ fn print_project_packages(
     match availability {
         PackagesAvailability::NoManifest => {
             report.list_item(
-                "No `manifest.json` file found, no packages info available.".paint(STYLE_WARNING),
+                "No `manifest.json` file found, no packages info available.".tone(Tone::Warning),
             );
             Ok(())
         }
         PackagesAvailability::LockFileDisabled => {
             report.list_item(
                 "Packages lock file is disabled in `manifest.json`, no packages info available."
-                    .paint(STYLE_WARNING),
+                    .tone(Tone::Warning),
             );
             Ok(())
         }
         PackagesAvailability::NoLockFile => {
             report.list_item(
                 "No `packages-lock.json` file found, no packages info available."
-                    .paint(STYLE_WARNING),
+                    .tone(Tone::Warning),
             );
             Ok(())
         }

@@ -19,12 +19,13 @@ use crate::cli_build::{BuildOptions, BuildScriptTarget};
 use crate::commands::builder_script::{installed_builder_version, persistent_builder_path};
 use crate::commands::project_setup::ProjectSetup;
 use crate::commands::release_issue::report_version_issues;
+use crate::style_definitions::Tone;
 use crate::unity::ProjectPath;
 use crate::unity::editor_process::{Pid, comparable_path, is_process_running};
 use crate::utils::native_progress::{NativeProgressBar, NativeProgressState};
 use crate::utils::path_ext::PlatformConsistentPathExt;
 use crate::utils::spawn_cmd::CommandError;
-use crate::utils::status_line::MessageType;
+use crate::utils::status_line::print_status;
 use crate::utils::warn_non_fatal;
 use crate::utils::{cancel, write_atomic};
 
@@ -335,22 +336,22 @@ fn handle_editor_build_result(
     let succeeded = result.status == EditorBuildStatus::Success;
 
     if succeeded && result.platform_switched {
-        MessageType::print_line(
+        print_status(
+            Tone::Info,
             "Platform switched",
-            format!(
+            format_args!(
                 "{} → {} ({:.1}s)",
                 result.original_platform.as_deref().unwrap_or("Unknown"),
                 result.switched_to.as_deref().unwrap_or("Unknown"),
                 result.platform_switch_time_seconds
             ),
-            MessageType::Info,
         );
     }
 
-    finish_build(plan, setup, start_time, succeeded, |status| {
+    finish_build(plan, setup, start_time, succeeded, |tone| {
         // Only builds that ran have a report.
         if succeeded || result.build_result.is_some() {
-            print_editor_build_report(result, status, log_file);
+            print_editor_build_report(result, tone, log_file);
         }
     });
 
@@ -399,45 +400,41 @@ fn editor_build_error(result: &EditorBuildResult, log_file: Option<&Path>) -> an
 }
 
 /// Prints the build report from editor build result.
-fn print_editor_build_report(
-    result: &EditorBuildResult,
-    status: MessageType,
-    log_file: Option<&Path>,
-) {
+fn print_editor_build_report(result: &EditorBuildResult, tone: Tone, log_file: Option<&Path>) {
     if let Some(build_result) = &result.build_result {
-        MessageType::print_line("Build result", build_result, status);
+        print_status(tone, "Build result", build_result);
     }
 
     if let Some(platform) = &result.platform {
-        MessageType::print_line("Platform", platform, status);
+        print_status(tone, "Platform", platform);
     }
 
-    MessageType::print_line("Output path", &result.output_path, status);
+    print_status(tone, "Output path", &result.output_path);
 
     if let Some(total_size) = result.total_size {
-        MessageType::print_line("Size", format!("{} MB", total_size / 1024 / 1024), status);
+        print_status(
+            tone,
+            "Size",
+            format_args!("{:.1} MB", total_size as f64 / (1024.0 * 1024.0)),
+        );
     }
 
     if let Some(total_errors) = result.total_errors {
-        MessageType::print_line("Errors", total_errors.to_string(), status);
+        print_status(tone, "Errors", total_errors);
     }
 
     if let Some(total_warnings) = result.total_warnings {
-        MessageType::print_line("Warnings", total_warnings.to_string(), status);
+        print_status(tone, "Warnings", total_warnings);
     }
 
-    MessageType::print_line(
+    print_status(
+        tone,
         "Build time",
-        format!("{:.2}s", result.build_time_seconds),
-        status,
+        format_args!("{:.2}s", result.build_time_seconds),
     );
 
     if let Some(log_file) = log_file {
-        MessageType::print_line(
-            "Log file",
-            log_file.normalized_display().to_string(),
-            status,
-        );
+        print_status(tone, "Log file", log_file.normalized_display());
     }
 }
 

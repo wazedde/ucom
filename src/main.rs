@@ -3,15 +3,14 @@ use crate::commands::{
     INDENT, add_to_project, build_project, find_project_updates, install_latest_matching,
     list_versions, new_project, open_project, project_info, run_tests, run_unity,
 };
-use crate::style_definitions::STYLE_ERROR;
+use crate::style_definitions::{Styled, Tone};
 use crate::unity::release_api::UpdatePolicy;
 use anyhow::Context;
-use clap::Parser;
+use clap::{ColorChoice, CommandFactory, FromArgMatches};
 use std::io::IsTerminal;
 use std::process::ExitCode;
 use utils::content_cache::{delete_cache_directory, ucom_cache_dir};
 use utils::{ReportedFailure, cancel};
-use yansi::Paint;
 
 mod cli;
 mod cli_add;
@@ -28,15 +27,18 @@ mod utils;
 fn main() -> ExitCode {
     // Commands return their errors instead of exiting, so destructors (status lines, progress
     // indicators, temporary files) have run by the time the exit code is chosen here.
-    let cli = Cli::parse();
+    let cli = parse_cli();
     cancel::install_handler();
 
     // Errors go to stderr, so whether they are coloured depends on stderr, not stdout.
     let colour = colour_allowed(cli.no_color);
-    let colour_errors = colour && std::io::stderr().is_terminal();
-    if !colour || !std::io::stdout().is_terminal() {
-        yansi::disable();
-    }
+    let forced = colour_forced();
+    yansi::whenever(colour_condition(
+        colour,
+        forced,
+        std::io::stdout().is_terminal(),
+    ));
+    let error_colour = colour_condition(colour, forced, std::io::stderr().is_terminal());
 
     match run(cli) {
         Ok(()) => ExitCode::SUCCESS,
@@ -48,21 +50,56 @@ fn main() -> ExitCode {
                 cancel::exit_interrupted()
             }
             None => {
-                // `DEFAULT`, not `enable()`: on Windows it first switches the console to ANSI
-                // mode, and leaves colour off if that fails.
-                yansi::whenever(if colour_errors {
-                    yansi::Condition::DEFAULT
-                } else {
-                    yansi::Condition::NEVER
-                });
+                yansi::whenever(error_colour);
                 eprintln!(
                     "{}",
-                    format_error(&e, |headline| headline.paint(STYLE_ERROR).to_string())
+                    format_error(&e, |headline| headline.tone(Tone::Error).to_string())
                 );
                 ExitCode::FAILURE
             }
         },
     }
+}
+
+/// Parses the command line as `Cli::parse` does, but without colour in clap's own help and error
+/// messages when `--no-color` is given.
+///
+/// Clap follows `NO_COLOR` and `CLICOLOR_FORCE` as ucom does. It also turns colour off for
+/// `CLICOLOR=0` and `TERM=dumb`, which ucom's own output does not.
+fn parse_cli() -> Cli {
+    let mut command = Cli::command();
+    if no_color_flag_in(std::env::args_os().skip(1)) {
+        command = command.color(ColorChoice::Never);
+    }
+    Cli::from_arg_matches(&command.get_matches()).unwrap_or_else(|e| e.exit())
+}
+
+/// Whether the arguments, without the program name, hold `--no-color` or `-n`. It is a
+/// top-level flag, so only the flags in front of the subcommand count.
+fn no_color_flag_in(args: impl IntoIterator<Item = std::ffi::OsString>) -> bool {
+    args.into_iter()
+        .map_while(|arg| arg.into_string().ok().filter(|arg| arg.starts_with('-')))
+        .any(|arg| arg == "--no-color" || (!arg.starts_with("--") && arg[1..].contains('n')))
+}
+
+/// When yansi may colour a stream: never without colour, always when it is forced, otherwise only
+/// on a terminal. A terminal gets `DEFAULT`, not `ALWAYS`: on Windows it first switches the
+/// console to ANSI mode and leaves colour off if that fails. Forced colour gets `ALWAYS`, since
+/// a pipe or file has no console mode to switch.
+fn colour_condition(allowed: bool, forced: bool, is_terminal: bool) -> yansi::Condition {
+    match (allowed, forced, is_terminal) {
+        (false, _, _) => yansi::Condition::NEVER,
+        (true, true, _) => yansi::Condition::ALWAYS,
+        (true, false, true) => yansi::Condition::DEFAULT,
+        (true, false, false) => yansi::Condition::NEVER,
+    }
+}
+
+/// Whether colour is forced even when the output is not a terminal: the `CLICOLOR_FORCE`
+/// environment variable is set to a non-empty value (<https://bixense.com/clicolors/>), the
+/// same rule clap uses. `--no-color` and `NO_COLOR` still turn colour off.
+fn colour_forced() -> bool {
+    std::env::var_os("CLICOLOR_FORCE").is_some_and(|value| !value.is_empty())
 }
 
 /// Whether colour may be used at all: not with `--no-color`, nor when the `NO_COLOR`
@@ -206,6 +243,48 @@ mod tests {
         // An empty value does not count, as https://no-color.org specifies.
         assert!(colour_allowed_by(false, Some(OsStr::new(""))));
         assert!(!colour_allowed_by(true, None));
+    }
+
+    #[test]
+    fn colour_is_forced_only_when_allowed() {
+        use yansi::Condition;
+
+        assert_eq!(colour_condition(false, true, true), Condition::NEVER);
+        assert_eq!(colour_condition(true, true, false), Condition::ALWAYS);
+        assert_eq!(colour_condition(true, false, true), Condition::DEFAULT);
+        assert_eq!(colour_condition(true, false, false), Condition::NEVER);
+    }
+
+    /// `no_color_flag_in` assumes the only top-level short flags are `-n`, `-h` and `-V`, and
+    /// that no top-level argument takes a value. A new one would need a change there.
+    #[test]
+    fn no_color_flag_scan_matches_the_top_level_arguments() {
+        let mut command = Cli::command();
+        command.build();
+        for arg in command.get_arguments() {
+            let id = arg.get_id();
+            assert!(
+                matches!(arg.get_short(), None | Some('n' | 'h' | 'V')),
+                "update no_color_flag_in for the short flag of `{id}`"
+            );
+            assert!(
+                !arg.get_action().takes_values(),
+                "update no_color_flag_in for `{id}`, which takes a value"
+            );
+        }
+    }
+
+    #[test]
+    fn no_color_flag_counts_only_in_front_of_the_subcommand() {
+        let found = |args: &[&str]| no_color_flag_in(args.iter().map(std::ffi::OsString::from));
+
+        assert!(found(&["--no-color", "list"]));
+        assert!(found(&["-n", "list"]));
+        assert!(found(&["-nh"]));
+        assert!(!found(&["list"]));
+        // After the subcommand, `-n` and `--no-color` belong to it or to Unity.
+        assert!(!found(&["new", "-n", "MyProject"]));
+        assert!(!found(&["run", "--", "--no-color"]));
     }
 
     #[test]

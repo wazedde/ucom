@@ -5,20 +5,19 @@ use std::time::Instant;
 use anyhow::bail;
 use chrono::Local;
 use uuid::Uuid;
-use yansi::Paint;
 
 use crate::cli_test::{ShowResults, TestArguments};
 use crate::commands::output::INDENT;
 use crate::commands::project_setup::ProjectSetup;
 use crate::commands::unity_command_builder::UnityCommandBuilder;
 use crate::nunit::{TestCase, TestResult, TestRun};
-use crate::style_definitions::{STYLE_ERROR, STYLE_PLAIN};
+use crate::style_definitions::{Styled, Tone};
 use crate::unity::ProjectPath;
 use crate::utils::ReportedFailure;
 use crate::utils::native_progress::{NativeProgressBar, NativeProgressState};
 use crate::utils::path_ext::PlatformConsistentPathExt;
 use crate::utils::spawn_cmd::{OnCancel, build_command_line, wait_with_stdout};
-use crate::utils::status_line::{MessageType, StatusLine};
+use crate::utils::status_line::{StatusLine, print_status};
 
 pub fn run_tests(arguments: &TestArguments) -> anyhow::Result<()> {
     let start_time = Instant::now();
@@ -72,13 +71,13 @@ pub fn run_tests(arguments: &TestArguments) -> anyhow::Result<()> {
     }
 
     if !arguments.quiet {
-        let status = if tests_failed {
-            MessageType::Error
-        } else {
-            MessageType::Ok
-        };
-
-        print_results(arguments, start_time, &setup.project, &output_path, status)?;
+        print_results(
+            arguments,
+            start_time,
+            &setup.project,
+            &output_path,
+            tests_failed,
+        )?;
     }
 
     if tests_failed {
@@ -103,21 +102,27 @@ fn print_results(
     start_time: Instant,
     project: &ProjectPath,
     output_path: &Path,
-    status: MessageType,
+    tests_failed: bool,
 ) -> anyhow::Result<()> {
-    MessageType::print_line(
+    let (result, tone) = if tests_failed {
+        ("Error", Tone::Error)
+    } else {
+        ("Ok", Tone::Success)
+    };
+
+    print_status(
+        tone,
         "Finished",
-        format!(
+        format_args!(
             "{p} tests for project in {d}; total time {t:.2}s",
             p = arguments.platform,
             d = project.normalized_display(),
             t = start_time.elapsed().as_secs_f64()
         ),
-        status,
     );
 
     let test_run = TestRun::from_file(output_path)?;
-    MessageType::print_line("Report", output_path.to_string_lossy(), status);
+    print_status(tone, "Report", output_path.to_string_lossy());
 
     match arguments.show_results {
         ShowResults::Errors => {
@@ -148,7 +153,7 @@ fn print_results(
 
     println!(
         "Result: {s}. {r}",
-        s = MessageType::format_text(status.as_ref(), status),
+        s = result.tone(tone).bold(),
         r = results,
     );
     Ok(())
@@ -209,16 +214,16 @@ fn print_test_cases<'a>(test_cases: impl Iterator<Item = &'a TestCase>) {
     }
 
     for test_case in test_cases {
-        let (name_style, status) = if test_case.result == TestResult::Passed {
-            (STYLE_PLAIN, MessageType::Ok)
+        let (name_tone, tone) = if test_case.result == TestResult::Passed {
+            (Tone::Plain, Tone::Success)
         } else {
-            (STYLE_ERROR, MessageType::Error)
+            (Tone::Error, Tone::Error)
         };
 
         println!(
             "{s}: {n}; finished in {t:.2}s",
-            s = MessageType::format_text(test_case.result.as_ref(), status),
-            n = test_case.full_name.paint(name_style),
+            s = test_case.result.as_ref().tone(tone).bold(),
+            n = test_case.full_name.tone(name_tone),
             t = test_case.duration,
         );
 
