@@ -44,12 +44,12 @@ pub fn new_project(arguments: NewArguments) -> anyhow::Result<()> {
 
     let mut builder = UnityCommandBuilder::new(editor_exe)
         .add_arg("-createProject")
-        .add_arg(project_dir.to_string_lossy().to_string())
+        .add_arg(&*project_dir)
         .add_args(arguments.args.unwrap_or_default())
         .quit(arguments.quit);
 
     if let Some(target) = arguments.target {
-        builder = builder.with_build_target(target.as_ref());
+        builder = builder.with_build_target(target);
     }
 
     let cmd = builder.build();

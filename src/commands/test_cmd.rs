@@ -169,9 +169,9 @@ impl TestArguments {
 
         // Set build target
         if let Some(target) = self.target {
-            builder = builder.with_build_target(target.as_ref());
+            builder = builder.with_build_target(target);
         } else {
-            builder = builder.with_build_target(self.platform.as_build_target().as_ref());
+            builder = builder.with_build_target(self.platform.as_build_target());
         }
 
         // Add forget project path flag if needed
@@ -182,25 +182,23 @@ impl TestArguments {
         // Add test filters. Each value is passed as one argument without a shell, so it must not
         // be quoted: Unity would take the quotes as part of the filter and match nothing.
         if let Some(s) = &self.categories {
-            builder = builder.add_arg("-testCategory").add_arg(s.clone());
+            builder = builder.add_arg("-testCategory").add_arg(s);
         }
 
         if let Some(s) = &self.tests {
-            builder = builder.add_arg("-testFilter").add_arg(s.clone());
+            builder = builder.add_arg("-testFilter").add_arg(s);
         }
 
         if let Some(s) = &self.assemblies {
-            builder = builder.add_arg("-assemblyNames").add_arg(s.clone());
+            builder = builder.add_arg("-assemblyNames").add_arg(s);
         }
 
         // Add test results path
-        builder = builder
-            .add_arg("-testResults")
-            .add_arg(output_dir.to_string_lossy().to_string());
+        builder = builder.add_arg("-testResults").add_arg(output_dir);
 
         // Add any additional arguments
         if let Some(a) = self.args.as_ref() {
-            builder = builder.add_args(a.iter().cloned());
+            builder = builder.add_args(a);
         }
 
         builder.build()

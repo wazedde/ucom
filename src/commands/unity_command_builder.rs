@@ -1,3 +1,4 @@
+use std::ffi::{OsStr, OsString};
 use std::path::PathBuf;
 use std::process::Command;
 
@@ -11,7 +12,8 @@ use crate::utils::spawn_cmd;
 /// # Example
 ///
 /// ```ignore
-/// let cmd = UnityCommandBuilder::new(editor_path, project_path)
+/// let cmd = UnityCommandBuilder::new(editor_path)
+///     .with_project_path(project_path)
 ///     .with_build_target("WebGL")
 ///     .batch_mode(true)
 ///     .quit(true)
@@ -25,7 +27,7 @@ pub struct UnityCommandBuilder {
     no_graphics: bool,
     quit: bool,
     log_file: Option<PathBuf>,
-    additional_args: Vec<String>,
+    additional_args: Vec<OsString>,
 }
 
 impl UnityCommandBuilder {
@@ -83,13 +85,13 @@ impl UnityCommandBuilder {
     }
 
     /// Add a single argument to the command.
-    pub fn add_arg(mut self, arg: impl Into<String>) -> Self {
-        self.additional_args.push(arg.into());
+    pub fn add_arg(mut self, arg: impl AsRef<OsStr>) -> Self {
+        self.additional_args.push(arg.as_ref().to_os_string());
         self
     }
 
     /// Add multiple arguments to the command.
-    pub fn add_args(mut self, args: impl IntoIterator<Item = impl Into<String>>) -> Self {
+    pub fn add_args(mut self, args: impl IntoIterator<Item = impl Into<OsString>>) -> Self {
         self.additional_args
             .extend(args.into_iter().map(Into::into));
         self
@@ -100,7 +102,7 @@ impl UnityCommandBuilder {
         let mut cmd = Command::new(&self.editor_path);
 
         if let Some(project_path) = self.project_path {
-            cmd.args(["-projectPath", &project_path.to_string_lossy()]);
+            cmd.arg("-projectPath").arg(project_path);
         }
 
         if let Some(target) = self.build_target {
@@ -108,7 +110,7 @@ impl UnityCommandBuilder {
         }
 
         if let Some(log_file) = self.log_file {
-            cmd.args(["-logFile", &log_file.to_string_lossy()]);
+            cmd.arg("-logFile").arg(log_file);
         }
 
         if self.batch_mode {
@@ -123,9 +125,7 @@ impl UnityCommandBuilder {
             cmd.arg("-quit");
         }
 
-        for arg in self.additional_args {
-            cmd.arg(arg);
-        }
+        cmd.args(self.additional_args);
 
         cmd
     }

@@ -105,12 +105,12 @@ impl<'a> BuildPlan<'a> {
     pub(super) fn batch_command(&self, project: &ProjectPath, editor_exe: &Path) -> Command {
         let mut builder = UnityCommandBuilder::new(editor_exe.to_path_buf())
             .with_project_path(project.to_path_buf())
-            .with_build_target(self.args.target.as_ref())
+            .with_build_target(self.args.target)
             .with_log_file(&self.log_path)
             .add_arg("-executeMethod")
             .add_arg(self.build_function().unwrap_or(DEFAULT_BUILD_FUNCTION))
             .add_arg("--ucom-build-output")
-            .add_arg(self.output_path.to_string_lossy().to_string())
+            .add_arg(&self.output_path)
             .add_arg("--ucom-build-target")
             .add_arg(self.script_target().as_ref());
 
@@ -131,7 +131,7 @@ impl<'a> BuildPlan<'a> {
             BuildMode::Editor => builder,
         };
 
-        builder.add_args(self.unity_args().iter().cloned()).build()
+        builder.add_args(self.unity_args()).build()
     }
 
     /// Returns the flags that change the build but cannot be sent to a running editor.

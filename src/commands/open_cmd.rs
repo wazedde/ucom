@@ -33,7 +33,7 @@ pub fn open_project(arguments: OpenArguments) -> anyhow::Result<()> {
         .add_args(arguments.args.unwrap_or_default());
 
     if let Some(target) = arguments.target {
-        builder = builder.with_build_target(target.as_ref());
+        builder = builder.with_build_target(target);
     }
 
     let cmd = builder.build();
