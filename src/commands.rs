@@ -1,5 +1,6 @@
 pub use add_cmd::add_to_project;
 pub use build_cmd::build_project;
+pub use cache_cmd::manage_cache;
 pub use info_cmd::project_info;
 pub use install_cmd::install_latest_matching;
 pub use list_cmd::list_versions;
@@ -9,10 +10,9 @@ pub use run_cmd::run_unity;
 pub use test_cmd::run_tests;
 pub use updates_cmd::find_project_updates;
 
-pub use output::INDENT;
-
 mod add_cmd;
 mod build_cmd;
+mod cache_cmd;
 mod info_cmd;
 mod install_cmd;
 mod list_cmd;

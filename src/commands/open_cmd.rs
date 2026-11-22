@@ -1,4 +1,4 @@
-use crate::cli::OpenArguments;
+use crate::cli_open::OpenArguments;
 use crate::commands::release_issue::report_version_issues;
 use crate::commands::unity_command_builder::{UnityCommandBuilder, execute_unity_command};
 use crate::unity::installations::Installations;

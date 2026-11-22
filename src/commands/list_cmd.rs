@@ -2,7 +2,7 @@ use anyhow::{bail, ensure};
 use itertools::Itertools;
 use std::fmt::{Display, Formatter};
 
-use crate::cli::ListType;
+use crate::cli_list::{ListArguments, ListType};
 use crate::commands::output::{Mark, Tag};
 use crate::style_definitions::{Styled, Tone};
 use crate::unity::installations::{Installations, SortedVersions};
@@ -21,12 +21,9 @@ use crate::utils::vec1::Vec1;
 //
 
 /// Lists installed Unity versions.
-pub fn list_versions(
-    list_type: ListType,
-    pattern: Option<&VersionPattern>,
-    mode: UpdatePolicy,
-) -> anyhow::Result<()> {
-    match list_type {
+pub fn list_versions(arguments: &ListArguments, mode: UpdatePolicy) -> anyhow::Result<()> {
+    let pattern = arguments.version_filter.as_ref();
+    match arguments.list_type {
         ListType::Installed => {
             let installed = Installations::find_installations(pattern)?;
             display_installed_versions(&installed, mode)

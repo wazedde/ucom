@@ -72,10 +72,16 @@ pub fn store_in_cache(path: &Path, write: impl FnOnce(&mut BufWriter<File>) -> a
     }
 }
 
-/// Deletes the cache directory.
-pub fn delete_cache_directory() {
-    if let Ok(dir) = ucom_cache_dir() {
-        fs::remove_dir_all(dir).ok();
+/// Deletes the cache directory. A cache directory that does not exist counts as deleted.
+pub fn delete_cache_directory(dir: &Path) -> anyhow::Result<()> {
+    match fs::remove_dir_all(dir) {
+        Err(e) if e.kind() != std::io::ErrorKind::NotFound => Err(e).with_context(|| {
+            format!(
+                "Cannot remove the cache directory: {}",
+                dir.normalized_display()
+            )
+        }),
+        _ => Ok(()),
     }
 }
 

@@ -1,7 +1,7 @@
-use crate::cli::{CacheAction, Cli, Command};
+use crate::cli::{Cli, Command};
 use crate::commands::{
-    INDENT, add_to_project, build_project, find_project_updates, install_latest_matching,
-    list_versions, new_project, open_project, project_info, run_tests, run_unity,
+    add_to_project, build_project, find_project_updates, install_latest_matching, list_versions,
+    manage_cache, new_project, open_project, project_info, run_tests, run_unity,
 };
 use crate::style_definitions::{Styled, Tone};
 use crate::unity::release_api::UpdatePolicy;
@@ -9,15 +9,19 @@ use anyhow::Context;
 use clap::{ColorChoice, CommandFactory, FromArgMatches};
 use std::io::IsTerminal;
 use std::process::ExitCode;
-use utils::content_cache::{delete_cache_directory, ucom_cache_dir};
 use utils::{ReportedFailure, cancel};
 
 mod cli;
 mod cli_add;
 mod cli_build;
+mod cli_cache;
+mod cli_info;
+mod cli_list;
 mod cli_new;
+mod cli_open;
 mod cli_run;
 mod cli_test;
+mod cli_updates;
 mod commands;
 mod nunit;
 mod style_definitions;
@@ -131,18 +135,14 @@ fn run(cli: Cli) -> anyhow::Result<()> {
     };
 
     match command {
-        Command::List {
-            list_type,
-            version_filter,
-            force,
-        } => {
-            let mode = if force {
+        Command::List(arguments) => {
+            let mode = if arguments.force {
                 UpdatePolicy::ForceRefresh
             } else {
                 UpdatePolicy::Incremental
             };
-            list_versions(list_type, version_filter.as_ref(), mode)
-                .with_context(|| format!("Cannot list `{list_type}`"))
+            list_versions(&arguments, mode)
+                .with_context(|| format!("Cannot list `{}`", arguments.list_type))
         }
 
         Command::Install { version } => {
@@ -150,33 +150,12 @@ fn run(cli: Cli) -> anyhow::Result<()> {
                 .context("Cannot install the Unity version")
         }
 
-        Command::Info {
-            project_dir,
-            install_required,
-            recursive,
-            packages,
-            report,
-        } => project_info(
-            &project_dir,
-            packages,
-            install_required,
-            recursive,
-            report,
-            UpdatePolicy::Incremental,
-        )
-        .context("Cannot show project info"),
+        Command::Info(arguments) => {
+            project_info(&arguments, UpdatePolicy::Incremental).context("Cannot show project info")
+        }
 
-        Command::Updates {
-            project_dir,
-            install_latest,
-            report,
-        } => find_project_updates(
-            &project_dir,
-            install_latest,
-            report,
-            UpdatePolicy::Incremental,
-        )
-        .context("Cannot show Unity updates for the project"),
+        Command::Updates(arguments) => find_project_updates(&arguments, UpdatePolicy::Incremental)
+            .context("Cannot show Unity updates for the project"),
 
         Command::Run(settings) => run_unity(settings).context("Cannot run Unity"),
 
@@ -194,27 +173,7 @@ fn run(cli: Cli) -> anyhow::Result<()> {
             add_to_project(&arguments).context("Cannot add the file to the project")
         }
 
-        Command::Cache { action: command } => {
-            match command {
-                CacheAction::Clear => {
-                    delete_cache_directory();
-                    println!("Cleared cache at: {}", ucom_cache_dir()?.display());
-                }
-                CacheAction::List => {
-                    let cache_dir = ucom_cache_dir()?;
-                    if !cache_dir.exists() {
-                        println!("No cache found at: {}", cache_dir.display());
-                        return Ok(());
-                    }
-
-                    println!("Cached files at: {}", cache_dir.display());
-                    for file in ucom_cache_dir()?.read_dir()? {
-                        println!("{}{}", INDENT, file?.file_name().to_string_lossy());
-                    }
-                }
-            }
-            Ok(())
-        }
+        Command::Cache(arguments) => manage_cache(&arguments),
     }
 }
 

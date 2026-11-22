@@ -1,7 +1,7 @@
 use anyhow::anyhow;
-use std::path::Path;
 use yansi::Paint;
 
+use crate::cli_updates::UpdatesArguments;
 use crate::commands::install_cmd::install_version;
 use crate::commands::output::Mark;
 use crate::commands::project_setup::ProjectSetup;
@@ -17,12 +17,10 @@ use crate::utils::report::{HeaderLevel, Report};
 use crate::utils::status_line::StatusLine;
 
 pub fn find_project_updates(
-    project_dir: &Path,
-    install_latest: bool,
-    create_report: bool,
+    arguments: &UpdatesArguments,
     mode: UpdatePolicy,
 ) -> anyhow::Result<()> {
-    let setup = ProjectSetup::new(project_dir)?;
+    let setup = ProjectSetup::new(&arguments.project_dir)?;
     let current_version = setup.unity_version;
 
     let updates = {
@@ -30,7 +28,7 @@ pub fn find_project_updates(
         find_available_updates(current_version, mode)?
     };
 
-    let report = if create_report {
+    let report = if arguments.report {
         yansi::disable();
         Report::Markdown
     } else {
@@ -40,19 +38,23 @@ pub fn find_project_updates(
     print_project_header(&setup.project, &report);
     report.blank_line();
 
-    print_project_version(&updates, &report, create_report)?;
+    print_project_version(&updates, &report, arguments.report)?;
 
-    if create_report {
+    if arguments.report {
         download_and_print_release_notes(&updates, &report)?;
     } else if !updates.newer_releases.is_empty() {
         report.blank_line();
         print_available_updates(&updates, &report)?;
     }
 
-    if create_report {
+    if arguments.report {
         Ok(())
     } else {
-        handle_newer_release_installation(install_latest, &updates.newer_releases, &report)
+        handle_newer_release_installation(
+            arguments.install_latest,
+            &updates.newer_releases,
+            &report,
+        )
     }
 }
 

@@ -1,4 +1,4 @@
-use crate::cli::PackagesInfoLevel;
+use crate::cli_info::{InfoArguments, PackagesInfoLevel};
 use crate::commands::install_latest_matching;
 use crate::commands::output::Mark;
 use crate::commands::release_issue::report_error_description;
@@ -17,18 +17,18 @@ use std::path::Path;
 use yansi::Paint;
 
 /// Shows project information.
-pub fn project_info(
-    path: &Path,
-    packages_level: PackagesInfoLevel,
-    install_required: bool,
-    recursive: bool,
-    report: bool,
-    mode: UpdatePolicy,
-) -> anyhow::Result<()> {
-    if recursive {
-        show_recursive_project_info(path, packages_level, report)
+pub fn project_info(arguments: &InfoArguments, mode: UpdatePolicy) -> anyhow::Result<()> {
+    let path = arguments.project_dir.as_path();
+    if arguments.recursive {
+        show_recursive_project_info(path, arguments.packages, arguments.report)
     } else {
-        show_project_info(path, packages_level, report, install_required, mode)
+        show_project_info(
+            path,
+            arguments.packages,
+            arguments.report,
+            arguments.install_required,
+            mode,
+        )
     }
 }
 
