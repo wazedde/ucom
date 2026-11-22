@@ -90,19 +90,13 @@ fn error_lines(lines: impl Iterator<Item = String>) -> Vec<String> {
         .collect_vec()
 }
 
-/// Returns errors from the given log file as one collected Err.
-pub(super) fn collect_log_errors(log_file: &Path) -> anyhow::Error {
-    match find_log_errors(log_file) {
-        Ok(errors) => format_log_errors(&errors),
-        Err(_) => anyhow!("Failed to open log file: {}", log_file.normalized_display()),
-    }
-}
-
-/// Combines error lines from a log into one error.
-pub(super) fn format_log_errors(errors: &[String]) -> anyhow::Error {
-    match errors {
-        [] => anyhow!("No errors found in log"),
-        [single_error] => anyhow!("{single_error}"),
+/// Returns the error lines of a log as one error, or `None` if the log cannot be read or holds
+/// no errors.
+pub(super) fn log_errors(log_file: &Path) -> Option<anyhow::Error> {
+    let errors = find_log_errors(log_file).ok()?;
+    match errors.as_slice() {
+        [] => None,
+        [single_error] => Some(anyhow!("{single_error}")),
         _ => {
             let error_list = errors
                 .iter()
@@ -110,7 +104,7 @@ pub(super) fn format_log_errors(errors: &[String]) -> anyhow::Error {
                 .map(|(i, error)| format!("{c}: {e}", c = i + 1, e = error))
                 .join("\n");
 
-            anyhow!(error_list)
+            Some(anyhow!(error_list))
         }
     }
 }

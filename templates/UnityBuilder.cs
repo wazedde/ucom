@@ -318,10 +318,12 @@ namespace Ucom
         // Command and result files are named <prefix><uuid>.json; ucom uses the same names (build_cmd/editor.rs).
         private const string CommandFilePrefix = "build-";
         private const double PollIntervalSeconds = 1.0;
+        private const double CleanupIntervalSeconds = 3600.0;
         private static readonly string CommandDir = Path.Combine(Application.dataPath, "..", "Temp", "ucom-commands");
         private static readonly string ResultDir = Path.Combine(Application.dataPath, "..", "Temp", "ucom-results");
         private static FileSystemWatcher _watcher;
         private static double _lastPollTime;
+        private static double _lastCleanupTime;
 
         // Command files whose read failure has been logged, so a file that stays unreadable
         // is logged once instead of on every poll.
@@ -360,6 +362,7 @@ namespace Ucom
             // Polling also picks up commands while Unity is in the background.
             EditorApplication.update += PollForCommands;
             _lastPollTime = EditorApplication.timeSinceStartup;
+            _lastCleanupTime = _lastPollTime;
         }
 
         private static void OnCommandFileChanged(object sender, FileSystemEventArgs e)
@@ -377,6 +380,13 @@ namespace Ucom
 
             _lastPollTime = now;
             CheckForCommands();
+
+            // An editor can stay open for days without a domain reload.
+            if (now - _lastCleanupTime >= CleanupIntervalSeconds)
+            {
+                _lastCleanupTime = now;
+                CleanupOldFiles();
+            }
         }
 
         private static void CheckForCommands()

@@ -10,7 +10,7 @@ use crate::utils::warn_non_fatal;
 use anyhow::{Context, anyhow};
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
-use std::collections::HashSet;
+use std::collections::{BTreeMap, HashSet};
 use std::fs::{self, File};
 use std::io::{BufReader, ErrorKind};
 use std::sync::atomic::{AtomicUsize, Ordering};
@@ -337,7 +337,7 @@ fn fetch_all_pages(
 
     let first = fetch(0)?;
     let total = first.total;
-    let page_count = total.div_ceil(FULL_PAGE_SIZE);
+    let page_count = pages_for(total);
     let mut fetched = first.results.len();
     callback(fetched, total);
     let mut pages = vec![(0, first)];
@@ -372,26 +372,52 @@ fn fetch_all_pages(
         Ok(())
     })?;
 
-    // A release published during the download shifts the later pages by one, which can push the
-    // oldest releases past the last page. The pages fetched after it report the new total.
-    let latest_total = pages
-        .iter()
-        .map(|(_, page)| page.total)
-        .max()
-        .unwrap_or(total);
-    for index in page_count.max(1)..latest_total.div_ceil(FULL_PAGE_SIZE) {
-        pages.push((index, fetch(index)?));
+    // A release published or withdrawn during the download shifts the later pages by one. Two
+    // pages fetched on either side of the change can then repeat a release, or miss one between
+    // them, and the oldest releases can move past the last page. Each page reports the total it
+    // saw. If they disagree, page 0 is fetched again for the current total, and every page that
+    // saw another total, or is missing, is fetched again; pages past the end are dropped.
+    let mut pages: BTreeMap<usize, ReleaseDataPage> = pages.into_iter().collect();
+    for _ in 0..CONSISTENCY_ROUNDS {
+        let total = pages[&0].total;
+        let page_count = pages_for(total);
+        if pages.len() == page_count && pages.values().all(|page| page.total == total) {
+            break;
+        }
+
+        let first = fetch(0)?;
+        let total = first.total;
+        let page_count = pages_for(total);
+        pages.insert(0, first);
+        pages.retain(|&index, _| index < page_count);
+        for index in 1..page_count {
+            if pages.get(&index).is_none_or(|page| page.total != total) {
+                pages.insert(index, fetch(index)?);
+            }
+        }
     }
 
-    pages.sort_unstable_by_key(|(index, _)| *index);
-    Ok(pages.into_iter().map(|(_, page)| page).collect())
+    Ok(pages.into_values().collect())
 }
+
+/// The number of pages of `FULL_PAGE_SIZE` that hold `total` releases; at least one, since
+/// page 0 is always fetched.
+const fn pages_for(total: usize) -> usize {
+    if total == 0 {
+        1
+    } else {
+        total.div_ceil(FULL_PAGE_SIZE)
+    }
+}
+
+/// How often `fetch_all_pages` fetches pages again because the releases changed during the
+/// download. One round is enough unless they keep changing.
+const CONSISTENCY_ROUNDS: usize = 3;
 
 /// Adds the releases that are not in `releases` yet, in order, and returns how many were added.
 ///
-/// In a full download, a release published during the download shifts the later pages by one,
-/// so a release can appear twice; only its first appearance is kept. The new release itself is
-/// added by the next incremental update.
+/// A release that appears twice keeps its first appearance. `fetch_all_pages` avoids that, but
+/// gives up when the releases keep changing during the download.
 fn add_releases(releases: &mut Releases, new: impl IntoIterator<Item = ReleaseData>) -> usize {
     let mut known: HashSet<Version> = releases.iter().map(|release| release.version).collect();
     let mut added = 0;
@@ -468,6 +494,7 @@ impl RateLimiter {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::utils::test_util::release_json;
     use std::sync::atomic::AtomicBool;
 
     /// Fetches all pages of `api` without waiting between requests.
@@ -479,17 +506,9 @@ mod tests {
     }
 
     fn release(version: &str, recommended: bool) -> ReleaseData {
-        serde_json::from_value(serde_json::json!({
-            "version": version,
-            "releaseDate": "2026-11-19T11:21:37.382Z",
-            "stream": "LTS",
-            "releaseNotes": { "url": "https://example.com/notes.md", "type": "MD" },
-            "shortRevision": "abcdef123456",
-            "skuFamily": "CLASSIC",
-            "unityHubDeepLink": "unityhub://x",
-            "recommended": recommended
-        }))
-        .unwrap()
+        let mut json = release_json(version);
+        json["recommended"] = recommended.into();
+        serde_json::from_value(json).unwrap()
     }
 
     /// Returns the version of the `n`th release of the fake API, counted from the oldest.
@@ -562,10 +581,68 @@ mod tests {
 
         let added = add_releases(&mut releases, pages.into_iter().flat_map(|p| p.results));
 
-        // The new release itself is left to the next incremental update.
-        assert_eq!(added, 50);
+        // The first page is fetched again, so the new release is included too.
+        assert_eq!(added, 51);
         let oldest: Version = fake_version(0).parse().unwrap();
         assert!(releases.iter().any(|release| release.version == oldest));
+    }
+
+    #[test]
+    fn fetch_all_pages_keeps_a_release_between_pages_fetched_before_and_after_a_change() {
+        // 75 releases on 3 pages. One is published before the second page is fetched, but the
+        // third page is still answered from before. The release at the end of the old second
+        // page moves to the third page in the new state, so neither answer holds it.
+        let before = fake_api(75);
+        let after = fake_api(76);
+        let answered = Mutex::new(HashSet::new());
+        let pages = fetch_all_now(
+            |limit, offset| {
+                let first_answer = answered.lock().unwrap().insert(offset);
+                if first_answer && offset != FULL_PAGE_SIZE {
+                    before(limit, offset)
+                } else {
+                    after(limit, offset)
+                }
+            },
+            |_, _| {},
+        )
+        .unwrap();
+        let mut releases = Releases::default();
+
+        let added = add_releases(&mut releases, pages.into_iter().flat_map(|p| p.results));
+
+        assert_eq!(added, 76);
+        for n in 0..76 {
+            let version: Version = fake_version(n).parse().unwrap();
+            assert!(
+                releases.iter().any(|release| release.version == version),
+                "{version}"
+            );
+        }
+    }
+
+    #[test]
+    fn fetch_all_pages_settles_when_a_release_is_withdrawn() {
+        // 76 releases on 4 pages; the newest is withdrawn after the first page is fetched.
+        let before = fake_api(76);
+        let after = fake_api(75);
+        let requests = AtomicUsize::new(0);
+        let pages = fetch_all_now(
+            |limit, offset| {
+                if requests.fetch_add(1, Ordering::Relaxed) == 0 {
+                    before(limit, offset)
+                } else {
+                    after(limit, offset)
+                }
+            },
+            |_, _| {},
+        )
+        .unwrap();
+
+        let expected: Vec<_> = (0..75).rev().map(fake_version).collect();
+        assert_eq!(versions(&pages), expected);
+        // 4 pages, then page 0 again; the other pages already agree with it.
+        assert_eq!(requests.load(Ordering::Relaxed), 5);
     }
 
     #[test]

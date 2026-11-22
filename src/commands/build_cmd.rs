@@ -22,7 +22,7 @@ use crate::utils::spawn_cmd::{
 use crate::utils::status_line::{StatusLine, print_status};
 use crate::utils::warn_non_fatal;
 
-use build_log::{collect_log_errors, print_build_report, remove_old_log_file};
+use build_log::{log_errors, print_build_report, remove_old_log_file};
 use editor::build_via_editor;
 use plan::BuildPlan;
 use script::inject_build_script;
@@ -84,7 +84,13 @@ pub fn build_project(arguments: &BuildArguments) -> anyhow::Result<()> {
     finish_build(&plan, &setup, start_time, build_result.is_ok(), |status| {
         print_build_report(&plan.log_path, status);
     });
-    build_result.map_err(|_| collect_log_errors(&plan.log_path))
+    build_result.map_err(|e| match e {
+        // Unity ran and failed; its log says why, unless it failed before logging an error.
+        // Then its exit code and stderr are all there is.
+        CommandError::Failed { .. } => log_errors(&plan.log_path).unwrap_or_else(|| e.into()),
+        // Unity could not be started or waited for, so its log has nothing to say.
+        _ => e.into(),
+    })
 }
 
 /// Describes a build for the lines that announce it and report its outcome.

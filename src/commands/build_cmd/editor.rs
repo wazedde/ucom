@@ -11,7 +11,7 @@ use serde::de::IntoDeserializer;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
-use super::build_log::{find_log_errors, format_log_errors, remove_old_log_file};
+use super::build_log::{log_errors, remove_old_log_file};
 use super::plan::BuildPlan;
 use super::{finish_build, start_build_status};
 use crate::cli_add::UnityTemplateFile;
@@ -389,14 +389,13 @@ fn editor_build_error(result: &EditorBuildResult, log_file: Option<&Path>) -> an
         return anyhow!("{}", result.message);
     };
 
-    match find_log_errors(log_path) {
-        Ok(errors) if !errors.is_empty() => format_log_errors(&errors),
-        _ => anyhow!(
+    log_errors(log_path).unwrap_or_else(|| {
+        anyhow!(
             "{}\nSee the build log: {}",
             result.message,
             log_path.normalized_display()
-        ),
-    }
+        )
+    })
 }
 
 /// Prints the build report from editor build result.

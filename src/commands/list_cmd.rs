@@ -1,5 +1,5 @@
 use anyhow::{bail, ensure};
-use itertools::Itertools;
+use itertools::{Itertools, Position};
 use std::fmt::{Display, Formatter};
 
 use crate::cli_list::{ListArguments, ListType};
@@ -89,19 +89,13 @@ fn display_basic_list(installed: &SortedVersions, report: &Report) {
     let version_groups = group_versions_by_minor(installed);
     let version_col_width = find_max_version_length(&version_groups);
 
-    for group in version_groups.iter() {
-        for info in group.iter() {
-            let connector = branch_connector(
-                info.version == group.first().version,
-                info.version == group.last().version,
-            );
-
-            report.paragraph(format_args!(
-                "{connector}─ {vs:<version_col_width$} - {rn}",
-                vs = info.version,
-                rn = release_notes_url(info.version).tone(Tone::Link)
-            ));
-        }
+    for (position, info) in version_groups.iter_positioned() {
+        report.paragraph(format_args!(
+            "{connector}─ {vs:<version_col_width$} - {rn}",
+            connector = branch_connector(position),
+            vs = info.version,
+            rn = release_notes_url(info.version).tone(Tone::Link)
+        ));
     }
 }
 
@@ -116,27 +110,19 @@ fn display_list_with_release_dates(
 
     report.when(report.is_markdown()).paragraph(CODE_BLOCK);
 
-    for group in version_groups.iter() {
-        for info in group.iter() {
-            let line = format_installed_release_line(
-                info,
-                releases.iter().find(|p| p.version == info.version),
-                version_col_width,
-                Some(info.version) == releases.suggested_version,
-            );
+    for (position, info) in version_groups.iter_positioned() {
+        let line = format_installed_release_line(
+            info,
+            releases.iter().find(|p| p.version == info.version),
+            version_col_width,
+            Some(info.version) == releases.suggested_version,
+        );
 
-            report.paragraph(format_args!(
-                "{bp}{ri}",
-                bp = BranchPrefix(
-                    branch_connector(
-                        info.version == group.first().version,
-                        info.version == group.last().version,
-                    ),
-                    line.stream,
-                ),
-                ri = line.content,
-            ));
-        }
+        report.paragraph(format_args!(
+            "{bp}{ri}",
+            bp = BranchPrefix(branch_connector(position), line.stream),
+            ri = line.content,
+        ));
     }
     report.when(report.is_markdown()).paragraph(CODE_BLOCK);
 }
@@ -176,28 +162,20 @@ fn display_updates(installed: &Installations, mode: UpdatePolicy) -> anyhow::Res
     let version_groups = collect_version_update_info(&installed.versions, &releases);
     let max_version_len = find_max_version_length(&version_groups);
 
-    for group in version_groups.iter() {
-        for info in group.iter() {
-            let line = format_update_release_line(
-                info,
-                releases.get_by_version(info.version)?,
-                max_version_len,
-                info.version == group.last().version,
-            );
+    for (position, info) in version_groups.iter_positioned() {
+        let line = format_update_release_line(
+            info,
+            releases.iter().find(|rd| rd.version == info.version),
+            max_version_len,
+            position.is_last,
+        );
 
-            let is_suggested = Some(info.version) == releases.suggested_version();
-            report.paragraph(format_args!(
-                "{bp}{ri}",
-                bp = BranchPrefix(
-                    branch_connector(
-                        info.version == group.first().version,
-                        info.version == group.last().version,
-                    ),
-                    line.stream,
-                ),
-                ri = line.content.bold_if(is_suggested),
-            ));
-        }
+        let is_suggested = Some(info.version) == releases.suggested_version();
+        report.paragraph(format_args!(
+            "{bp}{ri}",
+            bp = BranchPrefix(branch_connector(position), line.stream),
+            ri = line.content.bold_if(is_suggested),
+        ));
     }
     Ok(())
 }
@@ -289,20 +267,13 @@ fn display_latest_versions(
         .max()
         .unwrap_or(0);
 
-    let mut previous_major = None;
-    let mut iter = minor_releases.iter().peekable();
+    let by_major = minor_releases.iter().chunk_by(|rd| rd.version.major);
+    let positioned = by_major
+        .into_iter()
+        .flat_map(|(_, group)| group.with_position());
 
-    while let Some(latest) = iter.next() {
-        let is_last_in_range = iter
-            .peek()
-            .is_none_or(|v| v.version.major != latest.version.major);
-
-        let connector = branch_connector(
-            Some(latest.version.major) != previous_major,
-            is_last_in_range,
-        );
-
-        previous_major = Some(latest.version.major);
+    for (position, latest) in positioned {
+        let connector = branch_connector(position);
 
         // Find all installed versions in the same range as the latest version.
         let installs_in_range = installed.map_or_default(|i| {
@@ -396,40 +367,33 @@ fn display_available_versions(
     let version_groups = group_versions_by_minor(&versions);
     let version_col_width = find_max_version_length(&version_groups);
 
-    for group in version_groups.iter() {
-        for info in group.iter() {
-            let connector = branch_connector(
-                info.version == group.first().version,
-                info.version == group.last().version,
-            );
+    for (position, info) in version_groups.iter_positioned() {
+        let is_installed = installed.is_some_and(|i| i.versions.contains(&info.version));
+        let release = releases.get_by_version(info.version)?;
+        let release_date = release.release_date.format("%Y-%m-%d");
+        let version = release.version;
+        let stream = release.stream;
 
-            let is_installed = installed.is_some_and(|i| i.versions.contains(&info.version));
-            let release = releases.get_by_version(info.version)?;
-            let release_date = release.release_date.format("%Y-%m-%d");
-            let version = release.version;
-            let stream = release.stream;
+        let issue = release.issue();
 
-            let issue = release.issue();
+        let description = format_release_description(info, Some(release));
+        let mark = issue.mark();
+        let tone = issue.tone_or(if is_installed {
+            Tone::Success
+        } else {
+            Tone::Plain
+        });
+        let installed_suffix = if is_installed { " > installed" } else { "" };
+        let line = format!(
+            "{stream} {vs:<version_col_width$} ({release_date}) {mark} {description}{installed_suffix}",
+            vs = version.tone(tone),
+        );
 
-            let description = format_release_description(info, Some(release));
-            let mark = issue.mark();
-            let tone = issue.tone_or(if is_installed {
-                Tone::Success
-            } else {
-                Tone::Plain
-            });
-            let installed_suffix = if is_installed { " > installed" } else { "" };
-            let line = format!(
-                "{stream} {vs:<version_col_width$} ({release_date}) {mark} {description}{installed_suffix}",
-                vs = version.tone(tone),
-            );
-
-            report.paragraph(format_args!(
-                "{bp}{ds}",
-                bp = BranchPrefix(connector, stream),
-                ds = line.bold_if(is_installed),
-            ));
-        }
+        report.paragraph(format_args!(
+            "{bp}{ds}",
+            bp = BranchPrefix(branch_connector(position), stream),
+            ds = line.bold_if(is_installed),
+        ));
     }
     Ok(())
 }
@@ -483,6 +447,11 @@ impl<'a> VersionInfoGroups<'a> {
 
     pub fn iter_mut(&mut self) -> impl Iterator<Item = &mut Vec1<VersionInfo<'a>>> {
         self.0.iter_mut()
+    }
+
+    /// Every version in the groups, with its position in its group for the tree drawing.
+    pub fn iter_positioned(&self) -> impl Iterator<Item = (Position, &VersionInfo<'a>)> {
+        self.0.iter().flat_map(|group| group.iter().with_position())
     }
 }
 
@@ -565,6 +534,14 @@ fn format_release_description(info: &VersionInfo, release: Option<&ReleaseData>)
     )
 }
 
+/// Returns the release date, or dashes of the same width if the release is not known.
+fn format_release_date(release: Option<&ReleaseData>) -> String {
+    release.map_or_else(
+        || "----------".to_string(),
+        |rd| rd.release_date.format("%Y-%m-%d").to_string(),
+    )
+}
+
 struct FormattedReleaseLine {
     stream: ReleaseStream,
     content: String,
@@ -584,10 +561,7 @@ fn format_installed_release_line(
         content: format!(
             "{stream} {vs:<version_col_width$} ({rd}) {mk} {description}",
             vs = info.version.tone(issue.tone()),
-            rd = release.map_or_else(
-                || "----------".to_string(),
-                |rd| rd.release_date.format("%Y-%m-%d").to_string(),
-            ),
+            rd = format_release_date(release),
             mk = issue.mark(),
             description = format_release_description(info, release),
         )
@@ -596,16 +570,18 @@ fn format_installed_release_line(
     }
 }
 
+/// Formats a line of `list updates`. `release` is `None` for an installed version that is not
+/// in the release data.
 fn format_update_release_line(
     info: &VersionInfo,
-    release: &ReleaseData,
+    release: Option<&ReleaseData>,
     version_col_width: usize,
     is_last_version_in_group: bool,
 ) -> FormattedReleaseLine {
-    let stream = release.stream;
-    let release_date = release.release_date.format("%Y-%m-%d");
+    let stream = release.map_or(ReleaseStream::Other, |rd| rd.stream);
+    let release_date = format_release_date(release);
     let version = info.version;
-    let issue = release.issue();
+    let issue = release.map_or(ReleaseIssue::NoIssue, ReleaseData::issue);
 
     let content = match &info.version_type {
         VersionType::HasLaterInstalled => {
@@ -616,7 +592,7 @@ fn format_update_release_line(
                     mk = issue.issue_tag(),
                 )
             } else {
-                format!("{stream} {version} ({release_date})")
+                format!("{stream} {version:<version_col_width$} ({release_date})")
             }
         }
         VersionType::LatestInstalled => {
@@ -641,7 +617,7 @@ fn format_update_release_line(
         }
         VersionType::NoReleaseInfo => {
             format!(
-                "{stream} {version} ({release_date}) {} {}",
+                "{stream} {version:<version_col_width$} ({release_date}) {} {}",
                 Mark::NoInfo,
                 format_args!(
                     "No {bt} update info available",
@@ -673,11 +649,162 @@ fn collect_latest_minor_releases<'a>(
         .collect()
 }
 
-fn branch_connector(is_first_in_group: bool, is_last_in_group: bool) -> &'static str {
-    match (is_first_in_group, is_last_in_group) {
+/// Returns the tree connector for an item at the given position in its group.
+const fn branch_connector(position: Position) -> &'static str {
+    match (position.is_first, position.is_last) {
         (true, true) => "─",
         (true, false) => "┬",
         (false, false) => "├",
         (false, true) => "└",
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::utils::test_util::release_json;
+
+    fn versions(list: &[&str]) -> SortedVersions {
+        SortedVersions::try_from(list.iter().map(|v| v.parse().unwrap()).collect_vec()).unwrap()
+    }
+
+    fn releases(list: &[&str]) -> SortedReleases {
+        let releases = list.iter().map(|v| release_json(v)).collect_vec();
+        let releases: Releases = serde_json::from_value(serde_json::json!({
+            "suggestedVersion": null,
+            "releases": releases
+        }))
+        .unwrap();
+        SortedReleases::new(releases)
+    }
+
+    /// Each group as a list of (version, type) pairs, with the type as a short name.
+    fn describe(groups: &VersionInfoGroups<'_>) -> Vec<Vec<(String, &'static str)>> {
+        groups
+            .iter()
+            .map(|group| {
+                group
+                    .iter()
+                    .map(|info| {
+                        let kind = match info.version_type {
+                            VersionType::HasLaterInstalled => "later installed",
+                            VersionType::LatestInstalled => "latest installed",
+                            VersionType::UpdateToLatest(_) => "update",
+                            VersionType::NoReleaseInfo => "no info",
+                        };
+                        (info.version.to_string().trim().to_string(), kind)
+                    })
+                    .collect()
+            })
+            .collect()
+    }
+
+    #[test]
+    fn installed_versions_are_grouped_by_minor_version() {
+        let installed = versions(&["2021.3.40f1", "2021.3.45f2", "2022.3.10f1", "6000.0.1f1"]);
+
+        let groups = group_versions_by_minor(&installed);
+
+        assert_eq!(
+            describe(&groups),
+            [
+                vec![
+                    ("2021.3.40f1".into(), "later installed"),
+                    ("2021.3.45f2".into(), "latest installed"),
+                ],
+                vec![("2022.3.10f1".into(), "latest installed")],
+                vec![("6000.0.1f1".into(), "latest installed")],
+            ]
+        );
+    }
+
+    #[test]
+    fn updates_are_newer_releases_in_the_same_minor_version() {
+        let installed = versions(&["2022.3.10f1", "2022.3.12f1"]);
+        let releases = releases(&[
+            "2022.3.10f1",
+            "2022.3.11f1", // Older than the latest installed version.
+            "2022.3.12f1",
+            "2022.3.13f1",
+            "2022.3.14f1",
+            "2022.4.0f1", // Another minor version.
+        ]);
+
+        let groups = collect_version_update_info(&installed, &releases);
+
+        assert_eq!(
+            describe(&groups),
+            [vec![
+                ("2022.3.10f1".into(), "later installed"),
+                ("2022.3.12f1".into(), "latest installed"),
+                ("2022.3.13f1".into(), "update"),
+                ("2022.3.14f1".into(), "update"),
+            ]]
+        );
+    }
+
+    #[test]
+    fn a_minor_version_without_releases_has_no_update_info() {
+        let installed = versions(&["2022.3.10f1", "6000.0.1f1", "6000.0.2f1"]);
+        let releases = releases(&["2022.3.10f1"]);
+
+        let groups = collect_version_update_info(&installed, &releases);
+
+        assert_eq!(
+            describe(&groups),
+            [
+                vec![("2022.3.10f1".into(), "latest installed")],
+                vec![
+                    ("6000.0.1f1".into(), "later installed"),
+                    ("6000.0.2f1".into(), "no info"),
+                ],
+            ]
+        );
+    }
+
+    #[test]
+    fn an_installed_version_missing_from_the_release_data_is_listed() {
+        let installed = versions(&["2022.3.10f1", "2099.1.0f1"]);
+        let releases = releases(&["2022.3.10f1"]);
+        let groups = collect_version_update_info(&installed, &releases);
+        let unknown = groups.iter().last().unwrap().first();
+
+        let line = format_update_release_line(unknown, None, 11, true);
+
+        assert!(
+            line.content.contains("2099.1.0f1  (----------)"),
+            "{}",
+            line.content
+        );
+        assert_eq!(line.stream, ReleaseStream::Other);
+    }
+
+    #[test]
+    fn tree_connectors_follow_the_groups() {
+        let installed = versions(&["2021.3.1f1", "2021.3.2f1", "2021.3.3f1", "2022.3.1f1"]);
+        let groups = group_versions_by_minor(&installed);
+
+        let connectors = groups
+            .iter_positioned()
+            .map(|(position, _)| branch_connector(position))
+            .collect_vec();
+
+        assert_eq!(connectors, ["┬", "├", "└", "─"]);
+    }
+
+    #[test]
+    fn latest_minor_releases_are_the_newest_of_each_minor_version() {
+        let releases = releases(&["2022.3.1f1", "2022.3.2f1", "2023.1.5f1", "6000.0.1f1"]);
+        let pattern = "2022.*".parse::<VersionPattern>().ok();
+
+        let latest = |pattern: Option<&VersionPattern>| {
+            collect_latest_minor_releases(&releases, pattern)
+                .iter()
+                .map(|rd| rd.version.to_string().trim().to_string())
+                .collect_vec()
+        };
+
+        assert_eq!(latest(None), ["2022.3.2f1", "2023.1.5f1", "6000.0.1f1"]);
+        assert_eq!(latest(pattern.as_ref()), ["2022.3.2f1"]);
     }
 }

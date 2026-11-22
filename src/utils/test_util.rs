@@ -39,3 +39,16 @@ pub fn temp_project(label: &str) -> (TempDir, ProjectPath) {
     let project = ProjectPath::from_dir(dir.path()).expect("not detected as a Unity project");
     (dir, project)
 }
+
+/// The API's JSON for a release of `version`, with placeholder values for the other fields.
+pub fn release_json(version: &str) -> serde_json::Value {
+    serde_json::json!({
+        "version": version,
+        "releaseDate": "2026-11-19T11:21:37.382Z",
+        "stream": "LTS",
+        "releaseNotes": { "url": "https://example.com/notes.md", "type": "MD" },
+        "shortRevision": "abcdef123456",
+        "skuFamily": "CLASSIC",
+        "unityHubDeepLink": "unityhub://x"
+    })
+}

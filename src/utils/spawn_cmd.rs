@@ -10,6 +10,7 @@ use std::time::Instant;
 use std::{fs, io, thread};
 
 use crate::utils::cancel::{self, CancelState, CancellableWait};
+use crate::utils::warn_non_fatal;
 
 //
 // Error implementation
@@ -152,7 +153,10 @@ pub fn wait_with_log_output(mut cmd: Command, log_file: &Path) -> Result<(), Com
         .map_err(|e| io::Error::other(format!("Echo runner thread panicked: {e:?}")));
 
     let status = status?;
-    monitored??;
+    // The log is only shown; Unity's exit status decides the outcome.
+    if let Err(e) = monitored.flatten() {
+        warn_non_fatal!("Stopped showing the Unity log: {e}");
+    }
     // Processes started by Unity can keep the stderr pipe open after Unity exits, so this wait
     // can be cancelled too.
     let stderr = match stderr_reader {
@@ -291,26 +295,22 @@ fn monitor_log_file(
     let file = fs::File::open(log_file)?;
     let mut reader = io::BufReader::new(file);
     // The buffer can get quite large, pre-allocate a reasonable amount of memory.
-    let mut buffer = String::with_capacity(128 * 1024);
+    let mut buffer = Vec::with_capacity(128 * 1024);
     let mut ended_with_newline = false;
 
     loop {
         // Don't immediately exit if the file writer thread has finished to be able to read any last data.
         let should_stop = stop_logging.load(Ordering::Acquire);
 
-        match reader.read_to_string(&mut buffer) {
-            Ok(_) if !buffer.is_empty() => {
-                ended_with_newline = buffer.ends_with('\n');
-                print!("{buffer}");
-                buffer.clear();
-            }
-            Err(e) if e.kind() == io::ErrorKind::Interrupted => {
-                // Ignore interrupted errors.
-            }
-            Err(e) => {
-                return Err(e);
-            }
+        match reader.read_to_end(&mut buffer) {
+            Err(e) if e.kind() != io::ErrorKind::Interrupted => return Err(e),
             _ => {}
+        }
+
+        let text = take_log_text(&mut buffer, should_stop);
+        if !text.is_empty() {
+            ended_with_newline = text.ends_with('\n');
+            print!("{text}");
         }
 
         if should_stop {
@@ -325,9 +325,61 @@ fn monitor_log_file(
     Ok(())
 }
 
+/// Takes the text read so far from `buffer`. Unity's log is UTF-8, but a plugin can write other
+/// bytes; those become `U+FFFD`. A character whose last bytes have not been read yet stays in
+/// the buffer, unless `at_end` says no more bytes will come.
+fn take_log_text(buffer: &mut Vec<u8>, at_end: bool) -> String {
+    let complete = if at_end {
+        buffer.len()
+    } else {
+        buffer.len() - incomplete_char_len(buffer)
+    };
+    let text = String::from_utf8_lossy(&buffer[..complete]).into_owned();
+    buffer.drain(..complete);
+    text
+}
+
+/// The number of bytes at the end of `bytes` that start a UTF-8 character but do not finish it.
+fn incomplete_char_len(bytes: &[u8]) -> usize {
+    for (&byte, len) in bytes.iter().rev().take(3).zip(1..) {
+        let char_len = match byte {
+            0x80..=0xBF => continue, // A continuation byte: look further back.
+            0xC0..=0xDF => 2,
+            0xE0..=0xEF => 3,
+            0xF0..=0xF7 => 4,
+            _ => return 0,
+        };
+        return if len < char_len { len } else { 0 };
+    }
+    0
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn log_text_waits_for_the_rest_of_a_split_character() {
+        let mut buffer = b"caf\xC3".to_vec();
+        assert_eq!(take_log_text(&mut buffer, false), "caf");
+        assert_eq!(buffer, b"\xC3");
+
+        buffer.extend_from_slice(b"\xA9\n");
+        assert_eq!(take_log_text(&mut buffer, false), "\u{e9}\n");
+        assert!(buffer.is_empty());
+    }
+
+    #[test]
+    fn log_text_replaces_bytes_that_are_not_utf8() {
+        // A Latin-1 'é', as a plugin might write it.
+        let mut buffer = b"caf\xE9 au lait".to_vec();
+        assert_eq!(take_log_text(&mut buffer, false), "caf\u{FFFD} au lait");
+
+        // At the end, a character that was never finished is shown as it is.
+        let mut buffer = b"caf\xE9".to_vec();
+        assert_eq!(take_log_text(&mut buffer, false), "caf");
+        assert_eq!(take_log_text(&mut buffer, true), "\u{FFFD}");
+    }
 
     #[test]
     fn a_spawn_error_has_no_exit_code() {
