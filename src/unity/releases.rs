@@ -105,48 +105,35 @@ pub fn release_notes_url(version: Version) -> Url {
 //
 
 #[cfg(test)]
-mod releases_tests {
-    use std::str::FromStr;
-
+mod tests {
     use crate::unity::Version;
 
     #[test]
-    fn test_release_notes_url() {
-        let version = Version::from_str("2021.2.14f1").unwrap();
-        let url = super::release_notes_url(version);
-        assert_eq!(
-            url.as_ref(),
-            "https://unity.com/releases/editor/whats-new/2021.2.14f1#notes"
-        );
-    }
-
-    #[test]
-    fn test_release_notes_url_5_1_0_1() {
-        let version = Version::from_str("5.1.0f1").unwrap();
-        let url = super::release_notes_url(version);
-        assert_eq!(
-            url.as_ref(),
-            "https://unity.com/releases/editor/whats-new/5.1.0f1#notes"
-        );
-    }
-
-    #[test]
-    fn test_release_notes_url_5_1_0_2() {
-        let version = Version::from_str("5.1.0f2").unwrap();
-        let url = super::release_notes_url(version);
-        assert_eq!(
-            url.as_ref(),
-            "https://unity.com/releases/editor/whats-new/5.1.0f2#notes"
-        );
-    }
-
-    #[test]
-    fn test_release_notes_url_5_1_0_3() {
-        let version = Version::from_str("5.1.0f3").unwrap();
-        let url = super::release_notes_url(version);
-        assert_eq!(
-            url.as_ref(),
-            "https://unity.com/releases/editor/whats-new/5.1.0f3#notes"
-        );
+    fn release_notes_url_depends_on_the_build_type() {
+        for (version, url) in [
+            (
+                "2021.2.14f1",
+                "https://unity.com/releases/editor/whats-new/2021.2.14f1#notes",
+            ),
+            (
+                "2022.1.0rc1",
+                "https://unity.com/releases/editor/whats-new/2022.1.0rc1#notes",
+            ),
+            (
+                "2021.3.5p1",
+                "https://unity.com/releases/editor/whats-new/2021.3.5p1#notes",
+            ),
+            (
+                "6000.0.0b11",
+                "https://unity.com/releases/editor/beta/6000.0.0b11#notes",
+            ),
+            (
+                "6000.6.0a3",
+                "https://unity.com/releases/editor/alpha/6000.6.0a3#notes",
+            ),
+        ] {
+            let version: Version = version.parse().unwrap();
+            assert_eq!(super::release_notes_url(version).as_ref(), url);
+        }
     }
 }

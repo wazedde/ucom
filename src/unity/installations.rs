@@ -244,7 +244,7 @@ impl Version {
 }
 
 #[cfg(test)]
-mod editor_dir_tests {
+mod tests {
     use super::*;
     use crate::utils::test_util::TempDir;
 

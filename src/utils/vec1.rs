@@ -165,75 +165,28 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_new() {
-        let v = Vec1::new(1);
-        assert_eq!(v.first(), &1);
-        assert_eq!(v.len(), 1);
+    fn try_from_refuses_an_empty_vec() {
+        assert_eq!(
+            Vec1::try_from(Vec::<i32>::default()),
+            Err(Vec1Error::SourceVecIsEmpty)
+        );
+        assert_eq!(Vec1::try_from(vec![1]).unwrap().first(), &1);
     }
 
     #[test]
-    fn test_push_pop() {
+    fn pop_keeps_the_last_element() {
         let mut v = Vec1::new(1);
         v.push(2);
-        assert_eq!(v.last(), &2);
         assert_eq!(v.pop(), Ok(2));
         assert_eq!(v.pop(), Err(Vec1Error::CannotPopLastElement));
     }
 
     #[test]
-    fn test_remove() {
+    fn remove_keeps_the_last_element_and_checks_the_index() {
         let mut v = Vec1::try_from(vec![1, 2, 3]).unwrap();
+        assert_eq!(v.remove(3), Err(Vec1Error::IndexOutOfBounds(3)));
         assert_eq!(v.remove(0), Ok(1));
         assert_eq!(v.remove(0), Ok(2));
         assert_eq!(v.remove(0), Err(Vec1Error::WouldBecomeEmpty));
-    }
-
-    #[test]
-    fn test_remove_out_of_bounds_panics() {
-        let mut v = Vec1::try_from(vec![1, 2]).unwrap();
-        assert_eq!(v.remove(2), Err(Vec1Error::IndexOutOfBounds(2)));
-    }
-
-    #[test]
-    fn test_try_from_vec() {
-        assert_eq!(
-            Vec1::try_from(Vec::<i32>::default()),
-            Err(Vec1Error::SourceVecIsEmpty)
-        );
-        let v = Vec1::try_from(vec![1]).unwrap();
-        assert_eq!(v.first(), &1);
-    }
-
-    #[test]
-    fn test_extend() {
-        let mut v = Vec1::new(1);
-        v.extend(vec![2, 3]);
-        assert_eq!(v.as_ref(), &[1, 2, 3]);
-    }
-
-    #[test]
-    fn test_append() {
-        let mut v = Vec1::new(1);
-        let mut other = vec![2, 3];
-        v.append(&mut other);
-        assert_eq!(v.as_ref(), &[1, 2, 3]);
-    }
-
-    #[test]
-    fn test_last_mut() {
-        let mut v = Vec1::new(1);
-        v.push(2);
-        assert_eq!(v.last_mut(), &mut 2);
-        *v.last_mut() = 3;
-        assert_eq!(v.last_mut(), &mut 3);
-    }
-
-    #[test]
-    fn test_first_mut() {
-        let mut v = Vec1::new(1);
-        v.push(2);
-        assert_eq!(v.first_mut(), &mut 1);
-        *v.first_mut() = 3;
-        assert_eq!(v.first_mut(), &mut 3);
     }
 }

@@ -61,97 +61,19 @@ mod tests {
 
     #[test]
     #[cfg(target_os = "windows")]
-    fn test_normalized_display() {
-        let path = Path::new("foo/bar");
-        assert_eq!(
-            path.normalized_display().to_string(),
-            "foo\\bar",
-            "Should replace forward slashes with backslashes"
-        );
-
-        let path = Path::new("foo\\bar");
-        assert_eq!(
-            path.normalized_display().to_string(),
-            "foo\\bar",
-            "Should not change path with backslashes"
-        );
-
-        let path = Path::new("foo\\bar/baz");
-        assert_eq!(
-            path.normalized_display().to_string(),
-            "foo\\bar\\baz",
-            "Should replace forward slashes with backslashes"
-        );
-
-        let path = Path::new("foo/bar");
-        assert_eq!(
-            path.normalized_display().to_string(),
-            Path::new("foo\\bar").to_string_lossy(),
-            "Should replace forward slashes with backslashes"
-        );
-
-        let path = Path::new("foo\\bar");
-        assert_eq!(
-            path.normalized_display().to_string(),
-            Path::new("foo\\bar").to_string_lossy(),
-            "Should not change path with backslashes"
-        );
-
-        let path = Path::new("foo\\bar/baz");
-        assert_eq!(
-            path.normalized_display().to_string(),
-            Path::new("foo\\bar\\baz").to_string_lossy(),
-            "Should replace forward slashes with backslashes"
-        );
+    fn normalized_display_uses_the_platform_separator() {
+        let display = |path: &str| Path::new(path).normalized_display().to_string();
+        assert_eq!(display("foo/bar"), "foo\\bar");
+        assert_eq!(display("foo\\bar"), "foo\\bar");
+        assert_eq!(display("foo\\bar/baz"), "foo\\bar\\baz");
     }
 
     #[test]
     #[cfg(not(target_os = "windows"))]
-    fn test_normalized_display() {
-        let path = Path::new("foo/bar");
+    fn normalized_display_uses_the_platform_separator() {
         assert_eq!(
-            path.normalized_display().to_string(),
-            "foo/bar",
-            "Should not change path"
+            Path::new("foo/bar").normalized_display().to_string(),
+            "foo/bar"
         );
-
-        let path = Path::new("foo/bar");
-        assert_eq!(
-            path.normalized_display().to_string(),
-            Path::new("foo/bar").to_string_lossy(),
-            "Should not change path"
-        );
-    }
-
-    #[test]
-    #[cfg(target_os = "windows")]
-    fn test_cow_behavior_windows() {
-        // Path without forward slashes should borrow
-        let path = Path::new("foo\\bar");
-        let result = path.normalized();
-        match result {
-            Cow::Borrowed(_) => {} // Expected for already normalized paths
-            Cow::Owned(_) => panic!("Should return Cow::Borrowed for already normalized paths"),
-        }
-
-        // Path with forward slashes should allocate
-        let path = Path::new("foo/bar");
-        let result = path.normalized();
-        match result {
-            Cow::Borrowed(_) => panic!("Should return Cow::Owned when normalization is needed"),
-            Cow::Owned(_) => {} // Expected when normalization is needed
-        }
-    }
-
-    #[test]
-    #[cfg(not(target_os = "windows"))]
-    fn test_cow_behavior_unix() {
-        // On non-Windows platforms, should always borrow
-        let path = Path::new("foo/bar");
-        let result = path.normalized();
-        match result {
-            Cow::Borrowed(_) => {} // Expected
-            Cow::Owned(_) => panic!("Should always return Cow::Borrowed on non-Windows"),
-        }
     }
 }

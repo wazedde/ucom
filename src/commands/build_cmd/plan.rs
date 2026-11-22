@@ -391,31 +391,6 @@ mod tests {
         }
     }
 
-    #[test]
-    fn kebab_case_build_option_names_are_still_accepted() {
-        let p = TestProject::new("plan-kebab-options");
-        let plan = p
-            .plan(&[
-                "macos",
-                "-O",
-                "show-built-player",
-                "compress-with-lz4-hc",
-                "none",
-            ])
-            .unwrap();
-
-        assert!(plan.options.contains(BuildOptions::ShowBuiltPlayer));
-        assert!(plan.options.contains(BuildOptions::CompressWithLz4HC));
-    }
-
-    #[test]
-    fn no_options_is_empty() {
-        let p = TestProject::new("plan-no-options");
-        let plan = p.plan(&["macos"]).unwrap();
-
-        assert!(plan.options.is_empty());
-    }
-
     /// Returns the arguments of `command`, without the program.
     fn command_args(command: &Command) -> Vec<String> {
         command

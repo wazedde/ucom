@@ -4,6 +4,7 @@ use chrono::{DateTime, Utc};
 use strum::{AsRefStr, Display};
 
 mod elements;
+#[cfg(test)]
 mod tests;
 
 /// Represents a parsed NUnit test run.

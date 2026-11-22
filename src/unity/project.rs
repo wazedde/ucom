@@ -199,15 +199,6 @@ impl ProjectSettings {
     }
 }
 
-#[test]
-fn test_project_settings_deserialization() {
-    let data = include_str!("test_data/ProjectSettings.asset");
-    let settings = ProjectSettings::from_reader(BufReader::new(data.as_bytes())).unwrap();
-    assert_eq!(settings.product_name, "WebTest");
-    assert_eq!(settings.company_name, "DefaultCompany");
-    assert_eq!(settings.bundle_version, "0.1");
-}
-
 /// Represents a valid path to a Unity project.
 pub struct ProjectPath(PathBuf);
 
@@ -327,4 +318,18 @@ pub enum BuildProfilesStatus {
     NotFound,
     /// Build profiles found.
     Available(Vec<PathBuf>),
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn project_settings_are_read() {
+        let data = include_str!("test_data/ProjectSettings.asset");
+        let settings = ProjectSettings::from_reader(BufReader::new(data.as_bytes())).unwrap();
+        assert_eq!(settings.product_name, "WebTest");
+        assert_eq!(settings.company_name, "DefaultCompany");
+        assert_eq!(settings.bundle_version, "0.1");
+    }
 }

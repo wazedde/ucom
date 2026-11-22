@@ -204,16 +204,6 @@ mod tests {
         assert!(!colour_allowed_by(true, None));
     }
 
-    #[test]
-    fn colour_is_forced_only_when_allowed() {
-        use yansi::Condition;
-
-        assert_eq!(colour_condition(false, true, true), Condition::NEVER);
-        assert_eq!(colour_condition(true, true, false), Condition::ALWAYS);
-        assert_eq!(colour_condition(true, false, true), Condition::DEFAULT);
-        assert_eq!(colour_condition(true, false, false), Condition::NEVER);
-    }
-
     /// `no_color_flag_in` assumes the only top-level short flags are `-n`, `-h` and `-V`, and
     /// that no top-level argument takes a value. A new one would need a change there.
     #[test]

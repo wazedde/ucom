@@ -211,116 +211,53 @@ impl Version {
 //
 
 #[cfg(test)]
-mod version_tests {
+mod tests {
     use super::{BuildType, ParseError, Version};
 
     #[test]
-    fn test_version_from_string_f() {
-        let v = "2021.2.14f1".parse::<Version>().unwrap();
-        assert_eq!(v.major, 2021);
-        assert_eq!(v.minor, 2);
-        assert_eq!(v.patch, 14);
-        assert_eq!(v.build_type, BuildType::Final);
-        assert_eq!(v.build, 1);
+    fn versions_are_parsed_by_component() {
+        for (text, parts) in [
+            ("2021.2.14f1", (2021, 2, 14, BuildType::Final, 1)),
+            ("2021.1.1b3", (2021, 1, 1, BuildType::Beta, 3)),
+            ("2021.1.1a3", (2021, 1, 1, BuildType::Alpha, 3)),
+            ("2021.1.1rc1", (2021, 1, 1, BuildType::ReleaseCandidate, 1)),
+        ] {
+            let v = text.parse::<Version>().unwrap();
+            assert_eq!(
+                (v.major, v.minor, v.patch, v.build_type, v.build),
+                parts,
+                "{text}"
+            );
+        }
     }
 
     #[test]
-    fn test_version_from_string_b() {
-        let v = "2021.1.1b3".parse::<Version>().unwrap();
-        assert_eq!(v.major, 2021);
-        assert_eq!(v.minor, 1);
-        assert_eq!(v.patch, 1);
-        assert_eq!(v.build_type, BuildType::Beta);
-        assert_eq!(v.build, 3);
-    }
-
-    #[test]
-    fn test_version_from_string_a() {
-        let v = "2021.1.1a3".parse::<Version>().unwrap();
-        assert_eq!(v.major, 2021);
-        assert_eq!(v.minor, 1);
-        assert_eq!(v.patch, 1);
-        assert_eq!(v.build_type, BuildType::Alpha);
-        assert_eq!(v.build, 3);
-    }
-
-    #[test]
-    fn test_version_from_string_rc() {
-        let v = "2021.1.1rc1".parse::<Version>().unwrap();
-        assert_eq!(v.major, 2021);
-        assert_eq!(v.minor, 1);
-        assert_eq!(v.patch, 1);
-        assert_eq!(v.build_type, BuildType::ReleaseCandidate);
-        assert_eq!(v.build, 1);
-    }
-
-    #[test]
-    fn test_version_from_string_invalid_build_type() {
+    fn invalid_versions_are_rejected() {
         assert_eq!("2021.1.1x1".parse::<Version>(), Err(ParseError));
-    }
-
-    #[test]
-    fn test_version_from_string_invalid() {
         assert_eq!("2021.1.1".parse::<Version>(), Err(ParseError));
     }
 
     #[test]
-    fn test_version_display_honours_width() {
+    fn versions_display_as_parsed() {
+        for text in [
+            "2021.2.14f1",
+            "2019.1.1b1",
+            "2020.1.1a3",
+            "2022.2.1rc2",
+            "5.102.5f123",
+        ] {
+            let v = text.parse::<Version>().unwrap();
+            assert_eq!(v.to_string(), text);
+            assert_eq!(v.format_len(), text.len(), "{text}");
+        }
+    }
+
+    #[test]
+    fn display_honours_the_width() {
         let v = "2022.3.5f1".parse::<Version>().unwrap();
         assert_eq!(format!("{v:<12}|"), "2022.3.5f1  |");
         assert_eq!(format!("{v:>12}|"), "  2022.3.5f1|");
         assert_eq!(format!("{v:<4}|"), "2022.3.5f1|");
         assert_eq!(format!("{v}|"), "2022.3.5f1|");
-    }
-
-    #[test]
-    fn test_version_to_string() {
-        assert_eq!(
-            "2021.2.14f1".parse::<Version>().unwrap().to_string(),
-            "2021.2.14f1"
-        );
-
-        assert_eq!(
-            "2019.1.1b1".parse::<Version>().unwrap().to_string(),
-            "2019.1.1b1"
-        );
-
-        assert_eq!(
-            "2020.1.1a3".parse::<Version>().unwrap().to_string(),
-            "2020.1.1a3"
-        );
-
-        assert_eq!(
-            "2022.2.1rc2".parse::<Version>().unwrap().to_string(),
-            "2022.2.1rc2"
-        );
-    }
-
-    #[test]
-    fn test_len() {
-        assert_eq!(
-            "5.102.5f123".parse::<Version>().unwrap().format_len(),
-            "5.102.5f123".len()
-        );
-
-        assert_eq!(
-            "2021.2.14f1".parse::<Version>().unwrap().format_len(),
-            "2021.2.14f1".len()
-        );
-
-        assert_eq!(
-            "2019.1.1b1".parse::<Version>().unwrap().format_len(),
-            "2019.1.1b1".len()
-        );
-
-        assert_eq!(
-            "2020.1.1a3".parse::<Version>().unwrap().format_len(),
-            "2020.1.1a3".len()
-        );
-
-        assert_eq!(
-            "2022.2.1rc2".parse::<Version>().unwrap().format_len(),
-            "2022.2.1rc2".len()
-        );
     }
 }

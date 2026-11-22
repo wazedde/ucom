@@ -396,4 +396,10 @@ mod tests {
         assert_eq!(cases[0].result, TestResult::Skipped);
         assert_eq!(cases[0].skip_reason, "Ignored on purpose");
     }
+
+    #[test]
+    fn empty_properties_are_accepted() {
+        let xml = include_str!("test_data/empty-properties.xml");
+        xml.parse::<TestRun>().unwrap();
+    }
 }
