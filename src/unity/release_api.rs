@@ -1,18 +1,20 @@
 use crate::unity::Version;
 use crate::unity::release_api_data::{ReleaseData, ReleaseDataPage};
 use crate::utils::content_cache::{
-    http_agent, is_cached_file_stale, store_in_cache, touch_file, ucom_cache_dir,
+    http_agent, is_cached_file_stale, modified_time, request_error, store_in_cache, touch_file,
+    ucom_cache_dir,
 };
 use crate::utils::native_progress::{NativeProgressBar, NativeProgressState};
 use crate::utils::path_ext::PlatformConsistentPathExt;
 use crate::utils::status_line::StatusLine;
 use crate::utils::warn_non_fatal;
 use anyhow::{Context, anyhow};
-use chrono::{DateTime, Utc};
+use chrono::{DateTime, Local, Utc};
 use serde::{Deserialize, Serialize};
 use std::collections::{BTreeMap, HashSet};
 use std::fs::{self, File};
 use std::io::{BufReader, ErrorKind};
+use std::path::Path;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::{Mutex, PoisonError, mpsc};
 use std::thread;
@@ -170,28 +172,59 @@ pub enum UpdatePolicy {
 /// Downloads and caches the release info.
 ///
 /// Writing the cache is best-effort: if it fails, a warning is printed and the
-/// downloaded data is still returned.
-pub fn fetch_latest_releases(mode: UpdatePolicy) -> anyhow::Result<SortedReleases> {
+/// downloaded data is still returned. With [`UpdatePolicy::Incremental`], a failed download (for
+/// example when offline) falls back to the cached data with a warning.
+pub fn fetch_latest_releases(policy: UpdatePolicy) -> anyhow::Result<SortedReleases> {
     const EXPIRATION_DAYS: i64 = 30;
     let releases_path = ucom_cache_dir()?.join(RELEASES_FILENAME);
-    let (mode, mut releases) = match mode {
+    let releases = match policy {
         UpdatePolicy::Incremental => {
             let releases = load_cached_releases()?;
             if (Utc::now() - releases.last_full_update).num_days() > EXPIRATION_DAYS {
                 // Data set is more than 30 days old, fetch full data.
-                (UpdatePolicy::ForceRefresh, Releases::default())
+                Releases::default()
+            } else if !is_cached_file_stale(&releases_path) {
+                return Ok(SortedReleases::new(releases));
             } else {
                 // Data is recent, fetch incremental data.
-                (UpdatePolicy::Incremental, releases)
+                releases
             }
         }
-        UpdatePolicy::ForceRefresh => (UpdatePolicy::ForceRefresh, Releases::default()),
+        UpdatePolicy::ForceRefresh => Releases::default(),
     };
 
-    if mode == UpdatePolicy::Incremental && !is_cached_file_stale(&releases_path) {
-        return Ok(SortedReleases::new(releases));
+    match download_releases(releases, &releases_path) {
+        // Only a failed request falls back: other errors, such as a response that cannot be
+        // parsed, would otherwise go unnoticed while the cache gets older.
+        Err(e)
+            if policy == UpdatePolicy::Incremental && e.downcast_ref::<ureq::Error>().is_some() =>
+        {
+            // The download may have changed the releases it started from, so read them again.
+            match load_cached_releases() {
+                Ok(cached) if !cached.is_empty() => {
+                    // The file's time is when the data was last checked; `last_update` only
+                    // changes when new releases were found.
+                    let checked = modified_time(&releases_path)
+                        .map_or(cached.last_update, DateTime::<Utc>::from);
+                    warn_non_fatal!(
+                        "{e}. Using the cached release data, last checked on {}.",
+                        checked.with_timezone(&Local).format("%Y-%m-%d %H:%M")
+                    );
+                    Ok(SortedReleases::new(cached))
+                }
+                _ => Err(e),
+            }
+        }
+        result => result,
     }
+}
 
+/// Downloads the releases missing from `releases` (all of them if it is empty) and stores the
+/// result in the cache at `releases_path`.
+fn download_releases(
+    mut releases: Releases,
+    releases_path: &Path,
+) -> anyhow::Result<SortedReleases> {
     let data_description = if releases.is_empty() {
         "Full Unity release data..."
     } else {
@@ -215,13 +248,13 @@ pub fn fetch_latest_releases(mode: UpdatePolicy) -> anyhow::Result<SortedRelease
 
     if fetch_count == 0 {
         // A failed timestamp update only means the update check is repeated next time.
-        let _ = touch_file(&releases_path);
+        let _ = touch_file(releases_path);
         return Ok(SortedReleases::new(releases));
     }
 
     releases.last_update = Utc::now();
     let sorted_releases = SortedReleases::new(releases);
-    store_in_cache(&releases_path, |writer| {
+    store_in_cache(releases_path, |writer| {
         Ok(serde_json::to_writer(writer, &sorted_releases.0)?)
     });
     Ok(sorted_releases)
@@ -250,7 +283,7 @@ fn fetch_releases_page(limit: usize, offset: usize) -> anyhow::Result<ReleaseDat
         .query("offset", offset.to_string())
         .query("order", "RELEASE_DATE_DESC")
         .call()
-        .context("Failed to fetch Unity release data")?
+        .map_err(|e| request_error(e, "Cannot download Unity release data", RELEASES_API_URL))?
         .into_body()
         .read_to_vec()
         .context("Failed to read Unity release data")?;

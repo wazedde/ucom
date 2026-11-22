@@ -22,6 +22,7 @@ pub struct ListArguments {
 }
 
 #[derive(Debug, Display, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, ValueEnum)]
+#[strum(serialize_all = "lowercase")]
 pub enum ListType {
     /// List Unity versions currently installed on the system.
     Installed,

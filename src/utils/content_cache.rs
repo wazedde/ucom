@@ -1,6 +1,7 @@
+use std::fmt::Display;
 use std::fs;
 use std::fs::{File, create_dir_all};
-use std::io::{BufWriter, Write};
+use std::io::{BufWriter, ErrorKind, Write};
 use std::path::{Path, PathBuf};
 use std::sync::OnceLock;
 use std::time::{Duration, SystemTime};
@@ -36,7 +37,13 @@ pub fn fetch_content(url: &str, change_check: RemoteChangeCheck) -> anyhow::Resu
     let filename = cache_dir.join(sanitize_filename(url));
 
     match determine_cache_status(url, &filename, change_check) {
-        CacheState::Stale => return fetch_and_store_in_cache(url, &filename),
+        CacheState::Stale => match fetch_and_store_in_cache(url, &filename) {
+            // When the request fails, for example offline, an older copy is used without a
+            // warning: the content (release notes, templates) rarely changes, and a warning
+            // would garble a status line that a caller may be showing.
+            Err(e) if e.downcast_ref::<ureq::Error>().is_some() && filename.exists() => {}
+            result => return result,
+        },
         CacheState::Fresh => {}
         CacheState::Touched => {
             // A failed timestamp update only means the remote check is repeated next time.
@@ -75,7 +82,7 @@ pub fn store_in_cache(path: &Path, write: impl FnOnce(&mut BufWriter<File>) -> a
 /// Deletes the cache directory. A cache directory that does not exist counts as deleted.
 pub fn delete_cache_directory(dir: &Path) -> anyhow::Result<()> {
     match fs::remove_dir_all(dir) {
-        Err(e) if e.kind() != std::io::ErrorKind::NotFound => Err(e).with_context(|| {
+        Err(e) if e.kind() != ErrorKind::NotFound => Err(e).with_context(|| {
             format!(
                 "Cannot remove the cache directory: {}",
                 dir.normalized_display()
@@ -105,7 +112,7 @@ fn is_fresh(modified: SystemTime) -> bool {
     age >= TimeDelta::zero() && age <= TimeDelta::seconds(CACHE_REFRESH_SECONDS)
 }
 
-fn modified_time(path: &Path) -> std::io::Result<SystemTime> {
+pub fn modified_time(path: &Path) -> std::io::Result<SystemTime> {
     path.metadata()?.modified()
 }
 
@@ -133,7 +140,7 @@ pub fn touch_file(path: &Path) -> anyhow::Result<()> {
 
 #[cfg(windows)]
 fn is_timestamp_permission_error(err: &std::io::Error) -> bool {
-    err.kind() == std::io::ErrorKind::PermissionDenied
+    err.kind() == ErrorKind::PermissionDenied
 }
 
 #[cfg(not(windows))]
@@ -190,6 +197,35 @@ pub fn http_agent() -> &'static ureq::Agent {
     })
 }
 
+/// Returns an error for a failed request that says what went wrong in plain words: no
+/// connection, no answer in time, or an HTTP status. The `ureq` error stays in the chain as the
+/// cause, so callers can still downcast to it.
+pub fn request_error(error: ureq::Error, action: impl Display, url: &str) -> anyhow::Error {
+    let uri = url.parse::<ureq::http::Uri>().ok();
+    let host = uri.as_ref().and_then(|uri| uri.host()).unwrap_or(url);
+    let reason = match &error {
+        // These happen after the connection was made, so the network itself is not the problem.
+        ureq::Error::Io(e)
+            if matches!(
+                e.kind(),
+                ErrorKind::ConnectionReset
+                    | ErrorKind::ConnectionAborted
+                    | ErrorKind::BrokenPipe
+                    | ErrorKind::UnexpectedEof
+            ) =>
+        {
+            format!("the connection to `{host}` was interrupted")
+        }
+        ureq::Error::Io(_) | ureq::Error::HostNotFound | ureq::Error::ConnectionFailed => {
+            format!("cannot connect to `{host}`; check the internet connection")
+        }
+        ureq::Error::Timeout(_) => format!("`{host}` did not answer in time"),
+        ureq::Error::StatusCode(code) => format!("`{host}` answered with HTTP status {code}"),
+        _ => format!("the request to `{host}` failed"),
+    };
+    anyhow::Error::new(error).context(format!("{action}: {reason}"))
+}
+
 /// Downloads the content from the given URL and saves it to the given filename.
 ///
 /// Storing the content in the cache is best-effort: if the cache cannot be written,
@@ -198,7 +234,7 @@ fn fetch_and_store_in_cache(url: &str, filename: &Path) -> anyhow::Result<String
     let content = http_agent()
         .get(url)
         .call()
-        .with_context(|| format!("Failed to fetch {url}"))?
+        .map_err(|e| request_error(e, format_args!("Cannot download {url}"), url))?
         .into_body()
         .read_to_string()
         .context("Failed to read response body")?;
@@ -222,4 +258,33 @@ fn fetch_last_modified_time(url: &str) -> anyhow::Result<DateTime<Utc>> {
     DateTime::parse_from_rfc2822(last_modified_header)
         .map(|t| t.with_timezone(&Utc))
         .with_context(|| format!("Failed to parse Last-Modified header from {url}"))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn request_errors_name_the_host_and_the_reason() {
+        let url = "https://example.com/path?q=1";
+        for (error, message) in [
+            (
+                ureq::Error::HostNotFound,
+                "Cannot download: cannot connect to `example.com`; check the internet connection",
+            ),
+            (
+                ureq::Error::Io(ErrorKind::ConnectionReset.into()),
+                "Cannot download: the connection to `example.com` was interrupted",
+            ),
+            (
+                ureq::Error::StatusCode(503),
+                "Cannot download: `example.com` answered with HTTP status 503",
+            ),
+        ] {
+            assert_eq!(
+                request_error(error, "Cannot download", url).to_string(),
+                message
+            );
+        }
+    }
 }
