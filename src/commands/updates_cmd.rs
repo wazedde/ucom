@@ -11,7 +11,6 @@ use crate::unity::ProjectPath;
 use crate::unity::release_api::{SortedReleases, UpdatePolicy};
 use crate::unity::{ProjectSettings, ReleaseUpdates, find_available_updates, release_notes_url};
 use crate::utils::content_cache;
-use crate::utils::content_cache::RemoteChangeCheck;
 use crate::utils::path_ext::PlatformConsistentPathExt;
 use crate::utils::report::{HeaderLevel, Report};
 use crate::utils::status_line::StatusLine;
@@ -72,7 +71,7 @@ fn download_and_print_release_notes(
         );
 
         let url = &release.release_notes.url;
-        let body = content_cache::fetch_content(url, RemoteChangeCheck::Validate)?;
+        let body = content_cache::fetch_content(url)?;
 
         report.blank_line();
         report.header(

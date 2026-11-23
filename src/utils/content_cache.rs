@@ -23,24 +23,16 @@ enum CacheState {
     Touched,
 }
 
-#[derive(Eq, PartialEq, Copy, Clone)]
-pub enum RemoteChangeCheck {
-    /// Check if the remote content is newer than the local file.
-    Validate,
-    /// Do not check for remote changes.
-    Skip,
-}
-
 /// Gets the content of the given URL. Gets the content from the cache if it exists and is not too old.
-pub fn fetch_content(url: &str, change_check: RemoteChangeCheck) -> anyhow::Result<String> {
+pub fn fetch_content(url: &str) -> anyhow::Result<String> {
     let cache_dir = ucom_cache_dir()?;
     let filename = cache_dir.join(sanitize_filename(url));
 
-    match determine_cache_status(url, &filename, change_check) {
+    match determine_cache_status(url, &filename) {
         CacheState::Stale => match fetch_and_store_in_cache(url, &filename) {
             // When the request fails, for example offline, an older copy is used without a
-            // warning: the content (release notes, templates) rarely changes, and a warning
-            // would garble a status line that a caller may be showing.
+            // warning: release notes rarely change, and a warning would garble a status line that
+            // a caller may be showing.
             Err(e) if e.downcast_ref::<ureq::Error>().is_some() && filename.exists() => {}
             result => return result,
         },
@@ -148,19 +140,18 @@ fn is_timestamp_permission_error(_err: &std::io::Error) -> bool {
     false
 }
 
-/// Checks if the cached content is up to date.
+/// Checks if the cached content is up to date. A cache file older than an hour is checked
+/// against the remote Last-Modified time.
 ///
 /// A missing cache file, or one whose modification time cannot be read, is stale.
-fn determine_cache_status(url: &str, cached: &Path, change_check: RemoteChangeCheck) -> CacheState {
+fn determine_cache_status(url: &str, cached: &Path) -> CacheState {
     let Ok(cached_time) = modified_time(cached) else {
         return CacheState::Stale;
     };
 
     if is_fresh(cached_time) {
         CacheState::Fresh
-    } else if change_check == RemoteChangeCheck::Validate
-        && !is_remote_content_newer(url, cached_time).unwrap_or(true)
-    {
+    } else if !is_remote_content_newer(url, cached_time).unwrap_or(true) {
         // The local file is newer than the remote Last-Modified time.
         CacheState::Touched
     } else {

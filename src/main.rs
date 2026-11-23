@@ -25,6 +25,7 @@ mod cli_updates;
 mod commands;
 mod nunit;
 mod style_definitions;
+mod templates;
 mod unity;
 mod utils;
 

@@ -2,24 +2,19 @@ use std::path::PathBuf;
 
 use anyhow::bail;
 
-use crate::cli_add::{AddArguments, AssetSource, UnityTemplateFile};
+use crate::cli_add::AddArguments;
 use crate::commands::builder_script::{PERSISTENT_BUILD_SCRIPT_ROOT, ensure_builder_supports};
 use crate::commands::output::INDENT;
 use crate::commands::project_files::add_file_to_project;
+use crate::templates::UnityTemplateFile;
 use crate::unity::project::ProjectPath;
 use crate::utils::path_ext::PlatformConsistentPathExt;
 use crate::utils::warn_non_fatal;
 
 pub fn add_to_project(args: &AddArguments) -> anyhow::Result<()> {
     if args.display_content {
-        println!("{}", args.template.as_asset().load_content()?);
+        println!("{}", args.template.as_asset().content);
         return Ok(());
-    } else if args.display_url {
-        if let AssetSource::Remote(url) = args.template.as_asset().content {
-            println!("{url}");
-            return Ok(());
-        }
-        bail!("File does not have a URL source");
     }
 
     let project = ProjectPath::from_dir(&args.project_dir)?;

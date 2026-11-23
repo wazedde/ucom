@@ -1,7 +1,7 @@
 //! The ucom builder script (`UnityBuilder.cs`): where it is installed, its version, and the
 //! Unity versions it supports.
 
-use crate::cli_add::UnityTemplateFile;
+use crate::templates::UnityTemplateFile;
 use crate::unity::{Major, Minor, ProjectPath, Version};
 use crate::utils::path_ext::PlatformConsistentPathExt;
 use crate::utils::warn_non_fatal;
@@ -77,7 +77,6 @@ pub fn warn_if_builder_outdated(project: &ProjectPath) {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::cli_add::AssetSource;
     use crate::utils::test_util::temp_project;
 
     #[test]
@@ -93,9 +92,7 @@ mod tests {
 
     #[test]
     fn the_embedded_builder_has_the_current_script_version() {
-        let AssetSource::Static(script) = UnityTemplateFile::Builder.as_asset().content else {
-            unreachable!("the builder script is embedded")
-        };
+        let script = UnityTemplateFile::Builder.as_asset().content;
         assert_eq!(script_version(script), Some(BUILDER_SCRIPT_VERSION));
     }
 

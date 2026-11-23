@@ -6,10 +6,10 @@ use std::path::{Path, PathBuf};
 use anyhow::Context;
 use uuid::Uuid;
 
-use crate::cli_add::UnityTemplateFile;
 use crate::cli_build::InjectAction;
 use crate::commands::builder_script::{PERSISTENT_BUILD_SCRIPT_ROOT, persistent_builder_path};
 use crate::commands::project_files::add_file_to_project;
+use crate::templates::UnityTemplateFile;
 use crate::unity::ProjectPath;
 use crate::utils::cancel::CancellableWait;
 use crate::utils::path_ext::PlatformConsistentPathExt;

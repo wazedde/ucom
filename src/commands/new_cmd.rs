@@ -4,13 +4,13 @@ use std::process::Command;
 use anyhow::{Context, anyhow, bail};
 use path_absolutize::Absolutize;
 
-use crate::cli_add::UnityTemplateFile;
 use crate::cli_new::NewArguments;
 use crate::commands::builder_script::{PERSISTENT_BUILD_SCRIPT_ROOT, ensure_builder_supports};
 use crate::commands::project_files::add_file_to_project;
 use crate::commands::release_issue::report_version_issues;
 use crate::commands::unity_command_builder::{UnityCommandBuilder, execute_unity_command};
 use crate::style_definitions::Styled;
+use crate::templates::UnityTemplateFile;
 use crate::unity::installations::Installations;
 use crate::utils::path_ext::PlatformConsistentPathExt;
 use crate::utils::spawn_cmd::build_command_line;

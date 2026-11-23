@@ -1,7 +1,7 @@
 //! Adding ucom's template files to a Unity project.
 
-use crate::cli_add::UnityTemplateFile;
 use crate::commands::output::INDENT;
+use crate::templates::UnityTemplateFile;
 use crate::utils::path_ext::PlatformConsistentPathExt;
 use crate::utils::warn_non_fatal;
 use anyhow::{Context, anyhow};
@@ -16,21 +16,23 @@ pub fn add_file_to_project(
 ) -> anyhow::Result<()> {
     let template_data = template_file.as_asset();
     let file_path = destination_dir.as_ref().join(template_data.filename);
-    let content = template_data.load_content()?;
 
-    create_file(project_root.as_ref().join(&file_path), &content)
-        .inspect(|()| {
-            println!(
-                "{INDENT}Added to project: {}",
-                file_path.normalized_display()
-            );
-        })
-        .inspect_err(|_| {
-            warn_non_fatal!(
-                "{INDENT}Failed to add file to project: {}",
-                file_path.normalized_display()
-            );
-        })
+    create_file(
+        project_root.as_ref().join(&file_path),
+        template_data.content,
+    )
+    .inspect(|()| {
+        println!(
+            "{INDENT}Added to project: {}",
+            file_path.normalized_display()
+        );
+    })
+    .inspect_err(|_| {
+        warn_non_fatal!(
+            "{INDENT}Failed to add file to project: {}",
+            file_path.normalized_display()
+        );
+    })
 }
 
 fn create_file(file_path: impl AsRef<Path>, content: &str) -> anyhow::Result<()> {

@@ -14,12 +14,12 @@ use uuid::Uuid;
 use super::build_log::{log_errors, remove_old_log_file};
 use super::plan::BuildPlan;
 use super::{finish_build, start_build_status};
-use crate::cli_add::UnityTemplateFile;
 use crate::cli_build::{BuildOptions, BuildScriptTarget};
 use crate::commands::builder_script::{installed_builder_version, persistent_builder_path};
 use crate::commands::project_setup::ProjectSetup;
 use crate::commands::release_issue::report_version_issues;
 use crate::style_definitions::Tone;
+use crate::templates::UnityTemplateFile;
 use crate::unity::ProjectPath;
 use crate::unity::editor_process::{Pid, comparable_path, is_process_running};
 use crate::utils::native_progress::{NativeProgressBar, NativeProgressState};
@@ -166,6 +166,11 @@ fn send_editor_command(
     let command_file = command_dir.join(&file_name);
     let result_file = result_dir.join(&file_name);
 
+    // A Ctrl+C up to here must not reach the editor: once the command file exists, the editor
+    // can pick it up before it is removed again.
+    if cancel::is_cancelled() {
+        return Ok(None);
+    }
     write_atomic(&command_file, command_json)?;
 
     let result = poll_for_result(&result_file, editor_pid);

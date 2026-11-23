@@ -170,10 +170,7 @@ fn print_project_info(
 
     if show_release_notes {
         let url = &release.release_notes.url;
-        let body = utils::content_cache::fetch_content(
-            url,
-            utils::content_cache::RemoteChangeCheck::Validate,
-        )?;
+        let body = utils::content_cache::fetch_content(url)?;
 
         report.blank_line();
         report.header(
