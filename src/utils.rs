@@ -8,7 +8,6 @@ use std::path::{Path, PathBuf};
 
 pub mod cancel;
 pub mod content_cache;
-pub mod formatter;
 pub mod native_progress;
 pub mod path_ext;
 pub mod report;

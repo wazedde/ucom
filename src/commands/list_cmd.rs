@@ -11,7 +11,6 @@ use crate::unity::release_api::{
 };
 use crate::unity::release_api_data::{ReleaseData, ReleaseIssue};
 use crate::unity::{ReleaseStream, Version, VersionPattern, release_notes_url};
-use crate::utils::formatter::FormatWhen;
 use crate::utils::path_ext::PlatformConsistentPathExt;
 use crate::utils::report::{HeaderLevel, Report};
 use crate::utils::vec1::Vec1;
@@ -66,11 +65,7 @@ fn display_installed_versions(installed: &Installations, mode: UpdatePolicy) -> 
     report.header(
         format_args!(
             "Unity versions in: {di} {sv}",
-            di = installed
-                .install_dir
-                .normalized_display()
-                .when(report.is_markdown())
-                .md_code(),
+            di = installed.install_dir.normalized_display(),
             sv = format_suggested_version(&releases),
         ),
         HeaderLevel::H1,
@@ -104,11 +99,8 @@ fn display_list_with_release_dates(
     releases: &Releases,
     report: &Report,
 ) {
-    const CODE_BLOCK: &str = "```";
     let version_groups = group_versions_by_minor(installed);
     let version_col_width = find_max_version_length(&version_groups);
-
-    report.when(report.is_markdown()).paragraph(CODE_BLOCK);
 
     for (position, info) in version_groups.iter_positioned() {
         let line = format_installed_release_line(
@@ -124,7 +116,6 @@ fn display_list_with_release_dates(
             ri = line.content,
         ));
     }
-    report.when(report.is_markdown()).paragraph(CODE_BLOCK);
 }
 
 //
@@ -147,11 +138,7 @@ fn display_updates(installed: &Installations, mode: UpdatePolicy) -> anyhow::Res
     report.header(
         format_args!(
             "Updates for Unity versions in: {di} {sv}",
-            di = installed
-                .install_dir
-                .normalized_display()
-                .when(report.is_markdown())
-                .md_code(),
+            di = installed.install_dir.normalized_display(),
             sv = format_suggested_version(releases.as_ref())
         ),
         HeaderLevel::H1,
