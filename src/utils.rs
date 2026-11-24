@@ -18,10 +18,10 @@ pub mod vec1;
 #[cfg(test)]
 pub mod test_util;
 
-/// Prints a non-fatal warning to stderr.
+/// Prints a non-fatal warning to stderr, first clearing a status line that is shown.
 macro_rules! warn_non_fatal {
     ($($arg:tt)*) => {
-        eprintln!("Warning: {}", format_args!($($arg)*));
+        $crate::utils::status_line::eprint_line(format_args!("Warning: {}", format_args!($($arg)*)))
     };
 }
 

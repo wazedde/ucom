@@ -61,17 +61,15 @@ fn download_and_print_release_notes(
     updates: &ReleaseUpdates,
     report: &Report,
 ) -> anyhow::Result<()> {
-    let status = StatusLine::new("Downloading", "Unity release notes...");
-
     for release in updates.newer_releases.iter() {
-        // TODO: Printing updates messes up output when output is terminal.
-        status.update_line(
-            "Downloading",
-            format!("Unity {} release notes...", release.version),
-        );
-
         let url = &release.release_notes.url;
-        let body = content_cache::fetch_content(url)?;
+        let body = {
+            let _status = StatusLine::new(
+                "Downloading",
+                format_args!("Unity {} release notes...", release.version),
+            );
+            content_cache::fetch_content(url)?
+        };
 
         report.blank_line();
         report.header(

@@ -16,9 +16,7 @@
 use std::io::{IsTerminal, Write};
 use std::sync::atomic::{AtomicU32, Ordering};
 
-use crossterm::QueueableCommand;
-use crossterm::terminal::{Clear, ClearType};
-
+use crate::utils::status_line::{clear_line, eprint_line};
 use crate::utils::{ReportedFailure, warn_non_fatal};
 
 /// The conventional exit code of a process ended by Ctrl+C (128 + SIGINT).
@@ -134,21 +132,14 @@ pub fn is_cancelled() -> bool {
     state().is_cancelled()
 }
 
-/// Prints a line to stderr. On a terminal, it replaces a status line that may be shown at the
-/// cursor.
+/// Prints a line to stderr, over a status line that may be shown, and first erases the `^C` the
+/// terminal echoed on the current line.
 pub fn print_notice(message: &str) {
     let mut err = std::io::stderr();
     if err.is_terminal() {
         let _ = clear_line(&mut err);
     }
-    let _ = writeln!(err, "{message}").and_then(|()| err.flush());
-}
-
-/// Erases the current line from its start, including the `^C` the terminal echoed there.
-fn clear_line(out: &mut impl Write) -> std::io::Result<()> {
-    out.write_all(b"\r")?;
-    out.queue(Clear(ClearType::FromCursorDown))?;
-    Ok(())
+    eprint_line(message);
 }
 
 #[cfg(test)]

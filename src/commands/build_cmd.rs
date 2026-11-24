@@ -137,7 +137,7 @@ fn finish_build(
 
 /// Announces the start of a build: a status line in quiet mode, otherwise a printed message.
 /// The status line is cleared when the returned value is dropped.
-fn start_build_status(label: &str, plan: &BuildPlan, setup: &ProjectSetup) -> StatusLine {
+fn start_build_status(label: &'static str, plan: &BuildPlan, setup: &ProjectSetup) -> StatusLine {
     let build_text = build_description(setup, plan.args.target);
 
     if !plan.args.quiet {

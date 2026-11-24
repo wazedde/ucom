@@ -240,10 +240,7 @@ fn download_releases(
             count.min(total) as f64 / total as f64 * 100.0
         };
         progress.update(NativeProgressState::Determinate(percentage as u8));
-        status.update_line(
-            "Downloading",
-            format!("{data_description} ({percentage:.0}%)"),
-        );
+        status.update(format_args!("{data_description} ({percentage:.0}%)"));
     })?;
 
     if fetch_count == 0 {
